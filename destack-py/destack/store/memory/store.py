@@ -1,29 +1,28 @@
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from typing import ClassVar, override
 
 import opentelemetry.trace as trace
 import structlog
 
 from destack.language import (
-    Event,
+    EditEvent,
+    EntityStore,
     Query,
     QueryResult,
-    QueryUpdate,
-    Store,
     StoreImplementation,
     StoreType,
 )
 
 from .core import MemoryContext, MemoryDatabase
-from .edit import execute_events
+from .entity import execute_edits
 from .query import execute_query
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-class MemoryStore(Store):
-    """An in-memory Store."""
+class MemoryEntityStore(EntityStore):
+    """An in-memory Store for Entities."""
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
@@ -48,26 +47,13 @@ class MemoryStore(Store):
 
     @override
     @tracer.start_as_current_span("memory.commit")
-    async def commit(self, events: Sequence[Event]) -> Sequence[Event]:
-        results: list[Event] = []
-        for event in events:
-            edits, cascaded_edits = execute_events(self.database, self.context, event)
-            result = EventResult(
-                id=event.id,
-                status=EventStatus.COMPLETED,
-                edits=list(edits),
-                cascaded_edits=list(cascaded_edits),
-            )
-            results.append(result)
-            logger.trace(
-                "memory.commit.change",
-                change=change,
-                result=result,
-                span="current",
-            )
-        logger.debug("memory.commit", changes=changes, results=results, span="current")
-        return results
-
-    @override
-    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
-        raise NotImplementedError
+    async def commit(self, events: Sequence[EditEvent]) -> Sequence[EditEvent]:
+        edits, cascaded_edits = execute_edits(self.database, self.context, events)
+        applied_edits = [*edits, *cascaded_edits]
+        logger.trace(
+            "memory.commit.edits",
+            edits=len(edits),
+            cascaded_edits=len(cascaded_edits),
+            span="current",
+        )
+        return applied_edits

@@ -28,7 +28,7 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import {
   EventStatusProto,
   MaterializationProto,
@@ -85,6 +85,14 @@ export abstract class NotificationEvent extends Event {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.
@@ -162,6 +170,23 @@ export class NotificationSentEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -185,7 +210,9 @@ export class NotificationSentEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -231,7 +258,17 @@ export class NotificationSentEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`NotificationSentEvent.status is required`);
     }
@@ -274,6 +311,12 @@ export class NotificationSentEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -296,6 +339,12 @@ export class NotificationSentEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -366,6 +415,12 @@ export class NotificationSentEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -394,6 +449,13 @@ export class NotificationSentEvent extends NotificationEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -411,6 +473,8 @@ export class NotificationSentEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -455,6 +519,12 @@ export class NotificationSentEvent extends NotificationEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -508,6 +578,17 @@ export class NotificationSentEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
@@ -616,6 +697,23 @@ export class NotificationRescindedEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -639,7 +737,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -685,7 +785,17 @@ export class NotificationRescindedEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`NotificationRescindedEvent.status is required`);
     }
@@ -728,6 +838,12 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -750,6 +866,12 @@ export class NotificationRescindedEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -820,6 +942,12 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -848,6 +976,13 @@ export class NotificationRescindedEvent extends NotificationEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -865,6 +1000,8 @@ export class NotificationRescindedEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -909,6 +1046,12 @@ export class NotificationRescindedEvent extends NotificationEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -962,6 +1105,17 @@ export class NotificationRescindedEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
@@ -1070,6 +1224,23 @@ export class NotificationReadEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -1093,7 +1264,9 @@ export class NotificationReadEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1139,7 +1312,17 @@ export class NotificationReadEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`NotificationReadEvent.status is required`);
     }
@@ -1182,6 +1365,12 @@ export class NotificationReadEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1204,6 +1393,12 @@ export class NotificationReadEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -1274,6 +1469,12 @@ export class NotificationReadEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -1302,6 +1503,13 @@ export class NotificationReadEvent extends NotificationEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1319,6 +1527,8 @@ export class NotificationReadEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1363,6 +1573,12 @@ export class NotificationReadEvent extends NotificationEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -1416,6 +1632,17 @@ export class NotificationReadEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
@@ -1524,6 +1751,23 @@ export class NotificationDismissedEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -1547,7 +1791,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1593,7 +1839,17 @@ export class NotificationDismissedEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`NotificationDismissedEvent.status is required`);
     }
@@ -1636,6 +1892,12 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1658,6 +1920,12 @@ export class NotificationDismissedEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -1728,6 +1996,12 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -1756,6 +2030,13 @@ export class NotificationDismissedEvent extends NotificationEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1773,6 +2054,8 @@ export class NotificationDismissedEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -1817,6 +2100,12 @@ export class NotificationDismissedEvent extends NotificationEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -1870,6 +2159,17 @@ export class NotificationDismissedEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined
@@ -1978,6 +2278,23 @@ export class NotificationExpiredEvent extends NotificationEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -2001,7 +2318,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node: Notification | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2047,7 +2366,17 @@ export class NotificationExpiredEvent extends NotificationEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`NotificationExpiredEvent.status is required`);
     }
@@ -2090,6 +2419,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -2112,6 +2447,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.spacePtr !== null) {
@@ -2182,6 +2523,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
@@ -2210,6 +2557,13 @@ export class NotificationExpiredEvent extends NotificationEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -2227,6 +2581,8 @@ export class NotificationExpiredEvent extends NotificationEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
@@ -2271,6 +2627,12 @@ export class NotificationExpiredEvent extends NotificationEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
@@ -2324,6 +2686,17 @@ export class NotificationExpiredEvent extends NotificationEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       space:
         objectProto.spacePtr != undefined

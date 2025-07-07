@@ -20,11 +20,11 @@ message QueryResponse {
   QueryResultProto result = 1;
 }
 
-message CommitRequest {
+message AppendRequest {
   ScopeProto scope = 1;
   repeated SomeEventProto events = 3;
 }
-message CommitResponse {
+message AppendResponse {
   uint64 epoch = 3;
   repeated SomeEventProto events = 4;
 }
@@ -44,8 +44,8 @@ service Space {
   // NOTE :Architecture: maybe separate methods for non-Entity commits? (Event/Analytic/... upserts?)
   // Query the Space.
   rpc Query(QueryRequest) returns (QueryResponse);
-  // Commit Changes to the Space.
-  rpc Commit(CommitRequest) returns (CommitResponse);
+  // Commit Events to the Space.
+  rpc Append(AppendRequest) returns (AppendResponse);
   // Subscribe to updates from the Space.
   rpc Subscribe(SubscribeRequest) returns (stream SubscribeResponse);
 }

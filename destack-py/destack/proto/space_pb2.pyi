@@ -39,7 +39,7 @@ class QueryResponse(_message.Message):
     result: _language_pb2.QueryResultProto
     def __init__(self, result: _Optional[_Union[_language_pb2.QueryResultProto, _Mapping]] = ...) -> None: ...
 
-class CommitRequest(_message.Message):
+class AppendRequest(_message.Message):
     __slots__ = ("scope", "events")
     SCOPE_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]
@@ -47,7 +47,7 @@ class CommitRequest(_message.Message):
     events: _containers.RepeatedCompositeFieldContainer[_language_pb2.SomeEventProto]
     def __init__(self, scope: _Optional[_Union[ScopeProto, _Mapping]] = ..., events: _Optional[_Iterable[_Union[_language_pb2.SomeEventProto, _Mapping]]] = ...) -> None: ...
 
-class CommitResponse(_message.Message):
+class AppendResponse(_message.Message):
     __slots__ = ("epoch", "events")
     EPOCH_FIELD_NUMBER: _ClassVar[int]
     EVENTS_FIELD_NUMBER: _ClassVar[int]

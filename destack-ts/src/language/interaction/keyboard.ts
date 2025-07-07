@@ -11,7 +11,7 @@ import type {
 import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import {
   EventStatusProto,
   KeyDownEventProto,
@@ -45,6 +45,14 @@ export abstract class KeyboardEvent extends InputEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.
@@ -157,6 +165,23 @@ export class KeyDownEvent extends KeyboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -215,7 +240,9 @@ export class KeyDownEvent extends KeyboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -268,7 +295,17 @@ export class KeyDownEvent extends KeyboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`KeyDownEvent.status is required`);
     }
@@ -361,6 +398,12 @@ export class KeyDownEvent extends KeyboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -392,6 +435,12 @@ export class KeyDownEvent extends KeyboardEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -465,6 +514,12 @@ export class KeyDownEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -502,6 +557,13 @@ export class KeyDownEvent extends KeyboardEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -524,6 +586,8 @@ export class KeyDownEvent extends KeyboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -563,6 +627,12 @@ export class KeyDownEvent extends KeyboardEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -625,6 +695,17 @@ export class KeyDownEvent extends KeyboardEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -737,6 +818,23 @@ export class KeyUpEvent extends KeyboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -795,7 +893,9 @@ export class KeyUpEvent extends KeyboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -848,7 +948,17 @@ export class KeyUpEvent extends KeyboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`KeyUpEvent.status is required`);
     }
@@ -941,6 +1051,12 @@ export class KeyUpEvent extends KeyboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -972,6 +1088,12 @@ export class KeyUpEvent extends KeyboardEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -1045,6 +1167,12 @@ export class KeyUpEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -1082,6 +1210,13 @@ export class KeyUpEvent extends KeyboardEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1104,6 +1239,8 @@ export class KeyUpEvent extends KeyboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -1143,6 +1280,12 @@ export class KeyUpEvent extends KeyboardEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -1205,6 +1348,17 @@ export class KeyUpEvent extends KeyboardEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -1317,6 +1471,23 @@ export class KeyPressEvent extends KeyboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -1375,7 +1546,9 @@ export class KeyPressEvent extends KeyboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     key: string;
     code: string;
@@ -1428,7 +1601,17 @@ export class KeyPressEvent extends KeyboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`KeyPressEvent.status is required`);
     }
@@ -1521,6 +1704,12 @@ export class KeyPressEvent extends KeyboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1552,6 +1741,12 @@ export class KeyPressEvent extends KeyboardEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -1625,6 +1820,12 @@ export class KeyPressEvent extends KeyboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -1662,6 +1863,13 @@ export class KeyPressEvent extends KeyboardEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1684,6 +1892,8 @@ export class KeyPressEvent extends KeyboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -1723,6 +1933,12 @@ export class KeyPressEvent extends KeyboardEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -1785,6 +2001,17 @@ export class KeyPressEvent extends KeyboardEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined

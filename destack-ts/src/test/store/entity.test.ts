@@ -20,13 +20,13 @@ import {
   UserStatus,
   View,
 } from "@destack/language";
-import { MemoryStore } from "@destack/store/memory";
+import { MemoryEntityStore } from "@destack/store/memory";
 import { v4 as uuid4 } from "uuid";
 import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({
   session: async ({ task }, use) => {
-    const store = new MemoryStore({
+    const store = new MemoryEntityStore({
       types: [StoreType.GLOBAL_ENTITY_PRIMARY, StoreType.SPATIAL_ENTITY_PRIMARY],
     });
     const session = new Session({ store });

@@ -1,21 +1,19 @@
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import Sequence
 from typing import ClassVar, Self, assert_never, override
 
 import structlog
 from opentelemetry import trace
 
 from destack.language import (
-    CustomEntityDefinition,
     DatabaseInfo,
     DatabaseType,
-    Event,
+    EditEvent,
+    EntityStore,
     NodeDefinitionReference,
     NodeDefinitionType,
     NodeReference,
     Query,
     QueryResult,
-    QueryUpdate,
-    Store,
     StoreImplementation,
     StoreType,
 )
@@ -23,11 +21,10 @@ from destack.language.registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
 )
-from destack.utils.uuid import UUID
 
 from .client import pg_connection
 from .core import PostgresContext, PostgresTable
-from .edit import execute_events
+from .entity import execute_edits
 from .map import DESTACK_BUILTIN_TABLE_PREFIX, get_builtin_schema
 from .query import execute_query
 
@@ -35,7 +32,7 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-class PostgresStore(Store):
+class PostgresEntityStore(EntityStore):
     """
     A Store backed by a Postgres Database.
     """
@@ -67,46 +64,38 @@ class PostgresStore(Store):
 
     @override
     @tracer.start_as_current_span("postgres.commit")
-    async def commit(self, events: Sequence[Event]) -> Sequence[Event]:
-        results: list[Event] = []
+    async def commit(self, events: Sequence[EditEvent]) -> Sequence[EditEvent]:
         async with pg_connection(self.database) as conn:
             try:
                 async with conn.transaction():
-                    edits, cascaded_edits = await execute_events(conn, self.context, events)
-                    logger.trace(
-                        "postgres.commit.events",
-                        events=len(events),
-                        edits=len(edits),
-                        cascaded_edits=len(cascaded_edits),
-                        context=self.context,
-                        span="current",
-                    )
+                    edits, cascaded_edits = await execute_edits(conn, self.context, events)
+                    applied_edits = [*edits, *cascaded_edits]
             except Exception as e:
                 logger.error(
-                    "postgres.commit.change.error",
-                    change=change,
+                    "postgres.commit.error",
+                    events=len(events),
                     exc_info=e,
                     span="current",
                 )
-                result = ChangeResult(id=change.id, status=EditStatus.FAILED)
-        logger.debug("postgres.commit", changes=changes, results=results, span="current")
-        return results
-
-    @override
-    async def subscribe(self, query: Query) -> AsyncIterator[QueryUpdate]:
-        raise NotImplementedError
+                raise
+        logger.debug(
+            "postgres.commit",
+            events=len(events),
+            applied_edits=len(applied_edits),
+            span="current",
+        )
+        return applied_edits
 
 
 class PostgresStoreContext(PostgresContext):
     __slots__ = ("store", "tables_by_name")
 
-    def __init__(self, store: PostgresStore):
+    def __init__(self, store: PostgresEntityStore):
         self.store = store
         self.tables_by_name: dict[str, PostgresTable] = {}
         for store_type in store.types:
             for table in get_builtin_schema(store_type).tables:
                 self.tables_by_name[table.name] = table
-        self.custom_node_definitions: dict[UUID, CustomEntityDefinition] = {}
 
     def __str__(self) -> str:
         return f"store={self.store!r}, tables={list(self.tables_by_name.keys())}"

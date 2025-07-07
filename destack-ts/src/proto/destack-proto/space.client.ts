@@ -8,8 +8,8 @@ import { Space } from "./space";
 import type { SubscribeResponse } from "./space";
 import type { SubscribeRequest } from "./space";
 import type { ServerStreamingCall } from "@protobuf-ts/runtime-rpc";
-import type { CommitResponse } from "./space";
-import type { CommitRequest } from "./space";
+import type { AppendResponse } from "./space";
+import type { AppendRequest } from "./space";
 import { stackIntercept } from "@protobuf-ts/runtime-rpc";
 import type { QueryResponse } from "./space";
 import type { QueryRequest } from "./space";
@@ -29,11 +29,11 @@ export interface ISpaceClient {
      */
     query(input: QueryRequest, options?: RpcOptions): UnaryCall<QueryRequest, QueryResponse>;
     /**
-     * Commit Changes to the Space.
+     * Commit Events to the Space.
      *
-     * @generated from protobuf rpc: Commit
+     * @generated from protobuf rpc: Append
      */
-    commit(input: CommitRequest, options?: RpcOptions): UnaryCall<CommitRequest, CommitResponse>;
+    append(input: AppendRequest, options?: RpcOptions): UnaryCall<AppendRequest, AppendResponse>;
     /**
      * Subscribe to updates from the Space.
      *
@@ -63,13 +63,13 @@ export class SpaceClient implements ISpaceClient, ServiceInfo {
         return stackIntercept<QueryRequest, QueryResponse>("unary", this._transport, method, opt, input);
     }
     /**
-     * Commit Changes to the Space.
+     * Commit Events to the Space.
      *
-     * @generated from protobuf rpc: Commit
+     * @generated from protobuf rpc: Append
      */
-    commit(input: CommitRequest, options?: RpcOptions): UnaryCall<CommitRequest, CommitResponse> {
+    append(input: AppendRequest, options?: RpcOptions): UnaryCall<AppendRequest, AppendResponse> {
         const method = this.methods[1], opt = this._transport.mergeOptions(options);
-        return stackIntercept<CommitRequest, CommitResponse>("unary", this._transport, method, opt, input);
+        return stackIntercept<AppendRequest, AppendResponse>("unary", this._transport, method, opt, input);
     }
     /**
      * Subscribe to updates from the Space.

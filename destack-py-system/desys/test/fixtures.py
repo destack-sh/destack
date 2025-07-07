@@ -8,7 +8,7 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from destack.store import MemoryStore
+from destack.store import MemoryEntityStore
 from destack.test.conftest import _setup_test_env
 from desys.store.postgres.map import DESTACK_BUILTIN_TABLE_PREFIX
 
@@ -29,8 +29,8 @@ from destack.language import (
 from destack.utils.env import get_from_env
 from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
+    PostgresEntityStore,
     PostgresSchema,
-    PostgresStore,
     apply_migration_ops,
     generate_migration_ops,
     get_builtin_schema,
@@ -144,12 +144,14 @@ async def omni_postgres_database(
 
 
 @pytest.fixture
-def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresStore:
-    return PostgresStore(database=omni_postgres_database, types=tuple(StoreType))
+def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresEntityStore:
+    return PostgresEntityStore(database=omni_postgres_database, types=tuple(StoreType))
 
 
 @pytest.fixture
-async def postgres_session_async(postgres_store: PostgresStore) -> AsyncGenerator[Session, None]:
+async def postgres_session_async(
+    postgres_store: PostgresEntityStore,
+) -> AsyncGenerator[Session, None]:
     session = Session(store=postgres_store)
     await session.open()
     yield session
@@ -164,12 +166,12 @@ def postgres_session(postgres_session_async: Session):
 
 
 @pytest.fixture
-def memory_store() -> MemoryStore:
-    return MemoryStore(types=tuple(StoreType))
+def memory_store() -> MemoryEntityStore:
+    return MemoryEntityStore(types=tuple(StoreType))
 
 
 @pytest.fixture  # :PytestAsyncContext
-async def memory_session_async(memory_store: MemoryStore) -> AsyncGenerator[Session, None]:
+async def memory_session_async(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
     session = Session(store=memory_store)
     await session.open()
     yield session

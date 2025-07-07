@@ -16,7 +16,7 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import {
   DoubleClickEventProto,
   EventStatusProto,
@@ -69,6 +69,14 @@ export abstract class MouseEvent extends PointerEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.
@@ -148,6 +156,14 @@ export abstract class ClickEvent extends MouseEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.
@@ -265,6 +281,23 @@ export class LeftClickEvent extends ClickEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -328,7 +361,9 @@ export class LeftClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -382,7 +417,17 @@ export class LeftClickEvent extends ClickEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`LeftClickEvent.status is required`);
     }
@@ -483,6 +528,12 @@ export class LeftClickEvent extends ClickEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -515,6 +566,12 @@ export class LeftClickEvent extends ClickEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -588,6 +645,12 @@ export class LeftClickEvent extends ClickEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -627,6 +690,13 @@ export class LeftClickEvent extends ClickEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -650,6 +720,8 @@ export class LeftClickEvent extends ClickEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -689,6 +761,12 @@ export class LeftClickEvent extends ClickEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -760,6 +838,17 @@ export class LeftClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -872,6 +961,23 @@ export class RightClickEvent extends ClickEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -935,7 +1041,9 @@ export class RightClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -989,7 +1097,17 @@ export class RightClickEvent extends ClickEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`RightClickEvent.status is required`);
     }
@@ -1090,6 +1208,12 @@ export class RightClickEvent extends ClickEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1122,6 +1246,12 @@ export class RightClickEvent extends ClickEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -1195,6 +1325,12 @@ export class RightClickEvent extends ClickEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -1234,6 +1370,13 @@ export class RightClickEvent extends ClickEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1257,6 +1400,8 @@ export class RightClickEvent extends ClickEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -1296,6 +1441,12 @@ export class RightClickEvent extends ClickEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -1367,6 +1518,17 @@ export class RightClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -1479,6 +1641,23 @@ export class MiddleClickEvent extends ClickEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -1542,7 +1721,9 @@ export class MiddleClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -1596,7 +1777,17 @@ export class MiddleClickEvent extends ClickEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`MiddleClickEvent.status is required`);
     }
@@ -1697,6 +1888,12 @@ export class MiddleClickEvent extends ClickEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1729,6 +1926,12 @@ export class MiddleClickEvent extends ClickEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -1802,6 +2005,12 @@ export class MiddleClickEvent extends ClickEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -1841,6 +2050,13 @@ export class MiddleClickEvent extends ClickEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1864,6 +2080,8 @@ export class MiddleClickEvent extends ClickEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -1909,6 +2127,12 @@ export class MiddleClickEvent extends ClickEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -1980,6 +2204,17 @@ export class MiddleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -2098,6 +2333,23 @@ export class DoubleClickEvent extends ClickEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -2161,7 +2413,9 @@ export class DoubleClickEvent extends ClickEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -2215,7 +2469,17 @@ export class DoubleClickEvent extends ClickEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`DoubleClickEvent.status is required`);
     }
@@ -2316,6 +2580,12 @@ export class DoubleClickEvent extends ClickEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -2348,6 +2618,12 @@ export class DoubleClickEvent extends ClickEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -2421,6 +2697,12 @@ export class DoubleClickEvent extends ClickEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -2460,6 +2742,13 @@ export class DoubleClickEvent extends ClickEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -2483,6 +2772,8 @@ export class DoubleClickEvent extends ClickEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -2528,6 +2819,12 @@ export class DoubleClickEvent extends ClickEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -2599,6 +2896,17 @@ export class DoubleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -2717,6 +3025,23 @@ export class WheelEvent extends MouseEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -2785,7 +3110,9 @@ export class WheelEvent extends MouseEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     position: Vector2f;
     pressure: number;
@@ -2840,7 +3167,17 @@ export class WheelEvent extends MouseEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`WheelEvent.status is required`);
     }
@@ -2949,6 +3286,12 @@ export class WheelEvent extends MouseEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -2982,6 +3325,12 @@ export class WheelEvent extends MouseEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -3055,6 +3404,12 @@ export class WheelEvent extends MouseEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -3095,6 +3450,13 @@ export class WheelEvent extends MouseEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -3119,6 +3481,8 @@ export class WheelEvent extends MouseEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -3158,6 +3522,12 @@ export class WheelEvent extends MouseEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -3231,6 +3601,17 @@ export class WheelEvent extends MouseEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined

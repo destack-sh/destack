@@ -11,7 +11,7 @@ import type {
 import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
+import type { Client, Space } from "@destack/language/universe";
 import { CopyEventProto, CutEventProto, EventStatusProto, PasteEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
@@ -40,6 +40,14 @@ export abstract class ClipboardEvent extends InputEvent {
 
   abstract get createdBy(): (Node & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
+
+  abstract get client(): Client | null;
+  declare readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  declare readonly clientNonce: string | null;
 
   /**
    * The status of the Event.
@@ -117,6 +125,23 @@ export class CopyEvent extends ClipboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -140,7 +165,9 @@ export class CopyEvent extends ClipboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -186,7 +213,17 @@ export class CopyEvent extends ClipboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`CopyEvent.status is required`);
     }
@@ -223,6 +260,12 @@ export class CopyEvent extends ClipboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -247,6 +290,12 @@ export class CopyEvent extends ClipboardEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -320,6 +369,12 @@ export class CopyEvent extends ClipboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -350,6 +405,13 @@ export class CopyEvent extends ClipboardEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -365,6 +427,8 @@ export class CopyEvent extends ClipboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -404,6 +468,12 @@ export class CopyEvent extends ClipboardEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -452,6 +522,17 @@ export class CopyEvent extends ClipboardEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -564,6 +645,23 @@ export class CutEvent extends ClipboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -587,7 +685,9 @@ export class CutEvent extends ClipboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -633,7 +733,17 @@ export class CutEvent extends ClipboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`CutEvent.status is required`);
     }
@@ -670,6 +780,12 @@ export class CutEvent extends ClipboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -694,6 +810,12 @@ export class CutEvent extends ClipboardEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -767,6 +889,12 @@ export class CutEvent extends ClipboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -797,6 +925,13 @@ export class CutEvent extends ClipboardEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -812,6 +947,8 @@ export class CutEvent extends ClipboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -851,6 +988,12 @@ export class CutEvent extends ClipboardEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -899,6 +1042,17 @@ export class CutEvent extends ClipboardEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined
@@ -1011,6 +1165,23 @@ export class PasteEvent extends ClipboardEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
@@ -1034,7 +1205,9 @@ export class PasteEvent extends ClipboardEvent {
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Node & IsSubject) | NodeReference | null;
-    status: EventStatus;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
     node?: Node | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1080,7 +1253,17 @@ export class PasteEvent extends ClipboardEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _status = options.status;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
     if (_status === null) {
       throw new Error(`PasteEvent.status is required`);
     }
@@ -1117,6 +1300,12 @@ export class PasteEvent extends ClipboardEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1141,6 +1330,12 @@ export class PasteEvent extends ClipboardEvent {
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.nodePtr !== null) {
@@ -1214,6 +1409,12 @@ export class PasteEvent extends ClipboardEvent {
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
     }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
     objectValue["30"] = object.status;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
@@ -1244,6 +1445,13 @@ export class PasteEvent extends ClipboardEvent {
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1259,6 +1467,8 @@ export class PasteEvent extends ClipboardEvent {
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
       node: unpackedNodePtr,
       space: unpackedSpacePtr,
@@ -1298,6 +1508,12 @@ export class PasteEvent extends ClipboardEvent {
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     if (object.nodePtr != null) {
@@ -1346,6 +1562,17 @@ export class PasteEvent extends ClipboardEvent {
               _connection,
             )
           : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
       node:
         objectProto.nodePtr != undefined

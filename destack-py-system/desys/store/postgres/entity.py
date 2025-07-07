@@ -24,14 +24,14 @@ tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
 
 
-@tracer.start_as_current_span("postgres.execute_events")
-async def execute_events(
+@tracer.start_as_current_span("postgres.execute_edits")
+async def execute_edits(
     conn: asyncpg.Connection, context: PostgresContext, events: Sequence[EditEvent]
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """Execute the Events."""
     assert events, f"no Events in {events!r}"
 
-    edits = _optimize_events(context, events)
+    edits = _optimize_edits(context, events)
     cascaded_edits: list[EditEvent] = []
     applied_edits: list[EditEvent] = []
 
@@ -68,12 +68,12 @@ async def execute_events(
         applied_edits.extend(batch_applied_edits)
         cascaded_edits.extend(batch_cascaded_edits)
 
-    logger.trace("postgres.execute_events", events=len(events), span="current")
+    logger.trace("postgres.execute_edits", events=len(events), span="current")
     return applied_edits, cascaded_edits
 
 
-@tracer.start_as_current_span("postgres.optimize_change")
-def _optimize_events(context: PostgresContext, edits: Sequence[EditEvent]) -> list[EditEvent]:
+@tracer.start_as_current_span("postgres.optimize_edits")
+def _optimize_edits(context: PostgresContext, edits: Sequence[EditEvent]) -> list[EditEvent]:
     """
     Optimize the Change/Edits *while retaining semantic equivalence*.
     Reorder and batch non-interfering Edits to minimize roundtrips.

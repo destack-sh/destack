@@ -1,20 +1,18 @@
 import {
-  Change,
-  ChangeResult,
-  ChangeStatus,
+  EditEvent,
+  EntityStore,
   Query,
   QueryResult,
   QueryUpdate,
-  Store,
   StoreImplementation,
   StoreType,
 } from "@destack/language";
 import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
-import { executeChange } from "@destack/store/memory/edit";
+import { executeChange } from "@destack/store/memory/entity";
 import { executeQuery } from "@destack/store/memory/query";
 
 /** An in-memory Store. */
-export class MemoryStore extends Store {
+export class MemoryEntityStore extends EntityStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
 
   public database: MemoryDatabase;
@@ -46,23 +44,14 @@ export class MemoryStore extends Store {
     return result;
   }
 
-  async commit(changes: Change[]): Promise<ChangeResult[]> {
-    const results: ChangeResult[] = [];
-    for (const change of changes) {
-      const { edits, cascadedEdits } = executeChange({
-        database: this.database,
-        context: this.context,
-        change,
-      });
-      const result = new ChangeResult({
-        id: change.id,
-        status: ChangeStatus.COMPLETED,
-        edits: edits,
-        cascadedEdits: cascadedEdits,
-      });
-      results.push(result);
-    }
-    return results;
+  async commit(events: EditEvent[]): Promise<EditEvent[]> {
+    const { edits, cascadedEdits } = executeChange({
+      database: this.database,
+      context: this.context,
+      edits: events,
+    });
+    const appliedEdits = [...edits, ...cascadedEdits];
+    return appliedEdits;
   }
 
   subscribe(query: Query): AsyncIterator<QueryUpdate, any, any> {

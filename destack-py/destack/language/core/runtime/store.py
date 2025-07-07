@@ -1,11 +1,12 @@
 import abc
-from collections.abc import AsyncIterator, Sequence
+from collections.abc import AsyncGenerator, Sequence
 from typing import TYPE_CHECKING, ClassVar, Optional
 
 from destack.language.registry import NODE_TYPES_BY_PRIMARY_STORE_TYPE
 
 if TYPE_CHECKING:
     from destack.language import (
+        EditEvent,
         Event,
         NodeType,
         Query,
@@ -19,7 +20,7 @@ if TYPE_CHECKING:
 class Store(abc.ABC):
     """
     The read/write Store backing (part of) the Supergraph.
-    Some Stores only support a subset of Edits.
+    Some Stores only support a subset of Entities/Events.
     """
 
     implementation: ClassVar[Optional["StoreImplementation"]]
@@ -41,15 +42,40 @@ class Store(abc.ABC):
         """
         ...
 
+
+class EntityStore(Store):
+    """
+    A Store for Entities.
+    """
+
     @abc.abstractmethod
-    async def commit(self, events: Sequence["Event"]) -> Sequence["Event"]:
+    async def commit(self, events: Sequence["EditEvent"]) -> Sequence["EditEvent"]:
         """
         Commit the Events to the Store. Return the applied Events (including any cascaded Events).
         """
         ...
 
+
+class EventStore(Store):
+    """
+    A Store for Events (technically a superset of EntityStore).
+    """
+
     @abc.abstractmethod
-    async def subscribe(self, query: "Query") -> AsyncIterator["QueryUpdate"]:
+    async def append(self, events: Sequence["Event"]) -> Sequence["Event"]:
+        """
+        Commit the Events to the Store. Return the applied Events (including any cascaded Events).
+        """
+        ...
+
+
+class LiveStore(EventStore):
+    """
+    An EventStore that supports Query subscriptions.
+    """
+
+    @abc.abstractmethod
+    async def subscribe(self, query: "Query") -> AsyncGenerator["QueryUpdate"]:
         """
         Subscribe to a Query in the Store.
         """

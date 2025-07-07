@@ -1162,6 +1162,14 @@ export interface ClickEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -1347,6 +1355,14 @@ export interface ClipboardEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -1928,6 +1944,14 @@ export interface CopyEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -2003,6 +2027,14 @@ export interface CounterMeasurementEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -3122,6 +3154,14 @@ export interface CutEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -3344,6 +3384,14 @@ export interface DoubleClickEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -3419,6 +3467,14 @@ export interface DragEndEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -3465,6 +3521,14 @@ export interface DragEnterEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -3513,6 +3577,14 @@ export interface DragEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -3559,6 +3631,14 @@ export interface DragLeaveEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -3607,6 +3687,14 @@ export interface DragOverEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -3653,6 +3741,14 @@ export interface DragStartEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -3701,6 +3797,14 @@ export interface DropEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -3747,6 +3851,14 @@ export interface EditEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -4100,6 +4212,14 @@ export interface EntitlementEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -4144,6 +4264,14 @@ export interface EntitlementExpiredEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -4190,6 +4318,14 @@ export interface EntitlementGrantedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -4235,6 +4371,14 @@ export interface EntitlementRequestedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -4279,6 +4423,14 @@ export interface EntitlementRevokedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -4486,6 +4638,14 @@ export interface EventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -4927,6 +5087,14 @@ export interface FocusEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -4970,6 +5138,14 @@ export interface FocusInEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -5012,6 +5188,14 @@ export interface FocusOutEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -5685,6 +5869,14 @@ export interface FriendshipInviteAcceptedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -5727,6 +5919,14 @@ export interface FriendshipInviteEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -5771,6 +5971,14 @@ export interface FriendshipInviteRejectedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -5814,6 +6022,14 @@ export interface FriendshipInviteRescindedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -5856,6 +6072,14 @@ export interface FriendshipInviteSentEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -5945,6 +6169,14 @@ export interface GaugeMeasurementEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -6327,6 +6559,14 @@ export interface HistogramMeasurementEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -6481,6 +6721,14 @@ export interface InputEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -6875,6 +7123,14 @@ export interface InviteAcceptedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -6934,6 +7190,14 @@ export interface InviteEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -6984,6 +7248,14 @@ export interface InviteRejectedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -7036,6 +7308,14 @@ export interface InviteRescindedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -7086,6 +7366,14 @@ export interface InviteSentEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -7175,6 +7463,14 @@ export interface KeyDownEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -7245,6 +7541,14 @@ export interface KeyPressEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -7317,6 +7621,14 @@ export interface KeyUpEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -7387,6 +7699,14 @@ export interface KeyboardEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -7857,6 +8177,14 @@ export interface LeftClickEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -8167,6 +8495,14 @@ export interface LogEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -8366,6 +8702,14 @@ export interface MeasurementEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -8488,6 +8832,14 @@ export interface MembershipEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -8538,6 +8890,14 @@ export interface MembershipJoinedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -8597,6 +8957,14 @@ export interface MembershipLeftEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -8938,6 +9306,14 @@ export interface MiddleClickEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -9012,6 +9388,14 @@ export interface MouseEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -9366,6 +9750,14 @@ export interface NotificationDismissedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -9408,6 +9800,14 @@ export interface NotificationEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -9452,6 +9852,14 @@ export interface NotificationExpiredEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -9494,6 +9902,14 @@ export interface NotificationReadEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -9538,6 +9954,14 @@ export interface NotificationRescindedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -9580,6 +10004,14 @@ export interface NotificationSentEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -10023,6 +10455,14 @@ export interface PasteEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -10174,6 +10614,14 @@ export interface PointerDownEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -10244,6 +10692,14 @@ export interface PointerEnterEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -10316,6 +10772,14 @@ export interface PointerEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -10386,6 +10850,14 @@ export interface PointerLeaveEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -10458,6 +10930,14 @@ export interface PointerLongPressEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -10528,6 +11008,14 @@ export interface PointerMoveEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -10600,6 +11088,14 @@ export interface PointerOverEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -10670,6 +11166,14 @@ export interface PointerUpEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -11387,6 +11891,14 @@ export interface RightClickEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -11541,6 +12053,14 @@ export interface RoleAssignedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -11588,6 +12108,14 @@ export interface RoleEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -11634,6 +12162,14 @@ export interface RoleUnassignedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -11858,6 +12394,14 @@ export interface RunCompletedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -11904,6 +12448,14 @@ export interface RunEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -11952,6 +12504,14 @@ export interface RunFailedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -11998,6 +12558,14 @@ export interface RunPauseRequestedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -12046,6 +12614,14 @@ export interface RunPausedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -12092,6 +12668,14 @@ export interface RunResumeRequestedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -12140,6 +12724,14 @@ export interface RunResumedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -12187,6 +12779,14 @@ export interface RunStartedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -12233,6 +12833,14 @@ export interface RunStopRequestedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -12354,6 +12962,14 @@ export interface SanctionEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -12398,6 +13014,14 @@ export interface SanctionExpiredEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -12444,6 +13068,14 @@ export interface SanctionGrantedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -12489,6 +13121,14 @@ export interface SanctionRequestedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -12533,6 +13173,14 @@ export interface SanctionRevokedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -12781,6 +13429,14 @@ export interface SceneEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -13524,6 +14180,14 @@ export interface SignalProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
      */
     customValues: {
@@ -13921,6 +14585,14 @@ export interface SpanEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -15349,6 +16021,14 @@ export interface TimerCancelledEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -15391,6 +16071,14 @@ export interface TimerCompletedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -15435,6 +16123,14 @@ export interface TimerEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -15477,6 +16173,14 @@ export interface TimerStartedEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -15822,6 +16526,14 @@ export interface TriggerEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -16442,6 +17154,14 @@ export interface ViewEnteredEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -16484,6 +17204,14 @@ export interface ViewEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -16528,6 +17256,14 @@ export interface ViewExitedEventProto {
      */
     createdByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
@@ -16570,6 +17306,14 @@ export interface WheelEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
      */
     createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
     /**
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
@@ -22854,14 +23598,6 @@ export enum StoreTypeProto {
      */
     STORE_TYPE_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_LOCAL_ENTITY = 1;
-     */
-    STORE_TYPE_LOCAL_ENTITY = 1,
-    /**
-     * @generated from protobuf enum value: STORE_TYPE_LOCAL_EVENT = 2;
-     */
-    STORE_TYPE_LOCAL_EVENT = 2,
-    /**
      * @generated from protobuf enum value: STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
      */
     STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000,
@@ -26304,6 +27040,8 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -26357,6 +27095,12 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -26421,6 +27165,12 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -26698,6 +27448,8 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -26736,6 +27488,12 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -26776,6 +27534,12 @@ class ClipboardEventProto$Type extends MessageType<ClipboardEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -28003,6 +28767,8 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -28041,6 +28807,12 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -28081,6 +28853,12 @@ class CopyEventProto$Type extends MessageType<CopyEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -28191,6 +28969,8 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -28232,6 +29012,12 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -28275,6 +29061,12 @@ class CounterMeasurementEventProto$Type extends MessageType<CounterMeasurementEv
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -30676,6 +31468,8 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -30714,6 +31508,12 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -30754,6 +31554,12 @@ class CutEventProto$Type extends MessageType<CutEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31217,6 +32023,8 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -31270,6 +32078,12 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -31334,6 +32148,12 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31385,6 +32205,8 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -31424,6 +32246,12 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -31467,6 +32295,12 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31497,6 +32331,8 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -31536,6 +32372,12 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -31579,6 +32421,12 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31609,6 +32457,8 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -31648,6 +32498,12 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -31691,6 +32547,12 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31721,6 +32583,8 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -31760,6 +32624,12 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -31803,6 +32673,12 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31833,6 +32709,8 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -31872,6 +32750,12 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -31915,6 +32799,12 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -31945,6 +32835,8 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -31984,6 +32876,12 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -32027,6 +32925,12 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -32057,6 +32961,8 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
@@ -32096,6 +33002,12 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -32139,6 +33051,12 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -32169,6 +33087,8 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 85, name: "cascaded_from_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EditTypeProto", EditTypeProto] },
@@ -32216,6 +33136,12 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -32280,6 +33206,12 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -32915,6 +33847,8 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -32954,6 +33888,12 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -32997,6 +33937,12 @@ class EntitlementEventProto$Type extends MessageType<EntitlementEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -33027,6 +33973,8 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33066,6 +34014,12 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -33109,6 +34063,12 @@ class EntitlementExpiredEventProto$Type extends MessageType<EntitlementExpiredEv
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -33139,6 +34099,8 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33178,6 +34140,12 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -33221,6 +34189,12 @@ class EntitlementGrantedEventProto$Type extends MessageType<EntitlementGrantedEv
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -33251,6 +34225,8 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33290,6 +34266,12 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -33333,6 +34315,12 @@ class EntitlementRequestedEventProto$Type extends MessageType<EntitlementRequest
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -33363,6 +34351,8 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -33402,6 +34392,12 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -33445,6 +34441,12 @@ class EntitlementRevokedEventProto$Type extends MessageType<EntitlementRevokedEv
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -33849,6 +34851,8 @@ class EventProto$Type extends MessageType<EventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -33887,6 +34891,12 @@ class EventProto$Type extends MessageType<EventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -33927,6 +34937,12 @@ class EventProto$Type extends MessageType<EventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -34828,6 +35844,8 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -34866,6 +35884,12 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -34906,6 +35930,12 @@ class FocusEventProto$Type extends MessageType<FocusEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -34933,6 +35963,8 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -34971,6 +36003,12 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -35011,6 +36049,12 @@ class FocusInEventProto$Type extends MessageType<FocusInEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -35038,6 +36082,8 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -35076,6 +36122,12 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -35116,6 +36168,12 @@ class FocusOutEventProto$Type extends MessageType<FocusOutEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -36480,6 +37538,8 @@ class FriendshipInviteAcceptedEventProto$Type extends MessageType<FriendshipInvi
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -36518,6 +37578,12 @@ class FriendshipInviteAcceptedEventProto$Type extends MessageType<FriendshipInvi
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -36558,6 +37624,12 @@ class FriendshipInviteAcceptedEventProto$Type extends MessageType<FriendshipInvi
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -36585,6 +37657,8 @@ class FriendshipInviteEventProto$Type extends MessageType<FriendshipInviteEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -36623,6 +37697,12 @@ class FriendshipInviteEventProto$Type extends MessageType<FriendshipInviteEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -36663,6 +37743,12 @@ class FriendshipInviteEventProto$Type extends MessageType<FriendshipInviteEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -36690,6 +37776,8 @@ class FriendshipInviteRejectedEventProto$Type extends MessageType<FriendshipInvi
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -36728,6 +37816,12 @@ class FriendshipInviteRejectedEventProto$Type extends MessageType<FriendshipInvi
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -36768,6 +37862,12 @@ class FriendshipInviteRejectedEventProto$Type extends MessageType<FriendshipInvi
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -36795,6 +37895,8 @@ class FriendshipInviteRescindedEventProto$Type extends MessageType<FriendshipInv
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -36833,6 +37935,12 @@ class FriendshipInviteRescindedEventProto$Type extends MessageType<FriendshipInv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -36873,6 +37981,12 @@ class FriendshipInviteRescindedEventProto$Type extends MessageType<FriendshipInv
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -36900,6 +38014,8 @@ class FriendshipInviteSentEventProto$Type extends MessageType<FriendshipInviteSe
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -36938,6 +38054,12 @@ class FriendshipInviteSentEventProto$Type extends MessageType<FriendshipInviteSe
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -36978,6 +38100,12 @@ class FriendshipInviteSentEventProto$Type extends MessageType<FriendshipInviteSe
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -37146,6 +38274,8 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -37187,6 +38317,12 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -37230,6 +38366,12 @@ class GaugeMeasurementEventProto$Type extends MessageType<GaugeMeasurementEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -38112,6 +39254,8 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -38153,6 +39297,12 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -38196,6 +39346,12 @@ class HistogramMeasurementEventProto$Type extends MessageType<HistogramMeasureme
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -38483,6 +39639,8 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -38521,6 +39679,12 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -38561,6 +39725,12 @@ class InputEventProto$Type extends MessageType<InputEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -39360,6 +40530,8 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39403,6 +40575,12 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -39455,6 +40633,12 @@ class InviteAcceptedEventProto$Type extends MessageType<InviteAcceptedEventProto
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -39494,6 +40678,8 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39534,6 +40720,12 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -39580,6 +40772,12 @@ class InviteEventProto$Type extends MessageType<InviteEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -39613,6 +40811,8 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39653,6 +40853,12 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -39699,6 +40905,12 @@ class InviteRejectedEventProto$Type extends MessageType<InviteRejectedEventProto
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -39732,6 +40944,8 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39772,6 +40986,12 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -39818,6 +41038,12 @@ class InviteRescindedEventProto$Type extends MessageType<InviteRescindedEventPro
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -39851,6 +41077,8 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -39894,6 +41122,12 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -39946,6 +41180,12 @@ class InviteSentEventProto$Type extends MessageType<InviteSentEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -40069,6 +41309,8 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -40121,6 +41363,12 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -40182,6 +41430,12 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -40230,6 +41484,8 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -40282,6 +41538,12 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -40343,6 +41605,12 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -40391,6 +41659,8 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -40443,6 +41713,12 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -40504,6 +41780,12 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -40552,6 +41834,8 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -40604,6 +41888,12 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -40665,6 +41955,12 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -41509,6 +42805,8 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -41562,6 +42860,12 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -41626,6 +42930,12 @@ class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -42204,6 +43514,8 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -42248,6 +43560,12 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -42313,6 +43631,12 @@ class LogEventProto$Type extends MessageType<LogEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -42649,6 +43973,8 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -42690,6 +44016,12 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -42733,6 +44065,12 @@ class MeasurementEventProto$Type extends MessageType<MeasurementEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -42928,6 +44266,8 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -42968,6 +44308,12 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -43014,6 +44360,12 @@ class MembershipEventProto$Type extends MessageType<MembershipEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -43047,6 +44399,8 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -43090,6 +44444,12 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -43142,6 +44502,12 @@ class MembershipJoinedEventProto$Type extends MessageType<MembershipJoinedEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -43181,6 +44547,8 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "joinable_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -43221,6 +44589,12 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -43267,6 +44641,12 @@ class MembershipLeftEventProto$Type extends MessageType<MembershipLeftEventProto
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -43950,6 +45330,8 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -44003,6 +45385,12 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -44067,6 +45455,12 @@ class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -44118,6 +45512,8 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -44171,6 +45567,12 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -44235,6 +45637,12 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -45098,6 +46506,8 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -45136,6 +46546,12 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -45176,6 +46592,12 @@ class NotificationDismissedEventProto$Type extends MessageType<NotificationDismi
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -45203,6 +46625,8 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -45241,6 +46665,12 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -45281,6 +46711,12 @@ class NotificationEventProto$Type extends MessageType<NotificationEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -45308,6 +46744,8 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -45346,6 +46784,12 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -45386,6 +46830,12 @@ class NotificationExpiredEventProto$Type extends MessageType<NotificationExpired
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -45413,6 +46863,8 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -45451,6 +46903,12 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -45491,6 +46949,12 @@ class NotificationReadEventProto$Type extends MessageType<NotificationReadEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -45518,6 +46982,8 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -45556,6 +47022,12 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -45596,6 +47068,12 @@ class NotificationRescindedEventProto$Type extends MessageType<NotificationResci
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -45623,6 +47101,8 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -45661,6 +47141,12 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -45701,6 +47187,12 @@ class NotificationSentEventProto$Type extends MessageType<NotificationSentEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -46670,6 +48162,8 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -46708,6 +48202,12 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -46748,6 +48248,12 @@ class PasteEventProto$Type extends MessageType<PasteEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47031,6 +48537,8 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -47082,6 +48590,12 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -47143,6 +48657,12 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47191,6 +48711,8 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -47242,6 +48764,12 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -47303,6 +48831,12 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47351,6 +48885,8 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -47402,6 +48938,12 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -47463,6 +49005,12 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47511,6 +49059,8 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -47562,6 +49112,12 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -47623,6 +49179,12 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47671,6 +49233,8 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -47722,6 +49286,12 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -47783,6 +49353,12 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47831,6 +49407,8 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -47882,6 +49460,12 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -47943,6 +49527,12 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -47991,6 +49581,8 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -48042,6 +49634,12 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -48103,6 +49701,12 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -48151,6 +49755,8 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -48202,6 +49808,12 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -48263,6 +49875,12 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -49845,6 +51463,8 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -49898,6 +51518,12 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -49962,6 +51588,12 @@ class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -50184,6 +51816,8 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "subject_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50223,6 +51857,12 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -50266,6 +51906,12 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -50296,6 +51942,8 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "subject_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50335,6 +51983,12 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -50378,6 +52032,12 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -50408,6 +52068,8 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "subject_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50447,6 +52109,12 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -50490,6 +52158,12 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -50908,6 +52582,8 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50947,6 +52623,12 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -50990,6 +52672,12 @@ class RunCompletedEventProto$Type extends MessageType<RunCompletedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51020,6 +52708,8 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51059,6 +52749,12 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51102,6 +52798,12 @@ class RunEventProto$Type extends MessageType<RunEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51132,6 +52834,8 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51171,6 +52875,12 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51214,6 +52924,12 @@ class RunFailedEventProto$Type extends MessageType<RunFailedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51244,6 +52960,8 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51283,6 +53001,12 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51326,6 +53050,12 @@ class RunPauseRequestedEventProto$Type extends MessageType<RunPauseRequestedEven
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51356,6 +53086,8 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51395,6 +53127,12 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51438,6 +53176,12 @@ class RunPausedEventProto$Type extends MessageType<RunPausedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51468,6 +53212,8 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51507,6 +53253,12 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51550,6 +53302,12 @@ class RunResumeRequestedEventProto$Type extends MessageType<RunResumeRequestedEv
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51580,6 +53338,8 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51619,6 +53379,12 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51662,6 +53428,12 @@ class RunResumedEventProto$Type extends MessageType<RunResumedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51692,6 +53464,8 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51731,6 +53505,12 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51774,6 +53554,12 @@ class RunStartedEventProto$Type extends MessageType<RunStartedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -51804,6 +53590,8 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -51843,6 +53631,12 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -51886,6 +53680,12 @@ class RunStopRequestedEventProto$Type extends MessageType<RunStopRequestedEventP
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -52078,6 +53878,8 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -52117,6 +53919,12 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -52160,6 +53968,12 @@ class SanctionEventProto$Type extends MessageType<SanctionEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -52190,6 +54004,8 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -52229,6 +54045,12 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -52272,6 +54094,12 @@ class SanctionExpiredEventProto$Type extends MessageType<SanctionExpiredEventPro
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -52302,6 +54130,8 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -52341,6 +54171,12 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -52384,6 +54220,12 @@ class SanctionGrantedEventProto$Type extends MessageType<SanctionGrantedEventPro
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -52414,6 +54256,8 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -52453,6 +54297,12 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -52496,6 +54346,12 @@ class SanctionRequestedEventProto$Type extends MessageType<SanctionRequestedEven
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -52526,6 +54382,8 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "target_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -52565,6 +54423,12 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -52608,6 +54472,12 @@ class SanctionRevokedEventProto$Type extends MessageType<SanctionRevokedEventPro
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -53039,6 +54909,8 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -53077,6 +54949,12 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -53117,6 +54995,12 @@ class SceneEventProto$Type extends MessageType<SceneEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -54785,6 +56669,8 @@ class SignalProto$Type extends MessageType<SignalProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 70, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -54832,6 +56718,12 @@ class SignalProto$Type extends MessageType<SignalProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
                     this.binaryReadMap26(message.customValues, reader, options);
@@ -54900,6 +56792,12 @@ class SignalProto$Type extends MessageType<SignalProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -55687,6 +57585,8 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -55725,6 +57625,12 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -55765,6 +57671,12 @@ class SpanEventProto$Type extends MessageType<SpanEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -58992,6 +60904,8 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -59030,6 +60944,12 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -59070,6 +60990,12 @@ class TimerCancelledEventProto$Type extends MessageType<TimerCancelledEventProto
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -59097,6 +61023,8 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -59135,6 +61063,12 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -59175,6 +61109,12 @@ class TimerCompletedEventProto$Type extends MessageType<TimerCompletedEventProto
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -59202,6 +61142,8 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -59240,6 +61182,12 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -59280,6 +61228,12 @@ class TimerEventProto$Type extends MessageType<TimerEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -59307,6 +61261,8 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -59345,6 +61301,12 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -59385,6 +61347,12 @@ class TimerStartedEventProto$Type extends MessageType<TimerStartedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -60146,6 +62114,8 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -60184,6 +62154,12 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -60224,6 +62200,12 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -61782,6 +63764,8 @@ class ViewEnteredEventProto$Type extends MessageType<ViewEnteredEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -61820,6 +63804,12 @@ class ViewEnteredEventProto$Type extends MessageType<ViewEnteredEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -61860,6 +63850,12 @@ class ViewEnteredEventProto$Type extends MessageType<ViewEnteredEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -61887,6 +63883,8 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -61925,6 +63923,12 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -61965,6 +63969,12 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -61992,6 +64002,8 @@ class ViewExitedEventProto$Type extends MessageType<ViewExitedEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -62030,6 +64042,12 @@ class ViewExitedEventProto$Type extends MessageType<ViewExitedEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -62070,6 +64088,12 @@ class ViewExitedEventProto$Type extends MessageType<ViewExitedEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
@@ -62097,6 +64121,8 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
@@ -62151,6 +64177,12 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
                     message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
@@ -62218,6 +64250,12 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
         if (message.createdByPtr)
             NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);

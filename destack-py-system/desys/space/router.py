@@ -20,8 +20,8 @@ from destack.grpc import (
 )
 from destack.language import Client, DatabaseInfo, IsSubject, Oracle, Session
 from destack.proto import (
-    CommitRequest,
-    CommitResponse,
+    AppendRequest,
+    AppendResponse,
     QueryRequest,
     QueryResponse,
     SubscribeRequest,
@@ -170,6 +170,17 @@ class SpaceRouterService(ServiceBase, SpaceBase):
         raise NotImplementedError  # implemented in wrap
 
     @override
+    async def append(
+        self,
+        request: AppendRequest,
+        session: Session,
+        subject: IsSubject | None,
+        client: Client | None,
+        metadata: RpcMetadata,
+    ) -> AppendResponse:
+        raise NotImplementedError  # implemented in wrap
+
+    @override
     async def subscribe(
         self,
         request: SubscribeRequest,
@@ -180,14 +191,3 @@ class SpaceRouterService(ServiceBase, SpaceBase):
     ) -> AsyncIterator[SubscribeResponse]:
         raise NotImplementedError  # implemented in wrap
         yield ...
-
-    @override
-    async def commit(
-        self,
-        request: CommitRequest,
-        session: Session,
-        subject: IsSubject | None,
-        client: Client | None,
-        metadata: RpcMetadata,
-    ) -> CommitResponse:
-        raise NotImplementedError  # implemented in wrap

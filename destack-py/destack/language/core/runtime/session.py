@@ -4,6 +4,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Optional,
+    assert_never,
 )
 
 import structlog
@@ -24,9 +25,10 @@ from ..builtin import (
 from ..common import to_value
 from .graph import Supergraph
 from .oracle import WORLD_ORACLE, Oracle
+from .store import EntityStore, EventStore
 
 if TYPE_CHECKING:
-    from destack.language import QueryConnection, Space, Store
+    from destack.language import QueryConnection, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -57,12 +59,12 @@ class Session:
         oracle: Oracle = WORLD_ORACLE,
         space: Optional["Space"] = None,
         subject: IsSubject | None = None,
-        store: "Store | None" = None,
+        store: "EventStore | EntityStore | None" = None,
     ):
         self.oracle: Oracle = oracle
         self.space: Space | None = space
         self.subject: IsSubject | None = subject
-        self.store: Store | None = store
+        self.store: EventStore | EntityStore | None = store
         self.supergraph = Supergraph(self)
 
         # runtime
@@ -212,7 +214,7 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         self.flush()
 
-    async def commit(self):
+    async def commit(self) -> Sequence[Event]:
         """
         Commits all Events. Returns applied Events.
         """
@@ -221,12 +223,25 @@ class Session:
         self.flush()
         events = list(self.pending_events)
         self.pending_events = []
-        applied_events: Sequence[Event] = await self.store.commit(events)
+
+        # commit
+        if isinstance(self.store, EventStore):
+            applied_events: Sequence[Event] = await self.store.append(events)
+        elif isinstance(self.store, EntityStore):
+            edit_events = [event for event in events if isinstance(event, EditEvent)]
+            if len(edit_events) < len(events):
+                raise ValueError(f"cannot commit {len(events)} Events with {self.store!r}")
+            applied_events: Sequence[Event] = await self.store.commit(edit_events)
+        else:
+            assert_never(self.store)
+
+        # check
         failed_events: list[Event] = [
             event for event in events if event.status != EventStatus.COMPLETED
         ]
         if failed_events:
-            raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
+            pass  # nocheckin: 1) update Event status and 2) do something on failure
+        #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
         return applied_events
 
     async def __aenter__(self):

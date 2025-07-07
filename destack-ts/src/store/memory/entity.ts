@@ -1,7 +1,6 @@
 import {
   CASCADING_EDIT_TYPES,
-  Change,
-  Edit,
+  EditEvent,
   EditOperation,
   EditType,
   IsArchivable,
@@ -25,21 +24,21 @@ const DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
 export function executeChange(options: {
   database: MemoryDatabase;
   context: MemoryContext;
-  change: Change;
-}): { edits: Edit[]; cascadedEdits: Edit[] } {
-  const { database, context, change } = options;
+  edits: EditEvent[];
+}): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
+  const { database, context, edits } = options;
 
-  if (!change.edits || change.edits.length === 0) {
-    throw new Error(`no Edits in ${change.repr()}`);
+  if (!edits || edits.length === 0) {
+    return { edits: [], cascadedEdits: [] };
   }
 
-  const edits = optimizeChange({ context, edits: change.edits });
-  const cascadedEdits: Edit[] = [];
-  const appliedEdits: Edit[] = [];
+  const optimizedEdits = optimizeEdits({ context, edits });
+  const cascadedEdits: EditEvent[] = [];
+  const appliedEdits: EditEvent[] = [];
 
-  let currentTable = context.get(change.edits[0].nodePtr);
-  let currentEditType = change.edits[0].type;
-  let currentBatch: Edit[] = [];
+  let currentTable = context.get(optimizedEdits[0].nodePtr);
+  let currentEditType = optimizedEdits[0].type;
+  let currentBatch: EditEvent[] = [];
 
   for (const edit of edits) {
     const editTable = context.get(edit.nodePtr);
@@ -47,10 +46,9 @@ export function executeChange(options: {
       const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeDataEdit({
         database,
         context,
-        change,
+        edits: currentBatch,
         table: currentTable,
         editType: currentEditType,
-        edits: currentBatch,
       });
       appliedEdits.push(...batchAppliedEdits);
       cascadedEdits.push(...batchCascadedEdits);
@@ -65,10 +63,9 @@ export function executeChange(options: {
     const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeDataEdit({
       database,
       context,
-      change,
+      edits: currentBatch,
       table: currentTable,
       editType: currentEditType,
-      edits: currentBatch,
     });
     appliedEdits.push(...batchAppliedEdits);
     cascadedEdits.push(...batchCascadedEdits);
@@ -78,19 +75,19 @@ export function executeChange(options: {
 }
 
 /**
- * Optimize the Change/Edits while retaining semantic equivalence.
+ * Optimize the Edits while retaining semantic equivalence.
  * Reorder and batch non-interfering Edits to minimize roundtrips.
  */
-function optimizeChange(options: { context: MemoryContext; edits: Edit[] }): Edit[] {
+function optimizeEdits(options: { context: MemoryContext; edits: EditEvent[] }): EditEvent[] {
   const { context, edits } = options;
-  const optimizedEdits: Edit[] = [];
-  const buffer: Edit[] = [];
+  const optimizedEdits: EditEvent[] = [];
+  const buffer: EditEvent[] = [];
 
   function flush() {
     if (buffer.length === 0) {
       return;
     }
-    const grouped = new Map<string, Edit[]>();
+    const grouped = new Map<string, EditEvent[]>();
     for (const e of buffer) {
       const key = `${e.nodePtr.type}:${e.type}`;
       if (!grouped.has(key)) {
@@ -136,12 +133,11 @@ function executeCascade(options: {
 function executeDataEdit(options: {
   database: MemoryDatabase;
   context: MemoryContext;
-  change: Change;
+  edits: EditEvent[];
   table: MemoryTable;
   editType: EditType;
-  edits: Edit[];
-}): { edits: Edit[]; cascadedEdits: Edit[] } {
-  const { database, context, change, table, editType, edits } = options;
+}): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
+  const { database, context, table, editType, edits } = options;
 
   // create/upsert
   if (editType === EditType.CREATE || editType === EditType.UPSERT) {
@@ -257,7 +253,7 @@ function executeDataEdit(options: {
       nodePtrs: edits.map((edit) => edit.nodePtr),
     });
     const cascadedEdits = cascadedNodePtrs.map(
-      (nodePtr) => new Edit({ type: editType, node: nodePtr }),
+      (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
     );
 
     // update timestamps
@@ -269,11 +265,11 @@ function executeDataEdit(options: {
 
       if (row) {
         if (editType === EditType.ARCHIVE) {
-          row.value[ARCHIVED_AT_KEY] = change.createdAt;
+          row.value[ARCHIVED_AT_KEY] = edits[0].createdAt;
         } else if (editType === EditType.UNARCHIVE) {
           delete row.value[ARCHIVED_AT_KEY];
         } else if (editType === EditType.DELETE) {
-          row.value[DELETED_AT_KEY] = change.createdAt;
+          row.value[DELETED_AT_KEY] = edits[0].createdAt;
         } else if (editType === EditType.RESTORE) {
           delete row.value[DELETED_AT_KEY];
         }
@@ -293,7 +289,7 @@ function executeDataEdit(options: {
       nodePtrs: edits.map((edit) => edit.nodePtr),
     });
     const cascadedEdits = cascadedNodePtrs.map(
-      (nodePtr) => new Edit({ type: editType, node: nodePtr }),
+      (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
     );
 
     // delete rows
