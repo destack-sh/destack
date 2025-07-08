@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 import grpclib
 import pytest
+import pytest_asyncio
 import structlog
 from opentelemetry import trace
 
@@ -21,7 +22,7 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
     session = Session(store=MemoryEntityStore(types=tuple(StoreType)))
     await session.open()
@@ -29,8 +30,8 @@ async def memory_session() -> AsyncGenerator[Session, None]:
     await session.close()
 
 
-@pytest.fixture
-async def session(memory_session: Session):
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
+async def session():
     """Default Session is in-memory."""
     session = Session(store=MemoryEntityStore(types=tuple(StoreType)))
     await session.open()

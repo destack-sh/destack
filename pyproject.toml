@@ -100,6 +100,7 @@ ENVIRONMENT = "test"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_test_loop_scope = "session"
 python_files = "test/**/*.py test/*.py"
 python_classes = "!TestProfile"
 pythonpath = ["destack-py", "destack-py-system"]
