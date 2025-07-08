@@ -15,7 +15,6 @@ from hypothesis.strategies._internal.utils import cacheable, defines_strategy
 from destack.language import (
     ENUM_CLASS_BY_TYPE,
     NODE_CLASS_BY_TYPE,
-    NODE_TYPES,
     BuiltinObject,
     CustomProperty,
     EnumType,
@@ -365,9 +364,13 @@ def icons(draw: st.DrawFn):
 
 
 NODE_TYPES = [
-    node_type for node_type in NODE_TYPES if not NODE_CLASS_BY_TYPE[node_type].__is_abstract__
+    node_type for node_type, node_cls in NODE_CLASS_BY_TYPE.items() if not node_cls.__is_abstract__
 ]
-STRUCT_TYPES = list(STRUCT_CLASS_BY_TYPE.keys())
+STRUCT_TYPES = [
+    struct_type
+    for struct_type, struct_cls in STRUCT_CLASS_BY_TYPE.items()
+    if not struct_cls.__is_abstract__
+]
 OBJECT_TYPES = NODE_TYPES + STRUCT_TYPES
 
 

@@ -88,10 +88,7 @@ export const Canvas: React.FC = () => {
       isDrawing.value = false;
       const lineShape = new LineShape({ name: "LineShape", ...currentLine.value });
       session.create(lineShape);
-      session.commit().then(() => {
-        // nocheckin: poor man's reactive query
-        query.value = LineShape.search({});
-      });
+      session.commit();
       currentLine.value = null;
       lastMousePosition.value = null;
     }

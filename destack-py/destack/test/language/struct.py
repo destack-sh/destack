@@ -15,8 +15,15 @@ def test_struct_inheritance(session: Session):
     assert BuiltinDefinition.__base_type__ == StructType.STRUCT
     assert BuiltinDefinition.__inherits__ == (StructType.STRUCT,)
     assert BuiltinDefinition.__extended_by__ == (
-        StructType.TRAIT_DEFINITION,
         StructType.NODE_DEFINITION,
+        StructType.TRAIT_DEFINITION,
         StructType.STRUCT_DEFINITION,
+        StructType.ENUM_DEFINITION,
+        StructType.PROPERTY_DEFINITION,
+        StructType.PROPERTY_GROUP_DEFINITION,
+        StructType.OPTION_DEFINITION,
+        StructType.OPTION_GROUP_DEFINITION,
+        StructType.METHOD_DEFINITION,
+        StructType.PERMISSION_DEFINITION,
     )
     assert len(Struct.__inherited_by__) == len(StructType) - 1

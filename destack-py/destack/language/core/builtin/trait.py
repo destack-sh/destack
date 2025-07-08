@@ -201,7 +201,7 @@ class IsOwnable(Trait):
 class IsOwned(IsOwnable):
     """A Node that must be owned by another Node."""
 
-    owned_by: "IsOwner" = builtin_property(28, is_repr=True, is_managed=True)
+    owned_by: "IsOwner" = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: NodeReference = UNSET
 
