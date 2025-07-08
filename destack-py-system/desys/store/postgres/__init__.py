@@ -1,4 +1,4 @@
-from .client import pg_connection, pg_transaction
+from .client import close_postgres_pool, get_postgres_pool, pg_connection, pg_transaction
 from .core import (
     PostgresColumn,
     PostgresColumnType,
@@ -16,6 +16,7 @@ from .core import (
 from .edit import execute_edits
 from .map import (
     EXTENSIONS,
+    POSTGRES_BUILTIN_TABLE_PREFIX,
     get_builtin_schema,
     map_builtin_node_to_database_table,
     map_custom_node_to_database_table,
@@ -45,6 +46,7 @@ __all__ = [
     "MIGRATIONS",
     "MIGRATIONS_PATH",
     "MIGRATIONS_TEMPLATE_PATH",
+    "POSTGRES_BUILTIN_TABLE_PREFIX",
     "Migration",
     "MigrationFile",
     "PostgresColumn",
@@ -64,11 +66,13 @@ __all__ = [
     "_PostgresObject",
     "add_migration_to_fs",
     "apply_migration_ops",
+    "close_postgres_pool",
     "execute_edits",
     "execute_query",
     "generate_migration_code",
     "generate_migration_ops",
     "get_builtin_schema",
+    "get_postgres_pool",
     "introspect_schema",
     "map_builtin_node_to_database_table",
     "map_custom_node_to_database_table",

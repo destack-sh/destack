@@ -8,14 +8,11 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from destack.store import MemoryEntityStore
 from destack.test.conftest import _setup_test_env
-from desys.store.postgres.map import DESTACK_BUILTIN_TABLE_PREFIX
 
 # ruff: noqa: E402
 # NOTE: must run setup before importing from destack
 _setup_test_env()
-
 
 from destack.language import (
     ACTIVE_SESSION,
@@ -26,12 +23,15 @@ from destack.language import (
     StoreType,
     Tenancy,
 )
+from destack.store import MemoryEntityStore
 from destack.utils.env import get_from_env
 from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
+    POSTGRES_BUILTIN_TABLE_PREFIX,
     PostgresEntityStore,
     PostgresSchema,
     apply_migration_ops,
+    close_postgres_pool,
     generate_migration_ops,
     get_builtin_schema,
     introspect_schema,
@@ -65,19 +65,22 @@ async def create_blank_test_db(database: DatabaseInfo):
         await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
 
+@tracer.start_as_current_span("test.create_test_db")
 async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
     async with pg_connection(database) as conn:
         old_schema = await introspect_schema(
             conn,
-            include_table_prefixes=(DESTACK_BUILTIN_TABLE_PREFIX,),
+            include_table_prefixes=(POSTGRES_BUILTIN_TABLE_PREFIX,),
             exclude_table_prefixes=(),
         )
         migration_ops = generate_migration_ops(old_schema=old_schema, new_schema=schema)
         await apply_migration_ops(conn, migration_ops)
+    logger.trace("test.create_test_db", database=database, span="current")
 
 
+@tracer.start_as_current_span("test.delete_test_db")
 async def delete_test_db(database: DatabaseInfo):
     """Deletes a postgres DB with one of our schemas"""
     async with pg_connection(get_global_database_from_env()) as conn:
@@ -88,6 +91,7 @@ async def delete_test_db(database: DatabaseInfo):
             WHERE datname = '{database.external_name}' AND pid <> pg_backend_pid()
         """)
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
+    logger.trace("test.delete_test_db", database=database, span="current")
 
 
 def _clean_name(name: str) -> str:
@@ -107,6 +111,7 @@ async def global_postgres_database(
     try:
         yield database
     finally:
+        await close_postgres_pool(database)
         await delete_test_db(database)
 
 
@@ -122,6 +127,7 @@ async def spatial_postgres_database(
     try:
         yield database
     finally:
+        await close_postgres_pool(database)
         await delete_test_db(database)
 
 
@@ -136,6 +142,7 @@ async def omni_postgres_database(
     try:
         yield database
     finally:
+        await close_postgres_pool(database)
         await delete_test_db(database)
 
 

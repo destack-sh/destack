@@ -14,7 +14,7 @@
       "env": {
         "PYTEST_ADDOPTS": "--no-cov",
       },
-      "justMyCode": true
+      "justMyCode": false
     },
     {
       // run pytest collect to debug collection issues
@@ -25,7 +25,7 @@
       "args": ["--collect-only"],
       "console": "integratedTerminal",
       "cwd": "${workspaceFolder}",
-      "justMyCode": true,
+      "justMyCode": false,
       "env": {
         "PYTEST_ADDOPTS": "--no-cov",
       },
