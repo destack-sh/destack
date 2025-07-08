@@ -326,7 +326,7 @@ export class FocusInEvent extends FocusEvent {
   }
 
   get _pathKey(): string {
-    return "FocusInEvent[id={this.id}]";
+    return `FocusInEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -846,7 +846,7 @@ export class FocusOutEvent extends FocusEvent {
   }
 
   get _pathKey(): string {
-    return "FocusOutEvent[id={this.id}]";
+    return `FocusOutEvent[id=${this.id}]`;
   }
 
   get path(): string {

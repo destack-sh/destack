@@ -461,7 +461,7 @@ export class EditEvent extends Event {
   }
 
   get _pathKey(): string {
-    return "EditEvent[id={this.id}]";
+    return `EditEvent[id=${this.id}]`;
   }
 
   get path(): string {

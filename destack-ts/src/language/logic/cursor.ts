@@ -528,7 +528,7 @@ export class EventCursor extends Cursor {
   }
 
   get _pathKey(): string {
-    return "EventCursor[id={this.id}]";
+    return `EventCursor[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1281,7 +1281,7 @@ export class ScreenCursor extends Cursor {
   }
 
   get _pathKey(): string {
-    return "ScreenCursor[id={this.id}]";
+    return `ScreenCursor[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2027,7 +2027,7 @@ export class ThreadCursor extends Cursor {
   }
 
   get _pathKey(): string {
-    return "ThreadCursor[id={this.id}]";
+    return `ThreadCursor[id=${this.id}]`;
   }
 
   get path(): string {

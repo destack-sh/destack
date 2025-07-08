@@ -326,7 +326,7 @@ export class CopyEvent extends ClipboardEvent {
   }
 
   get _pathKey(): string {
-    return "CopyEvent[id={this.id}]";
+    return `CopyEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -846,7 +846,7 @@ export class CutEvent extends ClipboardEvent {
   }
 
   get _pathKey(): string {
-    return "CutEvent[id={this.id}]";
+    return `CutEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1366,7 +1366,7 @@ export class PasteEvent extends ClipboardEvent {
   }
 
   get _pathKey(): string {
-    return "PasteEvent[id={this.id}]";
+    return `PasteEvent[id=${this.id}]`;
   }
 
   get path(): string {

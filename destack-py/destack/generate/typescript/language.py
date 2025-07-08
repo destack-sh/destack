@@ -733,16 +733,16 @@ def _generate_path(cls: type[Node]) -> str:
             if cls.__properties__["name"].is_required:
                 path_key_str = "this.slug ?? this.name"
             else:
-                path_key_str = f"this.slug ?? this.name ?? '{cls.__name__}[id={{this.id}}]'"
+                path_key_str = f"this.slug ?? this.name ?? `{cls.__name__}[id=${{this.id}}]`"
         else:
-            path_key_str = f'this.slug ?? "{cls.__name__}[id={{this.id}}]"'
+            path_key_str = f"this.slug ?? `{cls.__name__}[id=${{this.id}}]`"
     elif "name" in cls.__properties__:
         if cls.__properties__["name"].is_required:
             path_key_str = "this.name"
         else:
-            path_key_str = f"this.name ?? '{cls.__name__}[id={{this.id}}]'"
+            path_key_str = f"this.name ?? `{cls.__name__}[id=${{this.id}}]`"
     else:
-        path_key_str = f'"{cls.__name__}[id={{this.id}}]"'
+        path_key_str = f"`{cls.__name__}[id=${{this.id}}]`"
 
     # Node.path
     if cls.__root_type__ is None:

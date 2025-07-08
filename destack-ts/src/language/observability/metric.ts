@@ -1187,7 +1187,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   }
 
   get _pathKey(): string {
-    return "GaugeMeasurementEvent[id={this.id}]";
+    return `GaugeMeasurementEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2493,7 +2493,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   }
 
   get _pathKey(): string {
-    return "CounterMeasurementEvent[id={this.id}]";
+    return `CounterMeasurementEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3799,7 +3799,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   }
 
   get _pathKey(): string {
-    return "HistogramMeasurementEvent[id={this.id}]";
+    return `HistogramMeasurementEvent[id=${this.id}]`;
   }
 
   get path(): string {

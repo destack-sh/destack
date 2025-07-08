@@ -385,7 +385,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   }
 
   get _pathKey(): string {
-    return "Star[id={this.id}]";
+    return `Star[id=${this.id}]`;
   }
 
   get path(): string {
@@ -974,7 +974,7 @@ export class StarEvent extends Event {
   }
 
   get _pathKey(): string {
-    return "StarEvent[id={this.id}]";
+    return `StarEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1328,7 +1328,7 @@ export class StarAddedEvent extends StarEvent {
   }
 
   get _pathKey(): string {
-    return "StarAddedEvent[id={this.id}]";
+    return `StarAddedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1682,7 +1682,7 @@ export class StarRemovedEvent extends StarEvent {
   }
 
   get _pathKey(): string {
-    return "StarRemovedEvent[id={this.id}]";
+    return `StarRemovedEvent[id=${this.id}]`;
   }
 
   get path(): string {

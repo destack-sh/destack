@@ -402,7 +402,7 @@ export class RunStartedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunStartedEvent[id={this.id}]";
+    return `RunStartedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -963,7 +963,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunPauseRequestedEvent[id={this.id}]";
+    return `RunPauseRequestedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1536,7 +1536,7 @@ export class RunPausedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunPausedEvent[id={this.id}]";
+    return `RunPausedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2097,7 +2097,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunResumeRequestedEvent[id={this.id}]";
+    return `RunResumeRequestedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2670,7 +2670,7 @@ export class RunResumedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunResumedEvent[id={this.id}]";
+    return `RunResumedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3231,7 +3231,7 @@ export class RunStopRequestedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunStopRequestedEvent[id={this.id}]";
+    return `RunStopRequestedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3804,7 +3804,7 @@ export class RunFailedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunFailedEvent[id={this.id}]";
+    return `RunFailedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -4365,7 +4365,7 @@ export class RunCompletedEvent extends RunEvent {
   }
 
   get _pathKey(): string {
-    return "RunCompletedEvent[id={this.id}]";
+    return `RunCompletedEvent[id=${this.id}]`;
   }
 
   get path(): string {

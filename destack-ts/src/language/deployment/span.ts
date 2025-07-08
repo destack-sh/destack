@@ -280,7 +280,7 @@ export class SpanEvent extends Event {
   }
 
   get _pathKey(): string {
-    return "SpanEvent[id={this.id}]";
+    return `SpanEvent[id=${this.id}]`;
   }
 
   get path(): string {

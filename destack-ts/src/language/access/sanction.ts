@@ -395,7 +395,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   }
 
   get _pathKey(): string {
-    return "SanctionRequestedEvent[id={this.id}]";
+    return `SanctionRequestedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -963,7 +963,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   }
 
   get _pathKey(): string {
-    return "SanctionGrantedEvent[id={this.id}]";
+    return `SanctionGrantedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1531,7 +1531,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   }
 
   get _pathKey(): string {
-    return "SanctionRevokedEvent[id={this.id}]";
+    return `SanctionRevokedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2099,7 +2099,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   }
 
   get _pathKey(): string {
-    return "SanctionExpiredEvent[id={this.id}]";
+    return `SanctionExpiredEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2773,7 +2773,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   }
 
   get _pathKey(): string {
-    return "Sanction[id={this.id}]";
+    return `Sanction[id=${this.id}]`;
   }
 
   get path(): string {

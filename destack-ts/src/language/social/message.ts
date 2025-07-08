@@ -581,7 +581,7 @@ export class Message
   }
 
   get _pathKey(): string {
-    return "Message[id={this.id}]";
+    return `Message[id=${this.id}]`;
   }
 
   get path(): string {

@@ -471,7 +471,7 @@ export class KeyDownEvent extends KeyboardEvent {
   }
 
   get _pathKey(): string {
-    return "KeyDownEvent[id={this.id}]";
+    return `KeyDownEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1124,7 +1124,7 @@ export class KeyUpEvent extends KeyboardEvent {
   }
 
   get _pathKey(): string {
-    return "KeyUpEvent[id={this.id}]";
+    return `KeyUpEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1777,7 +1777,7 @@ export class KeyPressEvent extends KeyboardEvent {
   }
 
   get _pathKey(): string {
-    return "KeyPressEvent[id={this.id}]";
+    return `KeyPressEvent[id=${this.id}]`;
   }
 
   get path(): string {

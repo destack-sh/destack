@@ -448,7 +448,7 @@ export class InviteSentEvent extends InviteEvent {
   }
 
   get _pathKey(): string {
-    return "InviteSentEvent[id={this.id}]";
+    return `InviteSentEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1065,7 +1065,7 @@ export class InviteRescindedEvent extends InviteEvent {
   }
 
   get _pathKey(): string {
-    return "InviteRescindedEvent[id={this.id}]";
+    return `InviteRescindedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1714,7 +1714,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   }
 
   get _pathKey(): string {
-    return "InviteAcceptedEvent[id={this.id}]";
+    return `InviteAcceptedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2343,7 +2343,7 @@ export class InviteRejectedEvent extends InviteEvent {
   }
 
   get _pathKey(): string {
-    return "InviteRejectedEvent[id={this.id}]";
+    return `InviteRejectedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3086,7 +3086,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   }
 
   get _pathKey(): string {
-    return "Invite[id={this.id}]";
+    return `Invite[id=${this.id}]`;
   }
 
   get path(): string {

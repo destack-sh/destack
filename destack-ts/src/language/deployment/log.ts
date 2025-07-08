@@ -356,7 +356,7 @@ export class LogEvent extends Event {
   }
 
   get _pathKey(): string {
-    return "LogEvent[id={this.id}]";
+    return `LogEvent[id=${this.id}]`;
   }
 
   get path(): string {
