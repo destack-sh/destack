@@ -4,6 +4,7 @@ from typing import ClassVar, override
 from destack.language import (
     EditEvent,
     Event,
+    EventStore,
     LiveStore,
     Query,
     QueryResult,
@@ -19,7 +20,7 @@ from destack.store.memory import MemoryEntityStore
 #  (including live/in-memory overrides with Snapshots?)
 
 
-class BufferedStore(LiveStore):
+class BufferedStore(EventStore, LiveStore):
     """
     Route Queries and commits to underlying Stores, buffer certain Events in memory.
     Does not support atomic Events across Stores (yet).

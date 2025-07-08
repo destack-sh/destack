@@ -3,11 +3,19 @@ from typing import ClassVar, override
 
 from destack.grpc import pack_rpc_headers
 from destack.grpc.network import unary_stream_rpc
-from destack.language import Event, LiveStore, Query, QueryResult, QueryUpdate, StoreImplementation
+from destack.language import (
+    Event,
+    EventStore,
+    LiveStore,
+    Query,
+    QueryResult,
+    QueryUpdate,
+    StoreImplementation,
+)
 from destack.proto import AppendRequest, QueryRequest, RpcMetadata, SpaceClient, SubscribeRequest
 
 
-class GrpcStore(LiveStore):
+class GrpcStore(EventStore, LiveStore):
     """A Store that fetches data from a remote source via gRPC."""
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.POSTGRES

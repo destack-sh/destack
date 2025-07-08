@@ -46,3 +46,15 @@ export const NODE_TYPES_BY_PRIMARY_STORE_TYPE: Record<StoreType, NodeType[]> = {
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
 
 export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;
+
+export function getNodeTypesForStores(storeTypes: StoreType[]): NodeType[] {
+  const nodeTypes: NodeType[] = [];
+  for (const type of storeTypes) {
+    for (const nodeType of NODE_TYPES_BY_PRIMARY_STORE_TYPE[type]) {
+      if (!nodeTypes.includes(nodeType)) {
+        nodeTypes.push(nodeType);
+      }
+    }
+  }
+  return nodeTypes;
+}

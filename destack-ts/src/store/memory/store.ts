@@ -3,6 +3,8 @@ import {
   EntityStore,
   Event,
   EventStore,
+  getNodeTypesForStores,
+  NodeType,
   Query,
   QueryResult,
   StoreImplementation,
@@ -15,14 +17,17 @@ import { executeQuery } from "@destack/store/memory/query";
 import { packNodeRow } from "@destack/store/memory/wiring";
 
 /** An in-memory Store. */
-export class MemoryEntityStore extends EntityStore {
+export class MemoryEntityStore implements EntityStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
 
+  public types: StoreType[];
+  public nodeTypes: NodeType[];
   public database: MemoryDatabase;
   public context: MemoryContext;
 
   constructor(options: { types: StoreType[] }) {
-    super(options);
+    this.types = options.types;
+    this.nodeTypes = getNodeTypesForStores(this.types);
     this.database = new MemoryDatabase();
     this.context = new MemoryContext(this.database);
   }
@@ -39,7 +44,7 @@ export class MemoryEntityStore extends EntityStore {
     return `<MemoryStore ${this.toString()}>`;
   }
 
-  override async query(query: Query): Promise<QueryResult> {
+  async query(query: Query): Promise<QueryResult> {
     const result = executeQuery({
       context: this.context,
       query,
@@ -47,7 +52,7 @@ export class MemoryEntityStore extends EntityStore {
     return result;
   }
 
-  override async commit(events: EditEvent[]): Promise<EditEvent[]> {
+  async commit(events: EditEvent[]): Promise<EditEvent[]> {
     const { edits, cascadedEdits } = executeEdits({
       context: this.context,
       edits: events,
@@ -58,14 +63,17 @@ export class MemoryEntityStore extends EntityStore {
 }
 
 /** An in-memory Store for Events. */
-export class MemoryEventStore extends EventStore {
+export class MemoryEventStore implements EventStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
 
+  public types: StoreType[];
+  public nodeTypes: NodeType[];
   public database: MemoryDatabase;
   public context: MemoryContext;
 
   constructor(options: { types: StoreType[] }) {
-    super(options);
+    this.types = options.types;
+    this.nodeTypes = getNodeTypesForStores(this.types);
     this.database = new MemoryDatabase();
     this.context = new MemoryContext(this.database);
   }
@@ -82,7 +90,7 @@ export class MemoryEventStore extends EventStore {
     return `<MemoryEventStore ${this.toString()}>`;
   }
 
-  override async query(query: Query): Promise<QueryResult> {
+  async query(query: Query): Promise<QueryResult> {
     const result = executeQuery({
       context: this.context,
       query,
@@ -90,7 +98,7 @@ export class MemoryEventStore extends EventStore {
     return result;
   }
 
-  override async append(events: Event[]): Promise<Event[]> {
+  async append(events: Event[]): Promise<Event[]> {
     for (const event of events) {
       const nodeType = event.metatype;
       if (!this.database.tables.has(nodeType)) {

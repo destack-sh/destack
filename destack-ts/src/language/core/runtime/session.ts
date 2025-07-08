@@ -17,7 +17,7 @@ import { EditEvent, EditOperation, EditType } from "@destack/language/core/built
 import { toValue, Value } from "@destack/language/core/common/value";
 import { Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
-import { Casing, toCasing } from "@destack/utils";
+import { assertNever, Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
 
 /**
@@ -107,7 +107,7 @@ export class Session {
     const edit = new EditEvent({
       type: EditType.CREATE,
       node,
-      value: toValue(node, null, true),
+      value: toValue(node, null, { nodeAsValue: true }),
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -119,7 +119,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new EditEvent({ type: EditType.UPSERT, node, value: toValue(node, null, true) });
+    const edit = new EditEvent({
+      type: EditType.UPSERT,
+      node,
+      value: toValue(node, null, { nodeAsValue: true }),
+    });
     this.pendingEvents.push(edit);
     node._isNew = false;
     node._isAttached = true;
@@ -191,7 +195,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new EditEvent({ type: EditType.ARCHIVE, node, value: toValue(node, null, true) });
+    const edit = new EditEvent({
+      type: EditType.ARCHIVE,
+      node,
+      value: toValue(node, null, { nodeAsValue: true }),
+    });
     this.pendingEvents.push(edit);
   }
 
@@ -209,7 +217,11 @@ export class Session {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    const edit = new EditEvent({ type: EditType.DELETE, node, value: toValue(node, null, true) });
+    const edit = new EditEvent({
+      type: EditType.DELETE,
+      node,
+      value: toValue(node, null, { nodeAsValue: true }),
+    });
     this.pendingEvents.push(edit);
   }
 
@@ -251,13 +263,15 @@ export class Session {
 
     // commit
     let appliedEvents: Event[];
-    if (this.store instanceof EventStore) {
+    if (this.store == null) {
+      throw new Error(`${this.repr()} has no Store`);
+    } else if ("append" in this.store) {
       appliedEvents = await this.store.append(events);
-    } else if (this.store instanceof EntityStore) {
+    } else if ("commit" in this.store) {
       const editEvents = events.filter((event) => event instanceof EditEvent);
       appliedEvents = await this.store.commit(editEvents);
     } else {
-      throw new Error(`${this.repr()} has no Store`);
+      assertNever(this.store);
     }
 
     // check
