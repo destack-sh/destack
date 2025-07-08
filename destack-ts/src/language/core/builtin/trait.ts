@@ -18,12 +18,14 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
   readonly metatype: T;
   __definition__: TraitDefinition;
   __properties__: Record<string, PropertyDefinition>;
+  __propertiesByAlias__: Record<string, PropertyDefinition>;
   __propertiesById__: Record<number, PropertyDefinition>;
 
   constructor(metatype: any) {
     this.metatype = metatype;
     this.__definition__ = null as any; // set later (in finalize)
     this.__properties__ = {};
+    this.__propertiesByAlias__ = {};
     this.__propertiesById__ = {};
   }
 

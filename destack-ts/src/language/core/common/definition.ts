@@ -1274,7 +1274,7 @@ export class NodeDefinition extends BuiltinDefinition {
   /** Resolve a Property in this definition. */
   resolveProperty(name: string): PropertyDefinition | null {
     const nodeClass = NODE_CLASS_BY_TYPE[this.type];
-    const property = nodeClass.__properties__[name];
+    const property = nodeClass.__propertiesByAlias__[name];
     if (property == null) {
       return null;
     }

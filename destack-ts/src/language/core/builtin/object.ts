@@ -1,7 +1,6 @@
 import type { NodeDefinition, PropertyDefinition, StructDefinition } from "@destack/language/core";
 import type { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
 import type { AnyNodeProto, AnyStructProto } from "@destack/proto";
-import { Casing, toCasing } from "@destack/utils";
 
 /** The base for all BuiltinObjects like Structs and Nodes and all their derivatives. */
 export abstract class BuiltinObject {
@@ -11,6 +10,7 @@ export abstract class BuiltinObject {
   static readonly __isTrait__: boolean;
   static readonly __definition__: NodeDefinition | StructDefinition;
   static readonly __properties__: Record<string, PropertyDefinition>;
+  static readonly __propertiesByAlias__: Record<string, PropertyDefinition>;
   static readonly __propertiesById__: Record<number, PropertyDefinition>;
 
   // supergraph
@@ -44,21 +44,7 @@ export abstract class BuiltinObject {
 
   /** Get a PropertyDefinition or CustomProperty by name. */
   static property(name: string): PropertyDefinition {
-    let prop = this.__properties__[name];
-    if (prop != null) {
-      return prop;
-    }
-    const snakeName = toCasing(name, Casing.SNAKE);
-    prop = this.__properties__[snakeName];
-    if (prop != null) {
-      return prop;
-    }
-    if (name.endsWith("Ptr")) {
-      name = name.slice(0, -3);
-    } else if (name.endsWith("_ptr")) {
-      name = name.slice(0, -4);
-    }
-    prop = this.__properties__[name];
+    const prop = this.__propertiesByAlias__[name];
     if (prop != null) {
       return prop;
     }
@@ -145,6 +131,7 @@ export type BuiltinObjectClass<
   ProtoT extends AnyStructProto | AnyNodeProto = AnyStructProto | AnyNodeProto,
 > = {
   __properties__: Record<string, PropertyDefinition>;
+  __propertiesByAlias__: Record<string, PropertyDefinition>;
   __propertiesById__: Record<number, PropertyDefinition>;
 
   /** Convert an instance of this BuiltinObject to a proto. */
