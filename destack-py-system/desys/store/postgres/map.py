@@ -9,10 +9,10 @@ from destack.language import (
     PrimitiveType,
     PropertyDeclaration,
     ScalarType,
-    StoreType,
+    StoreKey,
     TypeCardinality,
 )
-from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_PRIMARY_STORE_TYPE
+from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPES_BY_PRIMARY_STORE_KEY
 
 from .core import (
     EXTENSIONS,
@@ -130,14 +130,14 @@ def map_custom_node_to_database_table(definition: CustomEntityDefinition) -> Pos
 
 
 @cached({})
-def get_builtin_schema(*store_types: StoreType) -> PostgresSchema:
+def get_builtin_schema(*store_keys: StoreKey) -> PostgresSchema:
     """Gets the builtin schema for the given traits."""
 
     node_types: tuple[NodeType, ...] = tuple(
         {
             node_type
-            for store_type in store_types
-            for node_type in NODE_TYPES_BY_PRIMARY_STORE_TYPE[store_type]
+            for store_key in store_keys
+            for node_type in NODE_TYPES_BY_PRIMARY_STORE_KEY[store_key]
         }
     )
     tables: list[PostgresTable] = [

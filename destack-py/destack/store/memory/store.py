@@ -13,9 +13,10 @@ from destack.language import (
     Query,
     QueryResult,
     StoreImplementation,
-    StoreType,
+    StoreKey,
     to_value,
 )
+from destack.language.registry import get_node_types_for_stores
 
 from .core import MemoryContext, MemoryDatabase, MemoryTable, VersionedNodeKey
 from .edit import execute_edits
@@ -31,8 +32,9 @@ class MemoryEntityStore(EntityStore):
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
-    def __init__(self, types: tuple[StoreType, ...], database: MemoryDatabase | None = None):
-        super().__init__(types)
+    def __init__(self, types: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
+        self.keys = types
+        self.node_types = get_node_types_for_stores(types)
         self.database = database or MemoryDatabase()
         self.context = MemoryContext(self.database)
 
@@ -69,8 +71,9 @@ class MemoryEventStore(EventStore):
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
-    def __init__(self, types: tuple[StoreType, ...], database: MemoryDatabase | None = None):
-        super().__init__(types)
+    def __init__(self, types: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
+        self.keys = types
+        self.node_types = get_node_types_for_stores(types)
         self.database = database or MemoryDatabase()
         self.context = MemoryContext(self.database)
 

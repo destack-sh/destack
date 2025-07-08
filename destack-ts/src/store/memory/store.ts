@@ -8,7 +8,7 @@ import {
   Query,
   QueryResult,
   StoreImplementation,
-  StoreType,
+  StoreKey,
   toValue,
 } from "@destack/language";
 import { MemoryContext, MemoryDatabase, MemoryTable } from "@destack/store/memory/core";
@@ -20,12 +20,12 @@ import { packNodeRow } from "@destack/store/memory/wiring";
 export class MemoryEntityStore implements EntityStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
 
-  public types: StoreType[];
+  public types: StoreKey[];
   public nodeTypes: NodeType[];
   public database: MemoryDatabase;
   public context: MemoryContext;
 
-  constructor(options: { types: StoreType[] }) {
+  constructor(options: { types: StoreKey[] }) {
     this.types = options.types;
     this.nodeTypes = getNodeTypesForStores(this.types);
     this.database = new MemoryDatabase();
@@ -66,12 +66,12 @@ export class MemoryEntityStore implements EntityStore {
 export class MemoryEventStore implements EventStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
 
-  public types: StoreType[];
+  public types: StoreKey[];
   public nodeTypes: NodeType[];
   public database: MemoryDatabase;
   public context: MemoryContext;
 
-  constructor(options: { types: StoreType[] }) {
+  constructor(options: { types: StoreKey[] }) {
     this.types = options.types;
     this.nodeTypes = getNodeTypesForStores(this.types);
     this.database = new MemoryDatabase();

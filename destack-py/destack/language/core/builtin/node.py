@@ -17,7 +17,7 @@ from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import NodeType, RoleType, StoreType, TraitType
+from .common import NodeType, RoleType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
 from .object import BuiltinObject, _process_object_cls
 from .property import (
@@ -168,8 +168,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
     """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
-    """The main StoreTypes this Node is primarily stored in."""
-    __primary_store_types__: ClassVar[tuple[StoreType, ...]] = ()
+    """The main Stores this Node is primarily stored in."""
+    __primary_store_keys__: ClassVar[tuple[StoreKey, ...]] = ()
+    """The domain of this Node (Entity or Event)."""
+    __store_domain__: ClassVar[StoreDomain | None] = None
 
     """The root ancestor type of this Node type (if any)."""
     __root_type__: ClassVar[NodeType | None] = None

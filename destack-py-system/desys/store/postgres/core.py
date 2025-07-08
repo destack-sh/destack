@@ -15,7 +15,7 @@ from destack.language import (
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
-    StoreType,
+    StoreKey,
 )
 from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_DEFINITION_REFERENCE_BY_CLASS
 from destack.utils.func import hash_stable
@@ -54,19 +54,19 @@ class PostgresSchema:
 class PostgresContext:
     """Progressive context for Database operations."""
 
-    __slots__ = ("store_types", "tables_by_name")
+    __slots__ = ("store_keys", "tables_by_name")
 
-    def __init__(self, store_types: tuple[StoreType, ...]):
+    def __init__(self, store_keys: tuple[StoreKey, ...]):
         from .map import get_builtin_schema
 
-        self.store_types = store_types
+        self.store_keys = store_keys
         self.tables_by_name: dict[str, PostgresTable] = {}
-        for store_type in store_types:
-            for table in get_builtin_schema(store_type).tables:
+        for store_key in store_keys:
+            for table in get_builtin_schema(store_key).tables:
                 self.tables_by_name[table.name] = table
 
     def __str__(self) -> str:
-        return f"store_types={self.store_types!r}, tables={list(self.tables_by_name.keys())}"
+        return f"store_keys={self.store_keys!r}, tables={list(self.tables_by_name.keys())}"
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
@@ -99,7 +99,7 @@ class PostgresContext:
         table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node_type.name.lower()}"
         table = self.tables_by_name.get(table_name)
         if table is None:
-            raise LookupError(f"no table for {table_name!r} in {self.store_types!r}")
+            raise LookupError(f"no table for {table_name!r} in {self.store_keys!r}")
         return table
 
 

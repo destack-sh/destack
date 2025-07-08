@@ -9649,10 +9649,6 @@ export interface NodeDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.StoreTypeProto primary_store_types = 104
-     */
-    primaryStoreTypes: StoreTypeProto[];
-    /**
      * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
      */
     properties: PropertyDefinitionProto[];
@@ -9732,6 +9728,14 @@ export interface NodeDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.NodeTypeProto base_event_types = 141
      */
     baseEventTypes: NodeTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.StoreKeyProto primary_store_keys = 150
+     */
+    primaryStoreKeys: StoreKeyProto[];
+    /**
+     * @generated from protobuf field: optional symbol.destack.StoreDomainProto store_domain = 151
+     */
+    storeDomain?: StoreDomainProto;
 }
 /**
  * @generated from protobuf message symbol.destack.NodeDefinitionReferenceProto
@@ -9783,9 +9787,9 @@ export interface NodeReferenceProto {
      */
     spaceId?: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.StoreTypeProto store_type = 111
+     * @generated from protobuf field: optional symbol.destack.StoreKeyProto store_key = 111
      */
-    storeType?: StoreTypeProto;
+    storeKey?: StoreKeyProto;
 }
 /**
  * A Notification is a message about something.
@@ -20775,13 +20779,25 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_MATERIALIZATION = 14,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_TYPE = 21;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_KEY = 20;
      */
-    ENUM_TYPE_STORE_TYPE = 21,
+    ENUM_TYPE_STORE_KEY = 20,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_IMPLEMENTATION = 22;
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_SCOPE = 21;
      */
-    ENUM_TYPE_STORE_IMPLEMENTATION = 22,
+    ENUM_TYPE_STORE_SCOPE = 21,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_DOMAIN = 22;
+     */
+    ENUM_TYPE_STORE_DOMAIN = 22,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_TIER = 23;
+     */
+    ENUM_TYPE_STORE_TIER = 23,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_STORE_IMPLEMENTATION = 25;
+     */
+    ENUM_TYPE_STORE_IMPLEMENTATION = 25,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_PLATFORM_TYPE = 30;
      */
@@ -24170,6 +24186,25 @@ export enum SpringTypeProto {
     SPRING_TYPE_PHYSICS = 2
 }
 /**
+ * The domain of a Store.
+ *
+ * @generated from protobuf enum symbol.destack.StoreDomainProto
+ */
+export enum StoreDomainProto {
+    /**
+     * @generated from protobuf enum value: STORE_DOMAIN_UNSPECIFIED = 0;
+     */
+    STORE_DOMAIN_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_DOMAIN_ENTITY = 100;
+     */
+    STORE_DOMAIN_ENTITY = 100,
+    /**
+     * @generated from protobuf enum value: STORE_DOMAIN_EVENT = 500;
+     */
+    STORE_DOMAIN_EVENT = 500
+}
+/**
  * @generated from protobuf enum symbol.destack.StoreImplementationProto
  */
 export enum StoreImplementationProto {
@@ -24187,25 +24222,69 @@ export enum StoreImplementationProto {
     STORE_IMPLEMENTATION_POSTGRES = 10
 }
 /**
- * @generated from protobuf enum symbol.destack.StoreTypeProto
+ * The role of a Store (scope + domain + tier).
+ *
+ * @generated from protobuf enum symbol.destack.StoreKeyProto
  */
-export enum StoreTypeProto {
+export enum StoreKeyProto {
     /**
-     * @generated from protobuf enum value: STORE_TYPE_UNSPECIFIED = 0;
+     * @generated from protobuf enum value: STORE_KEY_UNSPECIFIED = 0;
      */
-    STORE_TYPE_UNSPECIFIED = 0,
+    STORE_KEY_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
+     * @generated from protobuf enum value: STORE_KEY_GLOBAL_ENTITY_PRIMARY = 1110;
      */
-    STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000,
+    STORE_KEY_GLOBAL_ENTITY_PRIMARY = 1110,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
+     * @generated from protobuf enum value: STORE_KEY_SPATIAL_ENTITY_PRIMARY = 1120;
      */
-    STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100,
+    STORE_KEY_SPATIAL_ENTITY_PRIMARY = 1120,
     /**
-     * @generated from protobuf enum value: STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100;
+     * @generated from protobuf enum value: STORE_KEY_SPATIAL_EVENT_PRIMARY = 2110;
      */
-    STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100
+    STORE_KEY_SPATIAL_EVENT_PRIMARY = 2110
+}
+/**
+ * The scope of a Store.
+ *
+ * @generated from protobuf enum symbol.destack.StoreScopeProto
+ */
+export enum StoreScopeProto {
+    /**
+     * @generated from protobuf enum value: STORE_SCOPE_UNSPECIFIED = 0;
+     */
+    STORE_SCOPE_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_SCOPE_GLOBAL = 1000;
+     */
+    STORE_SCOPE_GLOBAL = 1000,
+    /**
+     * @generated from protobuf enum value: STORE_SCOPE_SPATIAL = 2000;
+     */
+    STORE_SCOPE_SPATIAL = 2000
+}
+/**
+ * The tier of a Store.
+ *
+ * @generated from protobuf enum symbol.destack.StoreTierProto
+ */
+export enum StoreTierProto {
+    /**
+     * @generated from protobuf enum value: STORE_TIER_UNSPECIFIED = 0;
+     */
+    STORE_TIER_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: STORE_TIER_PRIMARY = 10;
+     */
+    STORE_TIER_PRIMARY = 10,
+    /**
+     * @generated from protobuf enum value: STORE_TIER_SEARCH = 20;
+     */
+    STORE_TIER_SEARCH = 20,
+    /**
+     * @generated from protobuf enum value: STORE_TIER_AGGREGATE = 30;
+     */
+    STORE_TIER_AGGREGATE = 30
 }
 /**
  * The format of a string.
@@ -46788,7 +46867,6 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 104, name: "primary_store_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] },
             { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto },
             { no: 106, name: "groups", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyGroupDefinitionProto },
             { no: 110, name: "is_global", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -46808,7 +46886,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 133, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 134, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 140, name: "event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
+            { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 150, name: "primary_store_keys", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StoreKeyProto", StoreKeyProto] },
+            { no: 151, name: "store_domain", kind: "enum", opt: true, T: () => ["symbol.destack.StoreDomainProto", StoreDomainProto] }
         ]);
     }
     create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
@@ -46817,7 +46897,6 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.id = 0;
         message.type = 0;
         message.name = "";
-        message.primaryStoreTypes = [];
         message.properties = [];
         message.groups = [];
         message.isGlobal = false;
@@ -46836,6 +46915,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.descendantTypes = [];
         message.eventTypes = [];
         message.baseEventTypes = [];
+        message.primaryStoreKeys = [];
         if (value !== undefined)
             reflectionMergePartial<NodeDefinitionProto>(this, message, value);
         return message;
@@ -46862,13 +46942,6 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     break;
                 case /* optional string description */ 103:
                     message.description = reader.string();
-                    break;
-                case /* repeated symbol.destack.StoreTypeProto primary_store_types */ 104:
-                    if (wireType === WireType.LengthDelimited)
-                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
-                            message.primaryStoreTypes.push(reader.int32());
-                    else
-                        message.primaryStoreTypes.push(reader.int32());
                     break;
                 case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
                     message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
@@ -46974,6 +47047,16 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     else
                         message.baseEventTypes.push(reader.int32());
                     break;
+                case /* repeated symbol.destack.StoreKeyProto primary_store_keys */ 150:
+                    if (wireType === WireType.LengthDelimited)
+                        for (let e = reader.int32() + reader.pos; reader.pos < e;)
+                            message.primaryStoreKeys.push(reader.int32());
+                    else
+                        message.primaryStoreKeys.push(reader.int32());
+                    break;
+                case /* optional symbol.destack.StoreDomainProto store_domain */ 151:
+                    message.storeDomain = reader.int32();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -47004,13 +47087,6 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.StoreTypeProto primary_store_types = 104; */
-        if (message.primaryStoreTypes.length) {
-            writer.tag(104, WireType.LengthDelimited).fork();
-            for (let i = 0; i < message.primaryStoreTypes.length; i++)
-                writer.int32(message.primaryStoreTypes[i]);
-            writer.join();
-        }
         /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
             PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
@@ -47115,6 +47191,16 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 writer.int32(message.baseEventTypes[i]);
             writer.join();
         }
+        /* repeated symbol.destack.StoreKeyProto primary_store_keys = 150; */
+        if (message.primaryStoreKeys.length) {
+            writer.tag(150, WireType.LengthDelimited).fork();
+            for (let i = 0; i < message.primaryStoreKeys.length; i++)
+                writer.int32(message.primaryStoreKeys[i]);
+            writer.join();
+        }
+        /* optional symbol.destack.StoreDomainProto store_domain = 151; */
+        if (message.storeDomain !== undefined)
+            writer.tag(151, WireType.Varint).int32(message.storeDomain);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -47205,7 +47291,7 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
             { no: 102, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 103, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 110, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 111, name: "store_type", kind: "enum", opt: true, T: () => ["symbol.destack.StoreTypeProto", StoreTypeProto] }
+            { no: 111, name: "store_key", kind: "enum", opt: true, T: () => ["symbol.destack.StoreKeyProto", StoreKeyProto] }
         ]);
     }
     create(value?: PartialMessage<NodeReferenceProto>): NodeReferenceProto {
@@ -47240,8 +47326,8 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
                 case /* optional string space_id */ 110:
                     message.spaceId = reader.string();
                     break;
-                case /* optional symbol.destack.StoreTypeProto store_type */ 111:
-                    message.storeType = reader.int32();
+                case /* optional symbol.destack.StoreKeyProto store_key */ 111:
+                    message.storeKey = reader.int32();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -47273,9 +47359,9 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
         /* optional string space_id = 110; */
         if (message.spaceId !== undefined)
             writer.tag(110, WireType.LengthDelimited).string(message.spaceId);
-        /* optional symbol.destack.StoreTypeProto store_type = 111; */
-        if (message.storeType !== undefined)
-            writer.tag(111, WireType.Varint).int32(message.storeType);
+        /* optional symbol.destack.StoreKeyProto store_key = 111; */
+        if (message.storeKey !== undefined)
+            writer.tag(111, WireType.Varint).int32(message.storeKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

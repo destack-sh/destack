@@ -17,7 +17,8 @@ from ..builtin.common import (
     PrimitiveType,
     PropertyType,
     ScalarType,
-    StoreType,
+    StoreDomain,
+    StoreKey,
     StructType,
     TraitType,
     TypeCardinality,
@@ -70,7 +71,6 @@ class NodeDefinition(BuiltinDefinition):
     """Definition of a builtin Node."""
 
     type: NodeType = builtin_property(100, is_repr=True)
-    primary_store_types: list[StoreType] = builtin_property(104)
     properties: list["PropertyDefinition"] = builtin_property(105)
     groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
@@ -141,6 +141,9 @@ class NodeDefinition(BuiltinDefinition):
         141, description="The base event types of this Node (directly)."
     )
 
+    primary_store_keys: list[StoreKey] = builtin_property(150)
+    store_domain: StoreDomain | None = builtin_property(151)
+
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
         """Create NodeDefinition from a Node class."""
@@ -152,7 +155,6 @@ class NodeDefinition(BuiltinDefinition):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
-            primary_store_types=list(node_cls.__primary_store_types__),
             properties=[
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],
@@ -174,6 +176,8 @@ class NodeDefinition(BuiltinDefinition):
             descendant_types=list(node_cls.__descendant_types__),
             event_types=list(node_cls.__event_types__),
             base_event_types=list(node_cls.__base_event_types__),
+            primary_store_keys=list(node_cls.__primary_store_keys__),
+            store_domain=node_cls.__store_domain__,
         )
 
 

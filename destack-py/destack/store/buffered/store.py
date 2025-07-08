@@ -11,13 +11,11 @@ from destack.language import (
     QueryUpdate,
     Store,
     StoreImplementation,
-    StoreType,
+    StoreKey,
 )
 from destack.store.memory import MemoryEntityStore
 
 # nocheckin: implement BufferedStore
-#  (keep store_type/snapshot/... in Node & NodeReference instances?)
-#  (including live/in-memory overrides with Snapshots?)
 
 
 class BufferedStore(EventStore, LiveStore):
@@ -30,20 +28,20 @@ class BufferedStore(EventStore, LiveStore):
 
     def __init__(self, *stores: Store):
         self.stores: tuple[Store, ...] = stores
-        self.store_by_type: dict[StoreType, Store] = {}
+        self.store_by_type: dict[StoreKey, Store] = {}
         for store in stores:
-            for store_type in store.types:
-                if store_type in self.store_by_type:
+            for store_key in store.keys:
+                if store_key in self.store_by_type:
                     raise ValueError(
-                        f"already have a {store_type.name} Store: {self.store_by_type[store_type]!r} != {store!r}"
+                        f"already have a {store_key.name} Store: {self.store_by_type[store_key]!r} != {store!r}"
                     )
-                self.store_by_type[store_type] = store
+                self.store_by_type[store_key] = store
         self.buffer: MemoryEntityStore = MemoryEntityStore(types=tuple(self.store_by_type.keys()))
 
     def __str__(self):
         content_parts: list[str] = []
-        for store_type, store in self.store_by_type.items():
-            content_parts.append(f"{store_type.name}={store!s}")
+        for store_key, store in self.store_by_type.items():
+            content_parts.append(f"{store_key.name}={store!s}")
         return ", ".join(content_parts)
 
     def __repr__(self):

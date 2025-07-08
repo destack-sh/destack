@@ -15,7 +15,7 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack.language import ACTIVE_SESSION, Session, StoreType
+from destack.language import ACTIVE_SESSION, Session, StoreKey
 from destack.store import MemoryEntityStore
 
 logger = structlog.get_logger(__name__)
@@ -24,7 +24,7 @@ tracer = trace.get_tracer(__name__)
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(store=MemoryEntityStore(types=tuple(StoreType)))
+    session = Session(store=MemoryEntityStore(types=tuple(StoreKey)))
     await session.open()
     yield session
     await session.close()
@@ -33,7 +33,7 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(store=MemoryEntityStore(types=tuple(StoreType)))
+    session = Session(store=MemoryEntityStore(types=tuple(StoreKey)))
     await session.open()
     yield session
     await session.close()

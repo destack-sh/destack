@@ -1,9 +1,9 @@
-import { ACTIVE_SESSION, MemoryEntityStore, Session, StoreType } from "destack";
+import { ACTIVE_SESSION, MemoryEntityStore, Session, StoreKey } from "destack";
 import React from "react";
 import Canvas from "./Canvas";
 
 const store = new MemoryEntityStore({
-  types: [StoreType.GLOBAL_ENTITY_PRIMARY, StoreType.SPATIAL_ENTITY_PRIMARY],
+  types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
 });
 const session = new Session({ store });
 ACTIVE_SESSION.set(session);

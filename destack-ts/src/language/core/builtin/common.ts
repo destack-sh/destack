@@ -17,8 +17,11 @@ export enum EnumType {
   STRUCT_DEFINITION_TYPE = 12,
   PROPERTY_REFERENCE_TYPE = 13,
   MATERIALIZATION = 14,
-  STORE_TYPE = 21,
-  STORE_IMPLEMENTATION = 22,
+  STORE_KEY = 20,
+  STORE_SCOPE = 21,
+  STORE_DOMAIN = 22,
+  STORE_TIER = 23,
+  STORE_IMPLEMENTATION = 25,
   PLATFORM_TYPE = 30,
   RUNTIME_LANGUAGE = 31,
   OPERATING_SYSTEM = 40,
@@ -465,33 +468,32 @@ registerEnumClass(EnumType.NODE_TYPE, NodeType);
 
 /* ==== DESTACK_GENERATED_START:ENUM:21 ==== */
 /**
- * StoreType
+ * StoreScope
  */
-export enum StoreType {
-  GLOBAL_ENTITY_PRIMARY = 1000,
-  SPATIAL_ENTITY_PRIMARY = 1100,
-  SPATIAL_EVENT_PRIMARY = 2100,
+export enum StoreScope {
+  GLOBAL = 1000,
+  SPATIAL = 2000,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.STORE_TYPE, StoreType);
+registerEnumClass(EnumType.STORE_SCOPE, StoreScope);
 /* ==== DESTACK_GENERATED_END:ENUM:21 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:22 ==== */
 /**
- * StoreImplementation
+ * StoreDomain
  */
-export enum StoreImplementation {
-  MEMORY = 1,
-  POSTGRES = 10,
+export enum StoreDomain {
+  ENTITY = 100,
+  EVENT = 500,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.STORE_IMPLEMENTATION, StoreImplementation);
+registerEnumClass(EnumType.STORE_DOMAIN, StoreDomain);
 /* ==== DESTACK_GENERATED_END:ENUM:22 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:31 ==== */
@@ -960,3 +962,50 @@ export enum Tenancy {
 }
 registerEnumClass(EnumType.TENANCY, Tenancy);
 /* ==== DESTACK_GENERATED_END:ENUM:140004 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:20 ==== */
+/**
+ * StoreKey
+ */
+export enum StoreKey {
+  GLOBAL_ENTITY_PRIMARY = 1110,
+  SPATIAL_ENTITY_PRIMARY = 1120,
+  SPATIAL_EVENT_PRIMARY = 2110,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.STORE_KEY, StoreKey);
+/* ==== DESTACK_GENERATED_END:ENUM:20 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:23 ==== */
+/**
+ * StoreTier
+ */
+export enum StoreTier {
+  PRIMARY = 10,
+  SEARCH = 20,
+  AGGREGATE = 30,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.STORE_TIER, StoreTier);
+/* ==== DESTACK_GENERATED_END:ENUM:23 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:25 ==== */
+/**
+ * StoreImplementation
+ */
+export enum StoreImplementation {
+  MEMORY = 1,
+  POSTGRES = 10,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.STORE_IMPLEMENTATION, StoreImplementation);
+/* ==== DESTACK_GENERATED_END:ENUM:25 ==== */

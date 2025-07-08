@@ -14,7 +14,7 @@ import {
 } from "@destack/language";
 import {
   NODE_CLASS_BY_TYPE,
-  NODE_TYPES_BY_PRIMARY_STORE_TYPE,
+  NODE_TYPES_BY_PRIMARY_STORE_KEY,
   PARENT_TYPES_BY_NODE_TYPE,
   STRUCT_CLASS_BY_TYPE,
   TRAIT_CLASS_BY_TYPE,
@@ -84,11 +84,11 @@ export function finalize(): void {
     _indexProperties(nodeClass, nodeDefinition);
 
     // primary store
-    for (const storeType of nodeDefinition.primaryStoreTypes) {
-      if (!NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType]) {
-        NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType] = [];
+    for (const storeKey of nodeDefinition.primaryStoreKeys) {
+      if (!NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey]) {
+        NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey] = [];
       }
-      NODE_TYPES_BY_PRIMARY_STORE_TYPE[storeType].push(nodeDefinition.type);
+      NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey].push(nodeDefinition.type);
     }
   }
   // index node parent types

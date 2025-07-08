@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.08.0"
+VERSION = "2025.07.08.1"
 
 # import from all generated files
 from .health_pb2 import *
