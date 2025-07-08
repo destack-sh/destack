@@ -6,8 +6,8 @@ pip-tools==7.3.0
 pre-commit==3.3.3
 prompt-toolkit==3.0.51
 pyright==1.1.388
-pytest==8.4.0
-pytest-asyncio==0.23.6
+pytest==8.4.1
+pytest-asyncio==1.1.0a1
 pytest-async-benchmark==0.2.0
 pytest-benchmark==5.1.0
 pytest-cov==5.0.0

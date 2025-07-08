@@ -19,13 +19,13 @@ from desys.test.simulation.core import SimulatedChannel
 
 @pytest.fixture
 async def universe_service(
-    global_postgres_database: DatabaseInfo, spatial_postgres_database: DatabaseInfo
+    omni_postgres_database: DatabaseInfo,
 ):
     from desys.universe import UniverseService
 
     universe_service = UniverseService(
         id="universe",
-        global_database=global_postgres_database,
+        global_database=omni_postgres_database,
         network=NullNetwork(),
         oracle=WORLD_ORACLE,
         galaxy_provider=GALAXY_PROVIDER,

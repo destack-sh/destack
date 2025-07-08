@@ -52,7 +52,7 @@ async def apply(
 ):
     from destack.language import REGION, StoreType
     from desys.sharding import DATABASE_PROVIDER, get_global_database_from_env
-    from desys.store.postgres import pg_transaction, postgres_migrate
+    from desys.store.postgres import postgres_migrate, postgres_transaction
 
     start = time.time()
 
@@ -71,7 +71,7 @@ async def apply(
         raise RuntimeError(f"cannot migrate store type: {store_type!r}")
 
     for database in databases:
-        async with pg_transaction(database) as (conn, tx):
+        async with postgres_transaction(database) as (conn, tx):
             await postgres_migrate(
                 conn=conn, target=target, store_type=store_type, oracle=WORLD_ORACLE
             )

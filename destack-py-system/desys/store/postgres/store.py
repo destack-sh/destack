@@ -15,7 +15,7 @@ from destack.language import (
     StoreType,
 )
 
-from .client import pg_connection
+from .client import postgres_connection
 from .core import PostgresContext
 from .edit import execute_edits
 from .query import execute_query
@@ -49,7 +49,7 @@ class PostgresEntityStore(EntityStore):
     @override
     @tracer.start_as_current_span("postgres.query")
     async def query(self, query: Query) -> QueryResult:
-        async with pg_connection(self.database) as conn:
+        async with postgres_connection(self.database) as conn:
             result = await execute_query(conn, self.context, query)
         logger.debug("postgres.query", query=query, result=result, span="current")
         return result
@@ -57,7 +57,7 @@ class PostgresEntityStore(EntityStore):
     @override
     @tracer.start_as_current_span("postgres.commit")
     async def commit(self, events: Sequence[EditEvent]) -> Sequence[EditEvent]:
-        async with pg_connection(self.database) as conn:
+        async with postgres_connection(self.database) as conn:
             try:
                 async with conn.transaction():
                     edits, cascaded_edits = await execute_edits(conn, self.context, events)

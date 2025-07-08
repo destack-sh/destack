@@ -35,7 +35,7 @@ from desys.store.postgres import (
     generate_migration_ops,
     get_builtin_schema,
     introspect_schema,
-    pg_connection,
+    postgres_connection,
 )
 
 logger = structlog.get_logger(__name__)
@@ -60,7 +60,7 @@ def get_database(name: str) -> DatabaseInfo:
 
 async def create_blank_test_db(database: DatabaseInfo):
     """Creates a blank postgres database"""
-    async with pg_connection(get_global_database_from_env()) as conn:
+    async with postgres_connection(get_global_database_from_env()) as conn:
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
         await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
@@ -69,7 +69,7 @@ async def create_blank_test_db(database: DatabaseInfo):
 async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
     """Creates a postgres DB with one of our schemas"""
     await create_blank_test_db(database)
-    async with pg_connection(database) as conn:
+    async with postgres_connection(database) as conn:
         old_schema = await introspect_schema(
             conn,
             include_table_prefixes=(POSTGRES_BUILTIN_TABLE_PREFIX,),
@@ -83,7 +83,8 @@ async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
 @tracer.start_as_current_span("test.delete_test_db")
 async def delete_test_db(database: DatabaseInfo):
     """Deletes a postgres DB with one of our schemas"""
-    async with pg_connection(get_global_database_from_env()) as conn:
+    await close_postgres_pool(database)
+    async with postgres_connection(get_global_database_from_env()) as conn:
         # terminate all connections to the database before dropping it
         await conn.execute(f"""
             SELECT pg_terminate_backend(pid)
@@ -100,38 +101,6 @@ def _clean_name(name: str) -> str:
 
 
 @pytest.fixture
-async def global_postgres_database(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[DatabaseInfo, None]:
-    """Gets the per test function global Database"""
-
-    database = get_database(f"test-{_clean_name(request.node.name)[:32]}-global")
-    schema = get_builtin_schema(StoreType.GLOBAL_ENTITY_PRIMARY)
-    await create_test_db(database, schema)
-    try:
-        yield database
-    finally:
-        await close_postgres_pool(database)
-        await delete_test_db(database)
-
-
-@pytest.fixture
-async def spatial_postgres_database(
-    request: pytest.FixtureRequest,
-) -> AsyncGenerator[DatabaseInfo, None]:
-    """Gets the per test function spatial Database"""
-
-    database = get_database(f"test-{_clean_name(request.node.name)[:32]}-spatial")
-    schema = get_builtin_schema(StoreType.SPATIAL_ENTITY_PRIMARY)
-    await create_test_db(database, schema)
-    try:
-        yield database
-    finally:
-        await close_postgres_pool(database)
-        await delete_test_db(database)
-
-
-@pytest.fixture
 async def omni_postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
@@ -142,12 +111,7 @@ async def omni_postgres_database(
     try:
         yield database
     finally:
-        await close_postgres_pool(database)
         await delete_test_db(database)
-
-
-# NOTE: we manually set session sync context since it's not propagated across pytest tasks (see above)
-# https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549 :PytestAsyncContext
 
 
 @pytest.fixture
@@ -156,20 +120,14 @@ def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresEntityStore:
 
 
 @pytest.fixture
-async def postgres_session_async(
+async def postgres_session(
     postgres_store: PostgresEntityStore,
 ) -> AsyncGenerator[Session, None]:
     session = Session(store=postgres_store)
     await session.open()
+    ACTIVE_SESSION.set(session)
     yield session
     await session.close()
-
-
-@pytest.fixture
-def postgres_session(postgres_session_async: Session):
-    token = ACTIVE_SESSION.set(postgres_session_async)
-    yield postgres_session_async
-    ACTIVE_SESSION.reset(token)
 
 
 @pytest.fixture
@@ -177,19 +135,12 @@ def memory_store() -> MemoryEntityStore:
     return MemoryEntityStore(types=tuple(StoreType))
 
 
-@pytest.fixture  # :PytestAsyncContext
-async def memory_session_async(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
+@pytest.fixture
+async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
     session = Session(store=memory_store)
     await session.open()
     yield session
     await session.close()
-
-
-@pytest.fixture
-def memory_session(memory_session_async: Session):
-    token = ACTIVE_SESSION.set(memory_session_async)
-    yield memory_session_async
-    ACTIVE_SESSION.reset(token)
 
 
 @pytest.fixture

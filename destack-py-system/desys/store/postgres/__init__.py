@@ -1,4 +1,9 @@
-from .client import close_postgres_pool, get_postgres_pool, pg_connection, pg_transaction
+from .client import (
+    close_postgres_pool,
+    get_postgres_pool,
+    postgres_connection,
+    postgres_transaction,
+)
 from .core import (
     PostgresColumn,
     PostgresColumnType,
@@ -76,9 +81,9 @@ __all__ = [
     "introspect_schema",
     "map_builtin_node_to_database_table",
     "map_custom_node_to_database_table",
-    "pg_connection",
-    "pg_transaction",
+    "postgres_connection",
     "postgres_migrate",
+    "postgres_transaction",
     "read_migrations_from_fs",
     "read_migrations_from_pg",
 ]
