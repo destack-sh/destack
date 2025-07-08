@@ -8,6 +8,9 @@ from pytest_asyncio import is_async_test
 if TYPE_CHECKING:
     pass
 
+# use session scoped asyncio event loop
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 class TestProfile(enum.StrEnum):
     QUICK = "quick"

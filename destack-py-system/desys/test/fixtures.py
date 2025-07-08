@@ -5,6 +5,7 @@ from urllib.parse import urlparse
 
 import grpclib
 import pytest
+import pytest_asyncio
 import structlog
 from opentelemetry import trace
 
@@ -41,6 +42,8 @@ from desys.store.postgres import (
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
+pytestmark = pytest.mark.asyncio(loop_scope="session")
+
 
 def get_database(name: str) -> DatabaseInfo:
     """Creates a global database for testing.."""
@@ -58,17 +61,18 @@ def get_database(name: str) -> DatabaseInfo:
     return database
 
 
-async def create_blank_test_db(database: DatabaseInfo):
+async def _create_blank_test_db(database: DatabaseInfo):
     """Creates a blank postgres database"""
+    await close_postgres_pool(database)
     async with postgres_connection(get_global_database_from_env()) as conn:
         await conn.execute(f'DROP DATABASE IF EXISTS "{database.external_name}"')
         await conn.execute(f'CREATE DATABASE "{database.external_name}"')
 
 
 @tracer.start_as_current_span("test.create_test_db")
-async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
+async def _create_test_db(database: DatabaseInfo, schema: PostgresSchema):
     """Creates a postgres DB with one of our schemas"""
-    await create_blank_test_db(database)
+    await _create_blank_test_db(database)
     async with postgres_connection(database) as conn:
         old_schema = await introspect_schema(
             conn,
@@ -81,7 +85,7 @@ async def create_test_db(database: DatabaseInfo, schema: PostgresSchema):
 
 
 @tracer.start_as_current_span("test.delete_test_db")
-async def delete_test_db(database: DatabaseInfo):
+async def _delete_test_db(database: DatabaseInfo):
     """Deletes a postgres DB with one of our schemas"""
     await close_postgres_pool(database)
     async with postgres_connection(get_global_database_from_env()) as conn:
@@ -100,18 +104,18 @@ def _clean_name(name: str) -> str:
     return re.sub(r"[^a-zA-Z0-9]", "_", name)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def omni_postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
     omni_schema = get_builtin_schema(*StoreType)
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
-    await create_test_db(database, omni_schema)
+    await _create_test_db(database, omni_schema)
     try:
         yield database
     finally:
-        await delete_test_db(database)
+        await _delete_test_db(database)
 
 
 @pytest.fixture
@@ -119,7 +123,7 @@ def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresEntityStore:
     return PostgresEntityStore(database=omni_postgres_database, types=tuple(StoreType))
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def postgres_session(
     postgres_store: PostgresEntityStore,
 ) -> AsyncGenerator[Session, None]:
@@ -135,7 +139,7 @@ def memory_store() -> MemoryEntityStore:
     return MemoryEntityStore(types=tuple(StoreType))
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
     session = Session(store=memory_store)
     await session.open()
@@ -143,12 +147,13 @@ async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Sess
     await session.close()
 
 
-@pytest.fixture
-def session(memory_session_async: Session):
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
+async def session(memory_store: MemoryEntityStore):
     """Default Session is in-memory."""
-    token = ACTIVE_SESSION.set(memory_session_async)
-    yield memory_session_async
-    ACTIVE_SESSION.reset(token)
+    session = Session(store=memory_store)
+    await session.open()
+    yield session
+    await session.close()
 
 
 @contextmanager

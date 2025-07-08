@@ -1,4 +1,4 @@
-import pytest
+import pytest_asyncio
 from grpclib import Status as GRPCStatus
 
 from destack import proto
@@ -17,7 +17,7 @@ from desys.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER
 from desys.test.simulation.core import SimulatedChannel
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def universe_service(
     omni_postgres_database: DatabaseInfo,
 ):
@@ -37,7 +37,7 @@ async def universe_service(
     await universe_service.wait_stopped()
 
 
-@pytest.fixture
+@pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def universe(universe_service):
     async with SimulatedChannel(services=(universe_service,), oracle=WORLD_ORACLE) as channel:
         yield UniverseClient(channel=channel)
