@@ -378,7 +378,7 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   get _pathKey(): string {
-    return "RoleAssignedEvent[id={this.id}]";
+    return `RoleAssignedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -946,7 +946,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   get _pathKey(): string {
-    return "RoleUnassignedEvent[id={this.id}]";
+    return `RoleUnassignedEvent[id=${this.id}]`;
   }
 
   get path(): string {

@@ -602,7 +602,7 @@ export class LeftClickEvent extends ClickEvent {
   }
 
   get _pathKey(): string {
-    return "LeftClickEvent[id={this.id}]";
+    return `LeftClickEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1282,7 +1282,7 @@ export class RightClickEvent extends ClickEvent {
   }
 
   get _pathKey(): string {
-    return "RightClickEvent[id={this.id}]";
+    return `RightClickEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1962,7 +1962,7 @@ export class MiddleClickEvent extends ClickEvent {
   }
 
   get _pathKey(): string {
-    return "MiddleClickEvent[id={this.id}]";
+    return `MiddleClickEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2654,7 +2654,7 @@ export class DoubleClickEvent extends ClickEvent {
   }
 
   get _pathKey(): string {
-    return "DoubleClickEvent[id={this.id}]";
+    return `DoubleClickEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3361,7 +3361,7 @@ export class WheelEvent extends MouseEvent {
   }
 
   get _pathKey(): string {
-    return "WheelEvent[id={this.id}]";
+    return `WheelEvent[id=${this.id}]`;
   }
 
   get path(): string {

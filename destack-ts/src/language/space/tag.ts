@@ -1098,7 +1098,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   }
 
   get _pathKey(): string {
-    return "Tagging[id={this.id}]";
+    return `Tagging[id=${this.id}]`;
   }
 
   get path(): string {

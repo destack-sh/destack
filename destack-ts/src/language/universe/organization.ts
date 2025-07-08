@@ -438,11 +438,11 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   }
 
   get _pathKey(): string {
-    return this.slug ?? "Organization[id={this.id}]";
+    return this.slug ?? `Organization[id=${this.id}]`;
   }
 
   get path(): string {
-    return this.slug ?? "Organization[id={this.id}]";
+    return this.slug ?? `Organization[id=${this.id}]`;
   }
 
   repr(): string {

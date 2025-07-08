@@ -316,7 +316,7 @@ export class Handle extends Entity implements IsGlobal {
   }
 
   get _pathKey(): string {
-    return this.slug ?? "Handle[id={this.id}]";
+    return this.slug ?? `Handle[id=${this.id}]`;
   }
 
   get path(): string {

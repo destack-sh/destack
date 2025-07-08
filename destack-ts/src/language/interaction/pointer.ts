@@ -476,7 +476,7 @@ export class PointerDownEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerDownEvent[id={this.id}]";
+    return `PointerDownEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1149,7 +1149,7 @@ export class PointerUpEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerUpEvent[id={this.id}]";
+    return `PointerUpEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1810,7 +1810,7 @@ export class PointerMoveEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerMoveEvent[id={this.id}]";
+    return `PointerMoveEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2483,7 +2483,7 @@ export class PointerEnterEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerEnterEvent[id={this.id}]";
+    return `PointerEnterEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3156,7 +3156,7 @@ export class PointerOverEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerOverEvent[id={this.id}]";
+    return `PointerOverEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3829,7 +3829,7 @@ export class PointerLeaveEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerLeaveEvent[id={this.id}]";
+    return `PointerLeaveEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -4502,7 +4502,7 @@ export class PointerLongPressEvent extends PointerEvent {
   }
 
   get _pathKey(): string {
-    return "PointerLongPressEvent[id={this.id}]";
+    return `PointerLongPressEvent[id=${this.id}]`;
   }
 
   get path(): string {

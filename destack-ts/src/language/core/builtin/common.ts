@@ -985,8 +985,6 @@ registerEnumClass(EnumType.STORE_KEY, StoreKey);
  */
 export enum StoreTier {
   PRIMARY = 10,
-  SEARCH = 20,
-  AGGREGATE = 30,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

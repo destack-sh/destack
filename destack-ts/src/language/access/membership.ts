@@ -446,7 +446,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
   }
 
   get _pathKey(): string {
-    return "MembershipJoinedEvent[id={this.id}]";
+    return `MembershipJoinedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1075,7 +1075,7 @@ export class MembershipLeftEvent extends MembershipEvent {
   }
 
   get _pathKey(): string {
-    return "MembershipLeftEvent[id={this.id}]";
+    return `MembershipLeftEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1820,7 +1820,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   }
 
   get _pathKey(): string {
-    return "Membership[id={this.id}]";
+    return `Membership[id=${this.id}]`;
   }
 
   get path(): string {

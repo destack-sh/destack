@@ -372,7 +372,7 @@ export class NotificationSentEvent extends NotificationEvent {
   }
 
   get _pathKey(): string {
-    return "NotificationSentEvent[id={this.id}]";
+    return `NotificationSentEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -899,7 +899,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   }
 
   get _pathKey(): string {
-    return "NotificationRescindedEvent[id={this.id}]";
+    return `NotificationRescindedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1426,7 +1426,7 @@ export class NotificationReadEvent extends NotificationEvent {
   }
 
   get _pathKey(): string {
-    return "NotificationReadEvent[id={this.id}]";
+    return `NotificationReadEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1953,7 +1953,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   }
 
   get _pathKey(): string {
-    return "NotificationDismissedEvent[id={this.id}]";
+    return `NotificationDismissedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2480,7 +2480,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   }
 
   get _pathKey(): string {
-    return "NotificationExpiredEvent[id={this.id}]";
+    return `NotificationExpiredEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3156,7 +3156,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
 
   get _pathKey(): string {
-    return "Notification[id={this.id}]";
+    return `Notification[id=${this.id}]`;
   }
 
   get path(): string {

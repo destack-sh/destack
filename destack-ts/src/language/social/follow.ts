@@ -385,7 +385,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   }
 
   get _pathKey(): string {
-    return "Follow[id={this.id}]";
+    return `Follow[id=${this.id}]`;
   }
 
   get path(): string {
@@ -974,7 +974,7 @@ export class FollowEvent extends Event {
   }
 
   get _pathKey(): string {
-    return "FollowEvent[id={this.id}]";
+    return `FollowEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1328,7 +1328,7 @@ export class FollowAddedEvent extends FollowEvent {
   }
 
   get _pathKey(): string {
-    return "FollowAddedEvent[id={this.id}]";
+    return `FollowAddedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1694,7 +1694,7 @@ export class FollowRemovedEvent extends FollowEvent {
   }
 
   get _pathKey(): string {
-    return "FollowRemovedEvent[id={this.id}]";
+    return `FollowRemovedEvent[id=${this.id}]`;
   }
 
   get path(): string {

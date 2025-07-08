@@ -355,7 +355,7 @@ export class DragStartEvent extends DragEvent {
   }
 
   get _pathKey(): string {
-    return "DragStartEvent[id={this.id}]";
+    return `DragStartEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -902,7 +902,7 @@ export class DragEndEvent extends DragEvent {
   }
 
   get _pathKey(): string {
-    return "DragEndEvent[id={this.id}]";
+    return `DragEndEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1449,7 +1449,7 @@ export class DragOverEvent extends DragEvent {
   }
 
   get _pathKey(): string {
-    return "DragOverEvent[id={this.id}]";
+    return `DragOverEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1996,7 +1996,7 @@ export class DragEnterEvent extends DragEvent {
   }
 
   get _pathKey(): string {
-    return "DragEnterEvent[id={this.id}]";
+    return `DragEnterEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2543,7 +2543,7 @@ export class DragLeaveEvent extends DragEvent {
   }
 
   get _pathKey(): string {
-    return "DragLeaveEvent[id={this.id}]";
+    return `DragLeaveEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3090,7 +3090,7 @@ export class DropEvent extends DragEvent {
   }
 
   get _pathKey(): string {
-    return "DropEvent[id={this.id}]";
+    return `DropEvent[id=${this.id}]`;
   }
 
   get path(): string {

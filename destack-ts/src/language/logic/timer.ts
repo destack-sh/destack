@@ -365,7 +365,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   get _pathKey(): string {
-    return "TimerStartedEvent[id={this.id}]";
+    return `TimerStartedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -892,7 +892,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   get _pathKey(): string {
-    return "TimerCompletedEvent[id={this.id}]";
+    return `TimerCompletedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1419,7 +1419,7 @@ export class TimerCancelledEvent extends TimerEvent {
   }
 
   get _pathKey(): string {
-    return "TimerCancelledEvent[id={this.id}]";
+    return `TimerCancelledEvent[id=${this.id}]`;
   }
 
   get path(): string {

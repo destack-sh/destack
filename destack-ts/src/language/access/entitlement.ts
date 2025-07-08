@@ -395,7 +395,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   }
 
   get _pathKey(): string {
-    return "EntitlementRequestedEvent[id={this.id}]";
+    return `EntitlementRequestedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -963,7 +963,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   }
 
   get _pathKey(): string {
-    return "EntitlementGrantedEvent[id={this.id}]";
+    return `EntitlementGrantedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1531,7 +1531,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   }
 
   get _pathKey(): string {
-    return "EntitlementRevokedEvent[id={this.id}]";
+    return `EntitlementRevokedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2099,7 +2099,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   }
 
   get _pathKey(): string {
-    return "EntitlementExpiredEvent[id={this.id}]";
+    return `EntitlementExpiredEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2773,7 +2773,7 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   }
 
   get _pathKey(): string {
-    return "Entitlement[id={this.id}]";
+    return `Entitlement[id=${this.id}]`;
   }
 
   get path(): string {

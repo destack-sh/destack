@@ -342,7 +342,7 @@ export class ViewEnteredEvent extends ViewEvent {
   }
 
   get _pathKey(): string {
-    return "ViewEnteredEvent[id={this.id}]";
+    return `ViewEnteredEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -869,7 +869,7 @@ export class ViewExitedEvent extends ViewEvent {
   }
 
   get _pathKey(): string {
-    return "ViewExitedEvent[id={this.id}]";
+    return `ViewExitedEvent[id=${this.id}]`;
   }
 
   get path(): string {

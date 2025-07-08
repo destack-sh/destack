@@ -413,7 +413,7 @@ export class Reaction
   }
 
   get _pathKey(): string {
-    return "Reaction[id={this.id}]";
+    return `Reaction[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1022,7 +1022,7 @@ export class ReactionEvent extends Event {
   }
 
   get _pathKey(): string {
-    return "ReactionEvent[id={this.id}]";
+    return `ReactionEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1385,7 +1385,7 @@ export class ReactionAddedEvent extends ReactionEvent {
   }
 
   get _pathKey(): string {
-    return "ReactionAddedEvent[id={this.id}]";
+    return `ReactionAddedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1760,7 +1760,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
   }
 
   get _pathKey(): string {
-    return "ReactionRemovedEvent[id={this.id}]";
+    return `ReactionRemovedEvent[id=${this.id}]`;
   }
 
   get path(): string {

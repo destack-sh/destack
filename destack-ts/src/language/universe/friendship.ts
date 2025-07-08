@@ -381,11 +381,11 @@ export class Friendship extends Entity implements IsGlobal {
   }
 
   get _pathKey(): string {
-    return "Friendship[id={this.id}]";
+    return `Friendship[id=${this.id}]`;
   }
 
   get path(): string {
-    return "Friendship[id={this.id}]";
+    return `Friendship[id=${this.id}]`;
   }
 
   repr(): string {
@@ -989,7 +989,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   }
 
   get _pathKey(): string {
-    return "FriendshipInviteSentEvent[id={this.id}]";
+    return `FriendshipInviteSentEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -1516,7 +1516,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   }
 
   get _pathKey(): string {
-    return "FriendshipInviteRescindedEvent[id={this.id}]";
+    return `FriendshipInviteRescindedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2045,7 +2045,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   }
 
   get _pathKey(): string {
-    return "FriendshipInviteAcceptedEvent[id={this.id}]";
+    return `FriendshipInviteAcceptedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -2572,7 +2572,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   }
 
   get _pathKey(): string {
-    return "FriendshipInviteRejectedEvent[id={this.id}]";
+    return `FriendshipInviteRejectedEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -3149,11 +3149,11 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   }
 
   get _pathKey(): string {
-    return "FriendshipInvite[id={this.id}]";
+    return `FriendshipInvite[id=${this.id}]`;
   }
 
   get path(): string {
-    return "FriendshipInvite[id={this.id}]";
+    return `FriendshipInvite[id=${this.id}]`;
   }
 
   repr(): string {
