@@ -1,5 +1,5 @@
 import type { EventStatus, IsSubject, NodeReference, Snapshot } from "@destack/language/core";
-import { Event, Node, NodeType } from "@destack/language/core";
+import { Entity, Event, Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
@@ -25,7 +25,7 @@ export abstract class InputEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;

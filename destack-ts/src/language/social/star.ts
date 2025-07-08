@@ -48,10 +48,10 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   /**
    * Star.parent
    */
-  get parent(): (Node & IsStarable) | null {
+  get parent(): (Entity & IsStarable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsStarable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsStarable) | null;
     }
     return null;
   }
@@ -130,10 +130,10 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -147,10 +147,10 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -164,14 +164,14 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   /**
    * IsOwned.ownedBy
    */
-  get ownedBy(): (Node & IsOwner) | null {
+  get ownedBy(): (Entity & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: Node & IsOwner) {
+  set ownedBy(node: Entity & IsOwner) {
     this.ownedByPtr = node.toRef();
   }
   get ownedByPtr(): NodeReference {
@@ -186,7 +186,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsStarable) | NodeReference | null;
+    parent?: (Entity & IsStarable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -194,11 +194,11 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     template?: Star | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: (Node & IsOwner) | NodeReference;
+    ownedBy: (Entity & IsOwner) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -762,10 +762,10 @@ export class StarEvent extends Event {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -811,7 +811,7 @@ export class StarEvent extends Event {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1239,7 +1239,7 @@ export class StarAddedEvent extends StarEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1593,7 +1593,7 @@ export class StarRemovedEvent extends StarEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;

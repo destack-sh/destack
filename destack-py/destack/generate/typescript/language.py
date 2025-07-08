@@ -133,7 +133,7 @@ def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -
                 if isinstance(node_type, NodeType):
                     node_classes.append(NODE_CLASS_BY_TYPE[node_type].__name__)
                 elif isinstance(node_type, TraitType):
-                    node_classes.append(f"(Node & {TRAIT_CLASS_BY_TYPE[node_type].__name__})")
+                    node_classes.append(f"(Entity & {TRAIT_CLASS_BY_TYPE[node_type].__name__})")
                 else:
                     assert_never(node_type)
             return " | ".join(node_classes)

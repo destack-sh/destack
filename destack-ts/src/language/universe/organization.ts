@@ -55,7 +55,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   static metatype: NodeType = NodeType.ORGANIZATION;
 
   /**
-   * Trait.parent
+   * Entity.parent
    */
   get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -127,10 +127,10 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -144,10 +144,10 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -228,9 +228,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     template?: Organization | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     slug: string;
     status?: OrganizationStatus;
     space: Space | NodeReference;
@@ -394,6 +394,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (this._handlePtr !== null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -415,9 +418,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -506,6 +506,11 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       handlePtrValue != undefined
         ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -536,11 +541,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Organization({
       slug: objectValue["101"],
       status: Number(objectValue["102"]),
@@ -552,6 +552,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
         _connection,
       ),
       handle: unpackedHandlePtr,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -562,7 +563,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -647,6 +647,16 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -711,16 +721,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

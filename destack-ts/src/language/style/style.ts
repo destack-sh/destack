@@ -8,7 +8,7 @@ import type {
   NodeReference,
   Snapshot,
 } from "@destack/language/core";
-import { Entity, Node, NodeType } from "@destack/language/core";
+import { Entity, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Palette } from "@destack/language/style/palette";
@@ -55,7 +55,7 @@ export abstract class Style
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -63,7 +63,7 @@ export abstract class Style
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  abstract get updatedBy(): (Node & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**

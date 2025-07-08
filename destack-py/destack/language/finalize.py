@@ -337,8 +337,11 @@ def finalize():
                     PropertyDeclaration,
                 ):
                     base_parent_node_types = base_parent_property.node_types or ()
-                    if NodeType.NODE in base_parent_node_types:
-                        continue
+                    if (
+                        NodeType.NODE in base_parent_node_types
+                        or NodeType.ENTITY in base_parent_node_types
+                    ):
+                        continue  # covers everything
                     missing_base_node_types: list[NodeType | TraitType] = []
                     for parent_node_type in parent_node_types:
                         if not any(

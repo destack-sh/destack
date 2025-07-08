@@ -51,10 +51,10 @@ export class Reaction
   /**
    * Reaction.parent
    */
-  get parent(): (Node & IsReactable) | null {
+  get parent(): (Entity & IsReactable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsReactable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsReactable) | null;
     }
     return null;
   }
@@ -133,10 +133,10 @@ export class Reaction
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -150,10 +150,10 @@ export class Reaction
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -167,14 +167,14 @@ export class Reaction
   /**
    * IsOwned.ownedBy
    */
-  get ownedBy(): (Node & IsOwner) | null {
+  get ownedBy(): (Entity & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: Node & IsOwner) {
+  set ownedBy(node: Entity & IsOwner) {
     this.ownedByPtr = node.toRef();
   }
   get ownedByPtr(): NodeReference {
@@ -202,7 +202,7 @@ export class Reaction
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsReactable) | NodeReference | null;
+    parent?: (Entity & IsReactable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -210,11 +210,11 @@ export class Reaction
     template?: Reaction | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy: (Node & IsOwner) | NodeReference;
+    ownedBy: (Entity & IsOwner) | NodeReference;
     content: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -795,10 +795,10 @@ export class ReactionEvent extends Event {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -849,7 +849,7 @@ export class ReactionEvent extends Event {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1291,7 +1291,7 @@ export class ReactionAddedEvent extends ReactionEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1666,7 +1666,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;

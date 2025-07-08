@@ -63,7 +63,7 @@ export abstract class InviteEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;
@@ -82,10 +82,10 @@ export abstract class InviteEvent extends Event {
   abstract get node(): Invite | null;
   declare readonly nodePtr: NodeReference;
 
-  abstract get joinable(): (Node & IsJoinable) | null;
+  abstract get joinable(): (Entity & IsJoinable) | null;
   declare readonly joinablePtr: NodeReference;
 
-  abstract get member(): (Node & IsSubject) | null;
+  abstract get member(): (Entity & IsSubject) | null;
   declare readonly memberPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -146,10 +146,10 @@ export class InviteSentEvent extends InviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -192,10 +192,10 @@ export class InviteSentEvent extends InviteEvent {
   /**
    * InviteEvent.joinable
    */
-  get joinable(): (Node & IsJoinable) | null {
+  get joinable(): (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | null;
     }
     return null;
   }
@@ -204,10 +204,10 @@ export class InviteSentEvent extends InviteEvent {
   /**
    * InviteEvent.member
    */
-  get member(): (Node & IsSubject) | null {
+  get member(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -236,13 +236,13 @@ export class InviteSentEvent extends InviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Invite | NodeReference;
-    joinable: (Node & IsJoinable) | NodeReference;
-    member: (Node & IsSubject) | NodeReference;
+    joinable: (Entity & IsJoinable) | NodeReference;
+    member: (Entity & IsSubject) | NodeReference;
     role: Role | NodeReference;
     roleType: RoleType;
     _session?: Session | null;
@@ -803,10 +803,10 @@ export class InviteRescindedEvent extends InviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -849,10 +849,10 @@ export class InviteRescindedEvent extends InviteEvent {
   /**
    * InviteEvent.joinable
    */
-  get joinable(): (Node & IsJoinable) | null {
+  get joinable(): (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | null;
     }
     return null;
   }
@@ -861,10 +861,10 @@ export class InviteRescindedEvent extends InviteEvent {
   /**
    * InviteEvent.member
    */
-  get member(): (Node & IsSubject) | null {
+  get member(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -876,13 +876,13 @@ export class InviteRescindedEvent extends InviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Invite | NodeReference;
-    joinable: (Node & IsJoinable) | NodeReference;
-    member: (Node & IsSubject) | NodeReference;
+    joinable: (Entity & IsJoinable) | NodeReference;
+    member: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1412,10 +1412,10 @@ export class InviteAcceptedEvent extends InviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1458,10 +1458,10 @@ export class InviteAcceptedEvent extends InviteEvent {
   /**
    * InviteEvent.joinable
    */
-  get joinable(): (Node & IsJoinable) | null {
+  get joinable(): (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | null;
     }
     return null;
   }
@@ -1470,10 +1470,10 @@ export class InviteAcceptedEvent extends InviteEvent {
   /**
    * InviteEvent.member
    */
-  get member(): (Node & IsSubject) | null {
+  get member(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1502,13 +1502,13 @@ export class InviteAcceptedEvent extends InviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Invite | NodeReference;
-    joinable: (Node & IsJoinable) | NodeReference;
-    member: (Node & IsSubject) | NodeReference;
+    joinable: (Entity & IsJoinable) | NodeReference;
+    member: (Entity & IsSubject) | NodeReference;
     role: Role | NodeReference;
     roleType: RoleType;
     _session?: Session | null;
@@ -2081,10 +2081,10 @@ export class InviteRejectedEvent extends InviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2127,10 +2127,10 @@ export class InviteRejectedEvent extends InviteEvent {
   /**
    * InviteEvent.joinable
    */
-  get joinable(): (Node & IsJoinable) | null {
+  get joinable(): (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.joinablePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | null;
     }
     return null;
   }
@@ -2139,10 +2139,10 @@ export class InviteRejectedEvent extends InviteEvent {
   /**
    * InviteEvent.member
    */
-  get member(): (Node & IsSubject) | null {
+  get member(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2154,13 +2154,13 @@ export class InviteRejectedEvent extends InviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Invite | NodeReference;
-    joinable: (Node & IsJoinable) | NodeReference;
-    member: (Node & IsSubject) | NodeReference;
+    joinable: (Entity & IsJoinable) | NodeReference;
+    member: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2649,10 +2649,10 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   /**
    * Invite.parent
    */
-  get parent(): (Node & IsJoinable) | null {
+  get parent(): (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | null;
     }
     return null;
   }
@@ -2731,10 +2731,10 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2748,10 +2748,10 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2765,14 +2765,14 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Node & IsOwner) | null {
+  get ownedBy(): (Entity & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: (Node & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -2792,14 +2792,14 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   /**
    * Invite.member
    */
-  get member(): (Node & IsSubject) | null {
+  get member(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.memberPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set member(node: Node & IsSubject) {
+  set member(node: Entity & IsSubject) {
     this.memberPtr = node.toRef();
   }
   get memberPtr(): NodeReference {
@@ -2854,7 +2854,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsJoinable) | NodeReference | null;
+    parent?: (Entity & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -2862,12 +2862,12 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     template?: Invite | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Node & IsOwner) | NodeReference | null;
-    member: (Node & IsSubject) | NodeReference;
+    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    member: (Entity & IsSubject) | NodeReference;
     role?: Role | NodeReference | null;
     roleType?: RoleType | null;
     _session?: Session | null;

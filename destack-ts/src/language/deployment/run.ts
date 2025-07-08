@@ -86,7 +86,7 @@ export abstract class RunEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;
@@ -105,7 +105,7 @@ export abstract class RunEvent extends Event {
   abstract get node(): Run | null;
   declare readonly nodePtr: NodeReference;
 
-  abstract get target(): (Node & IsRunnable) | null;
+  abstract get target(): (Entity & IsRunnable) | null;
   declare readonly targetPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -166,10 +166,10 @@ export class RunStartedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -212,10 +212,10 @@ export class RunStartedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -227,12 +227,12 @@ export class RunStartedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -727,10 +727,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -773,10 +773,10 @@ export class RunPauseRequestedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -788,12 +788,12 @@ export class RunPauseRequestedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1300,10 +1300,10 @@ export class RunPausedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1346,10 +1346,10 @@ export class RunPausedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -1361,12 +1361,12 @@ export class RunPausedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1861,10 +1861,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1907,10 +1907,10 @@ export class RunResumeRequestedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -1922,12 +1922,12 @@ export class RunResumeRequestedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2434,10 +2434,10 @@ export class RunResumedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2480,10 +2480,10 @@ export class RunResumedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -2495,12 +2495,12 @@ export class RunResumedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2995,10 +2995,10 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -3041,10 +3041,10 @@ export class RunStopRequestedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -3056,12 +3056,12 @@ export class RunStopRequestedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -3568,10 +3568,10 @@ export class RunFailedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -3614,10 +3614,10 @@ export class RunFailedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -3629,12 +3629,12 @@ export class RunFailedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -4129,10 +4129,10 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -4175,10 +4175,10 @@ export class RunCompletedEvent extends RunEvent {
   /**
    * RunEvent.target
    */
-  get target(): (Node & IsRunnable) | null {
+  get target(): (Entity & IsRunnable) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsRunnable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsRunnable) | null;
     }
     return null;
   }
@@ -4190,12 +4190,12 @@ export class RunCompletedEvent extends RunEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Run | NodeReference;
-    target?: (Node & IsRunnable) | NodeReference | null;
+    target?: (Entity & IsRunnable) | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -4686,7 +4686,7 @@ export abstract class Run extends Entity implements IsSpatial, IsCustomizable, I
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -4694,7 +4694,7 @@ export abstract class Run extends Entity implements IsSpatial, IsCustomizable, I
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  abstract get updatedBy(): (Node & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -4706,8 +4706,8 @@ export abstract class Run extends Entity implements IsSpatial, IsCustomizable, I
   abstract get customValues(): Map<string, Value>;
   abstract set customValues(value: Map<string, Value>);
 
-  abstract get target(): (Node & IsRunnable) | null;
-  abstract set target(value: (Node & IsRunnable) | null);
+  abstract get target(): (Entity & IsRunnable) | null;
+  abstract set target(value: (Entity & IsRunnable) | null);
   /**
    * Run.target
    */

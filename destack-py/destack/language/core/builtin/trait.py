@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
         CustomEventDefinition,
+        Entity,
         Node,
         NodeDefinitionReference,
         NodeReference,
@@ -132,7 +133,7 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     #   since Trait doesn't actually inherit from Node for circularity reasons;
     #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=None)
-    parent: Optional["Node"] = builtin_property_parent()
+    parent: Optional["Entity"] = builtin_property_parent()
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 

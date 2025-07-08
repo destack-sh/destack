@@ -57,10 +57,10 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /**
    * Permission.parent
    */
-  get parent(): (Node & IsJoinable) | Folder | null {
+  get parent(): (Entity & IsJoinable) | Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsJoinable) | Folder | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | Folder | null;
     }
     return null;
   }
@@ -139,10 +139,10 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -156,10 +156,10 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -211,7 +211,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsJoinable) | Folder | NodeReference | null;
+    parent?: (Entity & IsJoinable) | Folder | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -219,9 +219,9 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
     template?: Permission | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     type: PermissionType;
     name: string;

@@ -1,7 +1,7 @@
 import { TraitType } from "@destack/language/core/builtin/common";
 import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import { Entity } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
-import { Node } from "@destack/language/core/builtin/node";
 import type {
   NodeDefinitionReference,
   NodeReference,
@@ -387,8 +387,8 @@ registerTraitClass(TraitType.RUNNABLE, IsRunnable);
  * A Node that can be owned by another Node.
  */
 export interface IsOwnable {
-  get ownedBy(): (Node & IsOwner) | null;
-  set ownedBy(value: (Node & IsOwner) | null);
+  get ownedBy(): (Entity & IsOwner) | null;
+  set ownedBy(value: (Entity & IsOwner) | null);
   /**
    * IsOwnable.ownedBy
    */
@@ -452,8 +452,8 @@ registerTraitClass(TraitType.JOINABLE, IsJoinable);
  * A Node that must be owned by another Node.
  */
 export interface IsOwned extends IsOwnable {
-  get ownedBy(): (Node & IsOwner) | null;
-  set ownedBy(value: Node & IsOwner);
+  get ownedBy(): (Entity & IsOwner) | null;
+  set ownedBy(value: Entity & IsOwner);
   /**
    * IsOwned.ownedBy
    */

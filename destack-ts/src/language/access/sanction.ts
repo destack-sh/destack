@@ -78,7 +78,7 @@ export abstract class SanctionEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;
@@ -97,7 +97,7 @@ export abstract class SanctionEvent extends Event {
   abstract get node(): Sanction | null;
   declare readonly nodePtr: NodeReference;
 
-  abstract get target(): (Node & IsSubject) | null;
+  abstract get target(): (Entity & IsSubject) | null;
   declare readonly targetPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -158,10 +158,10 @@ export class SanctionRequestedEvent extends SanctionEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -204,10 +204,10 @@ export class SanctionRequestedEvent extends SanctionEvent {
   /**
    * SanctionEvent.target
    */
-  get target(): (Node & IsSubject) | null {
+  get target(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -219,12 +219,12 @@ export class SanctionRequestedEvent extends SanctionEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Sanction | NodeReference;
-    target: (Node & IsSubject) | NodeReference;
+    target: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -726,10 +726,10 @@ export class SanctionGrantedEvent extends SanctionEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -772,10 +772,10 @@ export class SanctionGrantedEvent extends SanctionEvent {
   /**
    * SanctionEvent.target
    */
-  get target(): (Node & IsSubject) | null {
+  get target(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -787,12 +787,12 @@ export class SanctionGrantedEvent extends SanctionEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Sanction | NodeReference;
-    target: (Node & IsSubject) | NodeReference;
+    target: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1294,10 +1294,10 @@ export class SanctionRevokedEvent extends SanctionEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1340,10 +1340,10 @@ export class SanctionRevokedEvent extends SanctionEvent {
   /**
    * SanctionEvent.target
    */
-  get target(): (Node & IsSubject) | null {
+  get target(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1355,12 +1355,12 @@ export class SanctionRevokedEvent extends SanctionEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Sanction | NodeReference;
-    target: (Node & IsSubject) | NodeReference;
+    target: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1862,10 +1862,10 @@ export class SanctionExpiredEvent extends SanctionEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1908,10 +1908,10 @@ export class SanctionExpiredEvent extends SanctionEvent {
   /**
    * SanctionEvent.target
    */
-  get target(): (Node & IsSubject) | null {
+  get target(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1923,12 +1923,12 @@ export class SanctionExpiredEvent extends SanctionEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Sanction | NodeReference;
-    target: (Node & IsSubject) | NodeReference;
+    target: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2389,10 +2389,13 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   /**
    * Sanction.parent
    */
-  get parent(): (Node & IsSubject) | (Node & IsJoinable) | null {
+  get parent(): (Entity & IsSubject) | (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | (Node & IsJoinable) | null;
+      return this._supergraph.get(nodePtr.id) as
+        | (Entity & IsSubject)
+        | (Entity & IsJoinable)
+        | null;
     }
     return null;
   }
@@ -2471,10 +2474,10 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2488,10 +2491,10 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2531,14 +2534,14 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   /**
    * Sanction.target
    */
-  get target(): (Node & IsSubject) | null {
+  get target(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set target(node: Node & IsSubject) {
+  set target(node: Entity & IsSubject) {
     this.targetPtr = node.toRef();
   }
   get targetPtr(): NodeReference {
@@ -2553,7 +2556,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsSubject) | (Node & IsJoinable) | NodeReference | null;
+    parent?: (Entity & IsSubject) | (Entity & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -2561,13 +2564,13 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     template?: Sanction | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     type: SanctionType;
     expiresAt?: Temporal.ZonedDateTime | null;
-    target: (Node & IsSubject) | NodeReference;
+    target: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;

@@ -537,9 +537,9 @@ class PropertyDeclaration(TypeDeclaration):
     def finalize(self, object_type: NodeType | StructType | None) -> None:
         """Finalize the Property after all BuiltinObjects are defined."""
         if self.scalar_type == ScalarType.NODE_REFERENCE:
-            from ..runtime.graph import expand_node_traits
+            from ..runtime.graph import expand_node_types
 
-            node_types = expand_node_traits(self.node_types or ())
+            node_types = expand_node_types(self.node_types or (), expand_inheritance=True)
             self.node_is_heterogenous = len(node_types) > 1
             self.node_is_extensible = any(
                 TraitType.EXTENSIBLE in NODE_CLASS_BY_TYPE[node_type].__traits__
