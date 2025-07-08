@@ -69,7 +69,7 @@ class EventStore(Store):
         ...
 
 
-class LiveStore(EventStore):
+class LiveStore(Store):
     """
     An EventStore that supports Query subscriptions.
     """
