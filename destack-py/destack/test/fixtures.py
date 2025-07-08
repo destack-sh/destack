@@ -21,36 +21,21 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 
-# NOTE: we manually set session sync context since it's not propagated across pytest tasks (see above)
-# https://github.com/pytest-dev/pytest-asyncio/issues/127#issuecomment-862817549 :PytestAsyncContext
-
-
 @pytest.fixture
-def memory_store() -> MemoryEntityStore:
-    return MemoryEntityStore(types=tuple(StoreType))
-
-
-@pytest.fixture  # :PytestAsyncContext
-async def memory_session_async(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=memory_store)
+async def memory_session() -> AsyncGenerator[Session, None]:
+    session = Session(store=MemoryEntityStore(types=tuple(StoreType)))
     await session.open()
     yield session
     await session.close()
 
 
 @pytest.fixture
-def memory_session(memory_session_async: Session):
-    token = ACTIVE_SESSION.set(memory_session_async)
-    yield memory_session_async
-    ACTIVE_SESSION.reset(token)
-
-
-@pytest.fixture
-def session(memory_session_async: Session):
+async def session(memory_session: Session):
     """Default Session is in-memory."""
-    token = ACTIVE_SESSION.set(memory_session_async)
-    yield memory_session_async
-    ACTIVE_SESSION.reset(token)
+    session = Session(store=MemoryEntityStore(types=tuple(StoreType)))
+    await session.open()
+    yield session
+    await session.close()
 
 
 @contextmanager

@@ -46,7 +46,7 @@ class StaticDatabaseProvider(DatabaseProvider):
 
     @override
     async def acquire(self, region: Region, space: Space) -> "DatabaseInfo":
-        from desys.store.postgres import pg_connection
+        from desys.store.postgres import postgres_connection
 
         # find main database
         base_database: DatabaseInfo | None = None
@@ -59,7 +59,7 @@ class StaticDatabaseProvider(DatabaseProvider):
 
         # create schema
         destack_schema_name = f"destack_{str(space.id).replace('-', '_')}"
-        async with pg_connection(base_database) as conn:
+        async with postgres_connection(base_database) as conn:
             await conn.execute(f"CREATE SCHEMA IF NOT EXISTS {destack_schema_name}")
         database = DatabaseInfo(
             type=base_database.type,

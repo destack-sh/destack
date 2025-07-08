@@ -39,7 +39,7 @@ async def close_postgres_pool(database: DatabaseInfo | Database):
 
 
 @asynccontextmanager
-async def pg_connection(
+async def postgres_connection(
     database: DatabaseInfo | Database,
 ) -> AsyncGenerator[asyncpg.Connection, None]:
     """
@@ -54,14 +54,14 @@ async def pg_connection(
 
 
 @asynccontextmanager
-async def pg_transaction(
+async def postgres_transaction(
     database: DatabaseInfo | Database,
 ) -> AsyncGenerator[tuple[asyncpg.Connection, asyncpg.transaction.Transaction], None]:
     """
     Context manager for an asyncpg.Transaction.
     """
 
-    async with pg_connection(database) as conn:
+    async with postgres_connection(database) as conn:
         tx = conn.transaction()
         await tx.start()
         yield conn, tx
