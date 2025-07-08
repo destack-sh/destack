@@ -269,7 +269,7 @@ function executeEdit(options: {
     let where: Condition | null = null;
     if (editType === EditType.UNARCHIVE || editType === EditType.RESTORE) {
       // restrict to nodes with same deleted_at/archived_at
-      const rootDts = new Set<Date>();
+      const rootDts = new Set<Temporal.ZonedDateTime>();
       for (const nodePtr of nodesPtrs) {
         const snapshotId = nodePtr.snapshotId || null;
         const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
@@ -278,12 +278,12 @@ function executeEdit(options: {
           if (editType === EditType.UNARCHIVE) {
             const archivedAt = row.value[ARCHIVED_AT_KEY];
             if (archivedAt) {
-              rootDts.add(new Date(archivedAt));
+              rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
             }
           } else if (editType === EditType.RESTORE) {
             const deletedAt = row.value[DELETED_AT_KEY];
             if (deletedAt) {
-              rootDts.add(new Date(deletedAt));
+              rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
             }
           }
         }
