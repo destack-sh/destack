@@ -567,24 +567,28 @@ def _query_grouped_scalar(
 def _walk_node(
     context: MemoryContext,
     definition: NodeDefinitionReference,
-    roots_ptr: Sequence[NodeReference],
-    roots_parents_ptr: Sequence[NodeReference],
+    nodes_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
     depth: int,
     where: Condition | None,
     snapshot_path: Sequence[UUID],
-) -> list[NodeReference]:
+) -> tuple[list[NodeReference], dict[UUID, UUID]]:
     """Get the cascaded Nodes for a query."""
 
-    nodes_by_id: dict[UUID, NodeReference] = {ptr.id: ptr for ptr in roots_ptr}
     definitions = context.resolve(definition)
     snapshot_id = snapshot_path[-1] if snapshot_path else None
+    nodes_by_id: dict[UUID, NodeReference] = (
+        {ptr.id: ptr for ptr in nodes_ptr} if direction == EdgeDirection.PARENT else {}
+    )
+    source_id_by_node_id: dict[UUID, UUID] = {}
 
     # parent walk
     if direction == EdgeDirection.PARENT:
         # start with root nodes and walk up
         current_depth = 0
-        current_node_ids: set[UUID] = {ptr.id for ptr in roots_ptr}
+        current_node_ids: set[UUID] = {ptr.id for ptr in nodes_ptr}
+        for ptr in nodes_ptr:
+            source_id_by_node_id[ptr.id] = ptr.id
         while current_depth < depth:
             if not current_node_ids:
                 break
@@ -600,6 +604,7 @@ def _walk_node(
                         and (parent_id := parent_ptr.id) not in nodes_by_id
                         and (where is None or _evaluate_condition(context, where, row))
                     ):
+                        source_id_by_node_id[parent_id] = source_id_by_node_id[node_id]
                         nodes_by_id[parent_id] = parent_ptr
                         next_node_ids.add(parent_id)
 
@@ -610,8 +615,9 @@ def _walk_node(
     elif direction == EdgeDirection.CHILD:
         # start with root parents and walk down
         current_depth = 0
-        current_parent_ids: set[UUID] = {ptr.id for ptr in roots_parents_ptr}
-
+        current_parent_ids: set[UUID] = {ptr.id for ptr in nodes_ptr}
+        for ptr in nodes_ptr:
+            source_id_by_node_id[ptr.id] = ptr.id
         while current_depth < depth:
             if not current_parent_ids:
                 break
@@ -626,6 +632,7 @@ def _walk_node(
                             if (node_id := row.id) not in nodes_by_id and (
                                 where is None or _evaluate_condition(context, where, row)
                             ):
+                                source_id_by_node_id[node_id] = source_id_by_node_id[parent_id]
                                 nodes_by_id[node_id] = row.ptr
                                 next_parent_ids.add(node_id)
 
@@ -639,7 +646,7 @@ def _walk_node(
     else:
         assert_never(direction)
 
-    return list(nodes_by_id.values())
+    return list(nodes_by_id.values()), source_id_by_node_id
 
 
 @tracer.start_as_current_span("memory.query_clause")
@@ -783,11 +790,10 @@ def _execute_subquery(
         if not parents_ptr:
             return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_nodes_ptr = _walk_node(
+            expanded_nodes_ptr, _ = _walk_node(
                 context=context,
                 definition=subquery.definition,
-                roots_ptr=list(parents_ptr.values()),
-                roots_parents_ptr=(),
+                nodes_ptr=list(parents_ptr.values()),
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
@@ -811,11 +817,10 @@ def _execute_subquery(
         if not nodes_ptr:
             return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_nodes_ptr = _walk_node(
+            expanded_nodes_ptr, _ = _walk_node(
                 context=context,
                 definition=subquery.definition,
-                roots_ptr=[],
-                roots_parents_ptr=nodes_ptr,
+                nodes_ptr=nodes_ptr,
                 direction=EdgeDirection.CHILD,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
