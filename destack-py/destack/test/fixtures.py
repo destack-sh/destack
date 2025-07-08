@@ -7,7 +7,6 @@ import pytest
 import structlog
 from opentelemetry import trace
 
-from destack.store import MemoryEntityStore
 from destack.test.conftest import _setup_test_env
 
 # ruff: noqa: E402
@@ -15,11 +14,8 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack.language import (
-    ACTIVE_SESSION,
-    Session,
-    StoreType,
-)
+from destack.language import ACTIVE_SESSION, Session, StoreType
+from destack.store import MemoryEntityStore
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)

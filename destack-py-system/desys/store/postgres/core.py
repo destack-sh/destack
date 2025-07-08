@@ -90,13 +90,13 @@ class PostgresContext:
 
     def get(self, definition: NodeDefinitionReference | NodeReference) -> "PostgresTable":
         """Get the Table for a NodeDefinition."""
-        from .map import DESTACK_BUILTIN_TABLE_PREFIX
+        from .map import POSTGRES_BUILTIN_TABLE_PREFIX
 
         if isinstance(definition, NodeReference):
             node_type = definition.type
         else:
             node_type = definition.node_type
-        table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_type.name.lower()}"
+        table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node_type.name.lower()}"
         table = self.tables_by_name.get(table_name)
         if table is None:
             raise LookupError(f"no table for {table_name!r} in {self.store_types!r}")

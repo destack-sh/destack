@@ -24,17 +24,17 @@ from .core import (
 )
 from .core import PostgresTable as PostgresTable
 
-DESTACK_BUILTIN_TABLE_PREFIX = "destack_"
+POSTGRES_BUILTIN_TABLE_PREFIX = "destack_"
 
 
 def get_table_name(node_ptr: NodeReference) -> str:
-    return f"{DESTACK_BUILTIN_TABLE_PREFIX}{node_ptr.type.name.lower()}"
+    return f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node_ptr.type.name.lower()}"
 
 
 def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     """Maps a node type into its builtin Table schema."""
 
-    table_name = f"{DESTACK_BUILTIN_TABLE_PREFIX}{node.metatype.name.lower()}"
+    table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node.metatype.name.lower()}"
     columns: list[PostgresColumn] = []
     constraints: list[PostgresConstraint] = []
     indexes: list[PostgresIndex] = []

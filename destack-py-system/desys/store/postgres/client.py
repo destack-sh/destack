@@ -10,7 +10,7 @@ from destack.language import Database, DatabaseInfo
 _pool_by_url: dict[str, asyncpg.Pool] = {}
 
 
-async def _get_pool(database: DatabaseInfo | Database) -> asyncpg.Pool:
+async def get_postgres_pool(database: DatabaseInfo | Database) -> asyncpg.Pool:
     """Get a pool for a database."""
 
     assert database.connection_url, f"no connection_url for {database!r}"
@@ -26,6 +26,18 @@ async def _get_pool(database: DatabaseInfo | Database) -> asyncpg.Pool:
     return pool
 
 
+async def close_postgres_pool(database: DatabaseInfo | Database):
+    """Close a pool."""
+    assert database.connection_url, f"no connection_url for {database!r}"
+
+    pool = _pool_by_url.get(database.connection_url)
+    if pool is None:
+        return
+
+    await pool.close()
+    del _pool_by_url[database.connection_url]
+
+
 @asynccontextmanager
 async def pg_connection(
     database: DatabaseInfo | Database,
@@ -36,7 +48,7 @@ async def pg_connection(
 
     assert database.connection_url, f"no connection_url for {database!r}"
 
-    pool = await _get_pool(database)
+    pool = await get_postgres_pool(database)
     async with pool.acquire() as conn:
         yield conn
 

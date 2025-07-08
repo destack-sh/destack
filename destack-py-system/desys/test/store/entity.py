@@ -31,7 +31,10 @@ from destack.test.fixtures import NODES
 from destack.test.strategies import examples, nodes
 from destack.utils.uuid import uuid4
 
-ENTITY_SESSIONS = (lf("memory_session"), lf("postgres_session"))
+ENTITY_SESSIONS = (
+    lf("memory_session"),
+    lf("postgres_session"),
+)
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
