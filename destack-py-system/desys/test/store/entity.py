@@ -111,7 +111,7 @@ async def test_create_folders_recursive(session: Session):
     # create
     root_folder = Folder(name="Folder", type=FolderType.HOME)
     session.create(root_folder)
-    target_folder_count = 4 * (1 + 4 * (1 + 4))
+    subtree_folder_count = 4 * (1 + 4 * (1 + 4))
     for a in ("a", "b", "c", "d"):
         # create folder
         folder = Folder(name=f"Folder {a}")
@@ -144,7 +144,7 @@ async def test_create_folders_recursive(session: Session):
         ).execute()
         folder_unpacked = connection.to_one()
         folder_tree_unpacked = folder_unpacked.get_descendants(Folder)
-        assert len(folder_tree_unpacked) == target_folder_count
+        assert len(folder_tree_unpacked) == subtree_folder_count
 
         # query folder up (parent, recursive)
         folder_leaves = folder._graph.get_leaves(Folder, folder)
@@ -159,14 +159,44 @@ async def test_create_folders_recursive(session: Session):
         assert folders_unpacked[0].equals(root_folder)
 
     # delete root folder (should cascade delete all folders)
+    num_total_folders = await Folder.count(
+        where=Folder.property("deleted_at").is_none()
+    ).execute_count()
     session.delete(root_folder)
     await session.commit()
-    assert await Folder.count().execute_count() == 0
-
+    assert await Folder.count(where=Folder.property("deleted_at").is_none()).execute_count() == 0
     # restore root folder (should restore all folders)
     session.restore(root_folder)
     await session.commit()
-    assert await Folder.count().execute_count() == target_folder_count
+    assert (
+        await Folder.count(where=Folder.property("deleted_at").is_none()).execute_count()
+        == num_total_folders
+    )
+
+    # delete and restore subfolders one at a time
+    for i, folder in enumerate(root_folder.get_children(Folder)):
+        # delete just this subfolder (and its descendants)
+        session.delete(folder)
+        await session.commit()
+        connection = await Folder.get(
+            where=Folder.property("id").eq(folder.id) & Folder.property("deleted_at").is_none(),
+            Folders=Folder.search(
+                join=Join.of(JoinType.CHILD, recursive=True),
+                where=Folder.property("deleted_at").is_none(),
+            ),
+        ).execute()
+        assert connection.to_one_or_none() is None
+
+        assert await Folder.count(
+            where=Folder.property("deleted_at").is_none()
+        ).execute_count() == (num_total_folders - ((i + 1) * (subtree_folder_count + 1)))
+    # restore subfolders one at a time
+    for i, folder in enumerate(root_folder.get_children(Folder)):
+        session.restore(folder)
+        await session.commit()
+        assert await Folder.count(
+            where=Folder.property("deleted_at").is_none()
+        ).execute_count() == 1 + ((i + 1) * (subtree_folder_count + 1))
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)

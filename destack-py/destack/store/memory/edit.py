@@ -1,12 +1,16 @@
 from collections import OrderedDict
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from itertools import chain
 from typing import assert_never
+from uuid import UUID
 
 import structlog
 from opentelemetry import trace
 
 from destack.language import (
     CASCADING_EDIT_TYPES,
+    Condition,
     EdgeDirection,
     EditEvent,
     EditOperation,
@@ -24,6 +28,8 @@ from .wiring import pack_node_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
+
+MAX_RECURSION_DEPTH = 100
 
 NODE_PARENT_KEY = str(Node.property("parent").id)
 
@@ -51,7 +57,7 @@ def execute_edits(
             edit_definition.node_type != current_definition.node_type
             or edit.type != current_edit_type
         ):
-            batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
+            batch_applied_edits, batch_cascaded_edits = _execute_edit(
                 context=context,
                 definition=current_definition,
                 edit_type=current_edit_type,
@@ -64,7 +70,7 @@ def execute_edits(
         current_batch.append(edit)
 
     if current_batch:
-        batch_applied_edits, batch_cascaded_edits = _execute_data_edit(
+        batch_applied_edits, batch_cascaded_edits = _execute_edit(
             context=context,
             definition=current_definition,
             edit_type=current_edit_type,
@@ -111,30 +117,29 @@ def _optimize_edits(context: MemoryContext, edits: Sequence[EditEvent]) -> list[
     return optimized_edits
 
 
-@tracer.start_as_current_span("memory.execute_cascade")
 def _execute_cascade(
     context: MemoryContext,
     definition: NodeDefinitionReference,
     node_ptrs: Sequence[NodeReference],
-) -> Sequence[NodeReference]:
+    where: Condition | None,
+) -> tuple[Sequence[NodeReference], dict[UUID, UUID]]:
     """Get the cascaded Nodes for an Edit."""
     from .query import _walk_node
 
-    child_ptrs = _walk_node(
+    child_ptrs, source_id_by_node_id = _walk_node(
         context=context,
         definition=definition,
-        roots_ptr=node_ptrs,
-        roots_parents_ptr=(),
+        nodes_ptr=node_ptrs,
         direction=EdgeDirection.CHILD,
-        depth=1,
-        where=None,
+        depth=MAX_RECURSION_DEPTH,
+        where=where,
         snapshot_path=(),
     )
-    return child_ptrs
+    return child_ptrs, source_id_by_node_id
 
 
-@tracer.start_as_current_span("memory.execute_data_edit")
-def _execute_data_edit(
+@tracer.start_as_current_span("memory.execute_edit")
+def _execute_edit(
     context: MemoryContext,
     definition: NodeDefinitionReference,
     edit_type: EditType,
@@ -233,27 +238,61 @@ def _execute_data_edit(
         EditType.RESTORE,
     ):
         # cascade
-        cascaded_node_ptrs = _execute_cascade(
+        nodes_ptr = tuple(edit.node_ptr for edit in edits)
+        edited_at_by_node_id: dict[UUID, datetime] = {
+            edit.node_ptr.id: edit.created_at for edit in edits
+        }
+        where: Condition | None = None
+        if edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE:
+            # restrict to nodes with same deleted_at/archived_at
+            root_dts: set[datetime] = set()
+            for node_ptr in nodes_ptr:
+                node_table = context.get(node_ptr)
+                snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
+                node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
+                if row := node_table.rows.get(node_key):
+                    if edit_type == EditType.UNARCHIVE:
+                        root_dts.add(
+                            datetime.fromisoformat(row.value[ARCHIVED_AT_KEY]).astimezone(UTC)
+                        )
+                    elif edit_type == EditType.RESTORE:
+                        root_dts.add(
+                            datetime.fromisoformat(row.value[DELETED_AT_KEY]).astimezone(UTC)
+                        )
+                    else:
+                        assert_never(edit_type)
+            if root_dts:
+                if edit_type == EditType.UNARCHIVE:
+                    where = IsArchivable.property("archived_at").in_(*root_dts)
+                elif edit_type == EditType.RESTORE:
+                    where = IsDeletable.property("deleted_at").in_(*root_dts)
+                else:
+                    assert_never(edit_type)
+        cascaded_node_ptrs, source_id_by_node_id = _execute_cascade(
             context=context,
             definition=definition,
-            node_ptrs=tuple(edit.node_ptr for edit in edits),
+            node_ptrs=nodes_ptr,
+            where=where,
         )
         cascaded_edits = tuple(
             EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # update timestamps
-        for node_ptr in cascaded_node_ptrs:
+        for node_ptr in chain(nodes_ptr, cascaded_node_ptrs):
+            # nocheckin: proper cascade timestamp
             node_table = context.get(node_ptr)
             snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             if row := node_table.rows.get(node_key):
                 if edit_type == EditType.ARCHIVE:
-                    row.value[ARCHIVED_AT_KEY] = edits[0].created_at
+                    edited_at = edited_at_by_node_id[source_id_by_node_id[node_ptr.id]]
+                    row.value[ARCHIVED_AT_KEY] = edited_at.astimezone(UTC).isoformat()
                 elif edit_type == EditType.UNARCHIVE:
                     row.value.pop(ARCHIVED_AT_KEY, None)
                 elif edit_type == EditType.DELETE:
-                    row.value[DELETED_AT_KEY] = edits[0].created_at
+                    edited_at = edited_at_by_node_id[source_id_by_node_id[node_ptr.id]]
+                    row.value[DELETED_AT_KEY] = edited_at.astimezone(UTC).isoformat()
                 elif edit_type == EditType.RESTORE:
                     row.value.pop(DELETED_AT_KEY, None)
                 else:
@@ -262,6 +301,7 @@ def _execute_data_edit(
         logger.trace(
             f"memory.{edit_type.name.lower()}",
             edits=len(edits),
+            cascaded_edits=len(cascaded_edits),
             span="current",
         )
         return edits, cascaded_edits
@@ -269,17 +309,19 @@ def _execute_data_edit(
     # erase
     elif edit_type == EditType.ERASE:
         # cascade
-        cascaded_node_ptrs = _execute_cascade(
+        nodes_ptr = tuple(edit.node_ptr for edit in edits)
+        cascaded_node_ptrs, source_id_by_node_id = _execute_cascade(
             context=context,
             definition=definition,
-            node_ptrs=tuple(edit.node_ptr for edit in edits),
+            node_ptrs=nodes_ptr,
+            where=None,
         )
         cascaded_edits = tuple(
             EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # delete rows
-        for node_ptr in cascaded_node_ptrs:
+        for node_ptr in chain(nodes_ptr, cascaded_node_ptrs):
             node_table = context.get(node_ptr)
             snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
@@ -296,6 +338,7 @@ def _execute_data_edit(
         logger.trace(
             f"memory.{edit_type.name.lower()}",
             edits=len(edits),
+            cascaded_edits=len(cascaded_edits),
             span="current",
         )
         return edits, cascaded_edits

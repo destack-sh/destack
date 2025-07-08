@@ -1,6 +1,8 @@
 import uuid
 from collections import OrderedDict, defaultdict
 from collections.abc import Sequence
+from datetime import UTC, datetime
+from itertools import chain
 from typing import Any, assert_never
 
 import asyncpg
@@ -9,6 +11,7 @@ from opentelemetry import trace
 
 from destack.language import (
     CASCADING_EDIT_TYPES,
+    Condition,
     EdgeDirection,
     EditEvent,
     EditOperation,
@@ -46,7 +49,7 @@ async def execute_edits(
             edit_definition.node_type != current_definition.node_type
             or edit.type != current_edit_type
         ):
-            batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
+            batch_applied_edits, batch_cascaded_edits = await _execute_edit(
                 conn=conn,
                 context=context,
                 definition=current_definition,
@@ -62,7 +65,7 @@ async def execute_edits(
         current_batch.append(edit)
 
     if current_batch:
-        batch_applied_edits, batch_cascaded_edits = await _execute_data_edit(
+        batch_applied_edits, batch_cascaded_edits = await _execute_edit(
             conn=conn,
             context=context,
             definition=current_definition,
@@ -112,13 +115,13 @@ def _optimize_edits(context: PostgresContext, edits: Sequence[EditEvent]) -> lis
     return optimized_edits
 
 
-@tracer.start_as_current_span("postgres.execute_cascade")
 async def _execute_cascade(
     conn: asyncpg.Connection,
     context: PostgresContext,
     definition: NodeDefinitionReference,
     node_ptrs: Sequence[NodeReference],
-) -> Sequence[NodeReference]:
+    where: Condition | None,
+) -> tuple[Sequence[NodeReference], dict[uuid.UUID, uuid.UUID]]:
     """Get the cascaded Nodes for an Edit."""
     from .query import _walk_node
 
@@ -126,8 +129,7 @@ async def _execute_cascade(
         conn=conn,
         context=context,
         definition=definition,
-        roots_ptr=node_ptrs,
-        roots_parents_ptr=(),
+        nodes_ptr=node_ptrs,
         direction=EdgeDirection.CHILD,
         depth=1,
         where=None,
@@ -135,8 +137,8 @@ async def _execute_cascade(
     return child_ptrs
 
 
-@tracer.start_as_current_span("postgres.execute_data_edit")
-async def _execute_data_edit(
+@tracer.start_as_current_span("postgres.execute_edit")
+async def _execute_edit(
     conn: asyncpg.Connection,
     context: PostgresContext,
     definition: NodeDefinitionReference,
@@ -289,58 +291,78 @@ WHERE id = ${len(update_template) + 1}
         EditType.RESTORE,
     ):
         # cascade
-        cascaded_node_ptrs = await _execute_cascade(
+        nodes_ptr = tuple(edit.node_ptr for edit in edits)
+        edited_at_by_node_id: dict[uuid.UUID, datetime] = {
+            uuid.UUID(str(edit.node_ptr.id)): edit.created_at.astimezone(UTC).replace(tzinfo=None)
+            for edit in edits
+        }
+        where: Condition | None = None
+        if edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE:
+            # restrict to nodes with same deleted_at/archived_at
+            pass
+        cascaded_node_ptrs, source_id_by_node_id = await _execute_cascade(
             conn=conn,
             context=context,
             definition=definition,
-            node_ptrs=tuple(edit.node_ptr for edit in edits),
+            node_ptrs=nodes_ptr,
+            where=where,
         )
         cascaded_edits = tuple(
             EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
         )
 
         # update
-        if edit_type == EditType.ARCHIVE:
-            update_stmt = "SET archived_at = $2"
-        elif edit_type == EditType.UNARCHIVE:
-            update_stmt = "SET archived_at = NULL"
-        elif edit_type == EditType.DELETE:
-            update_stmt = "SET deleted_at = $2"
-        elif edit_type == EditType.RESTORE:
-            update_stmt = "SET deleted_at = NULL"
-        else:
-            assert_never(edit_type)
         edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
-        for node_ptr in cascaded_node_ptrs:
+        for node_ptr in chain(nodes_ptr, cascaded_node_ptrs):
             table_name = context.get(node_ptr).name
             node_id_packed = uuid.UUID(str(node_ptr.id))
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
-        at_packed = uuid.UUID(str(edits[0].created_at))
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():
+            arguments: list[Any] = []
+            if edit_type == EditType.ARCHIVE:
+                update_stmt = "archived_at = $2"
+                for node_id in table_node_ids:
+                    edited_at = edited_at_by_node_id[source_id_by_node_id[node_id]]
+                    arguments.append((node_id, edited_at))
+            elif edit_type == EditType.UNARCHIVE:
+                update_stmt = "archived_at = NULL"
+                for node_id in table_node_ids:
+                    arguments.append((node_id,))
+            elif edit_type == EditType.DELETE:
+                update_stmt = "deleted_at = $2"
+                for node_id in table_node_ids:
+                    edited_at = edited_at_by_node_id[source_id_by_node_id[node_id]]
+                    arguments.append((node_id, edited_at))
+            elif edit_type == EditType.RESTORE:
+                update_stmt = "deleted_at = NULL"
+                for node_id in table_node_ids:
+                    arguments.append((node_id,))
+            else:
+                assert_never(edit_type)
             stmt = f"""\
 UPDATE {table_name}
 SET {update_stmt}
 WHERE id = $1
 """
-            await conn.executemany(stmt, [(node_id, at_packed) for node_id in table_node_ids])
-            logger.trace(
-                f"postgres.{edit_type.name.lower()}",
-                edits=len(edits),
-                cascaded_edits=len(cascaded_edits),
-                stmt=stmt,
-                span="current",
-            )
+            await conn.executemany(stmt, arguments)
 
+        logger.trace(
+            f"postgres.{edit_type.name.lower()}",
+            edits=len(edits),
+            cascaded_edits=len(cascaded_edits),
+            span="current",
+        )
         return edits, cascaded_edits
 
     # erase
     elif edit_type == EditType.ERASE:
         # cascade
-        cascaded_node_ptrs = await _execute_cascade(
+        cascaded_node_ptrs, _ = await _execute_cascade(
             conn=conn,
             context=context,
             definition=definition,
             node_ptrs=tuple(edit.node_ptr for edit in edits),
+            where=None,
         )
         cascaded_edits = tuple(
             EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
@@ -358,14 +380,13 @@ DELETE FROM {table_name}
 WHERE id = $1
 """
             await conn.executemany(stmt, table_node_ids)
-            logger.trace(
-                "postgres.erase",
-                edits=len(edits),
-                cascaded_edits=len(cascaded_edits),
-                stmt=stmt,
-                span="current",
-            )
 
+        logger.trace(
+            "postgres.erase",
+            edits=len(edits),
+            cascaded_edits=len(cascaded_edits),
+            span="current",
+        )
         return edits, cascaded_edits
 
     else:

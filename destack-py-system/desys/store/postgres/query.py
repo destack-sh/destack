@@ -32,7 +32,7 @@ from destack.language import (
     Value,
     to_value,
 )
-from destack.utils.uuid import UUID
+from destack.utils.uuid import UUID as DestackUUID  # noqa: N811
 
 from .core import PostgresContext
 from .wiring import pack_column_flat, unpack_node_row
@@ -134,9 +134,9 @@ def _compile_condition(
         return f"{_compile_expression(context, arguments_out, condition.left)} != ANY({_compile_expression(context, arguments_out, condition.right)})"
     # existence
     elif condition.type == ConditionalType.EXISTS:
-        return f"EXISTS ({_compile_expression(context, arguments_out, condition.left)})"
+        return f"({_compile_expression(context, arguments_out, condition.left)}) IS NOT NULL"
     elif condition.type == ConditionalType.NOT_EXISTS:
-        return f"NOT EXISTS ({_compile_expression(context, arguments_out, condition.left)})"
+        return f"({_compile_expression(context, arguments_out, condition.left)}) IS NULL"
     else:
         assert_never(condition.type)
 
@@ -256,16 +256,20 @@ async def _walk_node(
     conn: asyncpg.Connection,
     context: PostgresContext,
     definition: NodeDefinitionReference,
-    roots_ptr: Sequence[NodeReference],
-    roots_parents_ptr: Sequence[NodeReference],
+    nodes_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
     depth: int,
     where: Condition | None,
-) -> list[NodeReference]:
+) -> tuple[list[NodeReference], dict[uuid.UUID, uuid.UUID]]:
     """Get the cascaded Nodes for a query."""
 
-    roots_ids: list[uuid.UUID] = [n.id for n in roots_ptr]
-    roots_parents_ids: list[uuid.UUID] = [n.id for n in roots_parents_ptr]
+    if direction == EdgeDirection.PARENT:
+        roots_ids: list[uuid.UUID] = [n.id for n in nodes_ptr]
+        roots_parents_ids: list[uuid.UUID] = []
+    else:
+        roots_ids: list[uuid.UUID] = []
+        roots_parents_ids = [n.id for n in nodes_ptr]
+
     arguments: list[Any] = [roots_ids, roots_parents_ids, depth]
     where_sql = _compile_condition(context, arguments, where) if where is not None else "TRUE"
 
@@ -285,7 +289,8 @@ async def _walk_node(
 SELECT id,
     parent_id,
     1 AS depth,
-    node_type
+    node_type,
+    id AS source_id
 FROM (
     {union_subquery}
 ) roots
@@ -297,7 +302,8 @@ AND {where_sql}
 SELECT p.id,
     p.parent_id,
     t.depth + 1 AS depth,
-    p.node_type
+    p.node_type,
+    t.source_id
 FROM (
     {union_subquery}
 ) p
@@ -312,24 +318,29 @@ WITH RECURSIVE tree AS (
     UNION ALL
     {recursive_sql}
 )
-SELECT id, parent_id, depth, node_type
+SELECT id, parent_id, depth, node_type, source_id
 FROM tree;
             """
 
             result_rows = await conn.fetch(stmt, *arguments)
             result_nodes_ptr: list[NodeReference] = []
+            source_id_by_node_id: dict[uuid.UUID, uuid.UUID] = {
+                uuid.UUID(str(n.id)): uuid.UUID(str(n.id)) for n in nodes_ptr
+            }
             for row in result_rows:
                 node_type = NodeType(int(row["node_type"]))
-                node_ptr = NodeReference(type=node_type, id=UUID(str(row["id"])))
+                node_ptr = NodeReference(type=node_type, id=DestackUUID(str(row["id"])))
                 result_nodes_ptr.append(node_ptr)
-            return result_nodes_ptr
+                source_id_by_node_id[uuid.UUID(str(node_ptr.id))] = uuid.UUID(str(row["source_id"]))
+            return result_nodes_ptr, source_id_by_node_id
         else:
             table = context.get(definition)
             stmt = f"""
 WITH RECURSIVE tree AS (
     SELECT  id,
             parent_id,
-            1 AS depth
+            1 AS depth,
+            id AS source_id
     FROM    {table.name}
     WHERE   (id = ANY($1) OR parent_id = ANY($2)) AND {where_sql}
 
@@ -337,22 +348,28 @@ WITH RECURSIVE tree AS (
 
     SELECT  p.id,
             p.parent_id,
-            t.depth + 1
+            t.depth + 1,
+            t.source_id
     FROM    {table.name}  AS p
     JOIN    tree      AS t ON p.id = t.parent_id
     WHERE   t.depth < $3 AND {where_sql}
 )
 SELECT  id,
         parent_id,
-        depth
+        depth,
+        source_id
 FROM    tree;
 """
             result_rows = await conn.fetch(stmt, *arguments)
             result_nodes_ptr: list[NodeReference] = []
+            source_id_by_node_id: dict[uuid.UUID, uuid.UUID] = {
+                uuid.UUID(str(n.id)): uuid.UUID(str(n.id)) for n in nodes_ptr
+            }
             for row in result_rows:
-                node_ptr = NodeReference(type=table.node_type, id=UUID(str(row["id"])))
+                node_ptr = NodeReference(type=table.node_type, id=DestackUUID(str(row["id"])))
                 result_nodes_ptr.append(node_ptr)
-            return result_nodes_ptr
+                source_id_by_node_id[uuid.UUID(str(node_ptr.id))] = uuid.UUID(str(row["source_id"]))
+            return result_nodes_ptr, source_id_by_node_id
 
     # child walk
     elif direction == EdgeDirection.CHILD:
@@ -370,7 +387,8 @@ FROM    tree;
 SELECT id,
     parent_id,
     1 AS depth,
-    node_type
+    node_type,
+    parent_id AS source_id
 FROM (
     {union_subquery}
 ) roots
@@ -382,7 +400,8 @@ AND {where_sql}
 SELECT c.id,
     c.parent_id,
     t.depth + 1 AS depth,
-    c.node_type
+    c.node_type,
+    t.source_id
 FROM (
     {union_subquery}
 ) c
@@ -397,17 +416,21 @@ WITH RECURSIVE tree AS (
     UNION ALL
     {recursive_sql}
 )
-SELECT id, parent_id, depth, node_type
+SELECT id, parent_id, depth, node_type, source_id
 FROM tree;
         """
 
         result_rows = await conn.fetch(stmt, *arguments)
         result_nodes_ptr: list[NodeReference] = []
+        source_id_by_node_id: dict[uuid.UUID, uuid.UUID] = {
+            uuid.UUID(str(n.id)): uuid.UUID(str(n.id)) for n in nodes_ptr
+        }
         for row in result_rows:
             node_type = NodeType(int(row["node_type"]))
-            node_ptr = NodeReference(type=node_type, id=UUID(str(row["id"])))
+            node_ptr = NodeReference(type=node_type, id=DestackUUID(str(row["id"])))
             result_nodes_ptr.append(node_ptr)
-        return result_nodes_ptr
+            source_id_by_node_id[uuid.UUID(str(node_ptr.id))] = uuid.UUID(str(row["source_id"]))
+        return result_nodes_ptr, source_id_by_node_id
 
     # side walk
     elif direction == EdgeDirection.SIDE:
@@ -572,12 +595,12 @@ async def _query_grouped_node(
     # execute statement to get groups
     group_rows: list[asyncpg.Record] = await conn.fetch(group_stmt, *group_arguments)
     group_by_count = len(group_by)
-    nodes_id: list[UUID] = []
-    nodes_id_by_discriminator: dict[Any, list[UUID]] = {}
+    nodes_id: list[DestackUUID] = []
+    nodes_id_by_discriminator: dict[Any, list[DestackUUID]] = {}
     for row in group_rows:
         group_values = row[:group_by_count]
         discriminator = group_values[0] if group_by_count == 1 else tuple(group_values)
-        group_ids = [UUID(str(id)) for id in row[group_by_count]]  # ARRAY_AGG result
+        group_ids = [DestackUUID(str(id)) for id in row[group_by_count]]  # ARRAY_AGG result
         nodes_id_by_discriminator[discriminator] = group_ids
         nodes_id.extend(group_ids)
 
@@ -596,7 +619,7 @@ async def _query_grouped_node(
 
     # execute statement to get nodes
     node_rows: list[asyncpg.Record] = await conn.fetch(node_stmt, *node_arguments)
-    nodes_by_id: dict[UUID, tuple[Value, NodeReference]] = {}
+    nodes_by_id: dict[DestackUUID, tuple[Value, NodeReference]] = {}
     for row in node_rows:
         value, ptr = unpack_node_row(table, row)
         nodes_by_id[ptr.id] = (value, ptr)
@@ -814,13 +837,13 @@ async def _execute_subquery(
     # parent join
     if subquery.join.type == JoinType.PARENT:
         # collect/walk
-        parents_ptr: dict[UUID, NodeReference] = {}
+        parents_ptr: dict[DestackUUID, NodeReference] = {}
         for node_value in result.nodes:
             if (
                 node_value.value is not None
                 and (parent_ptr_value := node_value.value.get(NODE_PARENT_KEY)) is not None
             ):
-                parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
+                parent_id = DestackUUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:
                     continue
                 parent_ptr = NodeReference.from_value(parent_ptr_value)
@@ -828,12 +851,11 @@ async def _execute_subquery(
         if not parents_ptr:
             return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_nodes_ptr = await _walk_node(
+            expanded_nodes_ptr, _ = await _walk_node(
                 conn=conn,
                 context=context,
                 definition=subquery.definition,
-                roots_ptr=list(parents_ptr.values()),
-                roots_parents_ptr=(),
+                nodes_ptr=list(parents_ptr.values()),
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
@@ -860,12 +882,11 @@ async def _execute_subquery(
         if not nodes_ptr:
             return None  # nothing to query here
         if subquery.join.recursive:
-            expanded_nodes_ptr = await _walk_node(
+            expanded_nodes_ptr, _ = await _walk_node(
                 conn=conn,
                 context=context,
                 definition=subquery.definition,
-                roots_ptr=(),
-                roots_parents_ptr=nodes_ptr,
+                nodes_ptr=nodes_ptr,
                 direction=EdgeDirection.CHILD,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,

@@ -120,7 +120,7 @@ class Condition(StructFrozen):
         from .value import to_value
 
         left = Expression.of(attribute)
-        right = Expression.of(to_value(value))
+        right = Expression.of(to_value(value)) if value is not None else None
         return Condition(type=type, left=left, right=right)
 
 
