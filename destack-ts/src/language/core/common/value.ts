@@ -351,7 +351,7 @@ function _packScalarValue(value: any, type: Type): any {
     if (type.primitiveType == PrimitiveType.BYTES) {
       return base64Encode(value as Uint8Array);
     } else if (type.primitiveType == PrimitiveType.DATETIME) {
-      return (value as Temporal.ZonedDateTime).toString();
+      return (value as Temporal.ZonedDateTime).toString({ timeZoneName: "never" });
     } else if (type.primitiveType == PrimitiveType.DATE) {
       return (value as Temporal.PlainDate).toString();
     } else if (type.primitiveType == PrimitiveType.TIME) {
