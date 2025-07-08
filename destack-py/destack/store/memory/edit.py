@@ -247,18 +247,15 @@ def _execute_edit(
             # restrict to nodes with same deleted_at/archived_at
             root_dts: set[datetime] = set()
             for node_ptr in nodes_ptr:
-                node_table = context.get(node_ptr)
                 snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
                 node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
-                if row := node_table.rows.get(node_key):
+                if row := table.rows.get(node_key):
                     if edit_type == EditType.UNARCHIVE:
-                        root_dts.add(
-                            datetime.fromisoformat(row.value[ARCHIVED_AT_KEY]).astimezone(UTC)
-                        )
+                        if archived_at := row.value.get(ARCHIVED_AT_KEY):
+                            root_dts.add(datetime.fromisoformat(archived_at).astimezone(UTC))
                     elif edit_type == EditType.RESTORE:
-                        root_dts.add(
-                            datetime.fromisoformat(row.value[DELETED_AT_KEY]).astimezone(UTC)
-                        )
+                        if deleted_at := row.value.get(DELETED_AT_KEY):
+                            root_dts.add(datetime.fromisoformat(deleted_at).astimezone(UTC))
                     else:
                         assert_never(edit_type)
             if root_dts:
@@ -280,11 +277,9 @@ def _execute_edit(
 
         # update timestamps
         for node_ptr in chain(nodes_ptr, cascaded_node_ptrs):
-            # nocheckin: proper cascade timestamp
-            node_table = context.get(node_ptr)
             snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
-            if row := node_table.rows.get(node_key):
+            if row := table.rows.get(node_key):
                 if edit_type == EditType.ARCHIVE:
                     edited_at = edited_at_by_node_id[source_id_by_node_id[node_ptr.id]]
                     row.value[ARCHIVED_AT_KEY] = edited_at.astimezone(UTC).isoformat()
