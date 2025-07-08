@@ -1,9 +1,15 @@
 import {
   NODE_DEFINITIONS,
+  NodeClass,
+  NodeDefinition,
   NodeType,
   STRUCT_DEFINITIONS,
+  StructClass,
+  StructDefinition,
   StructType,
   TRAIT_DEFINITIONS,
+  TraitClass,
+  TraitDefinition,
   TraitType,
 } from "@destack/language";
 import {
@@ -13,8 +19,45 @@ import {
   STRUCT_CLASS_BY_TYPE,
   TRAIT_CLASS_BY_TYPE,
 } from "@destack/language/registry";
+import { Casing, toCasing } from "@destack/utils";
 
 let __isFinalized__ = false;
+
+function _indexProperties(
+  cls: NodeClass | TraitClass | StructClass,
+  definition: NodeDefinition | TraitDefinition | StructDefinition,
+) {
+  cls.__properties__ = {};
+  cls.__propertiesById__ = {};
+  cls.__propertiesByAlias__ = {};
+  for (const propertyDefinition of definition.properties) {
+    cls.__properties__[propertyDefinition.name] = propertyDefinition;
+    cls.__propertiesById__[propertyDefinition.id] = propertyDefinition;
+    if (propertyDefinition.isWired) {
+      const lowerCamelName = toCasing(propertyDefinition.name, Casing.LOWER_CAMEL);
+      const upperCamelName = toCasing(propertyDefinition.name, Casing.CAMEL);
+      const aliases = [
+        propertyDefinition.name,
+        propertyDefinition.name + "_ptr",
+        lowerCamelName,
+        lowerCamelName + "Ptr",
+        upperCamelName,
+        upperCamelName + "Ptr",
+      ];
+      for (const alias of aliases) {
+        if (
+          cls.__propertiesByAlias__[alias] &&
+          cls.__propertiesByAlias__[alias] !== propertyDefinition
+        ) {
+          throw new Error(
+            `property alias conflict: ${propertyDefinition.name} -> ${alias} (have: ${cls.__propertiesByAlias__[alias].name})`,
+          );
+        }
+        cls.__propertiesByAlias__[alias] = propertyDefinition;
+      }
+    }
+  }
+}
 
 /** Finalize the Destack language SDK. */
 export function finalize(): void {
@@ -38,12 +81,7 @@ export function finalize(): void {
     nodeClass.__definition__ = nodeDefinition;
 
     // properties
-    nodeClass.__properties__ = {};
-    nodeClass.__propertiesById__ = {};
-    for (const propertyDefinition of nodeDefinition.properties) {
-      nodeClass.__properties__[propertyDefinition.name] = propertyDefinition;
-      nodeClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
-    }
+    _indexProperties(nodeClass, nodeDefinition);
 
     // primary store
     for (const storeType of nodeDefinition.primaryStoreTypes) {
@@ -82,12 +120,7 @@ export function finalize(): void {
       );
     }
     traitClass.__definition__ = traitDefinition;
-    traitClass.__properties__ = {};
-    traitClass.__propertiesById__ = {};
-    for (const propertyDefinition of traitDefinition.properties) {
-      traitClass.__properties__[propertyDefinition.name] = propertyDefinition;
-      traitClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
-    }
+    _indexProperties(traitClass, traitDefinition);
   }
 
   // structs
@@ -103,11 +136,6 @@ export function finalize(): void {
       );
     }
     structClass.__definition__ = structDefinition;
-    structClass.__properties__ = {};
-    structClass.__propertiesById__ = {};
-    for (const propertyDefinition of structDefinition.properties) {
-      structClass.__properties__[propertyDefinition.name] = propertyDefinition;
-      structClass.__propertiesById__[propertyDefinition.id] = propertyDefinition;
-    }
+    _indexProperties(structClass, structDefinition);
   }
 }

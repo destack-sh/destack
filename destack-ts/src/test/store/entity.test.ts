@@ -189,17 +189,17 @@ sessionTest("create folders recursive", async ({ session }) => {
 
   // delete root folder (should cascade delete all folders)
   const numTotalFolders = await Folder.count({
-    where: Folder.property("deleted_at").isNull(),
+    where: Folder.property("deletedAt").isNull(),
   }).executeCount();
   session.delete(rootFolder);
   await session.commit();
-  expect(await Folder.count({ where: Folder.property("deleted_at").isNull() }).executeCount()).toBe(
+  expect(await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount()).toBe(
     0,
   );
   // restore root folder (should restore all folders)
   session.restore(rootFolder);
   await session.commit();
-  expect(await Folder.count({ where: Folder.property("deleted_at").isNull() }).executeCount()).toBe(
+  expect(await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount()).toBe(
     numTotalFolders,
   );
 
@@ -209,17 +209,17 @@ sessionTest("create folders recursive", async ({ session }) => {
     session.delete(folder);
     await session.commit();
     const connection = await Folder.get({
-      where: Folder.property("id").eq(folder.id).and(Folder.property("deleted_at").isNull()),
+      where: Folder.property("id").eq(folder.id).and(Folder.property("deletedAt").isNull()),
       Folders: Folder.search({
         join: Join.of(JoinType.CHILD, { recursive: true }),
-        where: Folder.property("deleted_at").isNull(),
+        where: Folder.property("deletedAt").isNull(),
       }),
     }).execute();
     expect(connection.toOneOrNone()).toBeNull();
 
     expect(
       await Folder.count({
-        where: Folder.property("deleted_at").isNull(),
+        where: Folder.property("deletedAt").isNull(),
       }).executeCount(),
     ).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
   }
@@ -229,7 +229,7 @@ sessionTest("create folders recursive", async ({ session }) => {
     await session.commit();
     expect(
       await Folder.count({
-        where: Folder.property("deleted_at").isNull(),
+        where: Folder.property("deletedAt").isNull(),
       }).executeCount(),
     ).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
   }

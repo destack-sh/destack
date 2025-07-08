@@ -16,21 +16,11 @@ export function dedent(input: string, levels: number): string {
   return dedentedLines.join("\n");
 }
 
-// :IdentifierStrings
-
-export enum IdentifierType {
-  FILE = 1,
-  TYPE = 2,
-  CONSTANT = 3,
-  FUNCTION = 4,
-  VARIABLE = 5,
-  PROPERTY = 6,
-}
-
 export enum Casing {
   SNAKE = 1,
   CAMEL = 2,
-  ALL_CAPS = 3,
+  LOWER_CAMEL = 3,
+  ALL_CAPS = 4,
 }
 
 function stripAlphaNum(name: string): string {
@@ -52,31 +42,46 @@ export function toCasing(name: string, casing: Casing, allowWhitespace: boolean 
   const cached = _CASING_CACHE[cacheKey];
   if (cached) {
     return cached;
-  } else if (casing === Casing.SNAKE) {
+  }
+
+  if (casing === Casing.SNAKE) {
+    // first transform lowerUpper transitions into lower_upper
     name = name.replace(/(?<=[a-z])(?=[A-Z])/g, "_");
+    // turn non-alphanumeric characters into underscores
     name = name.replace(/[^a-zA-Z0-9_]/g, "_");
     name = stripAlphaNum(name);
     name = name.toLowerCase();
     if (allowWhitespace) {
       name = name.replace(/_/g, " ").trim();
     }
-  } else if (casing === Casing.CAMEL) {
+  } else if (casing === Casing.CAMEL || casing === Casing.LOWER_CAMEL) {
+    // if it's already a mix of uppercase and lowercase starting with uppercase, leave it alone
     if (/^[A-Z][a-z0-9]+([A-Z]+[a-z0-9]+)+/.test(name)) {
+      if (casing === Casing.LOWER_CAMEL) {
+        name = name[0].toLowerCase() + name.slice(1);
+      }
+      _CASING_CACHE[cacheKey] = name;
       return name;
     }
+    // ignore non-alphanumeric characters and capitalize the next character
     name = name.replace(/[^a-zA-Z0-9]/g, " ");
-    if (/^[A-Z ]+$/.test(name)) {
-      name = name.toLowerCase();
-    }
+    // split on existing uppercase characters and spaces
     name = name.split(/(?<=[a-z])(?=[A-Z0-9])/g).join(" ");
-    name = stripAlphaNum(name).replace(/\b\w/g, (char) => char.toUpperCase());
+    name = stripAlphaNum(name);
+    // title case each word
+    name = name.replace(/\b\w/g, (char) => char.toUpperCase());
     if (allowWhitespace) {
       name = name.replace(/_/g, " ").trim();
     } else {
       name = name.replace(/ /g, "");
     }
+    if (casing === Casing.LOWER_CAMEL) {
+      name = name[0].toLowerCase() + name.slice(1);
+    }
   } else if (casing === Casing.ALL_CAPS) {
+    // ignore non-alphanumeric characters and capitalize the next character
     name = name.replace(/[^a-zA-Z0-9]/g, " ");
+    // split on existing uppercase characters and spaces
     name = name.split(/(?<=[a-z])(?=[A-Z0-9])/g).join(" ");
     name = stripAlphaNum(name).toUpperCase().replace(/ /g, "_");
     if (allowWhitespace) {
@@ -85,6 +90,7 @@ export function toCasing(name: string, casing: Casing, allowWhitespace: boolean 
   } else {
     throw new Error(`unexpected casing for ${name}: ${casing}`);
   }
+
   _CASING_CACHE[cacheKey] = name;
   return name;
 }

@@ -78,7 +78,7 @@ class NodeDefinitionReference(StructFrozen):
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
-        return object_cls.__properties__.get(name)
+        return object_cls.__properties_by_alias__.get(name)
 
     def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
         """Resolve a Property in this definition (error if not found)."""
@@ -171,7 +171,7 @@ class ObjectDefinitionReference(StructFrozen):
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
-        return object_cls.__properties__.get(name)
+        return object_cls.__properties_by_alias__.get(name)
 
     def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
         """Resolve a Property in this definition (error if not found)."""

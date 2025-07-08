@@ -994,14 +994,38 @@ def _process_object_cls[ObjectT: BuiltinObject](
     # index properties
     cls.__properties__ = frozendict(properties)
     properties_by_id: dict[int, PropertyDeclaration] = {}
+    properties_by_alias: dict[str, PropertyDeclaration] = {}
     for prop in properties.values():
+        # index by id
         if prop.id is not None:
             existing = properties_by_id.get(prop.id, None)
             if existing is None:
                 properties_by_id[prop.id] = prop
             else:
                 raise ValueError(f"property id conflict: {prop!r}, {existing!r}")
+        # index by aliases (if not runtime only)
+        if prop.is_wired:
+            lower_camel_name = to_casing(prop.name, Casing.LOWER_CAMEL)
+            upper_camel_name = to_casing(prop.name, Casing.CAMEL)
+            if prop.scalar_type == ScalarType.NODE_REFERENCE:
+                aliases = (
+                    prop.name,
+                    prop.name + "_ptr",
+                    lower_camel_name,
+                    lower_camel_name + "Ptr",
+                    upper_camel_name,
+                    upper_camel_name + "Ptr",
+                )
+            else:
+                aliases = (prop.name, lower_camel_name, upper_camel_name)
+            for alias in aliases:
+                existing = properties_by_alias.get(alias)
+                if existing is None:
+                    properties_by_alias[alias] = prop
+                elif existing is not prop:
+                    raise ValueError(f"property alias conflict: {prop!r}, {existing!r}")
     props = properties.values()
+    cls.__properties_by_alias__ = frozendict(properties_by_alias)
     cls.__properties_by_id__ = frozendict(properties_by_id)
     cls.__node_properties__ = frozendict(
         {p.name: p for p in props if p.scalar_type == ScalarType.NODE_REFERENCE}
@@ -1157,6 +1181,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     __is_abstract__: ClassVar[bool] = False
 
     __properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
+    __properties_by_alias__: ClassVar[dict[str, PropertyDeclaration]] = {}
     __properties_by_id__: ClassVar[dict[int, PropertyDeclaration]] = {}
 
     __declared_properties__: ClassVar[dict[str, PropertyDeclaration]] = {}
@@ -1175,18 +1200,7 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
     @classmethod
     def property(cls, name: str) -> PropertyDeclaration:
         """Get a Property by name."""
-        prop = cls.__properties__.get(name)
-        if prop is not None:
-            return prop
-        if name.endswith("Ptr"):
-            name = name[:-3]
-        elif name.endswith("_ptr"):
-            name = name[:-4]
-        prop = cls.__properties__.get(name)
-        if prop is not None:
-            return prop
-        camel_name = to_casing(name, Casing.CAMEL)
-        prop = cls.__properties__.get(camel_name)
+        prop = cls.__properties_by_alias__.get(name)
         if prop is not None:
             return prop
         raise ValueError(f"no property '{name}' in {cls.__name__}")
