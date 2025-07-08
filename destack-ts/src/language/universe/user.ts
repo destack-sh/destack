@@ -61,7 +61,7 @@ export class User
   static metatype: NodeType = NodeType.USER;
 
   /**
-   * Trait.parent
+   * Entity.parent
    */
   get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -133,10 +133,10 @@ export class User
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -150,10 +150,10 @@ export class User
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -345,9 +345,9 @@ export class User
     template?: User | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     customValues?: Map<string, Value>;
     name: string;
     slug: string;
@@ -599,6 +599,9 @@ export class User
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -620,9 +623,6 @@ export class User
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -764,6 +764,11 @@ export class User
         );
       }
     }
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -794,11 +799,6 @@ export class User
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new User({
       name: objectValue["101"],
       slug: objectValue["102"],
@@ -818,6 +818,7 @@ export class User
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
       customValues: unpackedCustomValues,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -828,7 +829,6 @@ export class User
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -966,6 +966,16 @@ export class User
       passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
       passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
       customValues: unpackedCustomValues,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1030,16 +1040,6 @@ export class User
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

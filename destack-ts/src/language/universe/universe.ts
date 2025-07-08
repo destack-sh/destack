@@ -1,5 +1,5 @@
 import type { NodeReference } from "@destack/language/core";
-import { Node, NodeType } from "@destack/language/core";
+import { Entity, Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 
 /* ==== DESTACK_GENERATED_START:NODE:20000 ==== */
@@ -10,7 +10,7 @@ import { registerNodeClass } from "@destack/language/registry";
 export abstract class Universe extends Node {
   static metatype: NodeType = NodeType.UNIVERSE;
 
-  abstract get parent(): Node | null;
+  abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */

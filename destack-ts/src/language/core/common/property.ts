@@ -80,10 +80,10 @@ export class CustomProperty
   /**
    * CustomProperty.parent
    */
-  get parent(): (Node & IsCustomizable) | null {
+  get parent(): (Entity & IsCustomizable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsCustomizable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsCustomizable) | null;
     }
     return null;
   }
@@ -162,10 +162,10 @@ export class CustomProperty
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -179,10 +179,10 @@ export class CustomProperty
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -577,7 +577,7 @@ export class CustomProperty
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsCustomizable) | NodeReference | null;
+    parent?: (Entity & IsCustomizable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -585,9 +585,9 @@ export class CustomProperty
     template?: CustomProperty | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
@@ -1873,10 +1873,10 @@ export class CustomPropertyGroup
   /**
    * CustomPropertyGroup.parent
    */
-  get parent(): (Node & IsCustomizable) | null {
+  get parent(): (Entity & IsCustomizable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsCustomizable) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsCustomizable) | null;
     }
     return null;
   }
@@ -1955,10 +1955,10 @@ export class CustomPropertyGroup
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1972,10 +1972,10 @@ export class CustomPropertyGroup
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2036,7 +2036,7 @@ export class CustomPropertyGroup
 
   constructor(options: {
     id?: string;
-    parent?: (Node & IsCustomizable) | NodeReference | null;
+    parent?: (Entity & IsCustomizable) | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -2044,9 +2044,9 @@ export class CustomPropertyGroup
     template?: CustomPropertyGroup | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;

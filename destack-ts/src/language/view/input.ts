@@ -10,7 +10,7 @@ import type {
   Snapshot,
   Value,
 } from "@destack/language/core";
-import { Entity, Node, NodeType } from "@destack/language/core";
+import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Layer, Scene, Window } from "@destack/language/scene";
@@ -63,7 +63,7 @@ export abstract class InputView extends View {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -71,7 +71,7 @@ export abstract class InputView extends View {
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
-  abstract get updatedBy(): (Node & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**

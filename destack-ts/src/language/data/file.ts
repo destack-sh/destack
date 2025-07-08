@@ -216,12 +216,12 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   static metatype: NodeType = NodeType.FILE;
 
   /**
-   * Trait.parent
+   * File.parent
    */
-  get parent(): Node | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -320,10 +320,10 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -337,10 +337,10 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -653,7 +653,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference | null;
     definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
@@ -663,9 +663,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     template?: File | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: Map<string, Value>;
     script?: Script | NodeReference | null;
@@ -974,6 +974,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + this._source) & 0xffffffff;
@@ -1030,9 +1033,6 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     }
     h = (h * 31 + this._status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -1250,6 +1250,11 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     ] as typeof NodeDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const mimeTypeValue = objectValue["111"];
     const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
     const formatValue = objectValue["112"];
@@ -1289,11 +1294,6 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     const unpackedSpacePtr =
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
@@ -1361,6 +1361,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new File({
+      parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
       name: objectValue["101"],
       source: Number(objectValue["110"]),
@@ -1383,7 +1384,6 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       space: unpackedSpacePtr,
       status: Number(objectValue["90"]),
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       deletedAt: unpackedDeletedAt,
       definition: unpackedDefinitionPtr,
       baseType: unpackedBaseType,
@@ -1543,6 +1543,16 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       }
     }
     return new File({
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       type: Number(objectProto.type) as FileType,
       name: objectProto.name,
       source: Number(objectProto.source) as FileSource,
@@ -1577,16 +1587,6 @@ export class File extends Resource implements IsSpatial, IsGlobal {
           : null,
       status: Number(objectProto.status) as ResourceStatus,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       definition:

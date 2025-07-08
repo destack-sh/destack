@@ -8,7 +8,7 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { EventStatus, Node, NodeType, StructType } from "@destack/language/core";
+import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
@@ -43,7 +43,7 @@ export abstract class KeyboardEvent extends InputEvent {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;
@@ -155,10 +155,10 @@ export class KeyDownEvent extends KeyboardEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -239,7 +239,7 @@ export class KeyDownEvent extends KeyboardEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -808,10 +808,10 @@ export class KeyUpEvent extends KeyboardEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -892,7 +892,7 @@ export class KeyUpEvent extends KeyboardEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1461,10 +1461,10 @@ export class KeyPressEvent extends KeyboardEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1545,7 +1545,7 @@ export class KeyPressEvent extends KeyboardEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;

@@ -83,7 +83,7 @@ export abstract class NotificationEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;
@@ -160,10 +160,10 @@ export class NotificationSentEvent extends NotificationEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -209,7 +209,7 @@ export class NotificationSentEvent extends NotificationEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -687,10 +687,10 @@ export class NotificationRescindedEvent extends NotificationEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -736,7 +736,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1214,10 +1214,10 @@ export class NotificationReadEvent extends NotificationEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1263,7 +1263,7 @@ export class NotificationReadEvent extends NotificationEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1741,10 +1741,10 @@ export class NotificationDismissedEvent extends NotificationEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1790,7 +1790,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -2268,10 +2268,10 @@ export class NotificationExpiredEvent extends NotificationEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2317,7 +2317,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -2752,12 +2752,12 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   static metatype: NodeType = NodeType.NOTIFICATION;
 
   /**
-   * Trait.parent
+   * Entity.parent
    */
-  get parent(): Node | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2836,10 +2836,10 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2853,10 +2853,10 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2865,14 +2865,14 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Node & IsOwner) | null {
+  get ownedBy(): (Entity & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: (Node & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -2930,7 +2930,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -2938,10 +2938,10 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     template?: Notification | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
-    ownedBy?: (Node & IsOwner) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    ownedBy?: (Entity & IsOwner) | NodeReference | null;
     status: NotificationStatus;
     title: string;
     text?: Text | null;
@@ -3111,6 +3111,9 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (this._ownedByPtr !== null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -3132,9 +3135,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -3254,6 +3254,11 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3284,17 +3289,13 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Notification({
       status: Number(objectValue["40"]),
       title: objectValue["50"],
       text: unpackedText,
       space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -3305,7 +3306,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -3403,6 +3403,16 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
               _connection,
             )
           : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -3467,16 +3477,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

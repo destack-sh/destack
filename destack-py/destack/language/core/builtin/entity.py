@@ -70,6 +70,7 @@ class Entity(Node):
 
     __store_domain__ = StoreDomain.ENTITY
 
+    parent: Optional["Entity"] = builtin_property_parent()
     # 10-20: entity materialization
     materialization: Materialization = builtin_property(
         10,
@@ -160,8 +161,14 @@ class Entity(Node):
     if not TYPE_CHECKING:
         __setattr__ = _do_set
 
+    def detach(self):
+        """Detach this Entity from its parent. Noop if it has no parent."""
+        if (parent := self.parent) is not None:
+            parent.remove_child(self)
+
     def move_to(self, parent: "Entity"):
-        """Move this Node to a new parent."""
+        """Move this Entity to a new parent Entity."""
+        # nocheckin: Entity detach/move_to (split attachment from 'processing mode'/deletion/archivation)
         raise NotImplementedError
 
     def add_child(
@@ -172,9 +179,9 @@ class Entity(Node):
         before: "Entity | None" = None,
     ) -> Self:
         """
-        Append a Node as a child of this Node (and all its descendants).
-        If the Node is new, it will be created in this Node's session.
-        If the Node IsOrdered, it will be positioned (relative to after/before).
+        Append an Entity as a child of this Entity (and all its descendants).
+        If the Entity IsOrdered, it will be positioned (relative to after/before).
+        If the Entity is new, it will be automatically created in this Entity's session (for convenience).
         (The same applies to all descendants.)
         """
         from ..runtime import SingletonGraph
@@ -253,8 +260,9 @@ class Entity(Node):
 
     def remove_child(self, child: "Entity") -> Self:
         """
-        Remove a child from this Node.
-        If the Node IsDeletable, it will be deleted; otherwise, it will be erased.
+        Remove a child Entity from this Entity.
+        The child Entity will NOT be deleted or archived, it will simply be detached.
+        (The same applies to all descendants.)
         """
         raise NotImplementedError
 

@@ -46,7 +46,7 @@ export class Friendship extends Entity implements IsGlobal {
   static metatype: NodeType = NodeType.FRIENDSHIP;
 
   /**
-   * Trait.parent
+   * Entity.parent
    */
   get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -118,10 +118,10 @@ export class Friendship extends Entity implements IsGlobal {
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -135,10 +135,10 @@ export class Friendship extends Entity implements IsGlobal {
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -193,9 +193,9 @@ export class Friendship extends Entity implements IsGlobal {
     template?: Friendship | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     userA: User | NodeReference;
     userB: User | NodeReference;
     _session?: Session | null;
@@ -337,6 +337,9 @@ export class Friendship extends Entity implements IsGlobal {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this._userAPtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this._userBPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -358,9 +361,6 @@ export class Friendship extends Entity implements IsGlobal {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -440,6 +440,11 @@ export class Friendship extends Entity implements IsGlobal {
     _connection?: any | null,
   ): Friendship {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -470,11 +475,6 @@ export class Friendship extends Entity implements IsGlobal {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new Friendship({
       userA: _NodeReference.fromValue(
         objectValue["40"],
@@ -490,6 +490,7 @@ export class Friendship extends Entity implements IsGlobal {
         _graph,
         _connection,
       ),
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -500,7 +501,6 @@ export class Friendship extends Entity implements IsGlobal {
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -576,6 +576,16 @@ export class Friendship extends Entity implements IsGlobal {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -640,16 +650,6 @@ export class Friendship extends Entity implements IsGlobal {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,
@@ -700,7 +700,7 @@ export abstract class FriendshipInviteEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
-  abstract get createdBy(): (Node & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   abstract get client(): Client | null;
@@ -777,10 +777,10 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -826,7 +826,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1304,10 +1304,10 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1353,7 +1353,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -1833,10 +1833,10 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -1882,7 +1882,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -2360,10 +2360,10 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2409,7 +2409,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     space?: Space | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
@@ -2844,7 +2844,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE;
 
   /**
-   * Trait.parent
+   * Entity.parent
    */
   get parent(): Node | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -2916,10 +2916,10 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2933,10 +2933,10 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -2945,14 +2945,14 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   /**
    * FriendshipInvite.ownedBy
    */
-  get ownedBy(): (Node & IsSubject) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: Node & IsSubject) {
+  set ownedBy(node: Entity & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
   get ownedByPtr(): NodeReference {
@@ -2974,10 +2974,10 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     template?: FriendshipInvite | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
-    ownedBy: (Node & IsSubject) | NodeReference;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    ownedBy: (Entity & IsSubject) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -3105,6 +3105,9 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -3126,9 +3129,6 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
 
     return h;
   }
@@ -3206,6 +3206,11 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     _connection?: any | null,
   ): FriendshipInvite {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3236,11 +3241,6 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FriendshipInvite({
       ownedBy: _NodeReference.fromValue(
         objectValue["28"],
@@ -3249,6 +3249,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
         _graph,
         _connection,
       ),
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -3259,7 +3260,6 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
-      parent: unpackedParentPtr,
       _session,
       _graph,
       _connection,
@@ -3333,6 +3333,16 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
         _graph,
         _connection,
       ),
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -3397,16 +3407,6 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       _session,
       _graph,
       _connection,

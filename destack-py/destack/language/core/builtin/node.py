@@ -35,6 +35,7 @@ from .trait import (
 if TYPE_CHECKING:
     from destack.language import (
         Condition,
+        Entity,
         ExpressionIn,
         Graph,
         JoinIn,
@@ -196,7 +197,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # 1-20: node identity
     # Node.metatype: 1
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    parent: Optional["Node"] = builtin_property_parent()
+    parent: Optional["Entity"] = builtin_property_parent()
     # Spatial.space: 5
     # IsExtensible.definition: 6
     # IsExtensible.base_type: 7

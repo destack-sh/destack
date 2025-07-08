@@ -28,6 +28,7 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
+    builtin_property_parent,
     builtin_property_runtime,
 )
 from destack.utils.env import get_from_env
@@ -40,6 +41,7 @@ if TYPE_CHECKING:
         Folder,
         Run,
         Session,
+        Space,
         Thread,
     )
 
@@ -458,6 +460,7 @@ class File(IsSpatial, IsGlobal, Resource):
     A File stored somewhere.
     """
 
+    parent: Optional["Space"] = builtin_property_parent()
     type: FileType = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
 

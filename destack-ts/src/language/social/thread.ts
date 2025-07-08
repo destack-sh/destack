@@ -147,10 +147,10 @@ export class Thread
   /**
    * Entity.createdBy
    */
-  get createdBy(): (Node & IsSubject) | null {
+  get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -164,10 +164,10 @@ export class Thread
   /**
    * Entity.updatedBy
    */
-  get updatedBy(): (Node & IsSubject) | null {
+  get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
@@ -181,14 +181,14 @@ export class Thread
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Node & IsOwner) | null {
+  get ownedBy(): (Entity & IsOwner) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Node & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
     }
     return null;
   }
-  set ownedBy(node: (Node & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsOwner) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -228,11 +228,11 @@ export class Thread
     template?: Thread | NodeReference | null;
     instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Node & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Node & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Node & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsOwner) | NodeReference | null;
     name: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
