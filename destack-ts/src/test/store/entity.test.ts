@@ -65,19 +65,19 @@ sessionTest("create user with clients", async ({ session }) => {
   expect(userUnpackedBySlug.name).toBe("Fluff");
   expect(userUnpackedBySlug.slug).toBe("flotothemoon");
   expect(userUnpackedBySlug.status).toBe(UserStatus.ACTIVE);
-  
+
   // create clients
   const clientA = new Client({ type: ClientType.WEB, name: "Client A" });
   const clientB = new Client({ type: ClientType.WEB, name: "Client B" });
   user.addChildren([clientA, clientB]);
   await session.commit();
-  
+
   // query clients
   const clients = await Client.search({ sort: [Client.property("name").desc()] }).executeList();
   expect(clients).toHaveLength(2);
   expect(clients[0].equals(clientB));
-  expect(clients[1].equals(clientA)); 
-  
+  expect(clients[1].equals(clientA));
+
   // query user with clients as children
   const connection = await User.get({
     where: User.property("id").eq(user.id),
@@ -89,7 +89,7 @@ sessionTest("create user with clients", async ({ session }) => {
   expect(clientsUnpacked).toHaveLength(2);
   expect(clientsUnpacked[0].equals(clientA));
   expect(clientsUnpacked[1].equals(clientB));
-  
+
   // query clients with user as parent
   const clientConnection = await Client.search({
     where: Client.property("parent").eq(user),
@@ -130,16 +130,14 @@ sessionTest("create star", async ({ session }) => {
 });
 
 sessionTest("create folders recursive", async ({ session }) => {
-  // create root folder
+  // create
   const rootFolder = new Folder({ name: "Folder", type: FolderType.HOME });
   session.create(rootFolder);
-
-  const targetFolderCount = 4 * (1 + 4 * (1 + 4));
+  const subtreeFolderCount = 4 * (1 + 4 * (1 + 4));
   for (const a of ["a", "b", "c", "d"]) {
     // create folder
     const folder = new Folder({ name: `Folder ${a}` });
     rootFolder.addChild(folder);
-
     // create folder tree
     for (let i = 0; i < 4; i++) {
       const subFolder = new Folder({ name: `Folder ${a}/${i}` });
@@ -155,12 +153,11 @@ sessionTest("create folders recursive", async ({ session }) => {
     }
     await session.commit();
   }
-
   expect(
     await Folder.count({ where: Folder.property("parent").eq(rootFolder) }).executeCount(),
   ).toBe(4);
 
-  // query each folder
+  // query
   for (const folder of rootFolder.getChildren(Folder)) {
     // query folder root count
     const rootFolderCount = await Folder.count({
@@ -175,7 +172,7 @@ sessionTest("create folders recursive", async ({ session }) => {
     }).execute();
     const folderUnpacked = connection.toOne();
     const folderTreeUnpacked = folderUnpacked.getDescendants(Folder);
-    expect(folderTreeUnpacked.length).toBe(targetFolderCount);
+    expect(folderTreeUnpacked.length).toBe(subtreeFolderCount);
 
     // query folder up (parent, recursive)
     const folderLeaves = folder._graph.getLeaves(Folder, { node: folder });
@@ -188,6 +185,53 @@ sessionTest("create folders recursive", async ({ session }) => {
     const foldersUnpacked = connection2.graph.getRoots(Folder);
     expect(foldersUnpacked.length).toBe(1);
     expect(foldersUnpacked[0].equals(rootFolder));
+  }
+
+  // delete root folder (should cascade delete all folders)
+  const numTotalFolders = await Folder.count({
+    where: Folder.property("deleted_at").isNull(),
+  }).executeCount();
+  session.delete(rootFolder);
+  await session.commit();
+  expect(await Folder.count({ where: Folder.property("deleted_at").isNull() }).executeCount()).toBe(
+    0,
+  );
+  // restore root folder (should restore all folders)
+  session.restore(rootFolder);
+  await session.commit();
+  expect(await Folder.count({ where: Folder.property("deleted_at").isNull() }).executeCount()).toBe(
+    numTotalFolders,
+  );
+
+  // delete and restore subfolders one at a time
+  for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
+    // delete just this subfolder (and its descendants)
+    session.delete(folder);
+    await session.commit();
+    const connection = await Folder.get({
+      where: Folder.property("id").eq(folder.id).and(Folder.property("deleted_at").isNull()),
+      Folders: Folder.search({
+        join: Join.of(JoinType.CHILD, { recursive: true }),
+        where: Folder.property("deleted_at").isNull(),
+      }),
+    }).execute();
+    expect(connection.toOneOrNone()).toBeNull();
+
+    expect(
+      await Folder.count({
+        where: Folder.property("deleted_at").isNull(),
+      }).executeCount(),
+    ).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
+  }
+  // restore subfolders one at a time
+  for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
+    session.restore(folder);
+    await session.commit();
+    expect(
+      await Folder.count({
+        where: Folder.property("deleted_at").isNull(),
+      }).executeCount(),
+    ).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
   }
 });
 

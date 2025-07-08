@@ -4163,6 +4163,14 @@ export class PropertyDefinition extends BuiltinDefinition {
     return Condition.of(this, ConditionalType.NOT_EXISTS);
   }
 
+  isNull(): Condition {
+    return Condition.of(this, ConditionalType.NOT_EXISTS);
+  }
+
+  isNotNull(): Condition {
+    return Condition.of(this, ConditionalType.EXISTS);
+  }
+
   asc(): Sort {
     return Sort.of(this, SortType.ASCENDING);
   }

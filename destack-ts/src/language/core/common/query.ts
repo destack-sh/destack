@@ -541,7 +541,7 @@ export class Condition extends StructFrozen {
     value: any = null,
   ): Condition {
     const left = Expression.of(attribute);
-    const right = Expression.of(toValue(value));
+    const right = value == null ? null : Expression.of(toValue(value));
     return new Condition({ type, left, right });
   }
 
