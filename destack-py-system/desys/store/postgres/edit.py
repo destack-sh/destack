@@ -16,6 +16,8 @@ from destack.language import (
     EditEvent,
     EditOperation,
     EditType,
+    IsArchivable,
+    IsDeletable,
     NodeDefinitionReference,
     NodeReference,
     ScalarType,
@@ -24,6 +26,8 @@ from destack.language.registry import NODE_CLASS_BY_TYPE
 
 from .core import PostgresContext
 from .wiring import pack_column_wide, pack_node_row
+
+MAX_RECURSION_DEPTH = 100
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -131,7 +135,7 @@ async def _execute_cascade(
         definition=definition,
         nodes_ptr=node_ptrs,
         direction=EdgeDirection.CHILD,
-        depth=1,
+        depth=MAX_RECURSION_DEPTH,
         where=None,
     )
     return child_ptrs
@@ -299,7 +303,27 @@ WHERE id = ${len(update_template) + 1}
         where: Condition | None = None
         if edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE:
             # restrict to nodes with same deleted_at/archived_at
-            pass
+            root_dts: set[datetime] = set()
+            if edit_type == EditType.UNARCHIVE:
+                root_stmt = f"SELECT id, archived_at FROM {table.name} WHERE id IN ($1)"
+            elif edit_type == EditType.RESTORE:
+                root_stmt = f"SELECT id, deleted_at FROM {table.name} WHERE id IN ($1)"
+            else:
+                assert_never(edit_type)
+            root_rows = await conn.fetch(root_stmt, *(n.id for n in nodes_ptr))
+            if edit_type == EditType.UNARCHIVE:
+                for row in root_rows:
+                    if archived_at := row["archived_at"]:
+                        root_dts.add(archived_at.replace(tzinfo=UTC))
+                where = IsArchivable.property("archived_at").in_(*root_dts)
+            elif edit_type == EditType.RESTORE:
+                for row in root_rows:
+                    if deleted_at := row["deleted_at"]:
+                        root_dts.add(deleted_at.replace(tzinfo=UTC))
+                where = IsDeletable.property("deleted_at").in_(*root_dts)
+            else:
+                assert_never(edit_type)
+
         cascaded_node_ptrs, source_id_by_node_id = await _execute_cascade(
             conn=conn,
             context=context,
