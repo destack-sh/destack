@@ -1,5 +1,6 @@
 import {
   CASCADING_EDIT_TYPES,
+  Condition,
   EdgeDirection,
   EditEvent,
   EditOperation,
@@ -13,8 +14,11 @@ import {
 } from "@destack/language";
 
 import { walkNode } from "@destack/store/memory/query";
+import { Temporal } from "temporal-polyfill";
 import { MemoryContext } from "./core";
 import { packNodeRow } from "./wiring";
+
+const MAX_RECURSION_DEPTH = 100;
 
 const NODE_PARENT_KEY = String(Node.property("parent").id);
 
@@ -45,7 +49,7 @@ export function executeEdits(options: { context: MemoryContext; edits: EditEvent
   for (const edit of edits) {
     const editDefinition = NodeDefinitionReference.of(edit.nodePtr);
     if (editDefinition.nodeType !== currentDefinition.nodeType || edit.type !== currentEditType) {
-      const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeDataEdit({
+      const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeEdit({
         context,
         edits: currentBatch,
         definition: currentDefinition,
@@ -61,7 +65,7 @@ export function executeEdits(options: { context: MemoryContext; edits: EditEvent
   }
 
   if (currentBatch.length > 0) {
-    const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeDataEdit({
+    const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeEdit({
       context,
       edits: currentBatch,
       definition: currentDefinition,
@@ -121,32 +125,32 @@ function executeCascade(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
-}): NodeReference[] {
-  const { context, definition, nodePtrs } = options;
-  const childPtrs = walkNode({
+  where: Condition | null;
+}): { cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> } {
+  const { context, definition, nodePtrs, where } = options;
+  const { cascadedNodePtrs, sourceIdByNodeId } = walkNode({
     context,
     definition,
-    rootsPtrs: nodePtrs,
-    rootsParentsPtrs: [],
+    nodesPtrs: nodePtrs,
     direction: EdgeDirection.CHILD,
-    depth: 1,
-    where: null,
+    depth: MAX_RECURSION_DEPTH,
+    where,
     snapshotPath: [],
   });
-  return childPtrs;
+  return { cascadedNodePtrs, sourceIdByNodeId };
 }
 
 /**
  * Execute the Edits to the data (data only, no schema).
  * Returns the applied Edits and any cascaded Edits.
  */
-function executeDataEdit(options: {
+function executeEdit(options: {
   context: MemoryContext;
-  edits: EditEvent[];
   definition: NodeDefinitionReference;
   editType: EditType;
+  edits: EditEvent[];
 }): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
-  const { context, definition, editType, edits } = options;
+  const { context, definition, edits, editType } = options;
   const table = context.get(definition);
 
   // create/upsert
@@ -256,29 +260,68 @@ function executeDataEdit(options: {
     editType === EditType.RESTORE
   ) {
     // cascade
-    const cascadedNodePtrs = executeCascade({
+    const nodesPtrs = edits.map((edit) => edit.nodePtr);
+    const editedAtByNodeId = new Map<string, Temporal.ZonedDateTime>();
+    for (const edit of edits) {
+      editedAtByNodeId.set(edit.nodePtr.id, edit.createdAt);
+    }
+
+    let where: Condition | null = null;
+    if (editType === EditType.UNARCHIVE || editType === EditType.RESTORE) {
+      // restrict to nodes with same deleted_at/archived_at
+      const rootDts = new Set<Date>();
+      for (const nodePtr of nodesPtrs) {
+        const snapshotId = nodePtr.snapshotId || null;
+        const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
+        const row = table.rows.get(nodeKey);
+        if (row) {
+          if (editType === EditType.UNARCHIVE) {
+            const archivedAt = row.value[ARCHIVED_AT_KEY];
+            if (archivedAt) {
+              rootDts.add(new Date(archivedAt));
+            }
+          } else if (editType === EditType.RESTORE) {
+            const deletedAt = row.value[DELETED_AT_KEY];
+            if (deletedAt) {
+              rootDts.add(new Date(deletedAt));
+            }
+          }
+        }
+      }
+      if (rootDts.size > 0) {
+        if (editType === EditType.UNARCHIVE) {
+          where = IsArchivable.property("archived_at").in(...Array.from(rootDts));
+        } else if (editType === EditType.RESTORE) {
+          where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
+        }
+      }
+    }
+
+    const { cascadedNodePtrs, sourceIdByNodeId } = executeCascade({
       context,
       definition,
-      nodePtrs: edits.map((edit) => edit.nodePtr),
+      nodePtrs: nodesPtrs,
+      where,
     });
     const cascadedEdits = cascadedNodePtrs.map(
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
     );
 
     // update timestamps
-    for (const nodePtr of cascadedNodePtrs) {
-      const nodeTable = context.get(nodePtr);
+    for (const nodePtr of [...nodesPtrs, ...cascadedNodePtrs]) {
       const snapshotId = nodePtr.snapshotId || null;
-      const nodeKey = nodeTable.getNodeKey({ id: nodePtr.id, snapshotId });
-      const row = nodeTable.rows.get(nodeKey);
+      const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
+      const row = table.rows.get(nodeKey);
 
       if (row) {
         if (editType === EditType.ARCHIVE) {
-          row.value[ARCHIVED_AT_KEY] = edits[0].createdAt;
+          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
+          row.value[ARCHIVED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
         } else if (editType === EditType.UNARCHIVE) {
           delete row.value[ARCHIVED_AT_KEY];
         } else if (editType === EditType.DELETE) {
-          row.value[DELETED_AT_KEY] = edits[0].createdAt;
+          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
+          row.value[DELETED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
         } else if (editType === EditType.RESTORE) {
           delete row.value[DELETED_AT_KEY];
         }
@@ -291,10 +334,12 @@ function executeDataEdit(options: {
   // erase
   else if (editType === EditType.ERASE) {
     // cascade
-    const cascadedNodePtrs = executeCascade({
+    const nodesPtrs = edits.map((edit) => edit.nodePtr);
+    const { cascadedNodePtrs } = executeCascade({
       context,
       definition,
-      nodePtrs: edits.map((edit) => edit.nodePtr),
+      nodePtrs: nodesPtrs,
+      where: null,
     });
     const cascadedEdits = cascadedNodePtrs.map(
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),

@@ -9,8 +9,8 @@ import {
   Function,
   FunctionType,
   JoinType,
+  Node,
   NodeDefinitionReference,
-	Node,
   NodeReference,
   PropertyReferenceType,
   Query,
@@ -707,18 +707,16 @@ function queryGroupedScalar(options: {
 export function walkNode(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
-  rootsPtrs: NodeReference[];
-  rootsParentsPtrs: NodeReference[];
+  nodesPtrs: NodeReference[];
   direction: EdgeDirection;
   depth: number;
   where: Condition | null;
   snapshotPath: string[];
-}): NodeReference[] {
+}): { cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> } {
   const {
     context,
     definition,
-    rootsPtrs,
-    rootsParentsPtrs,
+    nodesPtrs,
     direction,
     depth,
     where,
@@ -726,6 +724,7 @@ export function walkNode(options: {
   } = options;
 
   const nodesById = new Map<string, NodeReference>();
+  const sourceIdByNodeId = new Map<string, string>();
   const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
   const definitions = context.resolve(definition);
 
@@ -733,7 +732,10 @@ export function walkNode(options: {
   if (direction === EdgeDirection.PARENT) {
     // start with root nodes and walk up
     let currentDepth = 0;
-    let currentNodeIds = new Set<string>(rootsPtrs.map((ptr) => ptr.id));
+    let currentNodeIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
+    for (const ptr of nodesPtrs) {
+      sourceIdByNodeId.set(ptr.id, ptr.id);
+    }
 
     while (currentDepth < depth) {
       if (currentNodeIds.size === 0) {
@@ -752,6 +754,7 @@ export function walkNode(options: {
             !nodesById.has(row.parentPtr.id) &&
             (where == null || evaluateCondition({ context, condition: where, row }))
           ) {
+            sourceIdByNodeId.set(row.parentPtr.id, sourceIdByNodeId.get(nodeId)!);
             nodesById.set(row.parentPtr.id, row.parentPtr);
             nextNodeIds.add(row.parentPtr.id);
           }
@@ -767,7 +770,10 @@ export function walkNode(options: {
   else if (direction === EdgeDirection.CHILD) {
     // start with root parents and walk down
     let currentDepth = 0;
-    let currentParentIds = new Set<string>(rootsParentsPtrs.map((ptr) => ptr.id));
+    let currentParentIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
+    for (const ptr of nodesPtrs) {
+      sourceIdByNodeId.set(ptr.id, ptr.id);
+    }
 
     while (currentDepth < depth) {
       if (currentParentIds.size === 0) {
@@ -786,6 +792,7 @@ export function walkNode(options: {
                 !nodesById.has(row.id) &&
                 (where == null || evaluateCondition({ context, condition: where, row }))
               ) {
+                sourceIdByNodeId.set(row.id, sourceIdByNodeId.get(parentId)!);
                 nodesById.set(row.id, row.ptr);
                 nextParentIds.add(row.id);
               }
@@ -809,17 +816,16 @@ export function walkNode(options: {
     assertNever(direction);
   }
 
-  return Array.from(nodesById.values());
+  return { cascadedNodePtrs: Array.from(nodesById.values()), sourceIdByNodeId };
 }
 
 /**
  * Execute the specific Query "clause" (ignoring subqueries).
  */
-function queryClause(options: {
-  context: MemoryContext;
-  query: Query;
-  where: Condition | null;
-}): { result: QueryResult; nodesPtrs: NodeReference[] } {
+function queryClause(options: { context: MemoryContext; query: Query; where: Condition | null }): {
+  result: QueryResult;
+  nodesPtrs: NodeReference[];
+} {
   const { context, query, where } = options;
 
   // combine wheres
@@ -989,11 +995,10 @@ function executeSubquery(options: {
 
     let subqueryWhere: Condition;
     if (subquery.join.recursive) {
-      const expandedNodesPtrs = walkNode({
+      const { cascadedNodePtrs: expandedNodesPtrs } = walkNode({
         context,
         definition: subquery.definition,
-        rootsPtrs: Array.from(parentsPtr.values()),
-        rootsParentsPtrs: [],
+        nodesPtrs: Array.from(parentsPtr.values()),
         direction: EdgeDirection.PARENT,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
         where: subquery.where,
@@ -1022,11 +1027,10 @@ function executeSubquery(options: {
 
     let subqueryWhere: Condition;
     if (subquery.join.recursive) {
-      const expandedNodesPtrs = walkNode({
+      const { cascadedNodePtrs: expandedNodesPtrs } = walkNode({
         context,
         definition: subquery.definition,
-        rootsPtrs: [],
-        rootsParentsPtrs: nodesPtrs,
+        nodesPtrs,
         direction: EdgeDirection.CHILD,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
         where: subquery.where,
