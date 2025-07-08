@@ -12,11 +12,10 @@ import {
   NodeReference,
   ScalarType,
 } from "@destack/language";
-
+import { MemoryContext } from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/query";
+import { packNodeRow } from "@destack/store/memory/wiring";
 import { Temporal } from "temporal-polyfill";
-import { MemoryContext } from "./core";
-import { packNodeRow } from "./wiring";
 
 const MAX_RECURSION_DEPTH = 100;
 

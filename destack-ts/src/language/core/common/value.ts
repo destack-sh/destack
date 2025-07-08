@@ -248,14 +248,14 @@ registerStructClass(StructType.VALUE, Value);
 export function toValue(
   valueUnpacked: any,
   type: Type | null = null,
-  nodeAsValue: boolean = false,
+  options?: { nodeAsValue: boolean },
 ): Value {
   // infer type
   if (type === null) {
     if (valueUnpacked === null) {
       throw new Error("cannot infer type for null");
     }
-    type = toType(valueUnpacked, nodeAsValue);
+    type = toType(valueUnpacked, options);
   }
   // coerce nodes into node references
   if (type.scalarType == ScalarType.NODE_REFERENCE) {

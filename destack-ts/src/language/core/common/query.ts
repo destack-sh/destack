@@ -1,6 +1,6 @@
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
-import type { CustomEntityDefinition, Snapshot } from "@destack/language/core/builtin/entity";
+import type { Snapshot } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {

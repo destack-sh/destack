@@ -453,7 +453,12 @@ registerTraitClass(TraitType.JOINABLE, IsJoinable);
  */
 export interface IsOwned extends IsOwnable {
   get ownedBy(): (Node & IsOwner) | null;
-  readonly ownedByPtr: NodeReference;
+  set ownedBy(value: Node & IsOwner);
+  /**
+   * IsOwned.ownedBy
+   */
+  get ownedByPtr(): NodeReference;
+  set ownedByPtr(value: NodeReference);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
