@@ -1,3 +1,3 @@
-from .store import MemoryEntityStore, MemoryEventStore
+from .store import MemoryEntityStore, MemoryEventStore, MemoryStore
 
-__all__ = ["MemoryEntityStore", "MemoryEventStore"]
+__all__ = ["MemoryEntityStore", "MemoryEventStore", "MemoryStore"]

@@ -28,19 +28,19 @@ class BufferedStore(EventStore, LiveStore):
 
     def __init__(self, *stores: Store):
         self.stores: tuple[Store, ...] = stores
-        self.store_by_type: dict[StoreKey, Store] = {}
+        self.store_by_key: dict[StoreKey, Store] = {}
         for store in stores:
             for store_key in store.keys:
-                if store_key in self.store_by_type:
+                if store_key in self.store_by_key:
                     raise ValueError(
-                        f"already have a {store_key.name} Store: {self.store_by_type[store_key]!r} != {store!r}"
+                        f"already have a {store_key.name} Store: {self.store_by_key[store_key]!r} != {store!r}"
                     )
-                self.store_by_type[store_key] = store
-        self.buffer: MemoryEntityStore = MemoryEntityStore(types=tuple(self.store_by_type.keys()))
+                self.store_by_key[store_key] = store
+        self.buffer: MemoryEntityStore = MemoryEntityStore(types=tuple(self.store_by_key.keys()))
 
     def __str__(self):
         content_parts: list[str] = []
-        for store_key, store in self.store_by_type.items():
+        for store_key, store in self.store_by_key.items():
             content_parts.append(f"{store_key.name}={store!s}")
         return ", ".join(content_parts)
 

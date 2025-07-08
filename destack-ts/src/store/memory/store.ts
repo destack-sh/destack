@@ -25,10 +25,10 @@ export class MemoryEntityStore implements EntityStore {
   public database: MemoryDatabase;
   public context: MemoryContext;
 
-  constructor(options: { types: StoreKey[] }) {
+  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
     this.types = options.types;
     this.nodeTypes = getNodeTypesForStores(this.types);
-    this.database = new MemoryDatabase();
+    this.database = options.database ?? new MemoryDatabase();
     this.context = new MemoryContext(this.database);
   }
 
@@ -71,10 +71,10 @@ export class MemoryEventStore implements EventStore {
   public database: MemoryDatabase;
   public context: MemoryContext;
 
-  constructor(options: { types: StoreKey[] }) {
+  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
     this.types = options.types;
     this.nodeTypes = getNodeTypesForStores(this.types);
-    this.database = new MemoryDatabase();
+    this.database = options.database ?? new MemoryDatabase();
     this.context = new MemoryContext(this.database);
   }
 
@@ -110,6 +110,57 @@ export class MemoryEventStore implements EventStore {
       const rowKey = table.getNodeKey(row);
       table.rows.set(rowKey, row);
     }
+    return events;
+  }
+}
+
+/** A combined in-memory Store for Events and Entities. */
+export class MemoryStore implements EventStore, EntityStore {
+  public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
+
+  public types: StoreKey[];
+  public nodeTypes: NodeType[];
+  public database: MemoryDatabase;
+  public context: MemoryContext;
+
+  public eventStore: MemoryEventStore;
+  public entityStore: MemoryEntityStore;
+
+  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
+    this.types = options.types;
+    this.nodeTypes = getNodeTypesForStores(this.types);
+    this.database = options.database ?? new MemoryDatabase();
+    this.context = new MemoryContext(this.database);
+
+    this.eventStore = new MemoryEventStore({ types: this.types, database: this.database });
+    this.entityStore = new MemoryEntityStore({ types: this.types, database: this.database });
+  }
+
+  toString(): string {
+    let numNodes = 0;
+    for (const table of this.database.tables.values()) {
+      numNodes += table.rows.size;
+    }
+    return `nodes=${numNodes}, tables=${this.database.tables.size}`;
+  }
+
+  repr(): string {
+    return `<MemoryStore ${this.toString()}>`;
+  }
+
+  query(query: Query): Promise<QueryResult> {
+    return this.entityStore.query(query);
+  }
+
+  async commit(events: EditEvent[]): Promise<EditEvent[]> {
+    const appliedEvents = await this.append(events);
+    return appliedEvents as EditEvent[];
+  }
+
+  async append(events: Event[]): Promise<Event[]> {
+    await this.eventStore.append(events);
+    const editEvents = events.filter((event) => event instanceof EditEvent);
+    await this.entityStore.commit(editEvents);
     return events;
   }
 }

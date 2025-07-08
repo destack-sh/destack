@@ -3,6 +3,7 @@ import { Signal, signal, useComputed, useSignal, useSignalEffect } from "@preact
 import {
   activeSession,
   Easing,
+  Event,
   Line,
   LineShape,
   Node,
@@ -36,6 +37,8 @@ export const Canvas: React.FC = () => {
   const session = activeSession();
   const query = useSignal(LineShape.search({}));
   const { nodes: lines } = useQuery(query);
+  // const { nodes: events } = useQuery(EditEvent.search());
+  const events = useSignal<Event[]>([]);
 
   const isDrawing = useSignal(false);
   const lastMousePosition = useSignal<Vector2f | null>(null);
@@ -88,7 +91,11 @@ export const Canvas: React.FC = () => {
       isDrawing.value = false;
       const lineShape = new LineShape({ name: "LineShape", ...currentLine.value });
       session.create(lineShape);
+      session.flush();
+      events.value = [...events.value, ...session.pendingEvents];
+      console.log("events", events.value);
       session.commit();
+      query.value = LineShape.search({}); // nocheckin (reactivity hack)
       currentLine.value = null;
       lastMousePosition.value = null;
     }
@@ -133,6 +140,12 @@ export const Canvas: React.FC = () => {
           </g>
         )}
       </svg>
+      <div style={{ height: "100px", overflow: "auto", background: "gray" }}>
+        {/* render events */}
+        {events.value.slice(-3).map((event, index) => (
+          <div key={index}>{event.repr()}</div>
+        ))}
+      </div>
     </div>
   );
 };
