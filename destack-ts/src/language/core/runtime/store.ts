@@ -39,7 +39,7 @@ export interface Store {
  */
 export interface EntityStore extends Store {
   /**
-   * Commit the EditEvents.
+   * Commit EditEvents to Entities.
    */
   commit(events: EditEvent[]): Promise<EditEvent[]>;
 }

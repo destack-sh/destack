@@ -824,8 +824,9 @@ class StoreTier(Enum):
     """The tier of a Store."""
 
     PRIMARY = 10
-    SEARCH = 20
-    AGGREGATE = 30
+    # PRIMARY_FAST, PRIMARY_RELATIONAL, ...
+    # SEARCH = 20
+    # AGGREGATE = 30
 
 
 @builtin_enum(EnumType.STORE_IMPLEMENTATION)
