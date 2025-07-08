@@ -51,7 +51,7 @@ import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 /**
  * Guess the type of a value or class.
  */
-export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
+export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Type {
   if (valueOrType === null || valueOrType === undefined) {
     throw new Error("null/undefined is not a valid Type");
   }
@@ -66,7 +66,7 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
   } else if (isNode(valueOrType)) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
-      scalarType: nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
+      scalarType: options?.nodeAsValue ? ScalarType.NODE_VALUE : ScalarType.NODE_REFERENCE,
       nodeType: valueOrType.metatype,
     });
   } else if (isStruct(valueOrType)) {
@@ -91,7 +91,7 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
     if (valueOrType.length === 0) {
       throw new Error(`cannot infer type of empty array: ${valueOrType}`);
     }
-    const elementType = toType(valueOrType[0]);
+    const elementType = toType(valueOrType[0], options);
     if (elementType.cardinality !== TypeCardinality.SCALAR) {
       throw new Error(
         `expected scalar inside array, got ${elementType.cardinality} for ${valueOrType}`,
@@ -111,11 +111,11 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
       throw new Error(`cannot infer type of empty Map: ${valueOrType}`);
     }
     const [sampleKey, sampleValue] = Array.from(valueOrType.entries()).at(0)!;
-    const keyType = toType(sampleKey);
+    const keyType = toType(sampleKey, options);
     if (keyType.cardinality !== TypeCardinality.SCALAR) {
       throw new Error(`expected scalar key in Map, got ${keyType.cardinality} for ${valueOrType}`);
     }
-    const valueType = toType(sampleValue);
+    const valueType = toType(sampleValue, options);
     if (
       valueType.cardinality !== TypeCardinality.SCALAR &&
       valueType.cardinality !== TypeCardinality.LIST
@@ -141,13 +141,13 @@ export function toType(valueOrType: any, nodeAsValue: boolean = false): Type {
     }
     const sampleKey = keys[0];
     const sampleValue = valueOrType[sampleKey];
-    const keyType = toType(sampleKey);
+    const keyType = toType(sampleKey, options);
     if (keyType.cardinality !== TypeCardinality.SCALAR) {
       throw new Error(
         `expected scalar key in object, got ${keyType.cardinality} for ${valueOrType}`,
       );
     }
-    const valueType = toType(sampleValue);
+    const valueType = toType(sampleValue, options);
     if (
       valueType.cardinality !== TypeCardinality.SCALAR &&
       valueType.cardinality !== TypeCardinality.LIST

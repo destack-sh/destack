@@ -8,6 +8,7 @@ import type {
   IsOwner,
   IsSpatial,
   IsSubject,
+  NodeClass,
   NodeReference,
   QueryConnection,
   Session,
@@ -170,7 +171,18 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     }
     return null;
   }
-  readonly ownedByPtr: NodeReference;
+  set ownedBy(node: Node & IsOwner) {
+    this.ownedByPtr = node.toRef();
+  }
+  get ownedByPtr(): NodeReference {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -186,7 +198,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Node & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Node & IsOwner) | NodeReference;
+    ownedBy: (Node & IsOwner) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -256,14 +268,14 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _ownedBy = options.ownedBy ?? null;
+    let _ownedBy = options.ownedBy;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     if (_ownedBy === null) {
       throw new Error(`Follow.ownedBy is required`);
     }
-    this.ownedByPtr = _ownedBy;
+    this._ownedByPtr = _ownedBy;
 
     // identity
     if (options.id == null) {
@@ -300,7 +312,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
-    if (!(this.ownedByPtr.id === other.ownedByPtr.id)) {
+    if (!(this._ownedByPtr.id === other._ownedByPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -330,7 +342,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.ownedByPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -433,7 +445,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["28"] = object.ownedByPtr.toValue();
+    objectValue["28"] = object._ownedByPtr.toValue();
     return objectValue;
   }
 
@@ -564,7 +576,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.ownedByPtr = object.ownedByPtr.toProto();
+    objectProto.ownedByPtr = object._ownedByPtr.toProto();
     return objectProto as FollowProto;
   }
 
