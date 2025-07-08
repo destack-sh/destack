@@ -28,8 +28,11 @@ class EnumType(Enum):
     STRUCT_DEFINITION_TYPE = 12
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION = 14
-    STORE_TYPE = 21
-    STORE_IMPLEMENTATION = 22
+    STORE_KEY = 20
+    STORE_SCOPE = 21
+    STORE_DOMAIN = 22
+    STORE_TIER = 23
+    STORE_IMPLEMENTATION = 25
     PLATFORM_TYPE = 30
     RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
@@ -789,11 +792,40 @@ class PropertyType(Enum):
     OUTPUT = 11, "Output", None, None
 
 
-@builtin_enum(EnumType.STORE_TYPE)
-class StoreType(Enum):
-    GLOBAL_ENTITY_PRIMARY = 1000
-    SPATIAL_ENTITY_PRIMARY = 1100
-    SPATIAL_EVENT_PRIMARY = 2100
+@builtin_enum(EnumType.STORE_KEY)
+class StoreKey(Enum):
+    """The role of a Store (scope + domain + tier)."""
+
+    GLOBAL_ENTITY_PRIMARY = 1110
+    SPATIAL_ENTITY_PRIMARY = 1120
+    # SPATIAL_ENTITY_SEARCH, SPATIAL_ENTITY_BACKUP, ...
+    SPATIAL_EVENT_PRIMARY = 2110
+    # SPATIAL_EVENT_SEARCH, SPATIAL_EVENT_AGGREGATE, ...
+
+
+@builtin_enum(EnumType.STORE_SCOPE)
+class StoreScope(Enum):
+    """The scope of a Store."""
+
+    GLOBAL = 1000
+    SPATIAL = 2000
+
+
+@builtin_enum(EnumType.STORE_DOMAIN)
+class StoreDomain(Enum):
+    """The domain of a Store."""
+
+    ENTITY = 100
+    EVENT = 500
+
+
+@builtin_enum(EnumType.STORE_TIER)
+class StoreTier(Enum):
+    """The tier of a Store."""
+
+    PRIMARY = 10
+    SEARCH = 20
+    AGGREGATE = 30
 
 
 @builtin_enum(EnumType.STORE_IMPLEMENTATION)

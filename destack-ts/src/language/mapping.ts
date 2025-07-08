@@ -65,8 +65,11 @@ import type {
   RoleType,
   RuntimeLanguage,
   ScalarType,
+  StoreDomain,
   StoreImplementation,
-  StoreType,
+  StoreKey,
+  StoreScope,
+  StoreTier,
   StructType,
   Tenancy,
   ToolType,
@@ -767,7 +770,10 @@ export type EnumTypeMapping = {
   [EnumType.NODE_TYPE]: NodeType;
   [EnumType.UNIVERSE_CATEGORY]: UniverseCategory;
   [EnumType.PROPERTY_TYPE]: PropertyType;
-  [EnumType.STORE_TYPE]: StoreType;
+  [EnumType.STORE_KEY]: StoreKey;
+  [EnumType.STORE_SCOPE]: StoreScope;
+  [EnumType.STORE_DOMAIN]: StoreDomain;
+  [EnumType.STORE_TIER]: StoreTier;
   [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;
   [EnumType.PLATFORM_TYPE]: PlatformType;

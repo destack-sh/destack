@@ -6,7 +6,8 @@ import {
   PrimitiveType,
   PropertyType,
   ScalarType,
-  StoreType,
+  StoreDomain,
+  StoreKey,
   StructType,
   TraitType,
   TypeCardinality,
@@ -55,7 +56,8 @@ import {
   PropertyGroupDefinitionProto,
   PropertyTypeProto,
   ScalarTypeProto,
-  StoreTypeProto,
+  StoreDomainProto,
+  StoreKeyProto,
   StructDefinitionProto,
   StructTypeProto,
   TraitDefinitionProto,
@@ -133,11 +135,6 @@ export class NodeDefinition extends BuiltinDefinition {
    * BuiltinDefinition.description
    */
   readonly description: string | null;
-
-  /**
-   * NodeDefinition.primaryStoreTypes
-   */
-  readonly primaryStoreTypes: Array<StoreType>;
 
   /**
    * NodeDefinition.properties
@@ -239,13 +236,22 @@ export class NodeDefinition extends BuiltinDefinition {
    */
   readonly baseEventTypes: Array<NodeType>;
 
+  /**
+   * NodeDefinition.primaryStoreKeys
+   */
+  readonly primaryStoreKeys: Array<StoreKey>;
+
+  /**
+   * NodeDefinition.storeDomain
+   */
+  readonly storeDomain: StoreDomain | null;
+
   constructor(options: {
     id: number;
     type: NodeType;
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    primaryStoreTypes?: Array<StoreType>;
     properties?: Array<PropertyDefinition>;
     groups?: Array<PropertyGroupDefinition>;
     isGlobal: boolean;
@@ -266,6 +272,8 @@ export class NodeDefinition extends BuiltinDefinition {
     descendantTypes?: Array<NodeType>;
     eventTypes?: Array<NodeType>;
     baseEventTypes?: Array<NodeType>;
+    primaryStoreKeys?: Array<StoreKey>;
+    storeDomain?: StoreDomain | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -300,11 +308,6 @@ export class NodeDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _primaryStoreTypes = options.primaryStoreTypes ?? null;
-    if (_primaryStoreTypes === null) {
-      _primaryStoreTypes = [];
-    }
-    this.primaryStoreTypes = _primaryStoreTypes;
     let _properties = options.properties ?? null;
     if (_properties === null) {
       _properties = [];
@@ -399,6 +402,13 @@ export class NodeDefinition extends BuiltinDefinition {
       _baseEventTypes = [];
     }
     this.baseEventTypes = _baseEventTypes;
+    let _primaryStoreKeys = options.primaryStoreKeys ?? null;
+    if (_primaryStoreKeys === null) {
+      _primaryStoreKeys = [];
+    }
+    this.primaryStoreKeys = _primaryStoreKeys;
+    let _storeDomain = options.storeDomain ?? null;
+    this.storeDomain = _storeDomain;
 
     // identity
     // @ts-expect-error(readonly)
@@ -417,14 +427,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (!(this.type === other.type)) {
       return false;
-    }
-    if (this.primaryStoreTypes.length !== other.primaryStoreTypes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.primaryStoreTypes.length; i++) {
-      if (!(this.primaryStoreTypes[i] === other.primaryStoreTypes[i])) {
-        return false;
-      }
     }
     if (this.properties.length !== other.properties.length) {
       return false;
@@ -551,6 +553,17 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
+    if (this.primaryStoreKeys.length !== other.primaryStoreKeys.length) {
+      return false;
+    }
+    for (let i = 0; i < this.primaryStoreKeys.length; i++) {
+      if (!(this.primaryStoreKeys[i] === other.primaryStoreKeys[i])) {
+        return false;
+      }
+    }
+    if (!(this.storeDomain === other.storeDomain)) {
+      return false;
+    }
     if (!(this.id === other.id)) {
       return false;
     }
@@ -597,11 +610,6 @@ export class NodeDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.primaryStoreTypes && this.primaryStoreTypes.length > 0) {
-      for (const _item of this.primaryStoreTypes) {
-        h = (h * 31 + _item) & 0xffffffff;
-      }
-    }
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
@@ -678,6 +686,14 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
+    if (this.primaryStoreKeys && this.primaryStoreKeys.length > 0) {
+      for (const _item of this.primaryStoreKeys) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.storeDomain !== null) {
+      h = (h * 31 + this.storeDomain) & 0xffffffff;
+    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon !== null) {
@@ -715,13 +731,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (object.description != null) {
       objectValue["103"] = object.description;
-    }
-    if (object.primaryStoreTypes.length > 0) {
-      const packedPrimaryStoreTypes: any[] = [];
-      for (const item of object.primaryStoreTypes) {
-        packedPrimaryStoreTypes.push(item);
-      }
-      objectValue["104"] = packedPrimaryStoreTypes;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
@@ -825,6 +834,16 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectValue["141"] = packedBaseEventTypes;
     }
+    if (object.primaryStoreKeys.length > 0) {
+      const packedPrimaryStoreKeys: any[] = [];
+      for (const item of object.primaryStoreKeys) {
+        packedPrimaryStoreKeys.push(item);
+      }
+      objectValue["150"] = packedPrimaryStoreKeys;
+    }
+    if (object.storeDomain != null) {
+      objectValue["151"] = object.storeDomain;
+    }
     return objectValue;
   }
 
@@ -842,12 +861,6 @@ export class NodeDefinition extends BuiltinDefinition {
       StructType.PROPERTY_GROUP_DEFINITION
     ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedPrimaryStoreTypes: any[] = [];
-    if (objectValue["104"] != undefined) {
-      for (const item of objectValue["104"]) {
-        unpackedPrimaryStoreTypes.push(Number(item));
-      }
-    }
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
@@ -934,6 +947,14 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedBaseEventTypes.push(Number(item));
       }
     }
+    const unpackedPrimaryStoreKeys: any[] = [];
+    if (objectValue["150"] != undefined) {
+      for (const item of objectValue["150"]) {
+        unpackedPrimaryStoreKeys.push(Number(item));
+      }
+    }
+    const storeDomainValue = objectValue["151"];
+    const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -943,7 +964,6 @@ export class NodeDefinition extends BuiltinDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new NodeDefinition({
       type: Number(objectValue["100"]),
-      primaryStoreTypes: unpackedPrimaryStoreTypes,
       properties: unpackedProperties,
       groups: unpackedGroups,
       isGlobal: objectValue["110"],
@@ -964,6 +984,8 @@ export class NodeDefinition extends BuiltinDefinition {
       descendantTypes: unpackedDescendantTypes,
       eventTypes: unpackedEventTypes,
       baseEventTypes: unpackedBaseEventTypes,
+      primaryStoreKeys: unpackedPrimaryStoreKeys,
+      storeDomain: unpackedStoreDomain,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1001,13 +1023,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (object.description != null) {
       objectProto.description = object.description;
-    }
-    if (object.primaryStoreTypes) {
-      const packedPrimaryStoreTypes: any[] = [];
-      for (const item of object.primaryStoreTypes) {
-        packedPrimaryStoreTypes.push(Number(item) as StoreTypeProto);
-      }
-      objectProto.primaryStoreTypes = packedPrimaryStoreTypes;
     }
     if (object.properties) {
       const packedProperties: any[] = [];
@@ -1111,6 +1126,16 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectProto.baseEventTypes = packedBaseEventTypes;
     }
+    if (object.primaryStoreKeys) {
+      const packedPrimaryStoreKeys: any[] = [];
+      for (const item of object.primaryStoreKeys) {
+        packedPrimaryStoreKeys.push(Number(item) as StoreKeyProto);
+      }
+      objectProto.primaryStoreKeys = packedPrimaryStoreKeys;
+    }
+    if (object.storeDomain != null) {
+      objectProto.storeDomain = Number(object.storeDomain) as StoreDomainProto;
+    }
     return objectProto as NodeDefinitionProto;
   }
 
@@ -1128,12 +1153,6 @@ export class NodeDefinition extends BuiltinDefinition {
       StructType.PROPERTY_GROUP_DEFINITION
     ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedPrimaryStoreTypes: any[] = [];
-    if (objectProto.primaryStoreTypes) {
-      for (const item of objectProto.primaryStoreTypes) {
-        unpackedPrimaryStoreTypes.push(Number(item) as StoreType);
-      }
-    }
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
@@ -1216,9 +1235,14 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedBaseEventTypes.push(Number(item) as NodeType);
       }
     }
+    const unpackedPrimaryStoreKeys: any[] = [];
+    if (objectProto.primaryStoreKeys) {
+      for (const item of objectProto.primaryStoreKeys) {
+        unpackedPrimaryStoreKeys.push(Number(item) as StoreKey);
+      }
+    }
     return new NodeDefinition({
       type: Number(objectProto.type) as NodeType,
-      primaryStoreTypes: unpackedPrimaryStoreTypes,
       properties: unpackedProperties,
       groups: unpackedGroups,
       isGlobal: objectProto.isGlobal,
@@ -1241,6 +1265,11 @@ export class NodeDefinition extends BuiltinDefinition {
       descendantTypes: unpackedDescendantTypes,
       eventTypes: unpackedEventTypes,
       baseEventTypes: unpackedBaseEventTypes,
+      primaryStoreKeys: unpackedPrimaryStoreKeys,
+      storeDomain:
+        objectProto.storeDomain != undefined
+          ? (Number(objectProto.storeDomain) as StoreDomain)
+          : null,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:

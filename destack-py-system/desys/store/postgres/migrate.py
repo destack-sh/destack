@@ -22,7 +22,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from destack.language import Oracle, StoreType
+from destack.language import Oracle, StoreKey
 from destack.utils.code import format_code
 from destack.utils.env import REPOSITORY_PATH
 from destack.utils.func import partition, re_search_or_error
@@ -151,7 +151,7 @@ async def postgres_migrate(
     target: str | int | None,
     oracle: Oracle,
     *,
-    store_type: StoreType,
+    store_key: StoreKey,
     database: "Database | None" = None,
 ) -> list[Migration]:
     """
@@ -175,7 +175,7 @@ async def postgres_migrate(
     logger.trace(
         "migrations.load",
         target_migration=target_migration,
-        store_type=store_type,
+        store_key=store_key,
         database=database,
     )
     databased_migrations = await read_migrations_from_pg(conn)
@@ -183,7 +183,7 @@ async def postgres_migrate(
     log = logger.bind(
         target_migration=target_migration,
         is_upgrade=is_upgrade,
-        store_type=store_type,
+        store_key=store_key,
         database=database,
     )
     applied_migrations = [m for m in databased_migrations if m.applied_at is not None]
@@ -193,7 +193,7 @@ async def postgres_migrate(
     # get the migrations to apply
     migrations_to_apply = []
     for migration in MIGRATIONS:
-        if not migration.has_store_type(store_type):
+        if not migration.has_store_key(store_key):
             continue
         if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
             not is_upgrade and current_migration_id >= migration.id > target_migration.id
@@ -210,7 +210,7 @@ async def postgres_migrate(
             migrations_to_apply,
             oracle=oracle,
             is_upgrade=is_upgrade,
-            store_type=store_type,
+            store_key=store_key,
             database=database,
         )
         log.debug("migrations.apply", conn=conn, migrations=migrations_to_apply, database=database)
@@ -235,13 +235,15 @@ async def _do_migrate(
     oracle: Oracle,
     *,
     is_upgrade: bool,
-    store_type: StoreType,
+    store_key: StoreKey,
     database: Optional["Database"] = None,
 ):
     """Applies the given migrations in the given order."""
     for migration in migrations:
         with tracer.start_as_current_span("postgres.apply_migration"):
-            func_name = f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(store_type.name.lower()) or 'local'}"
+            func_name = (
+                f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(store_key.name.lower()) or 'local'}"
+            )
             migration_file = _load_migration_from_path(migration)
             func = getattr(migration_file.module, func_name)
             try:

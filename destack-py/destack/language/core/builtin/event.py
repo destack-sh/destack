@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.utils.uuid import UUID
 
-from .common import EnumType, RoleType
+from .common import EnumType, RoleType, StoreDomain
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
@@ -45,6 +45,8 @@ class Event[N: Node = Node](IsSpatial, Node):
     An Event is an immutable datum of something happening to an Entity.
     Events are proposed by Clients as pending Events, then applied or refused by the system.
     """
+
+    __store_domain__ = StoreDomain.EVENT
 
     parent: Optional["Space"] = builtin_property_parent(is_readonly=True)
 

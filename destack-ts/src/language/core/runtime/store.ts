@@ -6,17 +6,17 @@ import type {
   QueryResult,
   QueryUpdate,
 } from "@destack/language";
-import { StoreType } from "@destack/language/core/builtin/common";
+import { StoreKey } from "@destack/language/core/builtin/common";
 
 /**
- * The read/write Store backing (part of) the Supergraph.
-    Some Stores only support a subset of Entities/Events.
+ * The read/write Store backing part of the Supergraph.
+ * Some Stores only support a subset of Entities/Events (according to their StoreKeys).
  */
 export interface Store {
   /**
-   * The StoreTypes this Store represents.
+   * The StoreKeys this Store represents.
    */
-  readonly types: StoreType[];
+  readonly types: StoreKey[];
 
   /**
    * The NodeTypes this Store supports.

@@ -11,7 +11,7 @@ from .core.builtin.common import (
     ENUM_TYPES,
     EnumType,
     NodeType,
-    StoreType,
+    StoreKey,
     StructType,
     TraitType,
 )
@@ -25,7 +25,7 @@ from .registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
-    NODE_TYPES_BY_PRIMARY_STORE_TYPE,
+    NODE_TYPES_BY_PRIMARY_STORE_KEY,
     NODE_TYPES_BY_TRAIT_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
@@ -47,28 +47,28 @@ def finalize():
     if _is_finalized():
         return
 
-    # index node types by store type
-    node_types_by_store_type: dict[StoreType, list[NodeType]] = defaultdict(list)
+    # index node types by store key
+    node_types_by_store_key: dict[StoreKey, list[NodeType]] = defaultdict(list)
     for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__is_abstract__:
             continue
-        primary_store_types: list[StoreType] = []
+        primary_store_keys: list[StoreKey] = []
         if NodeType.ENTITY in node_cls.__inherits__:
             if TraitType.GLOBAL in node_cls.__traits__:
-                primary_store_types.append(StoreType.GLOBAL_ENTITY_PRIMARY)
+                primary_store_keys.append(StoreKey.GLOBAL_ENTITY_PRIMARY)
             if TraitType.SPATIAL in node_cls.__traits__:
-                primary_store_types.append(StoreType.SPATIAL_ENTITY_PRIMARY)
+                primary_store_keys.append(StoreKey.SPATIAL_ENTITY_PRIMARY)
         elif NodeType.EVENT in node_cls.__inherits__:
             if TraitType.SPATIAL in node_cls.__traits__:
-                primary_store_types.append(StoreType.SPATIAL_EVENT_PRIMARY)
+                primary_store_keys.append(StoreKey.SPATIAL_EVENT_PRIMARY)
         else:
             raise ValueError(f"unexpected node type: {node_cls}")
-        node_cls.__primary_store_types__ = tuple(primary_store_types)
-        for store_type in primary_store_types:
-            node_types_by_store_type[store_type].append(node_cls.metatype)
-    for store_type in StoreType:
-        NODE_TYPES_BY_PRIMARY_STORE_TYPE[store_type] = tuple(
-            node_types_by_store_type.get(store_type, ())
+        node_cls.__primary_store_keys__ = tuple(primary_store_keys)
+        for store_key in primary_store_keys:
+            node_types_by_store_key[store_key].append(node_cls.metatype)
+    for store_key in StoreKey:
+        NODE_TYPES_BY_PRIMARY_STORE_KEY[store_key] = tuple(
+            node_types_by_store_key.get(store_key, ())
         )
 
     # index node types by trait

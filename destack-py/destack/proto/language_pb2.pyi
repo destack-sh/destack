@@ -303,7 +303,10 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_STRUCT_DEFINITION_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PROPERTY_REFERENCE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_MATERIALIZATION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STORE_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_KEY: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_SCOPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_DOMAIN: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_STORE_TIER: _ClassVar[EnumTypeProto]
     ENUM_TYPE_STORE_IMPLEMENTATION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RUNTIME_LANGUAGE: _ClassVar[EnumTypeProto]
@@ -1254,18 +1257,37 @@ class SpringTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SPRING_TYPE_TIME: _ClassVar[SpringTypeProto]
     SPRING_TYPE_PHYSICS: _ClassVar[SpringTypeProto]
 
+class StoreDomainProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_DOMAIN_UNSPECIFIED: _ClassVar[StoreDomainProto]
+    STORE_DOMAIN_ENTITY: _ClassVar[StoreDomainProto]
+    STORE_DOMAIN_EVENT: _ClassVar[StoreDomainProto]
+
 class StoreImplementationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STORE_IMPLEMENTATION_UNSPECIFIED: _ClassVar[StoreImplementationProto]
     STORE_IMPLEMENTATION_MEMORY: _ClassVar[StoreImplementationProto]
     STORE_IMPLEMENTATION_POSTGRES: _ClassVar[StoreImplementationProto]
 
-class StoreTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+class StoreKeyProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
-    STORE_TYPE_UNSPECIFIED: _ClassVar[StoreTypeProto]
-    STORE_TYPE_GLOBAL_ENTITY_PRIMARY: _ClassVar[StoreTypeProto]
-    STORE_TYPE_SPATIAL_ENTITY_PRIMARY: _ClassVar[StoreTypeProto]
-    STORE_TYPE_SPATIAL_EVENT_PRIMARY: _ClassVar[StoreTypeProto]
+    STORE_KEY_UNSPECIFIED: _ClassVar[StoreKeyProto]
+    STORE_KEY_GLOBAL_ENTITY_PRIMARY: _ClassVar[StoreKeyProto]
+    STORE_KEY_SPATIAL_ENTITY_PRIMARY: _ClassVar[StoreKeyProto]
+    STORE_KEY_SPATIAL_EVENT_PRIMARY: _ClassVar[StoreKeyProto]
+
+class StoreScopeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_SCOPE_UNSPECIFIED: _ClassVar[StoreScopeProto]
+    STORE_SCOPE_GLOBAL: _ClassVar[StoreScopeProto]
+    STORE_SCOPE_SPATIAL: _ClassVar[StoreScopeProto]
+
+class StoreTierProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    STORE_TIER_UNSPECIFIED: _ClassVar[StoreTierProto]
+    STORE_TIER_PRIMARY: _ClassVar[StoreTierProto]
+    STORE_TIER_SEARCH: _ClassVar[StoreTierProto]
+    STORE_TIER_AGGREGATE: _ClassVar[StoreTierProto]
 
 class StringFormatProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1741,7 +1763,10 @@ ENUM_TYPE_OBJECT_DEFINITION_TYPE: EnumTypeProto
 ENUM_TYPE_STRUCT_DEFINITION_TYPE: EnumTypeProto
 ENUM_TYPE_PROPERTY_REFERENCE_TYPE: EnumTypeProto
 ENUM_TYPE_MATERIALIZATION: EnumTypeProto
-ENUM_TYPE_STORE_TYPE: EnumTypeProto
+ENUM_TYPE_STORE_KEY: EnumTypeProto
+ENUM_TYPE_STORE_SCOPE: EnumTypeProto
+ENUM_TYPE_STORE_DOMAIN: EnumTypeProto
+ENUM_TYPE_STORE_TIER: EnumTypeProto
 ENUM_TYPE_STORE_IMPLEMENTATION: EnumTypeProto
 ENUM_TYPE_PLATFORM_TYPE: EnumTypeProto
 ENUM_TYPE_RUNTIME_LANGUAGE: EnumTypeProto
@@ -2493,13 +2518,23 @@ SPACE_STATUS_PAUSED: SpaceStatusProto
 SPRING_TYPE_UNSPECIFIED: SpringTypeProto
 SPRING_TYPE_TIME: SpringTypeProto
 SPRING_TYPE_PHYSICS: SpringTypeProto
+STORE_DOMAIN_UNSPECIFIED: StoreDomainProto
+STORE_DOMAIN_ENTITY: StoreDomainProto
+STORE_DOMAIN_EVENT: StoreDomainProto
 STORE_IMPLEMENTATION_UNSPECIFIED: StoreImplementationProto
 STORE_IMPLEMENTATION_MEMORY: StoreImplementationProto
 STORE_IMPLEMENTATION_POSTGRES: StoreImplementationProto
-STORE_TYPE_UNSPECIFIED: StoreTypeProto
-STORE_TYPE_GLOBAL_ENTITY_PRIMARY: StoreTypeProto
-STORE_TYPE_SPATIAL_ENTITY_PRIMARY: StoreTypeProto
-STORE_TYPE_SPATIAL_EVENT_PRIMARY: StoreTypeProto
+STORE_KEY_UNSPECIFIED: StoreKeyProto
+STORE_KEY_GLOBAL_ENTITY_PRIMARY: StoreKeyProto
+STORE_KEY_SPATIAL_ENTITY_PRIMARY: StoreKeyProto
+STORE_KEY_SPATIAL_EVENT_PRIMARY: StoreKeyProto
+STORE_SCOPE_UNSPECIFIED: StoreScopeProto
+STORE_SCOPE_GLOBAL: StoreScopeProto
+STORE_SCOPE_SPATIAL: StoreScopeProto
+STORE_TIER_UNSPECIFIED: StoreTierProto
+STORE_TIER_PRIMARY: StoreTierProto
+STORE_TIER_SEARCH: StoreTierProto
+STORE_TIER_AGGREGATE: StoreTierProto
 STRING_FORMAT_UNSPECIFIED: StringFormatProto
 STRING_FORMAT_NAME: StringFormatProto
 STRING_FORMAT_SLUG: StringFormatProto
@@ -7757,14 +7792,13 @@ class NodeConstraintProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., node_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., node_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ...) -> None: ...
 
 class NodeDefinitionProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "primary_store_types", "properties", "groups", "is_global", "is_spatial", "is_abstract", "is_extensible", "is_frozen", "base_type", "extended_by", "inherits", "inherited_by", "base_traits", "traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types", "event_types", "base_event_types")
+    __slots__ = ("metatype", "id", "type", "name", "icon", "description", "properties", "groups", "is_global", "is_spatial", "is_abstract", "is_extensible", "is_frozen", "base_type", "extended_by", "inherits", "inherited_by", "base_traits", "traits", "root_type", "parent_types", "child_types", "ancestor_types", "descendant_types", "event_types", "base_event_types", "primary_store_keys", "store_domain")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     DESCRIPTION_FIELD_NUMBER: _ClassVar[int]
-    PRIMARY_STORE_TYPES_FIELD_NUMBER: _ClassVar[int]
     PROPERTIES_FIELD_NUMBER: _ClassVar[int]
     GROUPS_FIELD_NUMBER: _ClassVar[int]
     IS_GLOBAL_FIELD_NUMBER: _ClassVar[int]
@@ -7785,13 +7819,14 @@ class NodeDefinitionProto(_message.Message):
     DESCENDANT_TYPES_FIELD_NUMBER: _ClassVar[int]
     EVENT_TYPES_FIELD_NUMBER: _ClassVar[int]
     BASE_EVENT_TYPES_FIELD_NUMBER: _ClassVar[int]
+    PRIMARY_STORE_KEYS_FIELD_NUMBER: _ClassVar[int]
+    STORE_DOMAIN_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: int
     type: NodeTypeProto
     name: str
     icon: IconProto
     description: str
-    primary_store_types: _containers.RepeatedScalarFieldContainer[StoreTypeProto]
     properties: _containers.RepeatedCompositeFieldContainer[PropertyDefinitionProto]
     groups: _containers.RepeatedCompositeFieldContainer[PropertyGroupDefinitionProto]
     is_global: bool
@@ -7812,7 +7847,9 @@ class NodeDefinitionProto(_message.Message):
     descendant_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     event_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
     base_event_types: _containers.RepeatedScalarFieldContainer[NodeTypeProto]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., primary_store_types: _Optional[_Iterable[_Union[StoreTypeProto, str]]] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[PropertyGroupDefinitionProto, _Mapping]]] = ..., is_global: bool = ..., is_spatial: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ...) -> None: ...
+    primary_store_keys: _containers.RepeatedScalarFieldContainer[StoreKeyProto]
+    store_domain: StoreDomainProto
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ..., description: _Optional[str] = ..., properties: _Optional[_Iterable[_Union[PropertyDefinitionProto, _Mapping]]] = ..., groups: _Optional[_Iterable[_Union[PropertyGroupDefinitionProto, _Mapping]]] = ..., is_global: bool = ..., is_spatial: bool = ..., is_abstract: bool = ..., is_extensible: bool = ..., is_frozen: bool = ..., base_type: _Optional[_Union[NodeTypeProto, str]] = ..., extended_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherits: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., inherited_by: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., traits: _Optional[_Iterable[_Union[TraitTypeProto, str]]] = ..., root_type: _Optional[_Union[NodeTypeProto, str]] = ..., parent_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., child_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., ancestor_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., descendant_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., base_event_types: _Optional[_Iterable[_Union[NodeTypeProto, str]]] = ..., primary_store_keys: _Optional[_Iterable[_Union[StoreKeyProto, str]]] = ..., store_domain: _Optional[_Union[StoreDomainProto, str]] = ...) -> None: ...
 
 class NodeDefinitionReferenceProto(_message.Message):
     __slots__ = ("metatype", "type", "node_type", "definition_ptr")
@@ -7827,22 +7864,22 @@ class NodeDefinitionReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeDefinitionTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
-    __slots__ = ("metatype", "type", "id", "definition_id", "snapshot_id", "space_id", "store_type")
+    __slots__ = ("metatype", "type", "id", "definition_id", "snapshot_id", "space_id", "store_key")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     SPACE_ID_FIELD_NUMBER: _ClassVar[int]
-    STORE_TYPE_FIELD_NUMBER: _ClassVar[int]
+    STORE_KEY_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     type: NodeTypeProto
     id: str
     definition_id: str
     snapshot_id: str
     space_id: str
-    store_type: StoreTypeProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., definition_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., space_id: _Optional[str] = ..., store_type: _Optional[_Union[StoreTypeProto, str]] = ...) -> None: ...
+    store_key: StoreKeyProto
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., definition_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., space_id: _Optional[str] = ..., store_key: _Optional[_Union[StoreKeyProto, str]] = ...) -> None: ...
 
 class NotificationProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "instance_root_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "owned_by_ptr", "status", "title", "text")

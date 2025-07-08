@@ -2,8 +2,6 @@ import abc
 from collections.abc import AsyncGenerator, Sequence
 from typing import TYPE_CHECKING, ClassVar, Optional
 
-from destack.language.registry import NODE_TYPES_BY_PRIMARY_STORE_TYPE
-
 if TYPE_CHECKING:
     from destack.language import (
         EditEvent,
@@ -13,32 +11,24 @@ if TYPE_CHECKING:
         QueryResult,
         QueryUpdate,
         StoreImplementation,
-        StoreType,
+        StoreKey,
     )
 
 
 class Store(abc.ABC):
     """
-    The read/write Store backing (part of) the Supergraph.
-    Some Stores only support a subset of Entities/Events.
+    The read/write Store backing some part of the Supergraph.
+    Some Stores only support a subset of Entities/Events (according to their StoreKeys).
     """
 
     implementation: ClassVar[Optional["StoreImplementation"]]
-
-    def __init__(self, types: tuple["StoreType", ...]):
-        self.types: tuple[StoreType, ...] = types
-        self.node_types: tuple[NodeType, ...] = tuple(
-            {
-                node_type
-                for store_type in types
-                for node_type in NODE_TYPES_BY_PRIMARY_STORE_TYPE[store_type]
-            }
-        )
+    keys: tuple["StoreKey", ...]
+    node_types: tuple["NodeType", ...]
 
     @abc.abstractmethod
     async def query(self, query: "Query") -> "QueryResult":
         """
-        Query the Store.
+        Query the Store. Some Stores only support a subset of Queries.
         """
         ...
 

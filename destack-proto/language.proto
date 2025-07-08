@@ -304,8 +304,11 @@ enum EnumTypeProto {
   ENUM_TYPE_STRUCT_DEFINITION_TYPE = 12;
   ENUM_TYPE_PROPERTY_REFERENCE_TYPE = 13;
   ENUM_TYPE_MATERIALIZATION = 14;
-  ENUM_TYPE_STORE_TYPE = 21;
-  ENUM_TYPE_STORE_IMPLEMENTATION = 22;
+  ENUM_TYPE_STORE_KEY = 20;
+  ENUM_TYPE_STORE_SCOPE = 21;
+  ENUM_TYPE_STORE_DOMAIN = 22;
+  ENUM_TYPE_STORE_TIER = 23;
+  ENUM_TYPE_STORE_IMPLEMENTATION = 25;
   ENUM_TYPE_PLATFORM_TYPE = 30;
   ENUM_TYPE_RUNTIME_LANGUAGE = 31;
   ENUM_TYPE_OPERATING_SYSTEM = 40;
@@ -1284,17 +1287,40 @@ enum SpringTypeProto {
   SPRING_TYPE_PHYSICS = 2;
 }
 
+// The domain of a Store.
+enum StoreDomainProto {
+  STORE_DOMAIN_UNSPECIFIED = 0;
+  STORE_DOMAIN_ENTITY = 100;
+  STORE_DOMAIN_EVENT = 500;
+}
+
 enum StoreImplementationProto {
   STORE_IMPLEMENTATION_UNSPECIFIED = 0;
   STORE_IMPLEMENTATION_MEMORY = 1;
   STORE_IMPLEMENTATION_POSTGRES = 10;
 }
 
-enum StoreTypeProto {
-  STORE_TYPE_UNSPECIFIED = 0;
-  STORE_TYPE_GLOBAL_ENTITY_PRIMARY = 1000;
-  STORE_TYPE_SPATIAL_ENTITY_PRIMARY = 1100;
-  STORE_TYPE_SPATIAL_EVENT_PRIMARY = 2100;
+// The role of a Store (scope + domain + tier).
+enum StoreKeyProto {
+  STORE_KEY_UNSPECIFIED = 0;
+  STORE_KEY_GLOBAL_ENTITY_PRIMARY = 1110;
+  STORE_KEY_SPATIAL_ENTITY_PRIMARY = 1120;
+  STORE_KEY_SPATIAL_EVENT_PRIMARY = 2110;
+}
+
+// The scope of a Store.
+enum StoreScopeProto {
+  STORE_SCOPE_UNSPECIFIED = 0;
+  STORE_SCOPE_GLOBAL = 1000;
+  STORE_SCOPE_SPATIAL = 2000;
+}
+
+// The tier of a Store.
+enum StoreTierProto {
+  STORE_TIER_UNSPECIFIED = 0;
+  STORE_TIER_PRIMARY = 10;
+  STORE_TIER_SEARCH = 20;
+  STORE_TIER_AGGREGATE = 30;
 }
 
 // The format of a string.
@@ -4266,7 +4292,6 @@ message NodeDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated StoreTypeProto primary_store_types = 104;
   repeated PropertyDefinitionProto properties = 105;
   repeated PropertyGroupDefinitionProto groups = 106;
   bool is_global = 110;
@@ -4287,6 +4312,8 @@ message NodeDefinitionProto {
   repeated NodeTypeProto descendant_types = 134;
   repeated NodeTypeProto event_types = 140;
   repeated NodeTypeProto base_event_types = 141;
+  repeated StoreKeyProto primary_store_keys = 150;
+  optional StoreDomainProto store_domain = 151;
 }
 
 message NodeDefinitionReferenceProto {
@@ -4303,7 +4330,7 @@ message NodeReferenceProto {
   optional string definition_id = 102;
   optional string snapshot_id = 103;
   optional string space_id = 110;
-  optional StoreTypeProto store_type = 111;
+  optional StoreKeyProto store_key = 111;
 }
 
 // A Notification is a message about something.

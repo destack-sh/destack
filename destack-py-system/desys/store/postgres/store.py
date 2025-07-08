@@ -12,8 +12,9 @@ from destack.language import (
     Query,
     QueryResult,
     StoreImplementation,
-    StoreType,
+    StoreKey,
 )
+from destack.language.registry import get_node_types_for_stores
 
 from .client import postgres_connection
 from .core import PostgresContext
@@ -33,8 +34,9 @@ class PostgresEntityStore(EntityStore):
 
     __slots__ = ("context", "database")
 
-    def __init__(self, database: DatabaseInfo, types: tuple[StoreType, ...]):
-        super().__init__(types)
+    def __init__(self, database: DatabaseInfo, types: tuple[StoreKey, ...]):
+        self.keys = types
+        self.node_types = get_node_types_for_stores(types)
         if database.type != DatabaseType.POSTGRES:
             raise ValueError(f"unexpected {database!r}")
         self.database = database

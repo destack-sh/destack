@@ -35,7 +35,7 @@ from destack.language import (
     Session,
     Space,
     SpaceStatus,
-    StoreType,
+    StoreKey,
     User,
     UserStatus,
 )
@@ -97,7 +97,7 @@ class UniverseService(ServiceBase, UniverseBase):
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
         postgres_store = PostgresEntityStore(
-            database=self.global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,)
+            database=self.global_database, types=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
         )
         return Session(store=postgres_store)
 
@@ -170,7 +170,7 @@ class UniverseService(ServiceBase, UniverseBase):
         database = Database(
             type=spatial_database.type,
             tenancy=spatial_database.tenancy,
-            name="Spatial Database",
+            name="Space Database",
             region=region,
             galaxy_name=galaxy.name,
             external_name=spatial_database.external_name,
@@ -179,10 +179,10 @@ class UniverseService(ServiceBase, UniverseBase):
         space.database = database
         session.store = BufferedStore(
             PostgresEntityStore(
-                database=self.global_database, types=(StoreType.GLOBAL_ENTITY_PRIMARY,)
+                database=self.global_database, types=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
             ),
             PostgresEntityStore(
-                database=spatial_database, types=(StoreType.SPATIAL_ENTITY_PRIMARY,)
+                database=spatial_database, types=(StoreKey.SPATIAL_ENTITY_PRIMARY,)
             ),
         )
         await session.stage()

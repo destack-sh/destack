@@ -12,7 +12,7 @@ import typer
 from opentelemetry import trace
 
 if TYPE_CHECKING:
-    from destack.language import Region, StoreType
+    from destack.language import Region, StoreKey
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -83,24 +83,24 @@ def parse_region(region: "str | Region") -> "Region":
         ) from e
 
 
-def parse_store_type(store_type: "str | StoreType") -> "StoreType":
+def parse_store_key(store_key: "str | StoreKey") -> "StoreKey":
     """Parse a NodeArea from a string."""
-    from destack.language.core import StoreType
+    from destack.language.core import StoreKey
 
-    if isinstance(store_type, StoreType):
-        return store_type
+    if isinstance(store_key, StoreKey):
+        return store_key
 
-    store_type = store_type.upper()
+    store_key = store_key.upper()
     try:
-        if store_type in StoreType.__members__:
+        if store_key in StoreKey.__members__:
             # try by name
-            return StoreType[store_type]
+            return StoreKey[store_key]
         else:
             # try by value
-            return StoreType(int(store_type))
+            return StoreKey(int(store_key))
     except (TypeError, ValueError) as e:
         raise typer.BadParameter(
-            f"invalid store type: '{store_type}' (expected: {'|'.join(a.name.lower() for a in StoreType)})"
+            f"invalid store key: '{store_key}' (expected: {'|'.join(a.name.lower() for a in StoreKey)})"
         ) from e
 
 

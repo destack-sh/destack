@@ -3,7 +3,7 @@ import type {
   EnumType,
   NodeClass,
   NodeType,
-  StoreType,
+  StoreKey,
   StructClass,
   StructType,
   TraitClass,
@@ -42,15 +42,15 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
 
 // extra mappings
 
-export const NODE_TYPES_BY_PRIMARY_STORE_TYPE: Record<StoreType, NodeType[]> = {} as any;
+export const NODE_TYPES_BY_PRIMARY_STORE_KEY: Record<StoreKey, NodeType[]> = {} as any;
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
 
 export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;
 
-export function getNodeTypesForStores(storeTypes: StoreType[]): NodeType[] {
+export function getNodeTypesForStores(storeKeys: StoreKey[]): NodeType[] {
   const nodeTypes: NodeType[] = [];
-  for (const type of storeTypes) {
-    for (const nodeType of NODE_TYPES_BY_PRIMARY_STORE_TYPE[type]) {
+  for (const type of storeKeys) {
+    for (const nodeType of NODE_TYPES_BY_PRIMARY_STORE_KEY[type]) {
       if (!nodeTypes.includes(nodeType)) {
         nodeTypes.push(nodeType);
       }

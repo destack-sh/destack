@@ -14,7 +14,7 @@ from destack.language.registry import (
 from destack.proto import NodeReferenceProto, PropertyReferenceProto
 from destack.utils.uuid import UUID
 
-from .common import EnumType, NodeType, PrimitiveType, StoreType
+from .common import EnumType, NodeType, PrimitiveType, StoreKey
 from .enum import Enum, builtin_enum
 from .object import BuiltinObject
 from .property import PropertyDeclaration, builtin_property
@@ -362,7 +362,7 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
         is_repr=True,
         description="The id of the Space the Node belonged to.",
     )
-    store_type: Optional[StoreType] = builtin_property(
+    store_key: Optional[StoreKey] = builtin_property(
         111,
         is_repr=True,
         description="The type of the Store the Node belonged to.",

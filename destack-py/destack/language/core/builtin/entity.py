@@ -11,7 +11,7 @@ from typing import (
 
 from destack.utils.fractional import get_order_key
 
-from .common import EnumType, ResourceStatus, RoleType, TraitType, ValueFactory
+from .common import EnumType, ResourceStatus, RoleType, StoreDomain, TraitType, ValueFactory
 from .const import ACTIVE_SNAPSHOT
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
@@ -67,6 +67,8 @@ class Entity(Node):
     """
     An Entity is a versioned, stateful Node.
     """
+
+    __store_domain__ = StoreDomain.ENTITY
 
     # 10-20: entity materialization
     materialization: Materialization = builtin_property(

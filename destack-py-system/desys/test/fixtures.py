@@ -21,7 +21,7 @@ from destack.language import (
     DatabaseInfo,
     DatabaseType,
     Session,
-    StoreType,
+    StoreKey,
     Tenancy,
 )
 from destack.store import MemoryEntityStore
@@ -109,7 +109,7 @@ async def omni_postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
-    omni_schema = get_builtin_schema(*StoreType)
+    omni_schema = get_builtin_schema(*StoreKey)
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await _create_test_db(database, omni_schema)
     try:
@@ -120,7 +120,7 @@ async def omni_postgres_database(
 
 @pytest.fixture
 def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresEntityStore:
-    return PostgresEntityStore(database=omni_postgres_database, types=tuple(StoreType))
+    return PostgresEntityStore(database=omni_postgres_database, types=tuple(StoreKey))
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
@@ -136,7 +136,7 @@ async def postgres_session(
 
 @pytest.fixture
 def memory_store() -> MemoryEntityStore:
-    return MemoryEntityStore(types=tuple(StoreType))
+    return MemoryEntityStore(types=tuple(StoreKey))
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")

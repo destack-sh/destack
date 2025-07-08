@@ -14,7 +14,7 @@ import {
   Scene,
   Session,
   Star,
-  StoreType,
+  StoreKey,
   TextView,
   User,
   UserStatus,
@@ -27,7 +27,7 @@ import { expect, test } from "vitest";
 const sessionTest = test.extend<{ session: Session }>({
   session: async ({ task }, use) => {
     const store = new MemoryEntityStore({
-      types: [StoreType.GLOBAL_ENTITY_PRIMARY, StoreType.SPATIAL_ENTITY_PRIMARY],
+      types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
     });
     const session = new Session({ store });
     await session.open();
