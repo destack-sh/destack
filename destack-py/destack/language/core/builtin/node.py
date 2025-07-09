@@ -291,8 +291,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a get Query for this Node/Trait type."""
         from ..common.query import Join, Query, QueryType, to_subqueries
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.NODE,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -319,8 +321,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a search Query for this Node/Trait type."""
         from ..common.query import Expression, Join, Query, QueryType, to_subqueries
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.NODE if not group_by else QueryType.GROUPED_NODE,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -351,8 +355,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             QueryType,
         )
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -375,8 +381,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make a min Query for this Node/Trait type."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -402,8 +410,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     ) -> "Query[Self]":  # type: ignore
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -430,8 +440,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make an average Query for this Node/Trait type."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,
@@ -458,8 +470,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         """Make an average Query for this Node/Trait type."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
+        assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
         query = Query(
             type=QueryType.SCALAR if not group_by else QueryType.GROUPED_SCALAR,
+            domain=cls.__store_domain__,
             definition=NODE_DEFINITION_REFERENCE_BY_CLASS[cls],
             name=name or cls.metatype.camel_name,
             join=Join.of(join) if join is not None else None,

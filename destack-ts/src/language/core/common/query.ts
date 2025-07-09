@@ -1,4 +1,4 @@
-import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, StoreDomain, StructType } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
@@ -44,6 +44,7 @@ import {
   SortModeProto,
   SortProto,
   SortTypeProto,
+  StoreDomainProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
@@ -2215,7 +2216,8 @@ registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:550 ==== */
 /**
- * A GraphQL-inspired Query node (with subqueries).
+ * A Query into the supergraph about Nodes (node or scalar and potentially grouped).
+ * Queries may either be about Entities or Events.
  */
 export class Query<T extends Node = Node> extends StructFrozen {
   static metatype: StructType = StructType.QUERY;
@@ -2227,67 +2229,72 @@ export class Query<T extends Node = Node> extends StructFrozen {
   readonly id: string;
 
   /**
-   * Query.type
+   * The type of Query.
    */
   readonly type: QueryType;
 
   /**
-   * Name for this subquery. Must be unique within the parent Query.
+   * The domain of the Query (Entity or Event).
+   */
+  readonly domain: StoreDomain;
+
+  /**
+   * Name for this subquery. Should be unique within the parent Query.
    */
   readonly name: string;
 
   /**
-   * Query.definition
+   * The Node definition this Query is about.
    */
   readonly definition: NodeDefinitionReference;
 
   /**
-   * Query.subqueries
+   * Subqueries of this Query (if any).
    */
   readonly subqueries: readonly Query[];
 
   /**
-   * Relative to parent Query.
+   * How to join this Query to the parent Query (if any).
    */
   readonly join: Join | null;
 
   /**
-   * Query.select
+   * What to select from the Query.
    */
   readonly select: Select | null;
 
   /**
-   * Query.where
+   * Filter the Query.
    */
   readonly where: Condition | null;
 
   /**
-   * Query.having
+   * Filter the Query groups (for grouped Queries).
    */
   readonly having: Condition | null;
 
   /**
-   * Query.groupBy
+   * Discriminator for grouped Queries.
    */
   readonly groupBy: readonly Expression[];
 
   /**
-   * Query.aggregation
+   * Aggregate the Query.
    */
   readonly aggregation: Aggregation | null;
 
   /**
-   * Query.sort
+   * How to sort the Query results.
    */
   readonly sort: readonly Sort[];
 
   /**
-   * Query.limit
+   * Limit the number of results.
    */
   readonly limit: number | null;
 
   /**
-   * Query.offset
+   * Offset the results.
    */
   readonly offset: number | null;
 
@@ -2312,9 +2319,15 @@ export class Query<T extends Node = Node> extends StructFrozen {
    */
   readonly snapshotPath: readonly string[];
 
+  /**
+   * Query.isLive
+   */
+  readonly isLive: boolean | null;
+
   constructor(options: {
     id?: string;
     type: QueryType;
+    domain: StoreDomain;
     name: string;
     definition: NodeDefinitionReference;
     subqueries?: readonly Query[];
@@ -2329,6 +2342,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     offset?: number | null;
     snapshot?: Snapshot | NodeReference | null;
     snapshotPath?: readonly string[];
+    isLive?: boolean | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2357,6 +2371,11 @@ export class Query<T extends Node = Node> extends StructFrozen {
       throw new Error(`Query.type is required`);
     }
     this.type = _type;
+    let _domain = options.domain;
+    if (_domain === null) {
+      throw new Error(`Query.domain is required`);
+    }
+    this.domain = _domain;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Query.name is required`);
@@ -2406,6 +2425,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
       _snapshotPath = [];
     }
     this.snapshotPath = _snapshotPath;
+    let _isLive = options.isLive ?? null;
+    this.isLive = _isLive;
 
     // identity
     // @ts-expect-error(readonly)
@@ -2426,6 +2447,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
       return false;
     }
     if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.domain === other.domain)) {
       return false;
     }
     if (!(this.name === other.name)) {
@@ -2505,6 +2529,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
         return false;
       }
     }
+    if (!(this.isLive === other.isLive)) {
+      return false;
+    }
     return true;
   }
 
@@ -2512,6 +2539,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${QueryType[this.type]}`);
+      propertyReprs.push(`domain=${StoreDomain[this.domain]}`);
       propertyReprs.push(`name=${this.name}`);
       propertyReprs.push(`definition=${this.definition.repr()}`);
       if (this.subqueries.length > 0) {
@@ -2550,6 +2578,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this.snapshotPath.length > 0) {
         propertyReprs.push(`snapshotPath=${this.snapshotPath.map((_item) => _item).join(", ")}`);
       }
+      if (this.isLive !== null) {
+        propertyReprs.push(`isLive=${this.isLive}`);
+      }
       // @ts-expect-error(readonly)
       this._repr = `<Query ${propertyReprs.join(" ")}>`;
     }
@@ -2565,6 +2596,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.domain) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     h = (h * 31 + this.definition.hash()) & 0xffffffff;
     if (this.subqueries && this.subqueries.length > 0) {
@@ -2611,6 +2643,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
         h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
       }
     }
+    if (this.isLive !== null) {
+      h = (h * 31 + hashBool(this.isLive)) & 0xffffffff;
+    }
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2634,8 +2669,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
     objectValue["1"] = 550;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    objectValue["102"] = object.definition.toValue();
+    objectValue["101"] = object.domain;
+    objectValue["105"] = object.name;
+    objectValue["106"] = object.definition.toValue();
     if (object.subqueries.length > 0) {
       const packedSubqueries: any[] = [];
       for (const item of object.subqueries) {
@@ -2687,6 +2723,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
         packedSnapshotPath.push(String(item));
       }
       objectValue["131"] = packedSnapshotPath;
+    }
+    if (object.isLive != null) {
+      objectValue["140"] = object.isLive;
     }
     return objectValue;
   }
@@ -2769,12 +2808,15 @@ export class Query<T extends Node = Node> extends StructFrozen {
         unpackedSnapshotPath.push(String(item));
       }
     }
+    const isLiveValue = objectValue["140"];
+    const unpackedIsLive = isLiveValue != undefined ? isLiveValue : null;
     return new Query({
       id: String(objectValue["2"]),
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
+      domain: Number(objectValue["101"]),
+      name: objectValue["105"],
       definition: _NodeDefinitionReference.fromValue(
-        objectValue["102"],
+        objectValue["106"],
         _session,
         _supergraph,
         _graph,
@@ -2792,6 +2834,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       offset: unpackedOffset,
       snapshot: unpackedSnapshotPtr,
       snapshotPath: unpackedSnapshotPath,
+      isLive: unpackedIsLive,
       _value: objectValue,
       _supergraph,
     });
@@ -2819,6 +2862,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const objectProto: Partial<QueryProto> = { metatype: 550 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
+    objectProto.domain = Number(object.domain) as StoreDomainProto;
     objectProto.name = object.name;
     objectProto.definition = object.definition.toProto();
     if (object.subqueries) {
@@ -2873,6 +2917,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
       }
       objectProto.snapshotPath = packedSnapshotPath;
     }
+    if (object.isLive != null) {
+      objectProto.isLive = object.isLive;
+    }
     return objectProto as QueryProto;
   }
 
@@ -2925,6 +2972,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     return new Query({
       id: String(objectProto.id),
       type: Number(objectProto.type) as QueryType,
+      domain: Number(objectProto.domain) as StoreDomain,
       name: objectProto.name,
       definition: _NodeDefinitionReference.fromProto(
         objectProto.definition!,
@@ -2975,6 +3023,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
             )
           : null,
       snapshotPath: unpackedSnapshotPath,
+      isLive: objectProto.isLive != undefined ? objectProto.isLive : null,
       _proto: objectProto,
       _supergraph,
     });
@@ -3991,7 +4040,7 @@ registerStructClass(StructType.SELECTION, Selection);
 
 /* ==== DESTACK_GENERATED_START:STRUCT:554 ==== */
 /**
- * A histogram.
+ * A Histogram.
  */
 export class Histogram extends StructFrozen {
   static metatype: StructType = StructType.HISTOGRAM;
@@ -4401,9 +4450,9 @@ registerEnumClass(EnumType.JOIN_TYPE, JoinType);
  */
 export enum QueryType {
   NODE = 1,
-  SCALAR = 2,
+  SCALAR = 5,
   GROUPED_NODE = 10,
-  GROUPED_SCALAR = 11,
+  GROUPED_SCALAR = 15,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

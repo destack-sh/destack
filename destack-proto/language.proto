@@ -429,7 +429,8 @@ enum EnvironmentTypeProto {
 enum EventStatusProto {
   EVENT_STATUS_UNSPECIFIED = 0;
   EVENT_STATUS_PENDING = 1;
-  EVENT_STATUS_COMPLETED = 10;
+  EVENT_STATUS_STAGED = 2;
+  EVENT_STATUS_APPROVED = 10;
   EVENT_STATUS_SKIPPED = 11;
   EVENT_STATUS_FAILED = 12;
   EVENT_STATUS_REJECTED = 13;
@@ -1095,9 +1096,9 @@ enum PropertyTypeProto {
 enum QueryTypeProto {
   QUERY_TYPE_UNSPECIFIED = 0;
   QUERY_TYPE_NODE = 1;
-  QUERY_TYPE_SCALAR = 2;
+  QUERY_TYPE_SCALAR = 5;
   QUERY_TYPE_GROUPED_NODE = 10;
-  QUERY_TYPE_GROUPED_SCALAR = 11;
+  QUERY_TYPE_GROUPED_SCALAR = 15;
 }
 
 enum QueryUpdateTypeProto {
@@ -4847,8 +4848,9 @@ message QueryProto {
   StructTypeProto metatype = 1;
   string id = 2;
   QueryTypeProto type = 100;
-  string name = 101;
-  NodeDefinitionReferenceProto definition = 102;
+  StoreDomainProto domain = 101;
+  string name = 105;
+  NodeDefinitionReferenceProto definition = 106;
   repeated QueryProto subqueries = 109;
   optional JoinProto join = 110;
   optional SelectProto select = 111;
@@ -4861,6 +4863,7 @@ message QueryProto {
   optional int64 offset = 121 [jstype = JS_NUMBER];
   optional NodeReferenceProto snapshot_ptr = 130;
   repeated string snapshot_path = 131;
+  optional bool is_live = 140;
 }
 
 message QueryResultProto {
