@@ -105,12 +105,12 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -122,12 +122,12 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -146,6 +146,9 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   /**
    * Environment.name
    */
+  /**
+   * Environment.name
+   */
   get name(): string {
     return this._name;
   }
@@ -156,6 +159,9 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   }
   _name: string;
 
+  /**
+   * Environment.icon
+   */
   /**
    * Environment.icon
    */
@@ -403,11 +409,11 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
     return `<Environment '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Environment.__packValue__(this);
   }
 
-  static __packValue__(object: Environment): { [key: string]: any } {
+  static __packValue__(object: Environment): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 160000;
     objectValue["2"] = String(object.id);
@@ -449,7 +455,7 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -530,7 +536,7 @@ export class Environment extends Entity implements IsSpatial, IsDeletable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

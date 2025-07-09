@@ -132,12 +132,12 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -149,12 +149,12 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -173,6 +173,9 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /**
    * Permission.type
    */
+  /**
+   * Permission.type
+   */
   get type(): PermissionType {
     return this._type;
   }
@@ -186,6 +189,9 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   /**
    * Permission.name
    */
+  /**
+   * Permission.name
+   */
   get name(): string {
     return this._name;
   }
@@ -196,6 +202,9 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   }
   _name: string;
 
+  /**
+   * Permission.icon
+   */
   /**
    * Permission.icon
    */
@@ -454,11 +463,11 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
     return `<Permission '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Permission.__packValue__(this);
   }
 
-  static __packValue__(object: Permission): { [key: string]: any } {
+  static __packValue__(object: Permission): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60300;
     objectValue["2"] = String(object.id);
@@ -501,7 +510,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -583,7 +592,7 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

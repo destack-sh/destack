@@ -141,12 +141,12 @@ export class TextView extends ContentView {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -158,12 +158,12 @@ export class TextView extends ContentView {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -182,15 +182,18 @@ export class TextView extends ContentView {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -214,6 +217,9 @@ export class TextView extends ContentView {
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -224,6 +230,9 @@ export class TextView extends ContentView {
   }
   _scriptPtr: NodeReference | null;
 
+  /**
+   * View.name
+   */
   /**
    * View.name
    */
@@ -240,6 +249,9 @@ export class TextView extends ContentView {
   /**
    * View.position
    */
+  /**
+   * View.position
+   */
   get position(): Position | null {
     return this._position;
   }
@@ -250,6 +262,9 @@ export class TextView extends ContentView {
   }
   _position: Position | null;
 
+  /**
+   * View.width
+   */
   /**
    * View.width
    */
@@ -266,6 +281,9 @@ export class TextView extends ContentView {
   /**
    * View.height
    */
+  /**
+   * View.height
+   */
   get height(): Dimension | null {
     return this._height;
   }
@@ -276,6 +294,9 @@ export class TextView extends ContentView {
   }
   _height: Dimension | null;
 
+  /**
+   * View.minWidth
+   */
   /**
    * View.minWidth
    */
@@ -292,6 +313,9 @@ export class TextView extends ContentView {
   /**
    * View.minHeight
    */
+  /**
+   * View.minHeight
+   */
   get minHeight(): Dimension | null {
     return this._minHeight;
   }
@@ -302,6 +326,9 @@ export class TextView extends ContentView {
   }
   _minHeight: Dimension | null;
 
+  /**
+   * View.maxWidth
+   */
   /**
    * View.maxWidth
    */
@@ -318,6 +345,9 @@ export class TextView extends ContentView {
   /**
    * View.maxHeight
    */
+  /**
+   * View.maxHeight
+   */
   get maxHeight(): Dimension | null {
     return this._maxHeight;
   }
@@ -328,6 +358,9 @@ export class TextView extends ContentView {
   }
   _maxHeight: Dimension | null;
 
+  /**
+   * ContentView.align
+   */
   /**
    * ContentView.align
    */
@@ -344,6 +377,9 @@ export class TextView extends ContentView {
   /**
    * ContentView.isVisible
    */
+  /**
+   * ContentView.isVisible
+   */
   get isVisible(): boolean | null {
     return this._isVisible;
   }
@@ -354,6 +390,9 @@ export class TextView extends ContentView {
   }
   _isVisible: boolean | null;
 
+  /**
+   * ContentView.opacity
+   */
   /**
    * ContentView.opacity
    */
@@ -370,6 +409,9 @@ export class TextView extends ContentView {
   /**
    * TextView.font
    */
+  /**
+   * TextView.font
+   */
   get font(): Font | null {
     return this._font;
   }
@@ -383,6 +425,9 @@ export class TextView extends ContentView {
   /**
    * TextView.color
    */
+  /**
+   * TextView.color
+   */
   get color(): Fill | null {
     return this._color;
   }
@@ -393,6 +438,9 @@ export class TextView extends ContentView {
   }
   _color: Fill | null;
 
+  /**
+   * TextView.text
+   */
   /**
    * TextView.text
    */
@@ -422,7 +470,7 @@ export class TextView extends ContentView {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     script?: Script | NodeReference | null;
     name: string;
@@ -515,7 +563,7 @@ export class TextView extends ContentView {
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -704,7 +752,7 @@ export class TextView extends ContentView {
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -849,11 +897,11 @@ export class TextView extends ContentView {
     return `<TextView '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return TextView.__packValue__(this);
   }
 
-  static __packValue__(object: TextView): { [key: string]: any } {
+  static __packValue__(object: TextView): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 525100;
     objectValue["2"] = String(object.id);
@@ -893,9 +941,9 @@ export class TextView extends ContentView {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -948,7 +996,7 @@ export class TextView extends ContentView {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1081,12 +1129,15 @@ export class TextView extends ContentView {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -1135,7 +1186,7 @@ export class TextView extends ContentView {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1188,8 +1239,8 @@ export class TextView extends ContentView {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -1257,7 +1308,7 @@ export class TextView extends ContentView {
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Font = STRUCT_CLASS_BY_TYPE[StructType.FONT] as typeof Font;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

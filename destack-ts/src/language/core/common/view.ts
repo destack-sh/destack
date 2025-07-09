@@ -256,7 +256,7 @@ export class Length extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Length.__packValue__(this);
@@ -264,7 +264,7 @@ export class Length extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Length): { [key: string]: any } {
+  static __packValue__(object: Length): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600018;
     objectValue["101"] = object.unit;
@@ -273,7 +273,7 @@ export class Length extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -288,7 +288,7 @@ export class Length extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -515,7 +515,7 @@ export class Position extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Position.__packValue__(this);
@@ -523,7 +523,7 @@ export class Position extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Position): { [key: string]: any } {
+  static __packValue__(object: Position): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600020;
     objectValue["100"] = object.type;
@@ -543,7 +543,7 @@ export class Position extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -582,7 +582,7 @@ export class Position extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -788,7 +788,7 @@ export class Dimension extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Dimension.__packValue__(this);
@@ -796,7 +796,7 @@ export class Dimension extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Dimension): { [key: string]: any } {
+  static __packValue__(object: Dimension): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600022;
     objectValue["100"] = object.type;
@@ -806,7 +806,7 @@ export class Dimension extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -822,7 +822,7 @@ export class Dimension extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1045,7 +1045,7 @@ export class Insets extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Insets.__packValue__(this);
@@ -1053,7 +1053,7 @@ export class Insets extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Insets): { [key: string]: any } {
+  static __packValue__(object: Insets): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600030;
     if (object.base != null) {
@@ -1075,7 +1075,7 @@ export class Insets extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1103,7 +1103,7 @@ export class Insets extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1340,7 +1340,7 @@ export class Corners extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Corners.__packValue__(this);
@@ -1348,7 +1348,7 @@ export class Corners extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Corners): { [key: string]: any } {
+  static __packValue__(object: Corners): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600032;
     if (object.base != null) {
@@ -1370,7 +1370,7 @@ export class Corners extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1398,7 +1398,7 @@ export class Corners extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1610,7 +1610,7 @@ export class Axis2 extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Axis2.__packValue__(this);
@@ -1618,7 +1618,7 @@ export class Axis2 extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Axis2): { [key: string]: any } {
+  static __packValue__(object: Axis2): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600034;
     if (object.base != null) {
@@ -1634,7 +1634,7 @@ export class Axis2 extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1656,7 +1656,7 @@ export class Axis2 extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1880,7 +1880,7 @@ export class Axis3 extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Axis3.__packValue__(this);
@@ -1888,7 +1888,7 @@ export class Axis3 extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Axis3): { [key: string]: any } {
+  static __packValue__(object: Axis3): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600036;
     if (object.base != null) {
@@ -1907,7 +1907,7 @@ export class Axis3 extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1932,7 +1932,7 @@ export class Axis3 extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2167,7 +2167,7 @@ export class Grid extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Grid.__packValue__(this);
@@ -2175,7 +2175,7 @@ export class Grid extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Grid): { [key: string]: any } {
+  static __packValue__(object: Grid): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600026;
     objectValue["101"] = object.columns;
@@ -2193,7 +2193,7 @@ export class Grid extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2227,7 +2227,7 @@ export class Grid extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2424,7 +2424,7 @@ export class GridSpan extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = GridSpan.__packValue__(this);
@@ -2432,7 +2432,7 @@ export class GridSpan extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: GridSpan): { [key: string]: any } {
+  static __packValue__(object: GridSpan): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600028;
     objectValue["101"] = object.columns;
@@ -2441,7 +2441,7 @@ export class GridSpan extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2456,7 +2456,7 @@ export class GridSpan extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

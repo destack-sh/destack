@@ -126,12 +126,12 @@ export class Reaction
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -143,12 +143,12 @@ export class Reaction
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -177,6 +177,9 @@ export class Reaction
   set ownedBy(node: Entity & IsOwner) {
     this.ownedByPtr = node.toRef();
   }
+  /**
+   * IsOwned.ownedBy
+   */
   get ownedByPtr(): NodeReference {
     return this._ownedByPtr;
   }
@@ -187,6 +190,9 @@ export class Reaction
   }
   _ownedByPtr: NodeReference;
 
+  /**
+   * Reaction.content
+   */
   /**
    * Reaction.content
    */
@@ -436,11 +442,11 @@ export class Reaction
     return `<Reaction '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Reaction.__packValue__(this);
   }
 
-  static __packValue__(object: Reaction): { [key: string]: any } {
+  static __packValue__(object: Reaction): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220200;
     objectValue["2"] = String(object.id);
@@ -480,7 +486,7 @@ export class Reaction
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -561,7 +567,7 @@ export class Reaction
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1044,11 +1050,11 @@ export class ReactionEvent extends Event {
     return `<ReactionEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ReactionEvent.__packValue__(this);
   }
 
-  static __packValue__(object: ReactionEvent): { [key: string]: any } {
+  static __packValue__(object: ReactionEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220201;
     objectValue["2"] = String(object.id);
@@ -1078,7 +1084,7 @@ export class ReactionEvent extends Event {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1137,7 +1143,7 @@ export class ReactionEvent extends Event {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1409,11 +1415,11 @@ export class ReactionAddedEvent extends ReactionEvent {
     return `<ReactionAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ReactionAddedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: ReactionAddedEvent): { [key: string]: any } {
+  static __packValue__(object: ReactionAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220202;
     objectValue["2"] = String(object.id);
@@ -1443,7 +1449,7 @@ export class ReactionAddedEvent extends ReactionEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1502,7 +1508,7 @@ export class ReactionAddedEvent extends ReactionEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1786,11 +1792,11 @@ export class ReactionRemovedEvent extends ReactionEvent {
     return `<ReactionRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ReactionRemovedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: ReactionRemovedEvent): { [key: string]: any } {
+  static __packValue__(object: ReactionRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220203;
     objectValue["2"] = String(object.id);
@@ -1820,7 +1826,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1879,7 +1885,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

@@ -120,12 +120,12 @@ export class CustomEnumDefinition
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -137,12 +137,12 @@ export class CustomEnumDefinition
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -161,15 +161,18 @@ export class CustomEnumDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -191,6 +194,9 @@ export class CustomEnumDefinition
   /**
    * CustomEnumDefinition.name
    */
+  /**
+   * CustomEnumDefinition.name
+   */
   get name(): string {
     return this._name;
   }
@@ -201,6 +207,9 @@ export class CustomEnumDefinition
   }
   _name: string;
 
+  /**
+   * CustomEnumDefinition.icon
+   */
   /**
    * CustomEnumDefinition.icon
    */
@@ -228,7 +237,7 @@ export class CustomEnumDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     source?: Script | NodeReference | null;
     name: string;
@@ -302,7 +311,7 @@ export class CustomEnumDefinition
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -382,7 +391,7 @@ export class CustomEnumDefinition
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -493,11 +502,11 @@ export class CustomEnumDefinition
     return `<CustomEnumDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomEnumDefinition.__packValue__(this);
   }
 
-  static __packValue__(object: CustomEnumDefinition): { [key: string]: any } {
+  static __packValue__(object: CustomEnumDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 104;
     objectValue["2"] = String(object.id);
@@ -531,9 +540,9 @@ export class CustomEnumDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -550,7 +559,7 @@ export class CustomEnumDefinition
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -579,12 +588,15 @@ export class CustomEnumDefinition
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -649,7 +661,7 @@ export class CustomEnumDefinition
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -702,8 +714,8 @@ export class CustomEnumDefinition
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -728,7 +740,7 @@ export class CustomEnumDefinition
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
@@ -964,12 +976,12 @@ export class CustomOption
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -981,12 +993,12 @@ export class CustomOption
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1027,6 +1039,9 @@ export class CustomOption
   /**
    * CustomOption.name
    */
+  /**
+   * CustomOption.name
+   */
   get name(): string {
     return this._name;
   }
@@ -1037,6 +1052,9 @@ export class CustomOption
   }
   _name: string;
 
+  /**
+   * CustomOption.icon
+   */
   /**
    * CustomOption.icon
    */
@@ -1067,6 +1085,9 @@ export class CustomOption
       this.groupPtr = node.toRef();
     }
   }
+  /**
+   * CustomOption.group
+   */
   get groupPtr(): NodeReference | null {
     return this._groupPtr;
   }
@@ -1351,11 +1372,11 @@ export class CustomOption
     return `<CustomOption '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomOption.__packValue__(this);
   }
 
-  static __packValue__(object: CustomOption): { [key: string]: any } {
+  static __packValue__(object: CustomOption): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 120;
     objectValue["2"] = String(object.id);
@@ -1407,7 +1428,7 @@ export class CustomOption
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1507,7 +1528,7 @@ export class CustomOption
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1811,12 +1832,12 @@ export class CustomOptionGroup
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1828,12 +1849,12 @@ export class CustomOptionGroup
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1874,6 +1895,9 @@ export class CustomOptionGroup
   /**
    * CustomOptionGroup.name
    */
+  /**
+   * CustomOptionGroup.name
+   */
   get name(): string {
     return this._name;
   }
@@ -1884,6 +1908,9 @@ export class CustomOptionGroup
   }
   _name: string;
 
+  /**
+   * CustomOptionGroup.icon
+   */
   /**
    * CustomOptionGroup.icon
    */
@@ -2159,11 +2186,11 @@ export class CustomOptionGroup
     return `<CustomOptionGroup '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomOptionGroup.__packValue__(this);
   }
 
-  static __packValue__(object: CustomOptionGroup): { [key: string]: any } {
+  static __packValue__(object: CustomOptionGroup): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 121;
     objectValue["2"] = String(object.id);
@@ -2212,7 +2239,7 @@ export class CustomOptionGroup
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2306,7 +2333,7 @@ export class CustomOptionGroup
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

@@ -64,12 +64,21 @@ registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
 export abstract class SanctionEvent extends Event {
   static metatype: NodeType = NodeType.SANCTION_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -78,9 +87,15 @@ export abstract class SanctionEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -94,9 +109,15 @@ export abstract class SanctionEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * SanctionEvent.node
+   */
   abstract get node(): Sanction | null;
   declare readonly nodePtr: NodeReference;
 
+  /**
+   * SanctionEvent.target
+   */
   abstract get target(): (Entity & IsSubject) | null;
   declare readonly targetPtr: NodeReference;
 
@@ -417,11 +438,11 @@ export class SanctionRequestedEvent extends SanctionEvent {
     return `<SanctionRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return SanctionRequestedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: SanctionRequestedEvent): { [key: string]: any } {
+  static __packValue__(object: SanctionRequestedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60402;
     objectValue["2"] = String(object.id);
@@ -451,7 +472,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -516,7 +537,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -985,11 +1006,11 @@ export class SanctionGrantedEvent extends SanctionEvent {
     return `<SanctionGrantedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return SanctionGrantedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: SanctionGrantedEvent): { [key: string]: any } {
+  static __packValue__(object: SanctionGrantedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60403;
     objectValue["2"] = String(object.id);
@@ -1019,7 +1040,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1084,7 +1105,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1553,11 +1574,11 @@ export class SanctionRevokedEvent extends SanctionEvent {
     return `<SanctionRevokedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return SanctionRevokedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: SanctionRevokedEvent): { [key: string]: any } {
+  static __packValue__(object: SanctionRevokedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60404;
     objectValue["2"] = String(object.id);
@@ -1587,7 +1608,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1652,7 +1673,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2121,11 +2142,11 @@ export class SanctionExpiredEvent extends SanctionEvent {
     return `<SanctionExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return SanctionExpiredEvent.__packValue__(this);
   }
 
-  static __packValue__(object: SanctionExpiredEvent): { [key: string]: any } {
+  static __packValue__(object: SanctionExpiredEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60405;
     objectValue["2"] = String(object.id);
@@ -2155,7 +2176,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2220,7 +2241,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2467,12 +2488,12 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2484,12 +2505,12 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2508,6 +2529,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   /**
    * Sanction.type
    */
+  /**
+   * Sanction.type
+   */
   get type(): SanctionType {
     return this._type;
   }
@@ -2518,6 +2542,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   }
   _type: SanctionType;
 
+  /**
+   * Sanction.expiresAt
+   */
   /**
    * Sanction.expiresAt
    */
@@ -2544,6 +2571,9 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   set target(node: Entity & IsSubject) {
     this.targetPtr = node.toRef();
   }
+  /**
+   * Sanction.target
+   */
   get targetPtr(): NodeReference {
     return this._targetPtr;
   }
@@ -2796,11 +2826,11 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
     return `<Sanction '${this.path}'>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Sanction.__packValue__(this);
   }
 
-  static __packValue__(object: Sanction): { [key: string]: any } {
+  static __packValue__(object: Sanction): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60400;
     objectValue["2"] = String(object.id);
@@ -2843,7 +2873,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2930,7 +2960,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

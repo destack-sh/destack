@@ -290,7 +290,7 @@ export class Color extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Color.__packValue__(this);
@@ -298,7 +298,7 @@ export class Color extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Color): { [key: string]: any } {
+  static __packValue__(object: Color): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600300;
     objectValue["100"] = object.type;
@@ -330,7 +330,7 @@ export class Color extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -372,7 +372,7 @@ export class Color extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -568,12 +568,12 @@ export class ColorStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -585,12 +585,12 @@ export class ColorStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -614,6 +614,9 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.type
    */
+  /**
+   * ColorStyle.type
+   */
   get type(): ColorType {
     return this._type;
   }
@@ -624,6 +627,9 @@ export class ColorStyle extends Style {
   }
   _type: ColorType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -640,6 +646,9 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.hue
    */
+  /**
+   * ColorStyle.hue
+   */
   get hue(): ColorHue | null {
     return this._hue;
   }
@@ -650,6 +659,9 @@ export class ColorStyle extends Style {
   }
   _hue: ColorHue | null;
 
+  /**
+   * ColorStyle.shade
+   */
   /**
    * ColorStyle.shade
    */
@@ -666,6 +678,9 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.intent
    */
+  /**
+   * ColorStyle.intent
+   */
   get intent(): ColorIntent | null {
     return this._intent;
   }
@@ -676,6 +691,9 @@ export class ColorStyle extends Style {
   }
   _intent: ColorIntent | null;
 
+  /**
+   * ColorStyle.x
+   */
   /**
    * ColorStyle.x
    */
@@ -692,6 +710,9 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.y
    */
+  /**
+   * ColorStyle.y
+   */
   get y(): number | null {
     return this._y;
   }
@@ -702,6 +723,9 @@ export class ColorStyle extends Style {
   }
   _y: number | null;
 
+  /**
+   * ColorStyle.z
+   */
   /**
    * ColorStyle.z
    */
@@ -718,6 +742,9 @@ export class ColorStyle extends Style {
   /**
    * ColorStyle.alpha
    */
+  /**
+   * ColorStyle.alpha
+   */
   get alpha(): number | null {
     return this._alpha;
   }
@@ -728,6 +755,9 @@ export class ColorStyle extends Style {
   }
   _alpha: number | null;
 
+  /**
+   * ColorStyle.dark
+   */
   /**
    * ColorStyle.dark
    */
@@ -1093,11 +1123,11 @@ export class ColorStyle extends Style {
     return `<ColorStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ColorStyle.__packValue__(this);
   }
 
-  static __packValue__(object: ColorStyle): { [key: string]: any } {
+  static __packValue__(object: ColorStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600300;
     objectValue["2"] = String(object.id);
@@ -1162,7 +1192,7 @@ export class ColorStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1266,7 +1296,7 @@ export class ColorStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

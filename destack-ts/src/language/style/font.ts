@@ -437,7 +437,7 @@ export class Font extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Font.__packValue__(this);
@@ -445,7 +445,7 @@ export class Font extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Font): { [key: string]: any } {
+  static __packValue__(object: Font): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600500;
     objectValue["100"] = object.type;
@@ -480,7 +480,7 @@ export class Font extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -536,7 +536,7 @@ export class Font extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -750,12 +750,12 @@ export class FontStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -767,12 +767,12 @@ export class FontStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -796,6 +796,9 @@ export class FontStyle extends Style {
   /**
    * FontStyle.type
    */
+  /**
+   * FontStyle.type
+   */
   get type(): FontType {
     return this._type;
   }
@@ -806,6 +809,9 @@ export class FontStyle extends Style {
   }
   _type: FontType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -822,6 +828,9 @@ export class FontStyle extends Style {
   /**
    * FontStyle.weight
    */
+  /**
+   * FontStyle.weight
+   */
   get weight(): FontWeight | null {
     return this._weight;
   }
@@ -832,6 +841,9 @@ export class FontStyle extends Style {
   }
   _weight: FontWeight | null;
 
+  /**
+   * FontStyle.color
+   */
   /**
    * FontStyle.color
    */
@@ -848,6 +860,9 @@ export class FontStyle extends Style {
   /**
    * FontStyle.size
    */
+  /**
+   * FontStyle.size
+   */
   get size(): FontSize | null {
     return this._size;
   }
@@ -858,6 +873,9 @@ export class FontStyle extends Style {
   }
   _size: FontSize | null;
 
+  /**
+   * FontStyle.align
+   */
   /**
    * FontStyle.align
    */
@@ -874,6 +892,9 @@ export class FontStyle extends Style {
   /**
    * FontStyle.lineHeight
    */
+  /**
+   * FontStyle.lineHeight
+   */
   get lineHeight(): Length | null {
     return this._lineHeight;
   }
@@ -884,6 +905,9 @@ export class FontStyle extends Style {
   }
   _lineHeight: Length | null;
 
+  /**
+   * FontStyle.letterSpacing
+   */
   /**
    * FontStyle.letterSpacing
    */
@@ -900,6 +924,9 @@ export class FontStyle extends Style {
   /**
    * FontStyle.decoration
    */
+  /**
+   * FontStyle.decoration
+   */
   get decoration(): TextDecoration | null {
     return this._decoration;
   }
@@ -910,6 +937,9 @@ export class FontStyle extends Style {
   }
   _decoration: TextDecoration | null;
 
+  /**
+   * FontStyle.transform
+   */
   /**
    * FontStyle.transform
    */
@@ -1289,11 +1319,11 @@ export class FontStyle extends Style {
     return `<FontStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FontStyle.__packValue__(this);
   }
 
-  static __packValue__(object: FontStyle): { [key: string]: any } {
+  static __packValue__(object: FontStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600500;
     objectValue["2"] = String(object.id);
@@ -1358,7 +1388,7 @@ export class FontStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1469,7 +1499,7 @@ export class FontStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

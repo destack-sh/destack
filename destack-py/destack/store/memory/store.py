@@ -32,9 +32,9 @@ class MemoryEntityStore(EntityStore):
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
-    def __init__(self, types: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
-        self.keys = types
-        self.node_types = get_node_types_for_stores(types)
+    def __init__(self, keys: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
+        self.keys = keys
+        self.node_types = get_node_types_for_stores(keys)
         self.database = database or MemoryDatabase()
         self.context = MemoryContext(self.database)
 
@@ -71,9 +71,9 @@ class MemoryEventStore(EventStore):
 
     implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
-    def __init__(self, types: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
-        self.keys = types
-        self.node_types = get_node_types_for_stores(types)
+    def __init__(self, keys: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
+        self.keys = keys
+        self.node_types = get_node_types_for_stores(keys)
         self.database = database or MemoryDatabase()
         self.context = MemoryContext(self.database)
 

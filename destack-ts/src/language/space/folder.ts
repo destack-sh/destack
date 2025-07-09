@@ -153,12 +153,12 @@ export class Folder
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -170,12 +170,12 @@ export class Folder
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -213,6 +213,9 @@ export class Folder
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -223,6 +226,9 @@ export class Folder
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * Folder.type
+   */
   /**
    * Folder.type
    */
@@ -239,6 +245,9 @@ export class Folder
   /**
    * Folder.name
    */
+  /**
+   * Folder.name
+   */
   get name(): string {
     return this._name;
   }
@@ -252,6 +261,9 @@ export class Folder
   /**
    * Folder.icon
    */
+  /**
+   * Folder.icon
+   */
   get icon(): Icon | null {
     return this._icon;
   }
@@ -262,6 +274,9 @@ export class Folder
   }
   _icon: Icon | null;
 
+  /**
+   * Folder.slug
+   */
   /**
    * Folder.slug
    */
@@ -292,6 +307,9 @@ export class Folder
       this.mainScenePtr = node.toRef();
     }
   }
+  /**
+   * Folder.mainScene
+   */
   get mainScenePtr(): NodeReference | null {
     return this._mainScenePtr;
   }
@@ -597,11 +615,11 @@ export class Folder
     return `<Folder '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Folder.__packValue__(this);
   }
 
-  static __packValue__(object: Folder): { [key: string]: any } {
+  static __packValue__(object: Folder): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 40000;
     objectValue["2"] = String(object.id);
@@ -654,7 +672,7 @@ export class Folder
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -752,7 +770,7 @@ export class Folder
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

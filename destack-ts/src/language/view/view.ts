@@ -39,12 +39,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class ViewEvent extends Event {
   static metatype: NodeType = NodeType.VIEW_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -53,9 +62,15 @@ export abstract class ViewEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -69,6 +84,9 @@ export abstract class ViewEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * ViewEvent.node
+   */
   abstract get node(): View | null;
   declare readonly nodePtr: NodeReference;
 
@@ -364,11 +382,11 @@ export class ViewEnteredEvent extends ViewEvent {
     return `<ViewEnteredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ViewEnteredEvent.__packValue__(this);
   }
 
-  static __packValue__(object: ViewEnteredEvent): { [key: string]: any } {
+  static __packValue__(object: ViewEnteredEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 520002;
     objectValue["2"] = String(object.id);
@@ -397,7 +415,7 @@ export class ViewEnteredEvent extends ViewEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -455,7 +473,7 @@ export class ViewEnteredEvent extends ViewEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -891,11 +909,11 @@ export class ViewExitedEvent extends ViewEvent {
     return `<ViewExitedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ViewExitedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: ViewExitedEvent): { [key: string]: any } {
+  static __packValue__(object: ViewExitedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 520003;
     objectValue["2"] = String(object.id);
@@ -924,7 +942,7 @@ export class ViewExitedEvent extends ViewEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -982,7 +1000,7 @@ export class ViewExitedEvent extends ViewEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1131,12 +1149,21 @@ export abstract class View
 {
   static metatype: NodeType = NodeType.VIEW;
 
+  /**
+   * View.parent
+   */
   abstract get parent(): Window | Scene | Layer | ContainerView | Folder | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
   abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference | null;
 
@@ -1150,31 +1177,49 @@ export abstract class View
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): View | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): View | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
@@ -1189,14 +1234,17 @@ export abstract class View
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  abstract get customValues(): Map<string, Value>;
-  abstract set customValues(value: Map<string, Value>);
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
 
   /**
    * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 
+  /**
+   * The main / root Script of this Node.
+   */
   abstract get script(): Script | null;
   abstract set script(value: Script | null);
   /**

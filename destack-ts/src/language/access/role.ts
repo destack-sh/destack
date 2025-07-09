@@ -47,12 +47,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class RoleEvent extends Event {
   static metatype: NodeType = NodeType.ROLE_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -61,9 +70,15 @@ export abstract class RoleEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -77,9 +92,15 @@ export abstract class RoleEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * RoleEvent.node
+   */
   abstract get node(): Role | null;
   declare readonly nodePtr: NodeReference;
 
+  /**
+   * RoleEvent.subject
+   */
   abstract get subject(): (Entity & IsSubject) | null;
   declare readonly subjectPtr: NodeReference;
 
@@ -400,11 +421,11 @@ export class RoleAssignedEvent extends RoleEvent {
     return `<RoleAssignedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return RoleAssignedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: RoleAssignedEvent): { [key: string]: any } {
+  static __packValue__(object: RoleAssignedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60202;
     objectValue["2"] = String(object.id);
@@ -434,7 +455,7 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -499,7 +520,7 @@ export class RoleAssignedEvent extends RoleEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -968,11 +989,11 @@ export class RoleUnassignedEvent extends RoleEvent {
     return `<RoleUnassignedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return RoleUnassignedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: RoleUnassignedEvent): { [key: string]: any } {
+  static __packValue__(object: RoleUnassignedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60203;
     objectValue["2"] = String(object.id);
@@ -1002,7 +1023,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1067,7 +1088,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1311,12 +1332,12 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1328,12 +1349,12 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1357,6 +1378,9 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   /**
    * Role.type
    */
+  /**
+   * Role.type
+   */
   get type(): RoleType {
     return this._type;
   }
@@ -1370,6 +1394,9 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   /**
    * Role.name
    */
+  /**
+   * Role.name
+   */
   get name(): string {
     return this._name;
   }
@@ -1380,6 +1407,9 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   }
   _name: string;
 
+  /**
+   * Role.icon
+   */
   /**
    * Role.icon
    */
@@ -1646,11 +1676,11 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     return `<Role '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Role.__packValue__(this);
   }
 
-  static __packValue__(object: Role): { [key: string]: any } {
+  static __packValue__(object: Role): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60200;
     objectValue["2"] = String(object.id);
@@ -1694,7 +1724,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1777,7 +1807,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

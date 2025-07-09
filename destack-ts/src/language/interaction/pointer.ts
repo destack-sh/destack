@@ -13,6 +13,7 @@ import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/langua
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
+import type { View } from "@destack/language/view";
 import {
   EventStatusProto,
   PointerDownEventProto,
@@ -34,12 +35,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class PointerEvent extends InputEvent {
   static metatype: NodeType = NodeType.POINTER_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -48,9 +58,15 @@ export abstract class PointerEvent extends InputEvent {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -64,7 +80,10 @@ export abstract class PointerEvent extends InputEvent {
    */
   declare readonly status: EventStatus;
 
-  abstract get node(): Node | null;
+  /**
+   * InputEvent.node
+   */
+  abstract get node(): View | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -192,12 +211,12 @@ export class PointerDownEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -248,7 +267,7 @@ export class PointerDownEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -398,6 +417,9 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -408,9 +430,6 @@ export class PointerDownEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -429,6 +448,9 @@ export class PointerDownEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -446,9 +468,6 @@ export class PointerDownEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -498,11 +517,11 @@ export class PointerDownEvent extends PointerEvent {
     return `<PointerDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerDownEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerDownEvent): { [key: string]: any } {
+  static __packValue__(object: PointerDownEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560101;
     objectValue["2"] = String(object.id);
@@ -540,7 +559,7 @@ export class PointerDownEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -548,6 +567,11 @@ export class PointerDownEvent extends PointerEvent {
   ): PointerDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -570,11 +594,6 @@ export class PointerDownEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -588,6 +607,7 @@ export class PointerDownEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -595,7 +615,6 @@ export class PointerDownEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -605,7 +624,7 @@ export class PointerDownEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -683,6 +702,16 @@ export class PointerDownEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -726,16 +755,6 @@ export class PointerDownEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -865,12 +884,12 @@ export class PointerUpEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -921,7 +940,7 @@ export class PointerUpEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -1071,6 +1090,9 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1081,9 +1103,6 @@ export class PointerUpEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1102,6 +1121,9 @@ export class PointerUpEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1119,9 +1141,6 @@ export class PointerUpEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1171,11 +1190,11 @@ export class PointerUpEvent extends PointerEvent {
     return `<PointerUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerUpEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerUpEvent): { [key: string]: any } {
+  static __packValue__(object: PointerUpEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560102;
     objectValue["2"] = String(object.id);
@@ -1213,7 +1232,7 @@ export class PointerUpEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1221,6 +1240,11 @@ export class PointerUpEvent extends PointerEvent {
   ): PointerUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1243,11 +1267,6 @@ export class PointerUpEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1261,6 +1280,7 @@ export class PointerUpEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1268,7 +1288,6 @@ export class PointerUpEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1278,7 +1297,7 @@ export class PointerUpEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1350,6 +1369,16 @@ export class PointerUpEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1393,16 +1422,6 @@ export class PointerUpEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1526,12 +1545,12 @@ export class PointerMoveEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -1582,7 +1601,7 @@ export class PointerMoveEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -1732,6 +1751,9 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1742,9 +1764,6 @@ export class PointerMoveEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1763,6 +1782,9 @@ export class PointerMoveEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1780,9 +1802,6 @@ export class PointerMoveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1832,11 +1851,11 @@ export class PointerMoveEvent extends PointerEvent {
     return `<PointerMoveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerMoveEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerMoveEvent): { [key: string]: any } {
+  static __packValue__(object: PointerMoveEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560103;
     objectValue["2"] = String(object.id);
@@ -1874,7 +1893,7 @@ export class PointerMoveEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1882,6 +1901,11 @@ export class PointerMoveEvent extends PointerEvent {
   ): PointerMoveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1904,11 +1928,6 @@ export class PointerMoveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1922,6 +1941,7 @@ export class PointerMoveEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1929,7 +1949,6 @@ export class PointerMoveEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1939,7 +1958,7 @@ export class PointerMoveEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2017,6 +2036,16 @@ export class PointerMoveEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2060,16 +2089,6 @@ export class PointerMoveEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -2199,12 +2218,12 @@ export class PointerEnterEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -2255,7 +2274,7 @@ export class PointerEnterEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -2405,6 +2424,9 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2415,9 +2437,6 @@ export class PointerEnterEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -2436,6 +2455,9 @@ export class PointerEnterEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -2453,9 +2475,6 @@ export class PointerEnterEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -2505,11 +2524,11 @@ export class PointerEnterEvent extends PointerEvent {
     return `<PointerEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerEnterEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerEnterEvent): { [key: string]: any } {
+  static __packValue__(object: PointerEnterEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560104;
     objectValue["2"] = String(object.id);
@@ -2547,7 +2566,7 @@ export class PointerEnterEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2555,6 +2574,11 @@ export class PointerEnterEvent extends PointerEvent {
   ): PointerEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2577,11 +2601,6 @@ export class PointerEnterEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -2595,6 +2614,7 @@ export class PointerEnterEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -2602,7 +2622,6 @@ export class PointerEnterEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -2612,7 +2631,7 @@ export class PointerEnterEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2690,6 +2709,16 @@ export class PointerEnterEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2733,16 +2762,6 @@ export class PointerEnterEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -2872,12 +2891,12 @@ export class PointerOverEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -2928,7 +2947,7 @@ export class PointerOverEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -3078,6 +3097,9 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -3088,9 +3110,6 @@ export class PointerOverEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -3109,6 +3128,9 @@ export class PointerOverEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -3126,9 +3148,6 @@ export class PointerOverEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -3178,11 +3197,11 @@ export class PointerOverEvent extends PointerEvent {
     return `<PointerOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerOverEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerOverEvent): { [key: string]: any } {
+  static __packValue__(object: PointerOverEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560105;
     objectValue["2"] = String(object.id);
@@ -3220,7 +3239,7 @@ export class PointerOverEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3228,6 +3247,11 @@ export class PointerOverEvent extends PointerEvent {
   ): PointerOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3250,11 +3274,6 @@ export class PointerOverEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -3268,6 +3287,7 @@ export class PointerOverEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3275,7 +3295,6 @@ export class PointerOverEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -3285,7 +3304,7 @@ export class PointerOverEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3363,6 +3382,16 @@ export class PointerOverEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -3406,16 +3435,6 @@ export class PointerOverEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -3545,12 +3564,12 @@ export class PointerLeaveEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -3601,7 +3620,7 @@ export class PointerLeaveEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -3751,6 +3770,9 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -3761,9 +3783,6 @@ export class PointerLeaveEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -3782,6 +3801,9 @@ export class PointerLeaveEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -3799,9 +3821,6 @@ export class PointerLeaveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -3851,11 +3870,11 @@ export class PointerLeaveEvent extends PointerEvent {
     return `<PointerLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerLeaveEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerLeaveEvent): { [key: string]: any } {
+  static __packValue__(object: PointerLeaveEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560106;
     objectValue["2"] = String(object.id);
@@ -3893,7 +3912,7 @@ export class PointerLeaveEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3901,6 +3920,11 @@ export class PointerLeaveEvent extends PointerEvent {
   ): PointerLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3923,11 +3947,6 @@ export class PointerLeaveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -3941,6 +3960,7 @@ export class PointerLeaveEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3948,7 +3968,6 @@ export class PointerLeaveEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -3958,7 +3977,7 @@ export class PointerLeaveEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4036,6 +4055,16 @@ export class PointerLeaveEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -4079,16 +4108,6 @@ export class PointerLeaveEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -4218,12 +4237,12 @@ export class PointerLongPressEvent extends PointerEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -4274,7 +4293,7 @@ export class PointerLongPressEvent extends PointerEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     position: Vector2f;
     pressure: number;
     shiftKey: boolean;
@@ -4424,6 +4443,9 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.accelKey === other.accelKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -4434,9 +4456,6 @@ export class PointerLongPressEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -4455,6 +4474,9 @@ export class PointerLongPressEvent extends PointerEvent {
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -4472,9 +4494,6 @@ export class PointerLongPressEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -4524,11 +4543,11 @@ export class PointerLongPressEvent extends PointerEvent {
     return `<PointerLongPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return PointerLongPressEvent.__packValue__(this);
   }
 
-  static __packValue__(object: PointerLongPressEvent): { [key: string]: any } {
+  static __packValue__(object: PointerLongPressEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560107;
     objectValue["2"] = String(object.id);
@@ -4566,7 +4585,7 @@ export class PointerLongPressEvent extends PointerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4574,6 +4593,11 @@ export class PointerLongPressEvent extends PointerEvent {
   ): PointerLongPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -4596,11 +4620,6 @@ export class PointerLongPressEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -4614,6 +4633,7 @@ export class PointerLongPressEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       accelKey: objectValue["124"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -4621,7 +4641,6 @@ export class PointerLongPressEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -4631,7 +4650,7 @@ export class PointerLongPressEvent extends PointerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4709,6 +4728,16 @@ export class PointerLongPressEvent extends PointerEvent {
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
       accelKey: objectProto.accelKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -4752,16 +4781,6 @@ export class PointerLongPressEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

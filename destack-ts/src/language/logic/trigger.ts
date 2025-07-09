@@ -58,12 +58,21 @@ registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
 export abstract class TriggerEvent extends Event {
   static metatype: NodeType = NodeType.TRIGGER_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -72,9 +81,15 @@ export abstract class TriggerEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -88,6 +103,9 @@ export abstract class TriggerEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * TriggerEvent.node
+   */
   abstract get node(): Trigger | null;
   declare readonly nodePtr: NodeReference;
 
@@ -183,12 +201,12 @@ export class Trigger extends Entity implements IsSpatial {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -200,12 +218,12 @@ export class Trigger extends Entity implements IsSpatial {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -216,6 +234,9 @@ export class Trigger extends Entity implements IsSpatial {
   }
   readonly updatedByPtr: NodeReference | null;
 
+  /**
+   * Trigger.name
+   */
   /**
    * Trigger.name
    */
@@ -232,6 +253,9 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * Trigger.icon
    */
+  /**
+   * Trigger.icon
+   */
   get icon(): Icon | null {
     return this._icon;
   }
@@ -245,6 +269,9 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * Trigger.event
    */
+  /**
+   * Trigger.event
+   */
   get event(): NodeDefinitionReference | null {
     return this._event;
   }
@@ -255,6 +282,9 @@ export class Trigger extends Entity implements IsSpatial {
   }
   _event: NodeDefinitionReference | null;
 
+  /**
+   * Trigger.where
+   */
   /**
    * Trigger.where
    */
@@ -285,6 +315,9 @@ export class Trigger extends Entity implements IsSpatial {
       this.targetPtr = node.toRef();
     }
   }
+  /**
+   * Trigger.target
+   */
   get targetPtr(): NodeReference | null {
     return this._targetPtr;
   }
@@ -298,15 +331,18 @@ export class Trigger extends Entity implements IsSpatial {
   /**
    * Trigger.arguments
    */
-  get arguments(): Map<string, Value> {
+  /**
+   * Trigger.arguments
+   */
+  get arguments(): { readonly [key: string]: Value } {
     return this._arguments;
   }
-  set arguments(value: Map<string, Value>) {
+  set arguments(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["arguments"];
     this._session.updateSetProperty(this, prop, value);
     this._arguments = value;
   }
-  _arguments: Map<string, Value>;
+  _arguments: { readonly [key: string]: Value };
 
   constructor(options: {
     id?: string;
@@ -326,7 +362,7 @@ export class Trigger extends Entity implements IsSpatial {
     event?: NodeDefinitionReference | null;
     where?: Condition | null;
     target?: Action | Service | NodeReference | null;
-    arguments?: Map<string, Value>;
+    arguments?: { readonly [key: string]: Value };
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -410,7 +446,7 @@ export class Trigger extends Entity implements IsSpatial {
     this._targetPtr = _target;
     let _arguments = options.arguments ?? null;
     if (_arguments === null) {
-      _arguments = new Map();
+      _arguments = {};
     }
     this._arguments = _arguments;
 
@@ -477,7 +513,7 @@ export class Trigger extends Entity implements IsSpatial {
       if (!(key in other._arguments)) {
         return false;
       }
-      if (!this._arguments.get(key)!.equals(other._arguments.get(key)!)) {
+      if (!this._arguments[key].equals(other._arguments[key])) {
         return false;
       }
     }
@@ -593,11 +629,11 @@ export class Trigger extends Entity implements IsSpatial {
     return `<Trigger '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Trigger.__packValue__(this);
   }
 
-  static __packValue__(object: Trigger): { [key: string]: any } {
+  static __packValue__(object: Trigger): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 107000;
     objectValue["2"] = String(object.id);
@@ -641,9 +677,9 @@ export class Trigger extends Entity implements IsSpatial {
     if (object._targetPtr != null) {
       objectValue["120"] = object._targetPtr.toValue();
     }
-    if (object._arguments.size > 0) {
-      const packedArguments: { [key: string]: any } = {};
-      for (const [key, value] of object._arguments) {
+    if (Object.keys(object._arguments).length > 0) {
+      const packedArguments: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._arguments)) {
         packedArguments[String(String(key))] = value.toValue();
       }
       objectValue["121"] = packedArguments;
@@ -652,7 +688,7 @@ export class Trigger extends Entity implements IsSpatial {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -685,12 +721,15 @@ export class Trigger extends Entity implements IsSpatial {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedArguments = new Map();
+    const unpackedArguments = {} as any;
     if (objectValue["121"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["121"])) {
-        unpackedArguments.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedArguments[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -760,7 +799,7 @@ export class Trigger extends Entity implements IsSpatial {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -817,8 +856,8 @@ export class Trigger extends Entity implements IsSpatial {
       objectProto.targetPtr = object._targetPtr.toProto();
     }
     if (object._arguments) {
-      objectProto.arguments = {};
-      for (const [key, value] of object._arguments) {
+      objectProto.arguments = {} as any;
+      for (const [key, value] of Object.entries(object._arguments)) {
         objectProto.arguments![String(key)] = value.toProto();
       }
     }
@@ -839,7 +878,7 @@ export class Trigger extends Entity implements IsSpatial {
     const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedArguments = new Map();
+    const unpackedArguments = {} as any;
     if (objectProto.arguments) {
       for (const [key, value] of Object.entries(objectProto.arguments)) {
         unpackedArguments.set(

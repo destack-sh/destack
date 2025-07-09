@@ -160,7 +160,7 @@ export class Vector2f extends Vectorf {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Vector2f.__packValue__(this);
@@ -168,7 +168,7 @@ export class Vector2f extends Vectorf {
     return this._value;
   }
 
-  static __packValue__(object: Vector2f): { [key: string]: any } {
+  static __packValue__(object: Vector2f): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 711;
     objectValue["101"] = object.x;
@@ -177,7 +177,7 @@ export class Vector2f extends Vectorf {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -192,7 +192,7 @@ export class Vector2f extends Vectorf {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -529,7 +529,7 @@ export class Vector3f extends Vectorf {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Vector3f.__packValue__(this);
@@ -537,7 +537,7 @@ export class Vector3f extends Vectorf {
     return this._value;
   }
 
-  static __packValue__(object: Vector3f): { [key: string]: any } {
+  static __packValue__(object: Vector3f): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 712;
     objectValue["101"] = object.x;
@@ -547,7 +547,7 @@ export class Vector3f extends Vectorf {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -563,7 +563,7 @@ export class Vector3f extends Vectorf {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -944,7 +944,7 @@ export class Vector4f extends Vectorf {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Vector4f.__packValue__(this);
@@ -952,7 +952,7 @@ export class Vector4f extends Vectorf {
     return this._value;
   }
 
-  static __packValue__(object: Vector4f): { [key: string]: any } {
+  static __packValue__(object: Vector4f): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 713;
     objectValue["101"] = object.x;
@@ -963,7 +963,7 @@ export class Vector4f extends Vectorf {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -980,7 +980,7 @@ export class Vector4f extends Vectorf {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1347,7 +1347,7 @@ export class Vector2i extends Vectori {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Vector2i.__packValue__(this);
@@ -1355,7 +1355,7 @@ export class Vector2i extends Vectori {
     return this._value;
   }
 
-  static __packValue__(object: Vector2i): { [key: string]: any } {
+  static __packValue__(object: Vector2i): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 721;
     objectValue["101"] = object.x;
@@ -1364,7 +1364,7 @@ export class Vector2i extends Vectori {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1379,7 +1379,7 @@ export class Vector2i extends Vectori {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1716,7 +1716,7 @@ export class Vector3i extends Vectori {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Vector3i.__packValue__(this);
@@ -1724,7 +1724,7 @@ export class Vector3i extends Vectori {
     return this._value;
   }
 
-  static __packValue__(object: Vector3i): { [key: string]: any } {
+  static __packValue__(object: Vector3i): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 722;
     objectValue["101"] = object.x;
@@ -1734,7 +1734,7 @@ export class Vector3i extends Vectori {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1750,7 +1750,7 @@ export class Vector3i extends Vectori {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2121,7 +2121,7 @@ export class Vector4i extends Vectori {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Vector4i.__packValue__(this);
@@ -2129,7 +2129,7 @@ export class Vector4i extends Vectori {
     return this._value;
   }
 
-  static __packValue__(object: Vector4i): { [key: string]: any } {
+  static __packValue__(object: Vector4i): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 723;
     objectValue["101"] = object.x;
@@ -2140,7 +2140,7 @@ export class Vector4i extends Vectori {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2157,7 +2157,7 @@ export class Vector4i extends Vectori {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

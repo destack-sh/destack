@@ -24,7 +24,7 @@ tracer = trace.get_tracer(__name__)
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(store=MemoryEntityStore(types=tuple(StoreKey)))
+    session = Session(store=MemoryEntityStore(keys=tuple(StoreKey)))
     await session.open()
     yield session
     await session.close()
@@ -33,7 +33,7 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(store=MemoryEntityStore(types=tuple(StoreKey)))
+    session = Session(store=MemoryEntityStore(keys=tuple(StoreKey)))
     await session.open()
     yield session
     await session.close()

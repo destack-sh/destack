@@ -113,12 +113,12 @@ export class Route
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -130,12 +130,12 @@ export class Route
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -173,6 +173,9 @@ export class Route
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -183,6 +186,9 @@ export class Route
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * The name of the Route.
+   */
   /**
    * The name of the Route.
    */
@@ -213,6 +219,9 @@ export class Route
       this.scenePtr = node.toRef();
     }
   }
+  /**
+   * The Scene to route to.
+   */
   get scenePtr(): NodeReference | null {
     return this._scenePtr;
   }
@@ -483,11 +492,11 @@ export class Route
     }
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Route.__packValue__(this);
   }
 
-  static __packValue__(object: Route): { [key: string]: any } {
+  static __packValue__(object: Route): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 110000;
     objectValue["2"] = String(object.id);
@@ -533,7 +542,7 @@ export class Route
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -620,7 +629,7 @@ export class Route
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

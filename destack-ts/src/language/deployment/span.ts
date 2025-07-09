@@ -302,11 +302,11 @@ export class SpanEvent extends Event {
     return `<SpanEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return SpanEvent.__packValue__(this);
   }
 
-  static __packValue__(object: SpanEvent): { [key: string]: any } {
+  static __packValue__(object: SpanEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 170101;
     objectValue["2"] = String(object.id);
@@ -335,7 +335,7 @@ export class SpanEvent extends Event {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -393,7 +393,7 @@ export class SpanEvent extends Event {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

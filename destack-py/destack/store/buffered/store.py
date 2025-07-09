@@ -13,7 +13,7 @@ from destack.language import (
     StoreImplementation,
     StoreKey,
 )
-from destack.store.memory import MemoryEntityStore
+from destack.store.memory import MemoryStore
 
 # nocheckin: implement BufferedStore
 
@@ -36,7 +36,7 @@ class BufferedStore(EventStore, LiveStore):
                         f"already have a {store_key.name} Store: {self.store_by_key[store_key]!r} != {store!r}"
                     )
                 self.store_by_key[store_key] = store
-        self.buffer: MemoryEntityStore = MemoryEntityStore(types=tuple(self.store_by_key.keys()))
+        self.buffer: MemoryStore = MemoryStore(keys=tuple(self.store_by_key.keys()))
 
     def __str__(self):
         content_parts: list[str] = []

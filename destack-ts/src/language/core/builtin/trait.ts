@@ -175,8 +175,8 @@ export interface IsCustomizable {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value>;
-  set customValues(value: Map<string, Value>);
+  get customValues(): { readonly [key: string]: Value };
+  set customValues(value: { readonly [key: string]: Value });
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

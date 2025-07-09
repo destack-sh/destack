@@ -247,7 +247,7 @@ export class DatabaseInfo extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = DatabaseInfo.__packValue__(this);
@@ -255,7 +255,7 @@ export class DatabaseInfo extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: DatabaseInfo): { [key: string]: any } {
+  static __packValue__(object: DatabaseInfo): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 140001;
     objectValue["100"] = object.type;
@@ -275,7 +275,7 @@ export class DatabaseInfo extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -302,7 +302,7 @@ export class DatabaseInfo extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -486,12 +486,12 @@ export class Database extends Resource implements IsSpatial {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -503,12 +503,12 @@ export class Database extends Resource implements IsSpatial {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -527,15 +527,18 @@ export class Database extends Resource implements IsSpatial {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The main / root Script of this Node.
@@ -554,6 +557,9 @@ export class Database extends Resource implements IsSpatial {
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -564,6 +570,9 @@ export class Database extends Resource implements IsSpatial {
   }
   _scriptPtr: NodeReference | null;
 
+  /**
+   * Resource.status
+   */
   /**
    * Resource.status
    */
@@ -580,6 +589,9 @@ export class Database extends Resource implements IsSpatial {
   /**
    * Database.type
    */
+  /**
+   * Database.type
+   */
   get type(): DatabaseType {
     return this._type;
   }
@@ -590,6 +602,9 @@ export class Database extends Resource implements IsSpatial {
   }
   _type: DatabaseType;
 
+  /**
+   * Database.name
+   */
   /**
    * Database.name
    */
@@ -606,6 +621,9 @@ export class Database extends Resource implements IsSpatial {
   /**
    * Database.icon
    */
+  /**
+   * Database.icon
+   */
   get icon(): Icon | null {
     return this._icon;
   }
@@ -616,6 +634,9 @@ export class Database extends Resource implements IsSpatial {
   }
   _icon: Icon | null;
 
+  /**
+   * Database.region
+   */
   /**
    * Database.region
    */
@@ -632,6 +653,9 @@ export class Database extends Resource implements IsSpatial {
   /**
    * Database.galaxyName
    */
+  /**
+   * Database.galaxyName
+   */
   get galaxyName(): string | null {
     return this._galaxyName;
   }
@@ -642,6 +666,9 @@ export class Database extends Resource implements IsSpatial {
   }
   _galaxyName: string | null;
 
+  /**
+   * Database.externalName
+   */
   /**
    * Database.externalName
    */
@@ -658,6 +685,9 @@ export class Database extends Resource implements IsSpatial {
   /**
    * Database.customSchemaName
    */
+  /**
+   * Database.customSchemaName
+   */
   get customSchemaName(): string | null {
     return this._customSchemaName;
   }
@@ -671,6 +701,9 @@ export class Database extends Resource implements IsSpatial {
   /**
    * Database.tenancy
    */
+  /**
+   * Database.tenancy
+   */
   get tenancy(): Tenancy {
     return this._tenancy;
   }
@@ -681,6 +714,9 @@ export class Database extends Resource implements IsSpatial {
   }
   _tenancy: Tenancy;
 
+  /**
+   * Database.connectionUrl
+   */
   /**
    * Database.connectionUrl
    */
@@ -710,7 +746,7 @@ export class Database extends Resource implements IsSpatial {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     script?: Script | NodeReference | null;
     status?: ResourceStatus;
     type: DatabaseType;
@@ -798,7 +834,7 @@ export class Database extends Resource implements IsSpatial {
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _script = options.script ?? null;
@@ -949,7 +985,7 @@ export class Database extends Resource implements IsSpatial {
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -1081,11 +1117,11 @@ export class Database extends Resource implements IsSpatial {
     return `<Database '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Database.__packValue__(this);
   }
 
-  static __packValue__(object: Database): { [key: string]: any } {
+  static __packValue__(object: Database): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 140000;
     objectValue["2"] = String(object.id);
@@ -1125,9 +1161,9 @@ export class Database extends Resource implements IsSpatial {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -1157,7 +1193,7 @@ export class Database extends Resource implements IsSpatial {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1242,12 +1278,15 @@ export class Database extends Resource implements IsSpatial {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -1291,7 +1330,7 @@ export class Database extends Resource implements IsSpatial {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1344,8 +1383,8 @@ export class Database extends Resource implements IsSpatial {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -1386,7 +1425,7 @@ export class Database extends Resource implements IsSpatial {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

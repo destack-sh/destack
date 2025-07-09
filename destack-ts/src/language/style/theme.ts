@@ -106,12 +106,12 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -123,12 +123,12 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -149,6 +149,9 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
    */
   readonly orderKey: string;
 
+  /**
+   * Theme.name
+   */
   /**
    * Theme.name
    */
@@ -392,11 +395,11 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
     return `<Theme '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Theme.__packValue__(this);
   }
 
-  static __packValue__(object: Theme): { [key: string]: any } {
+  static __packValue__(object: Theme): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600000;
     objectValue["2"] = String(object.id);
@@ -436,7 +439,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -511,7 +514,7 @@ export class Theme extends Entity implements IsSpatial, IsOrdered, IsTaggable, I
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

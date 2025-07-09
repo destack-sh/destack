@@ -126,12 +126,12 @@ export class User
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -143,12 +143,12 @@ export class User
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -162,16 +162,22 @@ export class User
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
+  /**
+   * User.name
+   */
   /**
    * User.name
    */
@@ -188,6 +194,9 @@ export class User
   /**
    * User.slug
    */
+  /**
+   * User.slug
+   */
   get slug(): string {
     return this._slug;
   }
@@ -198,6 +207,9 @@ export class User
   }
   _slug: string;
 
+  /**
+   * User.status
+   */
   /**
    * User.status
    */
@@ -214,6 +226,9 @@ export class User
   /**
    * User.lastLoggedInAt
    */
+  /**
+   * User.lastLoggedInAt
+   */
   get lastLoggedInAt(): Temporal.ZonedDateTime | null {
     return this._lastLoggedInAt;
   }
@@ -224,6 +239,9 @@ export class User
   }
   _lastLoggedInAt: Temporal.ZonedDateTime | null;
 
+  /**
+   * User.isStaff
+   */
   /**
    * User.isStaff
    */
@@ -247,6 +265,9 @@ export class User
     }
     return null;
   }
+  /**
+   * User.space
+   */
   get spacePtr(): NodeReference {
     return this._spacePtr;
   }
@@ -267,6 +288,9 @@ export class User
     }
     return null;
   }
+  /**
+   * User.handle
+   */
   get handlePtr(): NodeReference | null {
     return this._handlePtr;
   }
@@ -287,6 +311,9 @@ export class User
     }
     return null;
   }
+  /**
+   * User.cursor
+   */
   get cursorPtr(): NodeReference | null {
     return this._cursorPtr;
   }
@@ -297,6 +324,9 @@ export class User
   }
   _cursorPtr: NodeReference | null;
 
+  /**
+   * User.email
+   */
   /**
    * User.email
    */
@@ -313,6 +343,9 @@ export class User
   /**
    * User.passwordSalt
    */
+  /**
+   * User.passwordSalt
+   */
   get passwordSalt(): Uint8Array | null {
     return this._passwordSalt;
   }
@@ -323,6 +356,9 @@ export class User
   }
   _passwordSalt: Uint8Array | null;
 
+  /**
+   * User.passwordHash
+   */
   /**
    * User.passwordHash
    */
@@ -348,7 +384,7 @@ export class User
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     name: string;
     slug: string;
     status?: UserStatus;
@@ -422,7 +458,7 @@ export class User
     this.instanceRootPtr = _instanceRoot;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _name = options.name;
@@ -544,7 +580,7 @@ export class User
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -656,11 +692,11 @@ export class User
     return `<User '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return User.__packValue__(this);
   }
 
-  static __packValue__(object: User): { [key: string]: any } {
+  static __packValue__(object: User): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21000;
     objectValue["2"] = String(object.id);
@@ -688,9 +724,9 @@ export class User
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -722,7 +758,7 @@ export class User
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -753,12 +789,15 @@ export class User
     const passwordHashValue = objectValue["132"];
     const unpackedPasswordHash =
       passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -834,7 +873,7 @@ export class User
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -875,8 +914,8 @@ export class User
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -915,7 +954,7 @@ export class User
   ): User {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

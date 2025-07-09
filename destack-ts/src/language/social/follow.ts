@@ -123,12 +123,12 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -140,12 +140,12 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -174,6 +174,9 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   set ownedBy(node: Entity & IsOwner) {
     this.ownedByPtr = node.toRef();
   }
+  /**
+   * IsOwned.ownedBy
+   */
   get ownedByPtr(): NodeReference {
     return this._ownedByPtr;
   }
@@ -407,11 +410,11 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
     return `<Follow '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Follow.__packValue__(this);
   }
 
-  static __packValue__(object: Follow): { [key: string]: any } {
+  static __packValue__(object: Follow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220400;
     objectValue["2"] = String(object.id);
@@ -450,7 +453,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -530,7 +533,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -996,11 +999,11 @@ export class FollowEvent extends Event {
     return `<FollowEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FollowEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FollowEvent): { [key: string]: any } {
+  static __packValue__(object: FollowEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220401;
     objectValue["2"] = String(object.id);
@@ -1029,7 +1032,7 @@ export class FollowEvent extends Event {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1087,7 +1090,7 @@ export class FollowEvent extends Event {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1352,11 +1355,11 @@ export class FollowAddedEvent extends FollowEvent {
     return `<FollowAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FollowAddedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FollowAddedEvent): { [key: string]: any } {
+  static __packValue__(object: FollowAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220402;
     objectValue["2"] = String(object.id);
@@ -1385,7 +1388,7 @@ export class FollowAddedEvent extends FollowEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1443,7 +1446,7 @@ export class FollowAddedEvent extends FollowEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1720,11 +1723,11 @@ export class FollowRemovedEvent extends FollowEvent {
     return `<FollowRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FollowRemovedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FollowRemovedEvent): { [key: string]: any } {
+  static __packValue__(object: FollowRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220403;
     objectValue["2"] = String(object.id);
@@ -1753,7 +1756,7 @@ export class FollowRemovedEvent extends FollowEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1811,7 +1814,7 @@ export class FollowRemovedEvent extends FollowEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

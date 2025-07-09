@@ -167,11 +167,11 @@ def _generate_property_type(prop: PropertyDeclaration, as_ptr: bool = True) -> s
         if prop.is_optional:
             type_str = f"{type_str} | null"
     elif prop.cardinality == TypeCardinality.LIST:
-        type_str = f"Array<{type_str}>"
+        type_str = f"readonly {type_str}[]"
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key_type for {prop!r}"
         key_type_str = _generate_property_scalar_type(prop.key_type)
-        type_str = f"Map<{key_type_str}, {type_str}>"
+        type_str = f"{{ readonly [key: {key_type_str}]: {type_str} }}"
     else:
         assert_never(prop.cardinality)
     return type_str
@@ -223,7 +223,7 @@ def _generate_property(
         elif is_abstract:
             # just abstract declaration
             wrapped_node_getter_str = (
-                f"abstract get {wrapped_ts_name}(): {wrapped_node_type_str} | null"
+                f"{doc_str}\nabstract get {wrapped_ts_name}(): {wrapped_node_type_str} | null"
             )
             if not is_effective_readonly:
                 wrapped_node_setter_str = (
@@ -322,6 +322,7 @@ set {prop_ts_name}(value: {prop_type_str});
     # wrap get/set for tracked Node properties
     if is_tracked and not is_abstract and not is_interface:
         prop_str = f"""\
+{doc_str}
 get {prop_ts_name}(): {prop_type_str} {{
     return this.{internal_prop_ts_name};
 }}
@@ -478,7 +479,7 @@ if (_{ts_name_in} === null) {{
         elif prop.cardinality == TypeCardinality.MAP:
             body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
-    _{ts_name_in} = new Map();
+    _{ts_name_in} = {{}};
 }}""")
 
         # init default
@@ -854,7 +855,7 @@ for (const key in this.{prop_name}) {{
   if (!(key in other.{prop_name})) {{
     return false;
   }}
-  if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}.get(key)!", other_val=f"other.{prop_name}.get(key)!")})) {{
+  if (!({scalar_cmps_str.format(self_val=f"this.{prop_name}[key]", other_val=f"other.{prop_name}[key]")})) {{
     return false;
   }}
 }}"""

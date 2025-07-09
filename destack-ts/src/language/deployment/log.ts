@@ -154,7 +154,7 @@ export class LogEvent extends Event {
   /**
    * LogEvent.attributes
    */
-  readonly attributes: Map<string, any>;
+  readonly attributes: { readonly [key: string]: any };
 
   /**
    * LogEvent.level
@@ -173,7 +173,7 @@ export class LogEvent extends Event {
     status?: EventStatus;
     node?: Node | NodeReference | null;
     content: string;
-    attributes?: Map<string, any>;
+    attributes?: { readonly [key: string]: any };
     level: LogLevel;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -244,7 +244,7 @@ export class LogEvent extends Event {
     this.content = _content;
     let _attributes = options.attributes ?? null;
     if (_attributes === null) {
-      _attributes = new Map();
+      _attributes = {};
     }
     this.attributes = _attributes;
     let _level = options.level;
@@ -386,11 +386,11 @@ export class LogEvent extends Event {
     return `<LogEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return LogEvent.__packValue__(this);
   }
 
-  static __packValue__(object: LogEvent): { [key: string]: any } {
+  static __packValue__(object: LogEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 170301;
     objectValue["2"] = String(object.id);
@@ -418,9 +418,9 @@ export class LogEvent extends Event {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.content;
-    if (object.attributes.size > 0) {
-      const packedAttributes: { [key: string]: any } = {};
-      for (const [key, value] of object.attributes) {
+    if (Object.keys(object.attributes).length > 0) {
+      const packedAttributes: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.attributes)) {
         packedAttributes[String(key)] = value;
       }
       objectValue["111"] = packedAttributes;
@@ -430,7 +430,7 @@ export class LogEvent extends Event {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -442,10 +442,10 @@ export class LogEvent extends Event {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedAttributes = new Map();
+    const unpackedAttributes = {} as any;
     if (objectValue["111"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["111"])) {
-        unpackedAttributes.set(key, value as any);
+        unpackedAttributes[key] = value as any;
       }
     }
     const snapshotPtrValue = objectValue["11"];
@@ -496,7 +496,7 @@ export class LogEvent extends Event {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -537,8 +537,8 @@ export class LogEvent extends Event {
     }
     objectProto.content = object.content;
     if (object.attributes) {
-      objectProto.attributes = {};
-      for (const [key, value] of object.attributes) {
+      objectProto.attributes = {} as any;
+      for (const [key, value] of Object.entries(object.attributes)) {
         objectProto.attributes![key] = packProtoJson(value);
       }
     }
@@ -554,7 +554,7 @@ export class LogEvent extends Event {
     _connection?: any | null,
   ): LogEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const unpackedAttributes = new Map();
+    const unpackedAttributes = {} as any;
     if (objectProto.attributes) {
       for (const [key, value] of Object.entries(objectProto.attributes)) {
         unpackedAttributes.set(key, unpackProtoJson((value as any)!));

@@ -141,12 +141,12 @@ export class Method
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -158,12 +158,12 @@ export class Method
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -182,15 +182,18 @@ export class Method
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -212,6 +215,9 @@ export class Method
   /**
    * Method.name
    */
+  /**
+   * Method.name
+   */
   get name(): string {
     return this._name;
   }
@@ -222,6 +228,9 @@ export class Method
   }
   _name: string;
 
+  /**
+   * Method.icon
+   */
   /**
    * Method.icon
    */
@@ -238,6 +247,9 @@ export class Method
   /**
    * Method.text
    */
+  /**
+   * Method.text
+   */
   get text(): Text | null {
     return this._text;
   }
@@ -248,6 +260,9 @@ export class Method
   }
   _text: Text | null;
 
+  /**
+   * Method.cardinality
+   */
   /**
    * Method.cardinality
    */
@@ -275,7 +290,7 @@ export class Method
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     source?: Script | NodeReference | null;
     name: string;
@@ -351,7 +366,7 @@ export class Method
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -448,7 +463,7 @@ export class Method
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -563,11 +578,11 @@ export class Method
     return `<Method '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Method.__packValue__(this);
   }
 
-  static __packValue__(object: Method): { [key: string]: any } {
+  static __packValue__(object: Method): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 106000;
     objectValue["2"] = String(object.id);
@@ -601,9 +616,9 @@ export class Method
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -624,7 +639,7 @@ export class Method
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -659,12 +674,15 @@ export class Method
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -731,7 +749,7 @@ export class Method
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -778,8 +796,8 @@ export class Method
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -809,7 +827,7 @@ export class Method
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

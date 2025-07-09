@@ -313,12 +313,12 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -330,12 +330,12 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -354,15 +354,18 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The main / root Script of this Node.
@@ -381,6 +384,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -391,6 +397,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _scriptPtr: NodeReference | null;
 
+  /**
+   * Resource.status
+   */
   /**
    * Resource.status
    */
@@ -407,6 +416,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.type
    */
+  /**
+   * File.type
+   */
   get type(): FileType {
     return this._type;
   }
@@ -417,6 +429,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _type: FileType;
 
+  /**
+   * File.name
+   */
   /**
    * File.name
    */
@@ -433,6 +448,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.source
    */
+  /**
+   * File.source
+   */
   get source(): FileSource {
     return this._source;
   }
@@ -443,6 +461,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _source: FileSource;
 
+  /**
+   * File.mimeType
+   */
   /**
    * File.mimeType
    */
@@ -459,6 +480,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.format
    */
+  /**
+   * File.format
+   */
   get format(): FileFormat | null {
     return this._format;
   }
@@ -469,6 +493,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _format: FileFormat | null;
 
+  /**
+   * File.size
+   */
   /**
    * File.size
    */
@@ -485,6 +512,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.sha256
    */
+  /**
+   * File.sha256
+   */
   get sha256(): string | null {
     return this._sha256;
   }
@@ -495,6 +525,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _sha256: string | null;
 
+  /**
+   * File.width
+   */
   /**
    * File.width
    */
@@ -511,6 +544,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.height
    */
+  /**
+   * File.height
+   */
   get height(): number | null {
     return this._height;
   }
@@ -521,6 +557,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _height: number | null;
 
+  /**
+   * File.aspectRatio
+   */
   /**
    * File.aspectRatio
    */
@@ -537,6 +576,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.codec
    */
+  /**
+   * File.codec
+   */
   get codec(): string | null {
     return this._codec;
   }
@@ -547,6 +589,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _codec: string | null;
 
+  /**
+   * File.duration
+   */
   /**
    * File.duration
    */
@@ -563,6 +608,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.url
    */
+  /**
+   * File.url
+   */
   get url(): string | null {
     return this._url;
   }
@@ -573,6 +621,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _url: string | null;
 
+  /**
+   * File.contentUrl
+   */
   /**
    * File.contentUrl
    */
@@ -589,6 +640,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.thumbnailUrl
    */
+  /**
+   * File.thumbnailUrl
+   */
   get thumbnailUrl(): string | null {
     return this._thumbnailUrl;
   }
@@ -599,6 +653,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _thumbnailUrl: string | null;
 
+  /**
+   * File.faviconUrl
+   */
   /**
    * File.faviconUrl
    */
@@ -615,6 +672,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.thumbnailWidth
    */
+  /**
+   * File.thumbnailWidth
+   */
   get thumbnailWidth(): number | null {
     return this._thumbnailWidth;
   }
@@ -628,6 +688,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   /**
    * File.thumbnailHeight
    */
+  /**
+   * File.thumbnailHeight
+   */
   get thumbnailHeight(): number | null {
     return this._thumbnailHeight;
   }
@@ -638,6 +701,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
   _thumbnailHeight: number | null;
 
+  /**
+   * File.content
+   */
   /**
    * File.content
    */
@@ -667,7 +733,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     script?: Script | NodeReference | null;
     status?: ResourceStatus;
     type: FileType;
@@ -765,7 +831,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _script = options.script ?? null;
@@ -959,7 +1025,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -1129,11 +1195,11 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     return `<File '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return File.__packValue__(this);
   }
 
-  static __packValue__(object: File): { [key: string]: any } {
+  static __packValue__(object: File): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 80000;
     objectValue["2"] = String(object.id);
@@ -1173,9 +1239,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -1239,7 +1305,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1346,12 +1412,15 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -1405,7 +1474,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1458,8 +1527,8 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -1533,7 +1602,7 @@ export class File extends Resource implements IsSpatial, IsGlobal {
     ] as typeof NodeDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

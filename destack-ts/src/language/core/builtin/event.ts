@@ -40,12 +40,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class Event extends Node implements IsSpatial {
   static metatype: NodeType = NodeType.EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -54,9 +63,15 @@ export abstract class Event extends Node implements IsSpatial {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -70,6 +85,9 @@ export abstract class Event extends Node implements IsSpatial {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * The Node this Event is about.
+   */
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
@@ -168,12 +186,12 @@ export class CustomEventDefinition
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -185,12 +203,12 @@ export class CustomEventDefinition
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -204,21 +222,27 @@ export class CustomEventDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
+  /**
+   * CustomEventDefinition.baseType
+   */
   /**
    * CustomEventDefinition.baseType
    */
@@ -235,16 +259,22 @@ export class CustomEventDefinition
   /**
    * CustomEventDefinition.baseTraits
    */
-  get baseTraits(): Array<NodeDefinitionReference> {
+  /**
+   * CustomEventDefinition.baseTraits
+   */
+  get baseTraits(): readonly NodeDefinitionReference[] {
     return this._baseTraits;
   }
-  set baseTraits(value: Array<NodeDefinitionReference>) {
+  set baseTraits(value: readonly NodeDefinitionReference[]) {
     const prop = (this.constructor as NodeClass).__properties__["base_traits"];
     this._session.updateSetProperty(this, prop, value);
     this._baseTraits = value;
   }
-  _baseTraits: Array<NodeDefinitionReference>;
+  _baseTraits: readonly NodeDefinitionReference[];
 
+  /**
+   * CustomEventDefinition.isAbstract
+   */
   /**
    * CustomEventDefinition.isAbstract
    */
@@ -273,6 +303,9 @@ export class CustomEventDefinition
   /**
    * CustomEventDefinition.name
    */
+  /**
+   * CustomEventDefinition.name
+   */
   get name(): string {
     return this._name;
   }
@@ -283,6 +316,9 @@ export class CustomEventDefinition
   }
   _name: string;
 
+  /**
+   * CustomEventDefinition.icon
+   */
   /**
    * CustomEventDefinition.icon
    */
@@ -309,10 +345,10 @@ export class CustomEventDefinition
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     baseType?: NodeDefinitionReference | null;
-    baseTraits?: Array<NodeDefinitionReference>;
+    baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
     source?: Script | NodeReference | null;
     name: string;
@@ -384,7 +420,7 @@ export class CustomEventDefinition
     this.instanceRootPtr = _instanceRoot;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -496,7 +532,7 @@ export class CustomEventDefinition
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -613,11 +649,11 @@ export class CustomEventDefinition
     return `<CustomEventDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomEventDefinition.__packValue__(this);
   }
 
-  static __packValue__(object: CustomEventDefinition): { [key: string]: any } {
+  static __packValue__(object: CustomEventDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 102;
     objectValue["2"] = String(object.id);
@@ -648,9 +684,9 @@ export class CustomEventDefinition
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -678,7 +714,7 @@ export class CustomEventDefinition
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -724,12 +760,15 @@ export class CustomEventDefinition
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -796,7 +835,7 @@ export class CustomEventDefinition
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -846,8 +885,8 @@ export class CustomEventDefinition
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -894,7 +933,7 @@ export class CustomEventDefinition
         );
       }
     }
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
@@ -1060,12 +1099,21 @@ registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
 export abstract class Signal extends Event implements IsExtensible {
   static metatype: NodeType = NodeType.SIGNAL;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The CustomEventDefinition this Signal is an instance of.
+   */
   abstract get definition(): CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference;
 
@@ -1074,6 +1122,9 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   declare readonly baseType: NodeDefinitionReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -1082,9 +1133,15 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -1096,16 +1153,22 @@ export abstract class Signal extends Event implements IsExtensible {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  declare readonly customValues: Map<string, Value>;
+  declare readonly customValues: { readonly [key: string]: Value };
 
   /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
 
+  /**
+   * The main / root Script of this Node.
+   */
   abstract get script(): Script | null;
   declare readonly scriptPtr: NodeReference | null;
 
+  /**
+   * The Node this Event is about.
+   */
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
@@ -1122,7 +1185,8 @@ registerNodeClass(NodeType.SIGNAL, Signal);
  */
 export enum EventStatus {
   PENDING = 1,
-  COMPLETED = 10,
+  STAGED = 2,
+  APPROVED = 10,
   SKIPPED = 11,
   FAILED = 12,
   REJECTED = 13,

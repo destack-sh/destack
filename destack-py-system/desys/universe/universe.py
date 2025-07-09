@@ -97,7 +97,7 @@ class UniverseService(ServiceBase, UniverseBase):
     @override
     async def make_session(self, metadata: RpcMetadata) -> "Session":
         postgres_store = PostgresEntityStore(
-            database=self.global_database, types=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
+            database=self.global_database, keys=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
         )
         return Session(store=postgres_store)
 
@@ -179,11 +179,9 @@ class UniverseService(ServiceBase, UniverseBase):
         space.database = database
         session.store = BufferedStore(
             PostgresEntityStore(
-                database=self.global_database, types=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
+                database=self.global_database, keys=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
             ),
-            PostgresEntityStore(
-                database=spatial_database, types=(StoreKey.SPATIAL_ENTITY_PRIMARY,)
-            ),
+            PostgresEntityStore(database=spatial_database, keys=(StoreKey.SPATIAL_ENTITY_PRIMARY,)),
         )
         await session.stage()
 

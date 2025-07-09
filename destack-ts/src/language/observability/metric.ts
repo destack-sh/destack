@@ -45,9 +45,15 @@ import { Temporal } from "temporal-polyfill";
 export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
   static metatype: NodeType = NodeType.METRIC;
 
+  /**
+   * Entity.parent
+   */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
@@ -56,31 +62,49 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): Metric | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): Metric | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
@@ -89,6 +113,9 @@ export abstract class Metric extends Entity implements IsSpatial, IsSourceable {
    */
   declare readonly orderKey: string;
 
+  /**
+   * IsSourceable.source
+   */
   abstract get source(): Script | null;
   declare readonly sourcePtr: NodeReference | null;
 
@@ -124,15 +151,27 @@ registerNodeClass(NodeType.METRIC, Metric);
 export abstract class MeasurementEvent extends Event {
   static metatype: NodeType = NodeType.MEASUREMENT_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * MeasurementEvent.definition
+   */
   abstract get definition(): Metric | null;
   declare readonly definitionPtr: NodeReference;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -141,9 +180,15 @@ export abstract class MeasurementEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -157,6 +202,9 @@ export abstract class MeasurementEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * The Node this Event is about.
+   */
   abstract get node(): Node | null;
   declare readonly nodePtr: NodeReference | null;
 
@@ -252,12 +300,12 @@ export class GaugeMetric extends Metric {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -269,12 +317,12 @@ export class GaugeMetric extends Metric {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -305,6 +353,9 @@ export class GaugeMetric extends Metric {
   /**
    * Metric.name
    */
+  /**
+   * Metric.name
+   */
   get name(): string {
     return this._name;
   }
@@ -315,6 +366,9 @@ export class GaugeMetric extends Metric {
   }
   _name: string;
 
+  /**
+   * Metric.icon
+   */
   /**
    * Metric.icon
    */
@@ -578,11 +632,11 @@ export class GaugeMetric extends Metric {
     return `<GaugeMetric '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return GaugeMetric.__packValue__(this);
   }
 
-  static __packValue__(object: GaugeMetric): { [key: string]: any } {
+  static __packValue__(object: GaugeMetric): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 180000;
     objectValue["2"] = String(object.id);
@@ -625,7 +679,7 @@ export class GaugeMetric extends Metric {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -707,7 +761,7 @@ export class GaugeMetric extends Metric {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1209,11 +1263,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     return `<GaugeMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return GaugeMeasurementEvent.__packValue__(this);
   }
 
-  static __packValue__(object: GaugeMeasurementEvent): { [key: string]: any } {
+  static __packValue__(object: GaugeMeasurementEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 180001;
     objectValue["2"] = String(object.id);
@@ -1245,7 +1299,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1309,7 +1363,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1558,12 +1612,12 @@ export class CounterMetric extends Metric {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1575,12 +1629,12 @@ export class CounterMetric extends Metric {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1611,6 +1665,9 @@ export class CounterMetric extends Metric {
   /**
    * Metric.name
    */
+  /**
+   * Metric.name
+   */
   get name(): string {
     return this._name;
   }
@@ -1621,6 +1678,9 @@ export class CounterMetric extends Metric {
   }
   _name: string;
 
+  /**
+   * Metric.icon
+   */
   /**
    * Metric.icon
    */
@@ -1884,11 +1944,11 @@ export class CounterMetric extends Metric {
     return `<CounterMetric '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CounterMetric.__packValue__(this);
   }
 
-  static __packValue__(object: CounterMetric): { [key: string]: any } {
+  static __packValue__(object: CounterMetric): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 180100;
     objectValue["2"] = String(object.id);
@@ -1931,7 +1991,7 @@ export class CounterMetric extends Metric {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2013,7 +2073,7 @@ export class CounterMetric extends Metric {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2515,11 +2575,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     return `<CounterMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CounterMeasurementEvent.__packValue__(this);
   }
 
-  static __packValue__(object: CounterMeasurementEvent): { [key: string]: any } {
+  static __packValue__(object: CounterMeasurementEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 180101;
     objectValue["2"] = String(object.id);
@@ -2551,7 +2611,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2615,7 +2675,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2864,12 +2924,12 @@ export class HistogramMetric extends Metric {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2881,12 +2941,12 @@ export class HistogramMetric extends Metric {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2917,6 +2977,9 @@ export class HistogramMetric extends Metric {
   /**
    * Metric.name
    */
+  /**
+   * Metric.name
+   */
   get name(): string {
     return this._name;
   }
@@ -2927,6 +2990,9 @@ export class HistogramMetric extends Metric {
   }
   _name: string;
 
+  /**
+   * Metric.icon
+   */
   /**
    * Metric.icon
    */
@@ -3190,11 +3256,11 @@ export class HistogramMetric extends Metric {
     return `<HistogramMetric '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return HistogramMetric.__packValue__(this);
   }
 
-  static __packValue__(object: HistogramMetric): { [key: string]: any } {
+  static __packValue__(object: HistogramMetric): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 180200;
     objectValue["2"] = String(object.id);
@@ -3237,7 +3303,7 @@ export class HistogramMetric extends Metric {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3319,7 +3385,7 @@ export class HistogramMetric extends Metric {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3821,11 +3887,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     return `<HistogramMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return HistogramMeasurementEvent.__packValue__(this);
   }
 
-  static __packValue__(object: HistogramMeasurementEvent): { [key: string]: any } {
+  static __packValue__(object: HistogramMeasurementEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 180201;
     objectValue["2"] = String(object.id);
@@ -3857,7 +3923,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3921,7 +3987,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

@@ -10,6 +10,9 @@ import { registerNodeClass } from "@destack/language/registry";
 export abstract class Universe extends Node {
   static metatype: NodeType = NodeType.UNIVERSE;
 
+  /**
+   * Node.parent
+   */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 

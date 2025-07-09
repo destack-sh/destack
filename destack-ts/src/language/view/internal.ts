@@ -139,12 +139,12 @@ export class InternalView extends View {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -156,12 +156,12 @@ export class InternalView extends View {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -180,15 +180,18 @@ export class InternalView extends View {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -212,6 +215,9 @@ export class InternalView extends View {
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -222,6 +228,9 @@ export class InternalView extends View {
   }
   _scriptPtr: NodeReference | null;
 
+  /**
+   * View.name
+   */
   /**
    * View.name
    */
@@ -238,6 +247,9 @@ export class InternalView extends View {
   /**
    * View.position
    */
+  /**
+   * View.position
+   */
   get position(): Position | null {
     return this._position;
   }
@@ -248,6 +260,9 @@ export class InternalView extends View {
   }
   _position: Position | null;
 
+  /**
+   * View.width
+   */
   /**
    * View.width
    */
@@ -264,6 +279,9 @@ export class InternalView extends View {
   /**
    * View.height
    */
+  /**
+   * View.height
+   */
   get height(): Dimension | null {
     return this._height;
   }
@@ -274,6 +292,9 @@ export class InternalView extends View {
   }
   _height: Dimension | null;
 
+  /**
+   * View.minWidth
+   */
   /**
    * View.minWidth
    */
@@ -290,6 +311,9 @@ export class InternalView extends View {
   /**
    * View.minHeight
    */
+  /**
+   * View.minHeight
+   */
   get minHeight(): Dimension | null {
     return this._minHeight;
   }
@@ -303,6 +327,9 @@ export class InternalView extends View {
   /**
    * View.maxWidth
    */
+  /**
+   * View.maxWidth
+   */
   get maxWidth(): Dimension | null {
     return this._maxWidth;
   }
@@ -313,6 +340,9 @@ export class InternalView extends View {
   }
   _maxWidth: Dimension | null;
 
+  /**
+   * View.maxHeight
+   */
   /**
    * View.maxHeight
    */
@@ -342,7 +372,7 @@ export class InternalView extends View {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     script?: Script | NodeReference | null;
     name: string;
@@ -429,7 +459,7 @@ export class InternalView extends View {
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -575,7 +605,7 @@ export class InternalView extends View {
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -702,11 +732,11 @@ export class InternalView extends View {
     return `<InternalView '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return InternalView.__packValue__(this);
   }
 
-  static __packValue__(object: InternalView): { [key: string]: any } {
+  static __packValue__(object: InternalView): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 535000;
     objectValue["2"] = String(object.id);
@@ -746,9 +776,9 @@ export class InternalView extends View {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -783,7 +813,7 @@ export class InternalView extends View {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -892,12 +922,15 @@ export class InternalView extends View {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -940,7 +973,7 @@ export class InternalView extends View {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -993,8 +1026,8 @@ export class InternalView extends View {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -1041,7 +1074,7 @@ export class InternalView extends View {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

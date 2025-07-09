@@ -100,15 +100,15 @@ export abstract class Node extends BuiltinObject {
     return (this.constructor as typeof Node).__definition__;
   }
 
-  get __traits__(): TraitType[] {
+  get __traits__(): readonly TraitType[] {
     return (this.constructor as typeof Node).__definition__.traits;
   }
 
-  get __inherits__(): NodeType[] {
+  get __inherits__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.inherits;
   }
 
-  get __extendedBy__(): NodeType[] {
+  get __extendedBy__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.extendedBy;
   }
 
@@ -116,19 +116,19 @@ export abstract class Node extends BuiltinObject {
     return (this.constructor as typeof Node).__definition__.rootType;
   }
 
-  get __parentTypes__(): NodeType[] {
+  get __parentTypes__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.parentTypes;
   }
 
-  get __childTypes__(): NodeType[] {
+  get __childTypes__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.childTypes;
   }
 
-  get __ancestorTypes__(): NodeType[] {
+  get __ancestorTypes__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.ancestorTypes;
   }
 
-  get __descendantTypes__(): NodeType[] {
+  get __descendantTypes__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.descendantTypes;
   }
 

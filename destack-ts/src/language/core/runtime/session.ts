@@ -273,8 +273,8 @@ export class Session {
     }
 
     // check
-    if (appliedEvents.some((event) => event.status != EventStatus.COMPLETED)) {
-      const badEvents = appliedEvents.filter((event) => event.status != EventStatus.COMPLETED);
+    if (appliedEvents.some((event) => event.status != EventStatus.APPROVED)) {
+      const badEvents = appliedEvents.filter((event) => event.status != EventStatus.APPROVED);
       // TODO :Incomplete: do something on :RejectedEvents
       // throw new Error(
       //   `failed to commit ${events.length} Events: ${badEvents

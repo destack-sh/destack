@@ -152,12 +152,12 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -169,12 +169,12 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -207,6 +207,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -217,6 +220,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * Variant.type
+   */
   /**
    * Variant.type
    */
@@ -233,6 +239,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   /**
    * Variant.name
    */
+  /**
+   * Variant.name
+   */
   get name(): string {
     return this._name;
   }
@@ -243,6 +252,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
   _name: string;
 
+  /**
+   * Variant.icon
+   */
   /**
    * Variant.icon
    */
@@ -259,6 +271,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   /**
    * Variant.maxWidth
    */
+  /**
+   * Variant.maxWidth
+   */
   get maxWidth(): Length | null {
     return this._maxWidth;
   }
@@ -269,6 +284,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
   _maxWidth: Length | null;
 
+  /**
+   * Variant.maxHeight
+   */
   /**
    * Variant.maxHeight
    */
@@ -285,6 +303,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   /**
    * Variant.minWidth
    */
+  /**
+   * Variant.minWidth
+   */
   get minWidth(): Length | null {
     return this._minWidth;
   }
@@ -295,6 +316,9 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
   _minWidth: Length | null;
 
+  /**
+   * Variant.minHeight
+   */
   /**
    * Variant.minHeight
    */
@@ -613,11 +637,11 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
     return `<Variant '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Variant.__packValue__(this);
   }
 
-  static __packValue__(object: Variant): { [key: string]: any } {
+  static __packValue__(object: Variant): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 500300;
     objectValue["2"] = String(object.id);
@@ -675,7 +699,7 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -788,7 +812,7 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

@@ -235,7 +235,7 @@ class Session:
 
         # check
         failed_events: list[Event] = [
-            event for event in events if event.status != EventStatus.COMPLETED
+            event for event in events if event.status != EventStatus.APPROVED
         ]
         if failed_events:
             pass  # nocheckin: 1) update Event status and 2) do something on failure :RejectedEvents

@@ -69,12 +69,21 @@ registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
 export abstract class NotificationEvent extends Event {
   static metatype: NodeType = NodeType.NOTIFICATION_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -83,9 +92,15 @@ export abstract class NotificationEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -99,6 +114,9 @@ export abstract class NotificationEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * NotificationEvent.node
+   */
   abstract get node(): Notification | null;
   declare readonly nodePtr: NodeReference;
 
@@ -394,11 +412,11 @@ export class NotificationSentEvent extends NotificationEvent {
     return `<NotificationSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return NotificationSentEvent.__packValue__(this);
   }
 
-  static __packValue__(object: NotificationSentEvent): { [key: string]: any } {
+  static __packValue__(object: NotificationSentEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220502;
     objectValue["2"] = String(object.id);
@@ -427,7 +445,7 @@ export class NotificationSentEvent extends NotificationEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -485,7 +503,7 @@ export class NotificationSentEvent extends NotificationEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -921,11 +939,11 @@ export class NotificationRescindedEvent extends NotificationEvent {
     return `<NotificationRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return NotificationRescindedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: NotificationRescindedEvent): { [key: string]: any } {
+  static __packValue__(object: NotificationRescindedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220503;
     objectValue["2"] = String(object.id);
@@ -954,7 +972,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1012,7 +1030,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1448,11 +1466,11 @@ export class NotificationReadEvent extends NotificationEvent {
     return `<NotificationReadEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return NotificationReadEvent.__packValue__(this);
   }
 
-  static __packValue__(object: NotificationReadEvent): { [key: string]: any } {
+  static __packValue__(object: NotificationReadEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220504;
     objectValue["2"] = String(object.id);
@@ -1481,7 +1499,7 @@ export class NotificationReadEvent extends NotificationEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1539,7 +1557,7 @@ export class NotificationReadEvent extends NotificationEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1975,11 +1993,11 @@ export class NotificationDismissedEvent extends NotificationEvent {
     return `<NotificationDismissedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return NotificationDismissedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: NotificationDismissedEvent): { [key: string]: any } {
+  static __packValue__(object: NotificationDismissedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220505;
     objectValue["2"] = String(object.id);
@@ -2008,7 +2026,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2066,7 +2084,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2502,11 +2520,11 @@ export class NotificationExpiredEvent extends NotificationEvent {
     return `<NotificationExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return NotificationExpiredEvent.__packValue__(this);
   }
 
-  static __packValue__(object: NotificationExpiredEvent): { [key: string]: any } {
+  static __packValue__(object: NotificationExpiredEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220506;
     objectValue["2"] = String(object.id);
@@ -2535,7 +2553,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2593,7 +2611,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2829,12 +2847,12 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2846,12 +2864,12 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2879,6 +2897,9 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -2889,6 +2910,9 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * Notification.status
+   */
   /**
    * Notification.status
    */
@@ -2905,6 +2929,9 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   /**
    * Notification.title
    */
+  /**
+   * Notification.title
+   */
   get title(): string {
     return this._title;
   }
@@ -2915,6 +2942,9 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
   _title: string;
 
+  /**
+   * Notification.text
+   */
   /**
    * Notification.text
    */
@@ -3184,11 +3214,11 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Notification.__packValue__(this);
   }
 
-  static __packValue__(object: Notification): { [key: string]: any } {
+  static __packValue__(object: Notification): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220500;
     objectValue["2"] = String(object.id);
@@ -3231,7 +3261,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3313,7 +3343,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

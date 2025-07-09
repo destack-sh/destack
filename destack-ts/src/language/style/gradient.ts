@@ -164,7 +164,7 @@ export class GradientStop extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = GradientStop.__packValue__(this);
@@ -172,7 +172,7 @@ export class GradientStop extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: GradientStop): { [key: string]: any } {
+  static __packValue__(object: GradientStop): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600801;
     if (object.color != null) {
@@ -183,7 +183,7 @@ export class GradientStop extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -204,7 +204,7 @@ export class GradientStop extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -308,7 +308,7 @@ export class Gradient extends StructFrozen {
   /**
    * Gradient.stops
    */
-  readonly stops: Array<GradientStop>;
+  readonly stops: readonly GradientStop[];
 
   /**
    * Gradient.centerAnchor
@@ -319,7 +319,7 @@ export class Gradient extends StructFrozen {
     type?: GradientType;
     style?: GradientStyle | NodeReference | null;
     angle?: number | null;
-    stops?: Array<GradientStop>;
+    stops?: readonly GradientStop[];
     centerAnchor?: Axis2 | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -458,7 +458,7 @@ export class Gradient extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Gradient.__packValue__(this);
@@ -466,7 +466,7 @@ export class Gradient extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Gradient): { [key: string]: any } {
+  static __packValue__(object: Gradient): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600800;
     objectValue["100"] = object.type;
@@ -490,7 +490,7 @@ export class Gradient extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -531,7 +531,7 @@ export class Gradient extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -719,12 +719,12 @@ export class GradientStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -736,12 +736,12 @@ export class GradientStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -765,6 +765,9 @@ export class GradientStyle extends Style {
   /**
    * GradientStyle.type
    */
+  /**
+   * GradientStyle.type
+   */
   get type(): GradientType {
     return this._type;
   }
@@ -775,6 +778,9 @@ export class GradientStyle extends Style {
   }
   _type: GradientType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -791,6 +797,9 @@ export class GradientStyle extends Style {
   /**
    * GradientStyle.angle
    */
+  /**
+   * GradientStyle.angle
+   */
   get angle(): number | null {
     return this._angle;
   }
@@ -804,16 +813,22 @@ export class GradientStyle extends Style {
   /**
    * GradientStyle.stops
    */
-  get stops(): Array<GradientStop> {
+  /**
+   * GradientStyle.stops
+   */
+  get stops(): readonly GradientStop[] {
     return this._stops;
   }
-  set stops(value: Array<GradientStop>) {
+  set stops(value: readonly GradientStop[]) {
     const prop = (this.constructor as NodeClass).__properties__["stops"];
     this._session.updateSetProperty(this, prop, value);
     this._stops = value;
   }
-  _stops: Array<GradientStop>;
+  _stops: readonly GradientStop[];
 
+  /**
+   * GradientStyle.centerAnchor
+   */
   /**
    * GradientStyle.centerAnchor
    */
@@ -827,6 +842,9 @@ export class GradientStyle extends Style {
   }
   _centerAnchor: Axis2 | null;
 
+  /**
+   * GradientStyle.dark
+   */
   /**
    * GradientStyle.dark
    */
@@ -858,7 +876,7 @@ export class GradientStyle extends Style {
     type?: GradientType;
     name: string;
     angle?: number | null;
-    stops?: Array<GradientStop>;
+    stops?: readonly GradientStop[];
     centerAnchor?: Axis2 | null;
     dark?: Gradient | null;
     _session?: Session | null;
@@ -1151,11 +1169,11 @@ export class GradientStyle extends Style {
     return `<GradientStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return GradientStyle.__packValue__(this);
   }
 
-  static __packValue__(object: GradientStyle): { [key: string]: any } {
+  static __packValue__(object: GradientStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600800;
     objectValue["2"] = String(object.id);
@@ -1212,7 +1230,7 @@ export class GradientStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1315,7 +1333,7 @@ export class GradientStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

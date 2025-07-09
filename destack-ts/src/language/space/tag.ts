@@ -108,12 +108,12 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -125,12 +125,12 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -154,6 +154,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   /**
    * Tag.name
    */
+  /**
+   * Tag.name
+   */
   get name(): string {
     return this._name;
   }
@@ -164,6 +167,9 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   }
   _name: string;
 
+  /**
+   * Tag.icon
+   */
   /**
    * Tag.icon
    */
@@ -419,11 +425,11 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
     return `<Tag '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Tag.__packValue__(this);
   }
 
-  static __packValue__(object: Tag): { [key: string]: any } {
+  static __packValue__(object: Tag): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 41000;
     objectValue["2"] = String(object.id);
@@ -466,7 +472,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -548,7 +554,7 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -818,12 +824,12 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -835,12 +841,12 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -878,6 +884,9 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
       this.tagPtr = node.toRef();
     }
   }
+  /**
+   * Tagging.tag
+   */
   get tagPtr(): NodeReference | null {
     return this._tagPtr;
   }
@@ -1118,11 +1127,11 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
     return `<Tagging '${this.path}'>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Tagging.__packValue__(this);
   }
 
-  static __packValue__(object: Tagging): { [key: string]: any } {
+  static __packValue__(object: Tagging): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 41100;
     objectValue["2"] = String(object.id);
@@ -1164,7 +1173,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1244,7 +1253,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
