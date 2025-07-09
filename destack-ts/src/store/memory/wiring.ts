@@ -10,8 +10,7 @@ import {
   TypeCardinality,
   Value,
 } from "@destack/language";
-
-import { MemoryRow, MemoryTable } from "./core";
+import { MemoryRow, MemoryTable } from "@destack/store/memory/core";
 
 const NODE_ID_KEY = String(Node.property("id").id);
 const NODE_PARENT_PTR_KEY = String(Node.property("parent").id);

@@ -1182,9 +1182,9 @@ export interface ClickEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -1201,10 +1201,6 @@ export interface ClickEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
     /**
      * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
      */
@@ -3404,9 +3400,9 @@ export interface DoubleClickEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -3423,10 +3419,6 @@ export interface DoubleClickEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
     /**
      * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
      */
@@ -3863,10 +3855,6 @@ export interface EditEventProto {
      * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
      */
     status: EventStatusProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto cascaded_from_ptr = 85
-     */
-    cascadedFromPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.EditTypeProto type = 100
      */
@@ -8290,89 +8278,6 @@ export interface LayerProto {
     radius?: CornersProto;
 }
 /**
- * A LeftClickEvent is a ClickEvent when a pointer is clicked with the left button.
- *
- * @generated from protobuf message symbol.destack.LeftClickEventProto
- */
-export interface LeftClickEventProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
-     */
-    createdByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
-     */
-    clientPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional string client_nonce = 23
-     */
-    clientNonce?: string;
-    /**
-     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
-     */
-    status: EventStatusProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 101
-     */
-    nodePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
-     */
-    position?: Vector2fProto;
-    /**
-     * @generated from protobuf field: double pressure = 111
-     */
-    pressure: number;
-    /**
-     * @generated from protobuf field: bool shift_key = 120
-     */
-    shiftKey: boolean;
-    /**
-     * @generated from protobuf field: bool alt_key = 121
-     */
-    altKey: boolean;
-    /**
-     * @generated from protobuf field: bool ctrl_key = 122
-     */
-    ctrlKey: boolean;
-    /**
-     * @generated from protobuf field: bool meta_key = 123
-     */
-    metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
-    /**
-     * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
-     */
-    button: MouseButtonProto;
-}
-/**
  * @generated from protobuf message symbol.destack.LengthProto
  */
 export interface LengthProto {
@@ -9419,89 +9324,6 @@ export interface MetricProto {
     icon?: IconProto;
 }
 /**
- * A MiddleClickEvent is a ClickEvent when a pointer is clicked with the middle button.
- *
- * @generated from protobuf message symbol.destack.MiddleClickEventProto
- */
-export interface MiddleClickEventProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
-     */
-    createdByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
-     */
-    clientPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional string client_nonce = 23
-     */
-    clientNonce?: string;
-    /**
-     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
-     */
-    status: EventStatusProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 101
-     */
-    nodePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
-     */
-    position?: Vector2fProto;
-    /**
-     * @generated from protobuf field: double pressure = 111
-     */
-    pressure: number;
-    /**
-     * @generated from protobuf field: bool shift_key = 120
-     */
-    shiftKey: boolean;
-    /**
-     * @generated from protobuf field: bool alt_key = 121
-     */
-    altKey: boolean;
-    /**
-     * @generated from protobuf field: bool ctrl_key = 122
-     */
-    ctrlKey: boolean;
-    /**
-     * @generated from protobuf field: bool meta_key = 123
-     */
-    metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
-    /**
-     * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
-     */
-    button: MouseButtonProto;
-}
-/**
  * A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
  *
  * @generated from protobuf message symbol.destack.MouseEventProto
@@ -9556,9 +9378,9 @@ export interface MouseEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -9575,10 +9397,6 @@ export interface MouseEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
     /**
      * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
      */
@@ -10785,9 +10603,9 @@ export interface PointerDownEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -10804,10 +10622,6 @@ export interface PointerDownEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerEnterEvent is a PointerEvent when a pointer enters an element.
@@ -10864,9 +10678,9 @@ export interface PointerEnterEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -10883,10 +10697,6 @@ export interface PointerEnterEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer.
@@ -10943,9 +10753,9 @@ export interface PointerEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -10962,10 +10772,6 @@ export interface PointerEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerLeaveEvent is a PointerEvent when a pointer leaves an element.
@@ -11022,9 +10828,9 @@ export interface PointerLeaveEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -11041,10 +10847,6 @@ export interface PointerLeaveEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerLongPressEvent is a PointerEvent when a pointer is pressed down and held for a long time.
@@ -11101,9 +10903,9 @@ export interface PointerLongPressEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -11120,10 +10922,6 @@ export interface PointerLongPressEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerMoveEvent is a PointerEvent when a pointer is moved.
@@ -11180,9 +10978,9 @@ export interface PointerMoveEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -11199,10 +10997,6 @@ export interface PointerMoveEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerOverEvent is a PointerEvent when a pointer is over an element.
@@ -11259,9 +11053,9 @@ export interface PointerOverEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -11278,10 +11072,6 @@ export interface PointerOverEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * A PointerUpEvent is a PointerEvent when a pointer is released.
@@ -11338,9 +11128,9 @@ export interface PointerUpEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -11357,10 +11147,6 @@ export interface PointerUpEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
 }
 /**
  * @generated from protobuf message symbol.destack.PositionProto
@@ -11761,6 +11547,10 @@ export interface QueryUpdateProto {
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
     metatype: StructTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
     /**
      * @generated from protobuf field: symbol.destack.QueryUpdateTypeProto type = 100
      */
@@ -12173,89 +11963,6 @@ export interface ResourceProto {
      * @generated from protobuf field: symbol.destack.ResourceStatusProto status = 90
      */
     status: ResourceStatusProto;
-}
-/**
- * A RightClickEvent is a ClickEvent when a pointer is clicked with the right button.
- *
- * @generated from protobuf message symbol.destack.RightClickEventProto
- */
-export interface RightClickEventProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
-     */
-    createdByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
-     */
-    clientPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional string client_nonce = 23
-     */
-    clientNonce?: string;
-    /**
-     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
-     */
-    status: EventStatusProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 101
-     */
-    nodePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
-     */
-    position?: Vector2fProto;
-    /**
-     * @generated from protobuf field: double pressure = 111
-     */
-    pressure: number;
-    /**
-     * @generated from protobuf field: bool shift_key = 120
-     */
-    shiftKey: boolean;
-    /**
-     * @generated from protobuf field: bool alt_key = 121
-     */
-    altKey: boolean;
-    /**
-     * @generated from protobuf field: bool ctrl_key = 122
-     */
-    ctrlKey: boolean;
-    /**
-     * @generated from protobuf field: bool meta_key = 123
-     */
-    metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
-    /**
-     * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
-     */
-    button: MouseButtonProto;
 }
 /**
  * A Role for Subjects to take.
@@ -14523,6 +14230,85 @@ export interface SignalProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 101
      */
     nodePtr?: NodeReferenceProto;
+}
+/**
+ * A SingleClickEvent is a ClickEvent when a pointer is clicked once.
+ *
+ * @generated from protobuf message symbol.destack.SingleClickEventProto
+ */
+export interface SingleClickEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     */
+    position?: Vector2fProto;
+    /**
+     * @generated from protobuf field: optional double pressure = 111
+     */
+    pressure?: number;
+    /**
+     * @generated from protobuf field: bool shift_key = 120
+     */
+    shiftKey: boolean;
+    /**
+     * @generated from protobuf field: bool alt_key = 121
+     */
+    altKey: boolean;
+    /**
+     * @generated from protobuf field: bool ctrl_key = 122
+     */
+    ctrlKey: boolean;
+    /**
+     * @generated from protobuf field: bool meta_key = 123
+     */
+    metaKey: boolean;
+    /**
+     * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
+     */
+    button: MouseButtonProto;
 }
 /**
  * A slider input View.
@@ -17009,6 +16795,85 @@ export interface TriggerEventProto {
     nodePtr?: NodeReferenceProto;
 }
 /**
+ * A TripleClickEvent is a ClickEvent when a pointer is clicked three times in a short time.
+ *
+ * @generated from protobuf message symbol.destack.TripleClickEventProto
+ */
+export interface TripleClickEventProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
+     */
+    clientPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string client_nonce = 23
+     */
+    clientNonce?: string;
+    /**
+     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
+     */
+    status: EventStatusProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto node_ptr = 101
+     */
+    nodePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     */
+    position?: Vector2fProto;
+    /**
+     * @generated from protobuf field: optional double pressure = 111
+     */
+    pressure?: number;
+    /**
+     * @generated from protobuf field: bool shift_key = 120
+     */
+    shiftKey: boolean;
+    /**
+     * @generated from protobuf field: bool alt_key = 121
+     */
+    altKey: boolean;
+    /**
+     * @generated from protobuf field: bool ctrl_key = 122
+     */
+    ctrlKey: boolean;
+    /**
+     * @generated from protobuf field: bool meta_key = 123
+     */
+    metaKey: boolean;
+    /**
+     * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
+     */
+    button: MouseButtonProto;
+}
+/**
  * @generated from protobuf message symbol.destack.TypeProto
  */
 export interface TypeProto {
@@ -17792,9 +17657,9 @@ export interface WheelEventProto {
      */
     position?: Vector2fProto;
     /**
-     * @generated from protobuf field: double pressure = 111
+     * @generated from protobuf field: optional double pressure = 111
      */
-    pressure: number;
+    pressure?: number;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -17811,10 +17676,6 @@ export interface WheelEventProto {
      * @generated from protobuf field: bool meta_key = 123
      */
     metaKey: boolean;
-    /**
-     * @generated from protobuf field: bool accel_key = 124
-     */
-    accelKey: boolean;
     /**
      * @generated from protobuf field: symbol.destack.MouseButtonProto button = 130
      */
@@ -18403,33 +18264,27 @@ export interface SomeNodeProto {
          */
         pointerLongPressEvent: PointerLongPressEventProto;
     } | {
-        oneofKind: "leftClickEvent";
+        oneofKind: "singleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.LeftClickEventProto left_click_event = 560202
+         * @generated from protobuf field: symbol.destack.SingleClickEventProto single_click_event = 560202
          */
-        leftClickEvent: LeftClickEventProto;
-    } | {
-        oneofKind: "rightClickEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.RightClickEventProto right_click_event = 560203
-         */
-        rightClickEvent: RightClickEventProto;
-    } | {
-        oneofKind: "middleClickEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.MiddleClickEventProto middle_click_event = 560204
-         */
-        middleClickEvent: MiddleClickEventProto;
+        singleClickEvent: SingleClickEventProto;
     } | {
         oneofKind: "doubleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 560205
+         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 560203
          */
         doubleClickEvent: DoubleClickEventProto;
     } | {
+        oneofKind: "tripleClickEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.TripleClickEventProto triple_click_event = 560204
+         */
+        tripleClickEvent: TripleClickEventProto;
+    } | {
         oneofKind: "wheelEvent";
         /**
-         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 560206
+         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 560205
          */
         wheelEvent: WheelEventProto;
     } | {
@@ -19643,33 +19498,27 @@ export interface SomeEventProto {
          */
         pointerLongPressEvent: PointerLongPressEventProto;
     } | {
-        oneofKind: "leftClickEvent";
+        oneofKind: "singleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.LeftClickEventProto left_click_event = 560202
+         * @generated from protobuf field: symbol.destack.SingleClickEventProto single_click_event = 560202
          */
-        leftClickEvent: LeftClickEventProto;
-    } | {
-        oneofKind: "rightClickEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.RightClickEventProto right_click_event = 560203
-         */
-        rightClickEvent: RightClickEventProto;
-    } | {
-        oneofKind: "middleClickEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.MiddleClickEventProto middle_click_event = 560204
-         */
-        middleClickEvent: MiddleClickEventProto;
+        singleClickEvent: SingleClickEventProto;
     } | {
         oneofKind: "doubleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 560205
+         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 560203
          */
         doubleClickEvent: DoubleClickEventProto;
     } | {
+        oneofKind: "tripleClickEvent";
+        /**
+         * @generated from protobuf field: symbol.destack.TripleClickEventProto triple_click_event = 560204
+         */
+        tripleClickEvent: TripleClickEventProto;
+    } | {
         oneofKind: "wheelEvent";
         /**
-         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 560206
+         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 560205
          */
         wheelEvent: WheelEventProto;
     } | {
@@ -23095,25 +22944,21 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_CLICK_EVENT = 560201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LEFT_CLICK_EVENT = 560202;
+     * @generated from protobuf enum value: NODE_TYPE_SINGLE_CLICK_EVENT = 560202;
      */
-    NODE_TYPE_LEFT_CLICK_EVENT = 560202,
+    NODE_TYPE_SINGLE_CLICK_EVENT = 560202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RIGHT_CLICK_EVENT = 560203;
+     * @generated from protobuf enum value: NODE_TYPE_DOUBLE_CLICK_EVENT = 560203;
      */
-    NODE_TYPE_RIGHT_CLICK_EVENT = 560203,
+    NODE_TYPE_DOUBLE_CLICK_EVENT = 560203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MIDDLE_CLICK_EVENT = 560204;
+     * @generated from protobuf enum value: NODE_TYPE_TRIPLE_CLICK_EVENT = 560204;
      */
-    NODE_TYPE_MIDDLE_CLICK_EVENT = 560204,
+    NODE_TYPE_TRIPLE_CLICK_EVENT = 560204,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DOUBLE_CLICK_EVENT = 560205;
+     * @generated from protobuf enum value: NODE_TYPE_WHEEL_EVENT = 560205;
      */
-    NODE_TYPE_DOUBLE_CLICK_EVENT = 560205,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_WHEEL_EVENT = 560206;
-     */
-    NODE_TYPE_WHEEL_EVENT = 560206,
+    NODE_TYPE_WHEEL_EVENT = 560205,
     /**
      * @generated from protobuf enum value: NODE_TYPE_KEYBOARD_EVENT = 560300;
      */
@@ -23624,11 +23469,7 @@ export enum QueryUpdateTypeProto {
     /**
      * @generated from protobuf enum value: QUERY_UPDATE_TYPE_FULL_RESULT = 1;
      */
-    QUERY_UPDATE_TYPE_FULL_RESULT = 1,
-    /**
-     * @generated from protobuf enum value: QUERY_UPDATE_TYPE_PARTIAL_RESULT = 2;
-     */
-    QUERY_UPDATE_TYPE_PARTIAL_RESULT = 2
+    QUERY_UPDATE_TYPE_FULL_RESULT = 1
 }
 /**
  * Regions in an Area on a Continent.
@@ -27725,12 +27566,11 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
         ]);
     }
@@ -27739,12 +27579,10 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         message.button = 0;
         if (value !== undefined)
             reflectionMergePartial<ClickEventProto>(this, message, value);
@@ -27791,7 +27629,7 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -27805,9 +27643,6 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 case /* symbol.destack.MouseButtonProto button */ 130:
                     message.button = reader.int32();
@@ -27860,8 +27695,8 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -27875,9 +27710,6 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         /* symbol.destack.MouseButtonProto button = 130; */
         if (message.button !== 0)
             writer.tag(130, WireType.Varint).int32(message.button);
@@ -32708,12 +32540,11 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
         ]);
     }
@@ -32722,12 +32553,10 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         message.button = 0;
         if (value !== undefined)
             reflectionMergePartial<DoubleClickEventProto>(this, message, value);
@@ -32774,7 +32603,7 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -32788,9 +32617,6 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 case /* symbol.destack.MouseButtonProto button */ 130:
                     message.button = reader.int32();
@@ -32843,8 +32669,8 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -32858,9 +32684,6 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         /* symbol.destack.MouseButtonProto button = 130; */
         if (message.button !== 0)
             writer.tag(130, WireType.Varint).int32(message.button);
@@ -33770,7 +33593,6 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
-            { no: 85, name: "cascaded_from_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EditTypeProto", EditTypeProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "operation", kind: "enum", opt: true, T: () => ["symbol.destack.EditOperationProto", EditOperationProto] },
@@ -33825,9 +33647,6 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                     break;
                 case /* symbol.destack.EventStatusProto status */ 30:
                     message.status = reader.int32();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto cascaded_from_ptr */ 85:
-                    message.cascadedFromPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.cascadedFromPtr);
                     break;
                 case /* symbol.destack.EditTypeProto type */ 100:
                     message.type = reader.int32();
@@ -33895,9 +33714,6 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* symbol.destack.EventStatusProto status = 30; */
         if (message.status !== 0)
             writer.tag(30, WireType.Varint).int32(message.status);
-        /* optional symbol.destack.NodeReferenceProto cascaded_from_ptr = 85; */
-        if (message.cascadedFromPtr)
-            NodeReferenceProto.internalBinaryWrite(message.cascadedFromPtr, writer.tag(85, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.EditTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
@@ -43832,188 +43648,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
  */
 export const LayerProto = new LayerProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class LeftClickEventProto$Type extends MessageType<LeftClickEventProto> {
-    constructor() {
-        super("symbol.destack.LeftClickEventProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
-            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
-        ]);
-    }
-    create(value?: PartialMessage<LeftClickEventProto>): LeftClickEventProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.status = 0;
-        message.pressure = 0;
-        message.shiftKey = false;
-        message.altKey = false;
-        message.ctrlKey = false;
-        message.metaKey = false;
-        message.accelKey = false;
-        message.button = 0;
-        if (value !== undefined)
-            reflectionMergePartial<LeftClickEventProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: LeftClickEventProto): LeftClickEventProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 20:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
-                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
-                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* optional string client_nonce */ 23:
-                    message.clientNonce = reader.string();
-                    break;
-                case /* symbol.destack.EventStatusProto status */ 30:
-                    message.status = reader.int32();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
-                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
-                    break;
-                case /* double pressure */ 111:
-                    message.pressure = reader.double();
-                    break;
-                case /* bool shift_key */ 120:
-                    message.shiftKey = reader.bool();
-                    break;
-                case /* bool alt_key */ 121:
-                    message.altKey = reader.bool();
-                    break;
-                case /* bool ctrl_key */ 122:
-                    message.ctrlKey = reader.bool();
-                    break;
-                case /* bool meta_key */ 123:
-                    message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
-                    break;
-                case /* symbol.destack.MouseButtonProto button */ 130:
-                    message.button = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: LeftClickEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 20; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
-        if (message.createdByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
-        if (message.clientPtr)
-            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* optional string client_nonce = 23; */
-        if (message.clientNonce !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
-        /* symbol.destack.EventStatusProto status = 30; */
-        if (message.status !== 0)
-            writer.tag(30, WireType.Varint).int32(message.status);
-        /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
-        if (message.nodePtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
-        if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
-            writer.tag(111, WireType.Bit64).double(message.pressure);
-        /* bool shift_key = 120; */
-        if (message.shiftKey !== false)
-            writer.tag(120, WireType.Varint).bool(message.shiftKey);
-        /* bool alt_key = 121; */
-        if (message.altKey !== false)
-            writer.tag(121, WireType.Varint).bool(message.altKey);
-        /* bool ctrl_key = 122; */
-        if (message.ctrlKey !== false)
-            writer.tag(122, WireType.Varint).bool(message.ctrlKey);
-        /* bool meta_key = 123; */
-        if (message.metaKey !== false)
-            writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
-        /* symbol.destack.MouseButtonProto button = 130; */
-        if (message.button !== 0)
-            writer.tag(130, WireType.Varint).int32(message.button);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.LeftClickEventProto
- */
-export const LeftClickEventProto = new LeftClickEventProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class LengthProto$Type extends MessageType<LengthProto> {
     constructor() {
         super("symbol.destack.LengthProto", [
@@ -46357,188 +45991,6 @@ class MetricProto$Type extends MessageType<MetricProto> {
  */
 export const MetricProto = new MetricProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class MiddleClickEventProto$Type extends MessageType<MiddleClickEventProto> {
-    constructor() {
-        super("symbol.destack.MiddleClickEventProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
-            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
-        ]);
-    }
-    create(value?: PartialMessage<MiddleClickEventProto>): MiddleClickEventProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.status = 0;
-        message.pressure = 0;
-        message.shiftKey = false;
-        message.altKey = false;
-        message.ctrlKey = false;
-        message.metaKey = false;
-        message.accelKey = false;
-        message.button = 0;
-        if (value !== undefined)
-            reflectionMergePartial<MiddleClickEventProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: MiddleClickEventProto): MiddleClickEventProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 20:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
-                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
-                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* optional string client_nonce */ 23:
-                    message.clientNonce = reader.string();
-                    break;
-                case /* symbol.destack.EventStatusProto status */ 30:
-                    message.status = reader.int32();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
-                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
-                    break;
-                case /* double pressure */ 111:
-                    message.pressure = reader.double();
-                    break;
-                case /* bool shift_key */ 120:
-                    message.shiftKey = reader.bool();
-                    break;
-                case /* bool alt_key */ 121:
-                    message.altKey = reader.bool();
-                    break;
-                case /* bool ctrl_key */ 122:
-                    message.ctrlKey = reader.bool();
-                    break;
-                case /* bool meta_key */ 123:
-                    message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
-                    break;
-                case /* symbol.destack.MouseButtonProto button */ 130:
-                    message.button = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: MiddleClickEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 20; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
-        if (message.createdByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
-        if (message.clientPtr)
-            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* optional string client_nonce = 23; */
-        if (message.clientNonce !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
-        /* symbol.destack.EventStatusProto status = 30; */
-        if (message.status !== 0)
-            writer.tag(30, WireType.Varint).int32(message.status);
-        /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
-        if (message.nodePtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
-        if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
-            writer.tag(111, WireType.Bit64).double(message.pressure);
-        /* bool shift_key = 120; */
-        if (message.shiftKey !== false)
-            writer.tag(120, WireType.Varint).bool(message.shiftKey);
-        /* bool alt_key = 121; */
-        if (message.altKey !== false)
-            writer.tag(121, WireType.Varint).bool(message.altKey);
-        /* bool ctrl_key = 122; */
-        if (message.ctrlKey !== false)
-            writer.tag(122, WireType.Varint).bool(message.ctrlKey);
-        /* bool meta_key = 123; */
-        if (message.metaKey !== false)
-            writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
-        /* symbol.destack.MouseButtonProto button = 130; */
-        if (message.button !== 0)
-            writer.tag(130, WireType.Varint).int32(message.button);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.MiddleClickEventProto
- */
-export const MiddleClickEventProto = new MiddleClickEventProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class MouseEventProto$Type extends MessageType<MouseEventProto> {
     constructor() {
         super("symbol.destack.MouseEventProto", [
@@ -46554,12 +46006,11 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
         ]);
     }
@@ -46568,12 +46019,10 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         message.button = 0;
         if (value !== undefined)
             reflectionMergePartial<MouseEventProto>(this, message, value);
@@ -46620,7 +46069,7 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -46634,9 +46083,6 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 case /* symbol.destack.MouseButtonProto button */ 130:
                     message.button = reader.int32();
@@ -46689,8 +46135,8 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -46704,9 +46150,6 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         /* symbol.destack.MouseButtonProto button = 130; */
         if (message.button !== 0)
             writer.tag(130, WireType.Varint).int32(message.button);
@@ -49586,12 +49029,11 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerDownEventProto>): PointerDownEventProto {
@@ -49599,12 +49041,10 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerDownEventProto>(this, message, value);
         return message;
@@ -49650,7 +49090,7 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -49664,9 +49104,6 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -49716,8 +49153,8 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -49731,9 +49168,6 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -49760,12 +49194,11 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerEnterEventProto>): PointerEnterEventProto {
@@ -49773,12 +49206,10 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerEnterEventProto>(this, message, value);
         return message;
@@ -49824,7 +49255,7 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -49838,9 +49269,6 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -49890,8 +49318,8 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -49905,9 +49333,6 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -49934,12 +49359,11 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerEventProto>): PointerEventProto {
@@ -49947,12 +49371,10 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerEventProto>(this, message, value);
         return message;
@@ -49998,7 +49420,7 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -50012,9 +49434,6 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50064,8 +49483,8 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -50079,9 +49498,6 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -50108,12 +49524,11 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerLeaveEventProto>): PointerLeaveEventProto {
@@ -50121,12 +49536,10 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerLeaveEventProto>(this, message, value);
         return message;
@@ -50172,7 +49585,7 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -50186,9 +49599,6 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50238,8 +49648,8 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -50253,9 +49663,6 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -50282,12 +49689,11 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerLongPressEventProto>): PointerLongPressEventProto {
@@ -50295,12 +49701,10 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerLongPressEventProto>(this, message, value);
         return message;
@@ -50346,7 +49750,7 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -50360,9 +49764,6 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50412,8 +49813,8 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -50427,9 +49828,6 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -50456,12 +49854,11 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerMoveEventProto>): PointerMoveEventProto {
@@ -50469,12 +49866,10 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerMoveEventProto>(this, message, value);
         return message;
@@ -50520,7 +49915,7 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -50534,9 +49929,6 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50586,8 +49978,8 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -50601,9 +49993,6 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -50630,12 +50019,11 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerOverEventProto>): PointerOverEventProto {
@@ -50643,12 +50031,10 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerOverEventProto>(this, message, value);
         return message;
@@ -50694,7 +50080,7 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -50708,9 +50094,6 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50760,8 +50143,8 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -50775,9 +50158,6 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -50804,12 +50184,11 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<PointerUpEventProto>): PointerUpEventProto {
@@ -50817,12 +50196,10 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         if (value !== undefined)
             reflectionMergePartial<PointerUpEventProto>(this, message, value);
         return message;
@@ -50868,7 +50245,7 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -50882,9 +50259,6 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -50934,8 +50308,8 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -50949,9 +50323,6 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -51906,6 +51277,7 @@ class QueryUpdateProto$Type extends MessageType<QueryUpdateProto> {
     constructor() {
         super("symbol.destack.QueryUpdateProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryUpdateTypeProto", QueryUpdateTypeProto] },
             { no: 101, name: "result", kind: "message", T: () => QueryResultProto }
         ]);
@@ -51913,6 +51285,7 @@ class QueryUpdateProto$Type extends MessageType<QueryUpdateProto> {
     create(value?: PartialMessage<QueryUpdateProto>): QueryUpdateProto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
+        message.id = "";
         message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<QueryUpdateProto>(this, message, value);
@@ -51925,6 +51298,9 @@ class QueryUpdateProto$Type extends MessageType<QueryUpdateProto> {
             switch (fieldNo) {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
                     break;
                 case /* symbol.destack.QueryUpdateTypeProto type */ 100:
                     message.type = reader.int32();
@@ -51947,6 +51323,9 @@ class QueryUpdateProto$Type extends MessageType<QueryUpdateProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
         /* symbol.destack.QueryUpdateTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
@@ -52892,188 +52271,6 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
  * @generated MessageType for protobuf message symbol.destack.ResourceProto
  */
 export const ResourceProto = new ResourceProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class RightClickEventProto$Type extends MessageType<RightClickEventProto> {
-    constructor() {
-        super("symbol.destack.RightClickEventProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
-            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
-        ]);
-    }
-    create(value?: PartialMessage<RightClickEventProto>): RightClickEventProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.status = 0;
-        message.pressure = 0;
-        message.shiftKey = false;
-        message.altKey = false;
-        message.ctrlKey = false;
-        message.metaKey = false;
-        message.accelKey = false;
-        message.button = 0;
-        if (value !== undefined)
-            reflectionMergePartial<RightClickEventProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: RightClickEventProto): RightClickEventProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 20:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
-                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
-                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* optional string client_nonce */ 23:
-                    message.clientNonce = reader.string();
-                    break;
-                case /* symbol.destack.EventStatusProto status */ 30:
-                    message.status = reader.int32();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
-                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
-                    break;
-                case /* double pressure */ 111:
-                    message.pressure = reader.double();
-                    break;
-                case /* bool shift_key */ 120:
-                    message.shiftKey = reader.bool();
-                    break;
-                case /* bool alt_key */ 121:
-                    message.altKey = reader.bool();
-                    break;
-                case /* bool ctrl_key */ 122:
-                    message.ctrlKey = reader.bool();
-                    break;
-                case /* bool meta_key */ 123:
-                    message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
-                    break;
-                case /* symbol.destack.MouseButtonProto button */ 130:
-                    message.button = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: RightClickEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 20; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
-        if (message.createdByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
-        if (message.clientPtr)
-            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* optional string client_nonce = 23; */
-        if (message.clientNonce !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
-        /* symbol.destack.EventStatusProto status = 30; */
-        if (message.status !== 0)
-            writer.tag(30, WireType.Varint).int32(message.status);
-        /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
-        if (message.nodePtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
-        if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
-            writer.tag(111, WireType.Bit64).double(message.pressure);
-        /* bool shift_key = 120; */
-        if (message.shiftKey !== false)
-            writer.tag(120, WireType.Varint).bool(message.shiftKey);
-        /* bool alt_key = 121; */
-        if (message.altKey !== false)
-            writer.tag(121, WireType.Varint).bool(message.altKey);
-        /* bool ctrl_key = 122; */
-        if (message.ctrlKey !== false)
-            writer.tag(122, WireType.Varint).bool(message.ctrlKey);
-        /* bool meta_key = 123; */
-        if (message.metaKey !== false)
-            writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
-        /* symbol.destack.MouseButtonProto button = 130; */
-        if (message.button !== 0)
-            writer.tag(130, WireType.Varint).int32(message.button);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.RightClickEventProto
- */
-export const RightClickEventProto = new RightClickEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class RoleProto$Type extends MessageType<RoleProto> {
     constructor() {
@@ -58264,6 +57461,179 @@ class SignalProto$Type extends MessageType<SignalProto> {
  * @generated MessageType for protobuf message symbol.destack.SignalProto
  */
 export const SignalProto = new SignalProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
+    constructor() {
+        super("symbol.destack.SingleClickEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
+        ]);
+    }
+    create(value?: PartialMessage<SingleClickEventProto>): SingleClickEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        message.shiftKey = false;
+        message.altKey = false;
+        message.ctrlKey = false;
+        message.metaKey = false;
+        message.button = 0;
+        if (value !== undefined)
+            reflectionMergePartial<SingleClickEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SingleClickEventProto): SingleClickEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional double pressure */ 111:
+                    message.pressure = reader.double();
+                    break;
+                case /* bool shift_key */ 120:
+                    message.shiftKey = reader.bool();
+                    break;
+                case /* bool alt_key */ 121:
+                    message.altKey = reader.bool();
+                    break;
+                case /* bool ctrl_key */ 122:
+                    message.ctrlKey = reader.bool();
+                    break;
+                case /* bool meta_key */ 123:
+                    message.metaKey = reader.bool();
+                    break;
+                case /* symbol.destack.MouseButtonProto button */ 130:
+                    message.button = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: SingleClickEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.Vector2fProto position = 110; */
+        if (message.position)
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
+            writer.tag(111, WireType.Bit64).double(message.pressure);
+        /* bool shift_key = 120; */
+        if (message.shiftKey !== false)
+            writer.tag(120, WireType.Varint).bool(message.shiftKey);
+        /* bool alt_key = 121; */
+        if (message.altKey !== false)
+            writer.tag(121, WireType.Varint).bool(message.altKey);
+        /* bool ctrl_key = 122; */
+        if (message.ctrlKey !== false)
+            writer.tag(122, WireType.Varint).bool(message.ctrlKey);
+        /* bool meta_key = 123; */
+        if (message.metaKey !== false)
+            writer.tag(123, WireType.Varint).bool(message.metaKey);
+        /* symbol.destack.MouseButtonProto button = 130; */
+        if (message.button !== 0)
+            writer.tag(130, WireType.Varint).int32(message.button);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.SingleClickEventProto
+ */
+export const SingleClickEventProto = new SingleClickEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
     constructor() {
@@ -64020,6 +63390,179 @@ class TriggerEventProto$Type extends MessageType<TriggerEventProto> {
  */
 export const TriggerEventProto = new TriggerEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
+class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
+    constructor() {
+        super("symbol.destack.TripleClickEventProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
+            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] }
+        ]);
+    }
+    create(value?: PartialMessage<TripleClickEventProto>): TripleClickEventProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.status = 0;
+        message.shiftKey = false;
+        message.altKey = false;
+        message.ctrlKey = false;
+        message.metaKey = false;
+        message.button = 0;
+        if (value !== undefined)
+            reflectionMergePartial<TripleClickEventProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: TripleClickEventProto): TripleClickEventProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
+                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
+                    break;
+                case /* optional string client_nonce */ 23:
+                    message.clientNonce = reader.string();
+                    break;
+                case /* symbol.destack.EventStatusProto status */ 30:
+                    message.status = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
+                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
+                    break;
+                case /* symbol.destack.Vector2fProto position */ 110:
+                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                    break;
+                case /* optional double pressure */ 111:
+                    message.pressure = reader.double();
+                    break;
+                case /* bool shift_key */ 120:
+                    message.shiftKey = reader.bool();
+                    break;
+                case /* bool alt_key */ 121:
+                    message.altKey = reader.bool();
+                    break;
+                case /* bool ctrl_key */ 122:
+                    message.ctrlKey = reader.bool();
+                    break;
+                case /* bool meta_key */ 123:
+                    message.metaKey = reader.bool();
+                    break;
+                case /* symbol.destack.MouseButtonProto button */ 130:
+                    message.button = reader.int32();
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    internalBinaryWrite(message: TripleClickEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
+        if (message.clientPtr)
+            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* optional string client_nonce = 23; */
+        if (message.clientNonce !== undefined)
+            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
+        /* symbol.destack.EventStatusProto status = 30; */
+        if (message.status !== 0)
+            writer.tag(30, WireType.Varint).int32(message.status);
+        /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
+        if (message.nodePtr)
+            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.Vector2fProto position = 110; */
+        if (message.position)
+            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
+            writer.tag(111, WireType.Bit64).double(message.pressure);
+        /* bool shift_key = 120; */
+        if (message.shiftKey !== false)
+            writer.tag(120, WireType.Varint).bool(message.shiftKey);
+        /* bool alt_key = 121; */
+        if (message.altKey !== false)
+            writer.tag(121, WireType.Varint).bool(message.altKey);
+        /* bool ctrl_key = 122; */
+        if (message.ctrlKey !== false)
+            writer.tag(122, WireType.Varint).bool(message.ctrlKey);
+        /* bool meta_key = 123; */
+        if (message.metaKey !== false)
+            writer.tag(123, WireType.Varint).bool(message.metaKey);
+        /* symbol.destack.MouseButtonProto button = 130; */
+        if (message.button !== 0)
+            writer.tag(130, WireType.Varint).int32(message.button);
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.TripleClickEventProto
+ */
+export const TripleClickEventProto = new TripleClickEventProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
 class TypeProto$Type extends MessageType<TypeProto> {
     constructor() {
         super("symbol.destack.TypeProto", [
@@ -65923,12 +65466,11 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
-            { no: 111, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
+            { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 124, name: "accel_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] },
             { no: 140, name: "delta", kind: "message", T: () => Vector2fProto }
         ]);
@@ -65938,12 +65480,10 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         message.metatype = 0;
         message.id = "";
         message.status = 0;
-        message.pressure = 0;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
         message.metaKey = false;
-        message.accelKey = false;
         message.button = 0;
         if (value !== undefined)
             reflectionMergePartial<WheelEventProto>(this, message, value);
@@ -65990,7 +65530,7 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* symbol.destack.Vector2fProto position */ 110:
                     message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
-                case /* double pressure */ 111:
+                case /* optional double pressure */ 111:
                     message.pressure = reader.double();
                     break;
                 case /* bool shift_key */ 120:
@@ -66004,9 +65544,6 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                     break;
                 case /* bool meta_key */ 123:
                     message.metaKey = reader.bool();
-                    break;
-                case /* bool accel_key */ 124:
-                    message.accelKey = reader.bool();
                     break;
                 case /* symbol.destack.MouseButtonProto button */ 130:
                     message.button = reader.int32();
@@ -66062,8 +65599,8 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* symbol.destack.Vector2fProto position = 110; */
         if (message.position)
             Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* double pressure = 111; */
-        if (message.pressure !== 0)
+        /* optional double pressure = 111; */
+        if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
@@ -66077,9 +65614,6 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* bool meta_key = 123; */
         if (message.metaKey !== false)
             writer.tag(123, WireType.Varint).bool(message.metaKey);
-        /* bool accel_key = 124; */
-        if (message.accelKey !== false)
-            writer.tag(124, WireType.Varint).bool(message.accelKey);
         /* symbol.destack.MouseButtonProto button = 130; */
         if (message.button !== 0)
             writer.tag(130, WireType.Varint).int32(message.button);
@@ -66353,11 +65887,10 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 560105, name: "pointer_over_event", kind: "message", oneof: "node", T: () => PointerOverEventProto },
             { no: 560106, name: "pointer_leave_event", kind: "message", oneof: "node", T: () => PointerLeaveEventProto },
             { no: 560107, name: "pointer_long_press_event", kind: "message", oneof: "node", T: () => PointerLongPressEventProto },
-            { no: 560202, name: "left_click_event", kind: "message", oneof: "node", T: () => LeftClickEventProto },
-            { no: 560203, name: "right_click_event", kind: "message", oneof: "node", T: () => RightClickEventProto },
-            { no: 560204, name: "middle_click_event", kind: "message", oneof: "node", T: () => MiddleClickEventProto },
-            { no: 560205, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
-            { no: 560206, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
+            { no: 560202, name: "single_click_event", kind: "message", oneof: "node", T: () => SingleClickEventProto },
+            { no: 560203, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
+            { no: 560204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
+            { no: 560205, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
             { no: 106000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
             { no: 106100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 108100, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
@@ -66934,31 +66467,25 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         pointerLongPressEvent: PointerLongPressEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerLongPressEvent)
                     };
                     break;
-                case /* symbol.destack.LeftClickEventProto left_click_event */ 560202:
+                case /* symbol.destack.SingleClickEventProto single_click_event */ 560202:
                     message.node = {
-                        oneofKind: "leftClickEvent",
-                        leftClickEvent: LeftClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).leftClickEvent)
+                        oneofKind: "singleClickEvent",
+                        singleClickEvent: SingleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).singleClickEvent)
                     };
                     break;
-                case /* symbol.destack.RightClickEventProto right_click_event */ 560203:
-                    message.node = {
-                        oneofKind: "rightClickEvent",
-                        rightClickEvent: RightClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).rightClickEvent)
-                    };
-                    break;
-                case /* symbol.destack.MiddleClickEventProto middle_click_event */ 560204:
-                    message.node = {
-                        oneofKind: "middleClickEvent",
-                        middleClickEvent: MiddleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).middleClickEvent)
-                    };
-                    break;
-                case /* symbol.destack.DoubleClickEventProto double_click_event */ 560205:
+                case /* symbol.destack.DoubleClickEventProto double_click_event */ 560203:
                     message.node = {
                         oneofKind: "doubleClickEvent",
                         doubleClickEvent: DoubleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).doubleClickEvent)
                     };
                     break;
-                case /* symbol.destack.WheelEventProto wheel_event */ 560206:
+                case /* symbol.destack.TripleClickEventProto triple_click_event */ 560204:
+                    message.node = {
+                        oneofKind: "tripleClickEvent",
+                        tripleClickEvent: TripleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tripleClickEvent)
+                    };
+                    break;
+                case /* symbol.destack.WheelEventProto wheel_event */ 560205:
                     message.node = {
                         oneofKind: "wheelEvent",
                         wheelEvent: WheelEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wheelEvent)
@@ -67777,21 +67304,18 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.PointerLongPressEventProto pointer_long_press_event = 560107; */
         if (message.node.oneofKind === "pointerLongPressEvent")
             PointerLongPressEventProto.internalBinaryWrite(message.node.pointerLongPressEvent, writer.tag(560107, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LeftClickEventProto left_click_event = 560202; */
-        if (message.node.oneofKind === "leftClickEvent")
-            LeftClickEventProto.internalBinaryWrite(message.node.leftClickEvent, writer.tag(560202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RightClickEventProto right_click_event = 560203; */
-        if (message.node.oneofKind === "rightClickEvent")
-            RightClickEventProto.internalBinaryWrite(message.node.rightClickEvent, writer.tag(560203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MiddleClickEventProto middle_click_event = 560204; */
-        if (message.node.oneofKind === "middleClickEvent")
-            MiddleClickEventProto.internalBinaryWrite(message.node.middleClickEvent, writer.tag(560204, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DoubleClickEventProto double_click_event = 560205; */
+        /* symbol.destack.SingleClickEventProto single_click_event = 560202; */
+        if (message.node.oneofKind === "singleClickEvent")
+            SingleClickEventProto.internalBinaryWrite(message.node.singleClickEvent, writer.tag(560202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DoubleClickEventProto double_click_event = 560203; */
         if (message.node.oneofKind === "doubleClickEvent")
-            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(560205, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WheelEventProto wheel_event = 560206; */
+            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(560203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TripleClickEventProto triple_click_event = 560204; */
+        if (message.node.oneofKind === "tripleClickEvent")
+            TripleClickEventProto.internalBinaryWrite(message.node.tripleClickEvent, writer.tag(560204, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WheelEventProto wheel_event = 560205; */
         if (message.node.oneofKind === "wheelEvent")
-            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(560206, WireType.LengthDelimited).fork(), options).join();
+            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(560205, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.KeyDownEventProto key_down_event = 560301; */
         if (message.node.oneofKind === "keyDownEvent")
             KeyDownEventProto.internalBinaryWrite(message.node.keyDownEvent, writer.tag(560301, WireType.LengthDelimited).fork(), options).join();
@@ -68751,11 +68275,10 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 560105, name: "pointer_over_event", kind: "message", oneof: "node", T: () => PointerOverEventProto },
             { no: 560106, name: "pointer_leave_event", kind: "message", oneof: "node", T: () => PointerLeaveEventProto },
             { no: 560107, name: "pointer_long_press_event", kind: "message", oneof: "node", T: () => PointerLongPressEventProto },
-            { no: 560202, name: "left_click_event", kind: "message", oneof: "node", T: () => LeftClickEventProto },
-            { no: 560203, name: "right_click_event", kind: "message", oneof: "node", T: () => RightClickEventProto },
-            { no: 560204, name: "middle_click_event", kind: "message", oneof: "node", T: () => MiddleClickEventProto },
-            { no: 560205, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
-            { no: 560206, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
+            { no: 560202, name: "single_click_event", kind: "message", oneof: "node", T: () => SingleClickEventProto },
+            { no: 560203, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
+            { no: 560204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
+            { no: 560205, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
             { no: 107102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
             { no: 107103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
             { no: 107104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
@@ -69094,31 +68617,25 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         pointerLongPressEvent: PointerLongPressEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerLongPressEvent)
                     };
                     break;
-                case /* symbol.destack.LeftClickEventProto left_click_event */ 560202:
+                case /* symbol.destack.SingleClickEventProto single_click_event */ 560202:
                     message.node = {
-                        oneofKind: "leftClickEvent",
-                        leftClickEvent: LeftClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).leftClickEvent)
+                        oneofKind: "singleClickEvent",
+                        singleClickEvent: SingleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).singleClickEvent)
                     };
                     break;
-                case /* symbol.destack.RightClickEventProto right_click_event */ 560203:
-                    message.node = {
-                        oneofKind: "rightClickEvent",
-                        rightClickEvent: RightClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).rightClickEvent)
-                    };
-                    break;
-                case /* symbol.destack.MiddleClickEventProto middle_click_event */ 560204:
-                    message.node = {
-                        oneofKind: "middleClickEvent",
-                        middleClickEvent: MiddleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).middleClickEvent)
-                    };
-                    break;
-                case /* symbol.destack.DoubleClickEventProto double_click_event */ 560205:
+                case /* symbol.destack.DoubleClickEventProto double_click_event */ 560203:
                     message.node = {
                         oneofKind: "doubleClickEvent",
                         doubleClickEvent: DoubleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).doubleClickEvent)
                     };
                     break;
-                case /* symbol.destack.WheelEventProto wheel_event */ 560206:
+                case /* symbol.destack.TripleClickEventProto triple_click_event */ 560204:
+                    message.node = {
+                        oneofKind: "tripleClickEvent",
+                        tripleClickEvent: TripleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tripleClickEvent)
+                    };
+                    break;
+                case /* symbol.destack.WheelEventProto wheel_event */ 560205:
                     message.node = {
                         oneofKind: "wheelEvent",
                         wheelEvent: WheelEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wheelEvent)
@@ -69460,21 +68977,18 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.PointerLongPressEventProto pointer_long_press_event = 560107; */
         if (message.node.oneofKind === "pointerLongPressEvent")
             PointerLongPressEventProto.internalBinaryWrite(message.node.pointerLongPressEvent, writer.tag(560107, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LeftClickEventProto left_click_event = 560202; */
-        if (message.node.oneofKind === "leftClickEvent")
-            LeftClickEventProto.internalBinaryWrite(message.node.leftClickEvent, writer.tag(560202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RightClickEventProto right_click_event = 560203; */
-        if (message.node.oneofKind === "rightClickEvent")
-            RightClickEventProto.internalBinaryWrite(message.node.rightClickEvent, writer.tag(560203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MiddleClickEventProto middle_click_event = 560204; */
-        if (message.node.oneofKind === "middleClickEvent")
-            MiddleClickEventProto.internalBinaryWrite(message.node.middleClickEvent, writer.tag(560204, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DoubleClickEventProto double_click_event = 560205; */
+        /* symbol.destack.SingleClickEventProto single_click_event = 560202; */
+        if (message.node.oneofKind === "singleClickEvent")
+            SingleClickEventProto.internalBinaryWrite(message.node.singleClickEvent, writer.tag(560202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DoubleClickEventProto double_click_event = 560203; */
         if (message.node.oneofKind === "doubleClickEvent")
-            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(560205, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WheelEventProto wheel_event = 560206; */
+            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(560203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TripleClickEventProto triple_click_event = 560204; */
+        if (message.node.oneofKind === "tripleClickEvent")
+            TripleClickEventProto.internalBinaryWrite(message.node.tripleClickEvent, writer.tag(560204, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WheelEventProto wheel_event = 560205; */
         if (message.node.oneofKind === "wheelEvent")
-            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(560206, WireType.LengthDelimited).fork(), options).join();
+            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(560205, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.KeyDownEventProto key_down_event = 560301; */
         if (message.node.oneofKind === "keyDownEvent")
             KeyDownEventProto.internalBinaryWrite(message.node.keyDownEvent, writer.tag(560301, WireType.LengthDelimited).fork(), options).join();
@@ -69535,7 +69049,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | LeftClickEventProto | RightClickEventProto | MiddleClickEventProto | DoubleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
 export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

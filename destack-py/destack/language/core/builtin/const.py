@@ -14,7 +14,7 @@ from destack.utils.uuid import UUID, uuid4
 from .common import Cloud, Region
 
 if TYPE_CHECKING:
-    from destack.language import Session, Snapshot
+    from destack.language import Event, Node, Session, Snapshot
 
 
 class _Unset:
@@ -49,6 +49,9 @@ ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 ACTIVE_SNAPSHOT: contextvars.ContextVar[Optional["Snapshot"]] = contextvars.ContextVar(
     "active_snapshot", default=None
 )
+ACTIVE_EVENT: contextvars.ContextVar[Optional["Event[Node]"]] = contextvars.ContextVar(
+    "active_event", default=None
+)
 
 
 def get_active_session() -> Optional["Session"]:
@@ -73,6 +76,18 @@ def active_snapshot() -> "Snapshot":
     snapshot = ACTIVE_SNAPSHOT.get()
     assert snapshot is not None, "no active snapshot"
     return snapshot
+
+
+def get_active_event() -> Optional["Event"]:
+    """Gets the currently active Event (if any)."""
+    return ACTIVE_EVENT.get()
+
+
+def active_event() -> "Event":
+    """Gets the currently active Event (error if none)."""
+    event = ACTIVE_EVENT.get()
+    assert event is not None, "no active event"
+    return event
 
 
 CLOUD = get_from_env("CLOUD", typ=Cloud, description="Cloud we're running in")

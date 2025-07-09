@@ -89,16 +89,7 @@ class EditOperation(Enum):
 class EditEvent(Event):
     """A recorded Edit of an Entity."""
 
-    # meta
-    # Event.snapshot: 11
-    # Event.created_at: 20
-    # Event.created_by: 21
-    # Event.status
-    cascaded_from: "EditEvent | None" = builtin_property(
-        85, is_repr=True, description="The EditEvent that caused this EditEvent."
-    )
-    if TYPE_CHECKING:
-        cascaded_from_ptr: "NodeReference | None" = None
+    # change_key? (bigger ChangeEvent this is a part of)
 
     # forward
     type: "EditType" = builtin_property(100, is_repr=True, description="The type of Edit.")

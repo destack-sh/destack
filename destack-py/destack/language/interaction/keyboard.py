@@ -13,9 +13,9 @@ from .input import InputEvent
 class KeyboardEvent(InputEvent):
     """A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard."""
 
-    key: str = builtin_property(110)
-    code: str = builtin_property(111)
-    repeat: bool = builtin_property(112)
+    key: str = builtin_property(110, is_repr=True)
+    code: str = builtin_property(111, is_repr=True)
+    repeat: bool = builtin_property(112, is_repr=True)
 
     shift_key: bool = builtin_property(120)
     alt_key: bool = builtin_property(121)

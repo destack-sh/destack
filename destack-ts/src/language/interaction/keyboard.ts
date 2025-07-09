@@ -508,6 +508,9 @@ export class KeyDownEvent extends KeyboardEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`key=${this.key}`);
+    propertyReprs.push(`code=${this.code}`);
+    propertyReprs.push(`repeat=${this.repeat}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1161,6 +1164,9 @@ export class KeyUpEvent extends KeyboardEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`key=${this.key}`);
+    propertyReprs.push(`code=${this.code}`);
+    propertyReprs.push(`repeat=${this.repeat}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1814,6 +1820,9 @@ export class KeyPressEvent extends KeyboardEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`key=${this.key}`);
+    propertyReprs.push(`code=${this.code}`);
+    propertyReprs.push(`repeat=${this.repeat}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }

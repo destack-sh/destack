@@ -941,11 +941,10 @@ enum NodeTypeProto {
   NODE_TYPE_POINTER_LONG_PRESS_EVENT = 560107;
   NODE_TYPE_MOUSE_EVENT = 560200;
   NODE_TYPE_CLICK_EVENT = 560201;
-  NODE_TYPE_LEFT_CLICK_EVENT = 560202;
-  NODE_TYPE_RIGHT_CLICK_EVENT = 560203;
-  NODE_TYPE_MIDDLE_CLICK_EVENT = 560204;
-  NODE_TYPE_DOUBLE_CLICK_EVENT = 560205;
-  NODE_TYPE_WHEEL_EVENT = 560206;
+  NODE_TYPE_SINGLE_CLICK_EVENT = 560202;
+  NODE_TYPE_DOUBLE_CLICK_EVENT = 560203;
+  NODE_TYPE_TRIPLE_CLICK_EVENT = 560204;
+  NODE_TYPE_WHEEL_EVENT = 560205;
   NODE_TYPE_KEYBOARD_EVENT = 560300;
   NODE_TYPE_KEY_DOWN_EVENT = 560301;
   NODE_TYPE_KEY_UP_EVENT = 560302;
@@ -1104,7 +1103,6 @@ enum QueryTypeProto {
 enum QueryUpdateTypeProto {
   QUERY_UPDATE_TYPE_UNSPECIFIED = 0;
   QUERY_UPDATE_TYPE_FULL_RESULT = 1;
-  QUERY_UPDATE_TYPE_PARTIAL_RESULT = 2;
 }
 
 // Regions in an Area on a Continent.
@@ -1921,12 +1919,11 @@ message ClickEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
   MouseButtonProto button = 130;
 }
 
@@ -2535,12 +2532,11 @@ message DoubleClickEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
   MouseButtonProto button = 130;
 }
 
@@ -2668,7 +2664,6 @@ message EditEventProto {
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
   EventStatusProto status = 30;
-  optional NodeReferenceProto cascaded_from_ptr = 85;
   EditTypeProto type = 100;
   NodeReferenceProto node_ptr = 101;
   optional EditOperationProto operation = 102;
@@ -3911,29 +3906,6 @@ message LayerProto {
   optional CornersProto radius = 148;
 }
 
-// A LeftClickEvent is a ClickEvent when a pointer is clicked with the left button.
-message LeftClickEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
-  double pressure = 111;
-  bool shift_key = 120;
-  bool alt_key = 121;
-  bool ctrl_key = 122;
-  bool meta_key = 123;
-  bool accel_key = 124;
-  MouseButtonProto button = 130;
-}
-
 message LengthProto {
   StructTypeProto metatype = 1;
   LengthUnitProto unit = 101;
@@ -4225,29 +4197,6 @@ message MetricProto {
   optional IconProto icon = 102;
 }
 
-// A MiddleClickEvent is a ClickEvent when a pointer is clicked with the middle button.
-message MiddleClickEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
-  double pressure = 111;
-  bool shift_key = 120;
-  bool alt_key = 121;
-  bool ctrl_key = 122;
-  bool meta_key = 123;
-  bool accel_key = 124;
-  MouseButtonProto button = 130;
-}
-
 // A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
 message MouseEventProto {
   NodeTypeProto metatype = 1;
@@ -4262,12 +4211,11 @@ message MouseEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
   MouseButtonProto button = 130;
 }
 
@@ -4616,12 +4564,11 @@ message PointerDownEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerEnterEvent is a PointerEvent when a pointer enters an element.
@@ -4638,12 +4585,11 @@ message PointerEnterEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer.
@@ -4660,12 +4606,11 @@ message PointerEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerLeaveEvent is a PointerEvent when a pointer leaves an element.
@@ -4682,12 +4627,11 @@ message PointerLeaveEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerLongPressEvent is a PointerEvent when a pointer is pressed down and held for a long time.
@@ -4704,12 +4648,11 @@ message PointerLongPressEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerMoveEvent is a PointerEvent when a pointer is moved.
@@ -4726,12 +4669,11 @@ message PointerMoveEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerOverEvent is a PointerEvent when a pointer is over an element.
@@ -4748,12 +4690,11 @@ message PointerOverEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 // A PointerUpEvent is a PointerEvent when a pointer is released.
@@ -4770,12 +4711,11 @@ message PointerUpEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
 }
 
 message PositionProto {
@@ -4890,6 +4830,7 @@ message QueryResultGroupProto {
 
 message QueryUpdateProto {
   StructTypeProto metatype = 1;
+  string id = 2;
   QueryUpdateTypeProto type = 100;
   optional QueryResultProto result = 101;
 }
@@ -5007,29 +4948,6 @@ message ResourceProto {
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto script_ptr = 70;
   ResourceStatusProto status = 90;
-}
-
-// A RightClickEvent is a ClickEvent when a pointer is clicked with the right button.
-message RightClickEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
-  double pressure = 111;
-  bool shift_key = 120;
-  bool alt_key = 121;
-  bool ctrl_key = 122;
-  bool meta_key = 123;
-  bool accel_key = 124;
-  MouseButtonProto button = 130;
 }
 
 // A Role for Subjects to take.
@@ -5665,6 +5583,28 @@ message SignalProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto script_ptr = 70;
   optional NodeReferenceProto node_ptr = 101;
+}
+
+// A SingleClickEvent is a ClickEvent when a pointer is clicked once.
+message SingleClickEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  optional NodeReferenceProto node_ptr = 101;
+  Vector2fProto position = 110;
+  optional double pressure = 111;
+  bool shift_key = 120;
+  bool alt_key = 121;
+  bool ctrl_key = 122;
+  bool meta_key = 123;
+  MouseButtonProto button = 130;
 }
 
 // A slider input View.
@@ -6368,6 +6308,28 @@ message TriggerEventProto {
   NodeReferenceProto node_ptr = 101;
 }
 
+// A TripleClickEvent is a ClickEvent when a pointer is clicked three times in a short time.
+message TripleClickEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  optional NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  optional NodeReferenceProto node_ptr = 101;
+  Vector2fProto position = 110;
+  optional double pressure = 111;
+  bool shift_key = 120;
+  bool alt_key = 121;
+  bool ctrl_key = 122;
+  bool meta_key = 123;
+  MouseButtonProto button = 130;
+}
+
 message TypeProto {
   StructTypeProto metatype = 1;
   TypeCardinalityProto cardinality = 110;
@@ -6599,12 +6561,11 @@ message WheelEventProto {
   EventStatusProto status = 30;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
-  double pressure = 111;
+  optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
-  bool accel_key = 124;
   MouseButtonProto button = 130;
   Vector2fProto delta = 140;
 }
@@ -6715,11 +6676,10 @@ message SomeNodeProto {
     PointerOverEventProto pointer_over_event = 560105;
     PointerLeaveEventProto pointer_leave_event = 560106;
     PointerLongPressEventProto pointer_long_press_event = 560107;
-    LeftClickEventProto left_click_event = 560202;
-    RightClickEventProto right_click_event = 560203;
-    MiddleClickEventProto middle_click_event = 560204;
-    DoubleClickEventProto double_click_event = 560205;
-    WheelEventProto wheel_event = 560206;
+    SingleClickEventProto single_click_event = 560202;
+    DoubleClickEventProto double_click_event = 560203;
+    TripleClickEventProto triple_click_event = 560204;
+    WheelEventProto wheel_event = 560205;
     MethodProto method = 106000;
     ActionProto action = 106100;
     EventCursorProto event_cursor = 108100;
@@ -6928,11 +6888,10 @@ message SomeEventProto {
     PointerOverEventProto pointer_over_event = 560105;
     PointerLeaveEventProto pointer_leave_event = 560106;
     PointerLongPressEventProto pointer_long_press_event = 560107;
-    LeftClickEventProto left_click_event = 560202;
-    RightClickEventProto right_click_event = 560203;
-    MiddleClickEventProto middle_click_event = 560204;
-    DoubleClickEventProto double_click_event = 560205;
-    WheelEventProto wheel_event = 560206;
+    SingleClickEventProto single_click_event = 560202;
+    DoubleClickEventProto double_click_event = 560203;
+    TripleClickEventProto triple_click_event = 560204;
+    WheelEventProto wheel_event = 560205;
     TimerStartedEventProto timer_started_event = 107102;
     TimerCompletedEventProto timer_completed_event = 107103;
     TimerCancelledEventProto timer_cancelled_event = 107104;

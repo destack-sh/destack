@@ -24,10 +24,9 @@ import {
   Value,
   toValue,
 } from "@destack/language";
-
+import { MemoryContext, MemoryRow } from "@destack/store/memory/core";
+import { unpackNodeRow } from "@destack/store/memory/wiring";
 import { assertNever } from "@destack/utils";
-import { MemoryContext, MemoryRow } from "./core";
-import { unpackNodeRow } from "./wiring";
 
 const MAX_RECURSION_DEPTH = 100;
 

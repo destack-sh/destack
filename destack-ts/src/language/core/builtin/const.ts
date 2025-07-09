@@ -19,6 +19,7 @@ export const EMPTY_DICT: Record<string, any> = {};
 export const IS_IN_USER_CODE: ContextVar<boolean> = new ContextVar(false);
 export const ACTIVE_SESSION: ContextVar<Session | null> = new ContextVar(null);
 export const ACTIVE_SNAPSHOT: ContextVar<Snapshot | null> = new ContextVar(null);
+export const ACTIVE_EVENT: ContextVar<Event | null> = new ContextVar(null);
 
 /** Gets the currently active Session (if any). */
 export function getActiveSession(): Session | null {
@@ -46,4 +47,18 @@ export function activeSnapshot(): Snapshot {
     throw new Error("no active Snapshot");
   }
   return snapshot;
+}
+
+/** Gets the currently active Event (if any). */
+export function getActiveEvent(): Event | null {
+  return ACTIVE_EVENT.get();
+}
+
+/** Gets the currently active Event (error if none). */
+export function activeEvent(): Event {
+  const event = ACTIVE_EVENT.get();
+  if (event == null) {
+    throw new Error("no active Event");
+  }
+  return event;
 }

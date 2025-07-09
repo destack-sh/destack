@@ -392,6 +392,7 @@ export class DragStartEvent extends DragEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragStartEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -939,6 +940,7 @@ export class DragEndEvent extends DragEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragEndEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1486,6 +1488,7 @@ export class DragOverEvent extends DragEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -2033,6 +2036,7 @@ export class DragEnterEvent extends DragEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -2580,6 +2584,7 @@ export class DragLeaveEvent extends DragEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -3127,6 +3132,7 @@ export class DropEvent extends DragEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DropEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }

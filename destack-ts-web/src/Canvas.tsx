@@ -7,6 +7,7 @@ import {
   Line,
   LineShape,
   Node,
+  PointerMoveEvent,
   Query,
   QueryConnection,
   Stroke,
@@ -25,14 +26,16 @@ const currentLine = signal<Line | null>(null);
 
 function useQuery<T extends Node = Node>(
   query: Signal<Query<T>>,
-): { connection: Signal<QueryConnection<T> | null>; nodes: Signal<T[]> } {
+): { connection: Signal<QueryConnection<T> | null>; nodes: Signal<readonly T[]> } {
   const session = activeSession();
   const connection: Signal<QueryConnection<T> | null> = useSignal(null);
   const nodes = useComputed(() => connection.value?.toList() ?? []);
 
   useSignalEffect(() => {
-    console.log("query.execute", query.value);
-    query.value.execute().then((c) => (connection.value = c));
+    query.value.execute().then((c) => {
+      connection.value = c;
+      console.log("query.execute", session.store, query.value.name, c.nodes.length);
+    });
   });
 
   return { connection, nodes };
@@ -40,10 +43,10 @@ function useQuery<T extends Node = Node>(
 
 export const Canvas: React.FC = () => {
   const session = activeSession();
-  const query = useSignal(LineShape.search({}));
-  const { nodes: lines } = useQuery(query);
-  // const { nodes: events } = useQuery(EditEvent.search());
-  const events = useSignal<Event[]>([]);
+  const lineQuery = useSignal(LineShape.search({}));
+  const eventQuery = useSignal(Event.search({}));
+  const { nodes: lines } = useQuery(lineQuery);
+  const { nodes: events } = useQuery(eventQuery);
 
   const isDrawing = useSignal(false);
   const lastMousePosition = useSignal<Vector2f | null>(null);
@@ -88,6 +91,17 @@ export const Canvas: React.FC = () => {
         });
       }
     }
+    const mouseEvent = new PointerMoveEvent({
+      position: currentPoint,
+      shiftKey: event.shiftKey,
+      ctrlKey: event.ctrlKey,
+      altKey: event.altKey,
+      metaKey: event.metaKey,
+    });
+    session.append(mouseEvent);
+    session.commit().then(() => {
+      eventQuery.value = Event.search({});
+    });
   };
 
   // finish drawing on mouse up
@@ -97,9 +111,9 @@ export const Canvas: React.FC = () => {
       const lineShape = new LineShape({ name: "LineShape", ...currentLine.value });
       session.create(lineShape);
       session.flush();
-      events.value = [...events.value, ...session.pendingEvents];
       session.commit().then(() => {
-        query.value = LineShape.search({}); // nocheckin (reactivity hack)
+        lineQuery.value = LineShape.search({});
+        eventQuery.value = Event.search({});
       });
       currentLine.value = null;
       lastMousePosition.value = null;

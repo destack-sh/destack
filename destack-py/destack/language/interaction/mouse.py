@@ -26,7 +26,7 @@ class MouseButton(Enum):
 class MouseEvent(PointerEvent):
     """A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse."""
 
-    button: MouseButton = builtin_property(130)
+    button: MouseButton = builtin_property(130, is_repr=True)
 
 
 @builtin_node(NodeType.CLICK_EVENT, frozen=True, is_abstract=True)
@@ -36,23 +36,9 @@ class ClickEvent(MouseEvent):
     pass
 
 
-@builtin_node(NodeType.LEFT_CLICK_EVENT, frozen=True)
-class LeftClickEvent(ClickEvent):
-    """A LeftClickEvent is a ClickEvent when a pointer is clicked with the left button."""
-
-    pass
-
-
-@builtin_node(NodeType.RIGHT_CLICK_EVENT, frozen=True)
-class RightClickEvent(ClickEvent):
-    """A RightClickEvent is a ClickEvent when a pointer is clicked with the right button."""
-
-    pass
-
-
-@builtin_node(NodeType.MIDDLE_CLICK_EVENT, frozen=True)
-class MiddleClickEvent(ClickEvent):
-    """A MiddleClickEvent is a ClickEvent when a pointer is clicked with the middle button."""
+@builtin_node(NodeType.SINGLE_CLICK_EVENT, frozen=True)
+class SingleClickEvent(ClickEvent):
+    """A SingleClickEvent is a ClickEvent when a pointer is clicked once."""
 
     pass
 
@@ -60,6 +46,13 @@ class MiddleClickEvent(ClickEvent):
 @builtin_node(NodeType.DOUBLE_CLICK_EVENT, frozen=True)
 class DoubleClickEvent(ClickEvent):
     """A DoubleClickEvent is a ClickEvent when a pointer is clicked twice in a short time."""
+
+    pass
+
+
+@builtin_node(NodeType.TRIPLE_CLICK_EVENT, frozen=True)
+class TripleClickEvent(ClickEvent):
+    """A TripleClickEvent is a ClickEvent when a pointer is clicked three times in a short time."""
 
     pass
 

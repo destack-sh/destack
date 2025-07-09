@@ -7,6 +7,7 @@ import {
   NodeType,
   Query,
   QueryResult,
+  StoreDomain,
   StoreImplementation,
   StoreKey,
   toValue,
@@ -15,6 +16,7 @@ import { MemoryContext, MemoryDatabase, MemoryTable } from "@destack/store/memor
 import { executeEdits } from "@destack/store/memory/edit";
 import { executeQuery } from "@destack/store/memory/query";
 import { packNodeRow } from "@destack/store/memory/wiring";
+import { assertNever } from "@destack/utils";
 
 /** An in-memory Store. */
 export class MemoryEntityStore implements EntityStore {
@@ -149,7 +151,13 @@ export class MemoryStore implements EventStore, EntityStore {
   }
 
   query(query: Query): Promise<QueryResult> {
-    return this.entityStore.query(query);
+    if (query.domain === StoreDomain.ENTITY) {
+      return this.entityStore.query(query);
+    } else if (query.domain === StoreDomain.EVENT) {
+      return this.eventStore.query(query);
+    } else {
+      assertNever(query.domain);
+    }
   }
 
   async commit(events: EditEvent[]): Promise<EditEvent[]> {

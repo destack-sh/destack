@@ -500,12 +500,16 @@ class Histogram(StructFrozen):
 class QueryResult(StructMutable):
     """
     The result of a Query.
-    For grouped queries, group results are in Query.groups.
+    For grouped queries, the grouped results are in Query.groups.
     The subresults correspond to Query.subqueries.
     If subresults for a Query clause may be missing if the subquery was deemed empty.
     """
 
-    id: UUID = builtin_property(2, is_repr=True)
+    id: UUID = builtin_property(
+        2,
+        is_repr=True,
+        description="The id of the corresponding Query.",
+    )
     type: QueryType = builtin_property(100, is_repr=True)
     groups: list["QueryResultGroup"] = builtin_property(101, is_repr=True)
     subresults: list["QueryResult"] = builtin_property(102, is_repr=True)
@@ -531,14 +535,18 @@ class QueryResultGroup(StructMutable):
 @builtin_enum(EnumType.QUERY_UPDATE_TYPE)
 class QueryUpdateType(Enum):
     FULL_RESULT = 1, "Full Result", "Full result tree"
-    PARTIAL_RESULT = 2, "Partial Result", "Just this result"
-    ...
+    # PARTIAL_RESULT, ...?
 
 
 @builtin_struct(StructType.QUERY_UPDATE, frozen=True)
 class QueryUpdate(StructFrozen):
     """An update to a QueryResult."""
 
+    id: UUID = builtin_property(
+        2,
+        is_repr=True,
+        description="The id of the corresponding Query.",
+    )
     type: QueryUpdateType = builtin_property(100, is_repr=True)
     result: Optional["QueryResult"] = builtin_property(101, is_repr=True)
 
