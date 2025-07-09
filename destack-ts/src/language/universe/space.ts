@@ -68,10 +68,10 @@ export class Space
   /**
    * Entity.parent
    */
-  get parent(): Node | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -350,7 +350,7 @@ export class Space
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;

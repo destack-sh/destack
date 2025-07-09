@@ -57,10 +57,10 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   /**
    * Entity.parent
    */
-  get parent(): Node | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -221,7 +221,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Organization | NodeReference | null;

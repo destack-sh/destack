@@ -48,10 +48,10 @@ export class Friendship extends Entity implements IsGlobal {
   /**
    * Entity.parent
    */
-  get parent(): Node | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -186,7 +186,7 @@ export class Friendship extends Entity implements IsGlobal {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Friendship | NodeReference | null;
@@ -2846,10 +2846,10 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   /**
    * Entity.parent
    */
-  get parent(): Node | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2967,7 +2967,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
 
   constructor(options: {
     id?: string;
-    parent?: Node | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: FriendshipInvite | NodeReference | null;
