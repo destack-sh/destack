@@ -549,10 +549,3 @@ class QueryUpdate(StructFrozen):
     )
     type: QueryUpdateType = builtin_property(100, is_repr=True)
     result: Optional["QueryResult"] = builtin_property(101, is_repr=True)
-
-
-@builtin_struct(StructType.SELECTION, frozen=True)
-class Selection(StructFrozen):
-    """A selection of fields from a Node."""
-
-    # nodes: list[Node] = property_(40)

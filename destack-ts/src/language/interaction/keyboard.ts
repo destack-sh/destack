@@ -82,37 +82,42 @@ export abstract class KeyboardEvent extends InputEvent {
   declare readonly nodePtr: NodeReference | null;
 
   /**
-   * KeyboardEvent.key
+   * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
   declare readonly key: string;
 
   /**
-   * KeyboardEvent.code
+   * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
   declare readonly code: string;
 
   /**
-   * KeyboardEvent.repeat
+   * Whether the key is being held down.
    */
-  declare readonly repeat: boolean;
+  declare readonly isRepeat: boolean;
 
   /**
-   * KeyboardEvent.shiftKey
+   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   */
+  declare readonly isRedacted: boolean;
+
+  /**
+   * Whether the Shift key was held.
    */
   declare readonly shiftKey: boolean;
 
   /**
-   * KeyboardEvent.altKey
+   * Whether the Alt key was held.
    */
   declare readonly altKey: boolean;
 
   /**
-   * KeyboardEvent.ctrlKey
+   * Whether the Ctrl key was held.
    */
   declare readonly ctrlKey: boolean;
 
   /**
-   * KeyboardEvent.metaKey
+   * Whether the Meta key was held.
    */
   declare readonly metaKey: boolean;
 
@@ -218,37 +223,42 @@ export class KeyDownEvent extends KeyboardEvent {
   readonly nodePtr: NodeReference | null;
 
   /**
-   * KeyboardEvent.key
+   * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
   readonly key: string;
 
   /**
-   * KeyboardEvent.code
+   * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
   readonly code: string;
 
   /**
-   * KeyboardEvent.repeat
+   * Whether the key is being held down.
    */
-  readonly repeat: boolean;
+  readonly isRepeat: boolean;
 
   /**
-   * KeyboardEvent.shiftKey
+   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   */
+  readonly isRedacted: boolean;
+
+  /**
+   * Whether the Shift key was held.
    */
   readonly shiftKey: boolean;
 
   /**
-   * KeyboardEvent.altKey
+   * Whether the Alt key was held.
    */
   readonly altKey: boolean;
 
   /**
-   * KeyboardEvent.ctrlKey
+   * Whether the Ctrl key was held.
    */
   readonly ctrlKey: boolean;
 
   /**
-   * KeyboardEvent.metaKey
+   * Whether the Meta key was held.
    */
   readonly metaKey: boolean;
 
@@ -265,7 +275,8 @@ export class KeyDownEvent extends KeyboardEvent {
     node?: View | NodeReference | null;
     key: string;
     code: string;
-    repeat: boolean;
+    isRepeat: boolean;
+    isRedacted: boolean;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
@@ -342,11 +353,16 @@ export class KeyDownEvent extends KeyboardEvent {
       throw new Error(`KeyDownEvent.code is required`);
     }
     this.code = _code;
-    let _repeat = options.repeat;
-    if (_repeat === null) {
-      throw new Error(`KeyDownEvent.repeat is required`);
+    let _isRepeat = options.isRepeat;
+    if (_isRepeat === null) {
+      throw new Error(`KeyDownEvent.isRepeat is required`);
     }
-    this.repeat = _repeat;
+    this.isRepeat = _isRepeat;
+    let _isRedacted = options.isRedacted;
+    if (_isRedacted === null) {
+      throw new Error(`KeyDownEvent.isRedacted is required`);
+    }
+    this.isRedacted = _isRedacted;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
       throw new Error(`KeyDownEvent.shiftKey is required`);
@@ -397,7 +413,10 @@ export class KeyDownEvent extends KeyboardEvent {
     if (!(this.code === other.code)) {
       return false;
     }
-    if (!(this.repeat === other.repeat)) {
+    if (!(this.isRepeat === other.isRepeat)) {
+      return false;
+    }
+    if (!(this.isRedacted === other.isRedacted)) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -438,7 +457,8 @@ export class KeyDownEvent extends KeyboardEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.key)) & 0xffffffff;
     h = (h * 31 + hashString(this.code)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.repeat)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRepeat)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRedacted)) & 0xffffffff;
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
@@ -510,7 +530,7 @@ export class KeyDownEvent extends KeyboardEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`key=${this.key}`);
     propertyReprs.push(`code=${this.code}`);
-    propertyReprs.push(`repeat=${this.repeat}`);
+    propertyReprs.push(`isRepeat=${this.isRepeat}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -548,7 +568,8 @@ export class KeyDownEvent extends KeyboardEvent {
     }
     objectValue["110"] = object.key;
     objectValue["111"] = object.code;
-    objectValue["112"] = object.repeat;
+    objectValue["112"] = object.isRepeat;
+    objectValue["113"] = object.isRedacted;
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
@@ -599,7 +620,8 @@ export class KeyDownEvent extends KeyboardEvent {
     return new KeyDownEvent({
       key: objectValue["110"],
       code: objectValue["111"],
-      repeat: objectValue["112"],
+      isRepeat: objectValue["112"],
+      isRedacted: objectValue["113"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
@@ -662,7 +684,8 @@ export class KeyDownEvent extends KeyboardEvent {
     }
     objectProto.key = object.key;
     objectProto.code = object.code;
-    objectProto.repeat = object.repeat;
+    objectProto.isRepeat = object.isRepeat;
+    objectProto.isRedacted = object.isRedacted;
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
@@ -681,7 +704,8 @@ export class KeyDownEvent extends KeyboardEvent {
     return new KeyDownEvent({
       key: objectProto.key,
       code: objectProto.code,
-      repeat: objectProto.repeat,
+      isRepeat: objectProto.isRepeat,
+      isRedacted: objectProto.isRedacted,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
@@ -874,37 +898,42 @@ export class KeyUpEvent extends KeyboardEvent {
   readonly nodePtr: NodeReference | null;
 
   /**
-   * KeyboardEvent.key
+   * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
   readonly key: string;
 
   /**
-   * KeyboardEvent.code
+   * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
   readonly code: string;
 
   /**
-   * KeyboardEvent.repeat
+   * Whether the key is being held down.
    */
-  readonly repeat: boolean;
+  readonly isRepeat: boolean;
 
   /**
-   * KeyboardEvent.shiftKey
+   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   */
+  readonly isRedacted: boolean;
+
+  /**
+   * Whether the Shift key was held.
    */
   readonly shiftKey: boolean;
 
   /**
-   * KeyboardEvent.altKey
+   * Whether the Alt key was held.
    */
   readonly altKey: boolean;
 
   /**
-   * KeyboardEvent.ctrlKey
+   * Whether the Ctrl key was held.
    */
   readonly ctrlKey: boolean;
 
   /**
-   * KeyboardEvent.metaKey
+   * Whether the Meta key was held.
    */
   readonly metaKey: boolean;
 
@@ -921,7 +950,8 @@ export class KeyUpEvent extends KeyboardEvent {
     node?: View | NodeReference | null;
     key: string;
     code: string;
-    repeat: boolean;
+    isRepeat: boolean;
+    isRedacted: boolean;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
@@ -998,11 +1028,16 @@ export class KeyUpEvent extends KeyboardEvent {
       throw new Error(`KeyUpEvent.code is required`);
     }
     this.code = _code;
-    let _repeat = options.repeat;
-    if (_repeat === null) {
-      throw new Error(`KeyUpEvent.repeat is required`);
+    let _isRepeat = options.isRepeat;
+    if (_isRepeat === null) {
+      throw new Error(`KeyUpEvent.isRepeat is required`);
     }
-    this.repeat = _repeat;
+    this.isRepeat = _isRepeat;
+    let _isRedacted = options.isRedacted;
+    if (_isRedacted === null) {
+      throw new Error(`KeyUpEvent.isRedacted is required`);
+    }
+    this.isRedacted = _isRedacted;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
       throw new Error(`KeyUpEvent.shiftKey is required`);
@@ -1053,7 +1088,10 @@ export class KeyUpEvent extends KeyboardEvent {
     if (!(this.code === other.code)) {
       return false;
     }
-    if (!(this.repeat === other.repeat)) {
+    if (!(this.isRepeat === other.isRepeat)) {
+      return false;
+    }
+    if (!(this.isRedacted === other.isRedacted)) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -1094,7 +1132,8 @@ export class KeyUpEvent extends KeyboardEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.key)) & 0xffffffff;
     h = (h * 31 + hashString(this.code)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.repeat)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRepeat)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRedacted)) & 0xffffffff;
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
@@ -1166,7 +1205,7 @@ export class KeyUpEvent extends KeyboardEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`key=${this.key}`);
     propertyReprs.push(`code=${this.code}`);
-    propertyReprs.push(`repeat=${this.repeat}`);
+    propertyReprs.push(`isRepeat=${this.isRepeat}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1204,7 +1243,8 @@ export class KeyUpEvent extends KeyboardEvent {
     }
     objectValue["110"] = object.key;
     objectValue["111"] = object.code;
-    objectValue["112"] = object.repeat;
+    objectValue["112"] = object.isRepeat;
+    objectValue["113"] = object.isRedacted;
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
@@ -1255,7 +1295,8 @@ export class KeyUpEvent extends KeyboardEvent {
     return new KeyUpEvent({
       key: objectValue["110"],
       code: objectValue["111"],
-      repeat: objectValue["112"],
+      isRepeat: objectValue["112"],
+      isRedacted: objectValue["113"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
@@ -1318,7 +1359,8 @@ export class KeyUpEvent extends KeyboardEvent {
     }
     objectProto.key = object.key;
     objectProto.code = object.code;
-    objectProto.repeat = object.repeat;
+    objectProto.isRepeat = object.isRepeat;
+    objectProto.isRedacted = object.isRedacted;
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
@@ -1337,7 +1379,8 @@ export class KeyUpEvent extends KeyboardEvent {
     return new KeyUpEvent({
       key: objectProto.key,
       code: objectProto.code,
-      repeat: objectProto.repeat,
+      isRepeat: objectProto.isRepeat,
+      isRedacted: objectProto.isRedacted,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
@@ -1530,37 +1573,42 @@ export class KeyPressEvent extends KeyboardEvent {
   readonly nodePtr: NodeReference | null;
 
   /**
-   * KeyboardEvent.key
+   * The character that was pressed (e.g. 'a', 'B', '1', 'Enter').
    */
   readonly key: string;
 
   /**
-   * KeyboardEvent.code
+   * The unaltered key code that was pressed (e.g. 'KeyA', 'KeyB', 'Digit1', 'Enter').
    */
   readonly code: string;
 
   /**
-   * KeyboardEvent.repeat
+   * Whether the key is being held down.
    */
-  readonly repeat: boolean;
+  readonly isRepeat: boolean;
 
   /**
-   * KeyboardEvent.shiftKey
+   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   */
+  readonly isRedacted: boolean;
+
+  /**
+   * Whether the Shift key was held.
    */
   readonly shiftKey: boolean;
 
   /**
-   * KeyboardEvent.altKey
+   * Whether the Alt key was held.
    */
   readonly altKey: boolean;
 
   /**
-   * KeyboardEvent.ctrlKey
+   * Whether the Ctrl key was held.
    */
   readonly ctrlKey: boolean;
 
   /**
-   * KeyboardEvent.metaKey
+   * Whether the Meta key was held.
    */
   readonly metaKey: boolean;
 
@@ -1577,7 +1625,8 @@ export class KeyPressEvent extends KeyboardEvent {
     node?: View | NodeReference | null;
     key: string;
     code: string;
-    repeat: boolean;
+    isRepeat: boolean;
+    isRedacted: boolean;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
@@ -1654,11 +1703,16 @@ export class KeyPressEvent extends KeyboardEvent {
       throw new Error(`KeyPressEvent.code is required`);
     }
     this.code = _code;
-    let _repeat = options.repeat;
-    if (_repeat === null) {
-      throw new Error(`KeyPressEvent.repeat is required`);
+    let _isRepeat = options.isRepeat;
+    if (_isRepeat === null) {
+      throw new Error(`KeyPressEvent.isRepeat is required`);
     }
-    this.repeat = _repeat;
+    this.isRepeat = _isRepeat;
+    let _isRedacted = options.isRedacted;
+    if (_isRedacted === null) {
+      throw new Error(`KeyPressEvent.isRedacted is required`);
+    }
+    this.isRedacted = _isRedacted;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
       throw new Error(`KeyPressEvent.shiftKey is required`);
@@ -1709,7 +1763,10 @@ export class KeyPressEvent extends KeyboardEvent {
     if (!(this.code === other.code)) {
       return false;
     }
-    if (!(this.repeat === other.repeat)) {
+    if (!(this.isRepeat === other.isRepeat)) {
+      return false;
+    }
+    if (!(this.isRedacted === other.isRedacted)) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -1750,7 +1807,8 @@ export class KeyPressEvent extends KeyboardEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.key)) & 0xffffffff;
     h = (h * 31 + hashString(this.code)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.repeat)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRepeat)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRedacted)) & 0xffffffff;
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
@@ -1822,7 +1880,7 @@ export class KeyPressEvent extends KeyboardEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`key=${this.key}`);
     propertyReprs.push(`code=${this.code}`);
-    propertyReprs.push(`repeat=${this.repeat}`);
+    propertyReprs.push(`isRepeat=${this.isRepeat}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1860,7 +1918,8 @@ export class KeyPressEvent extends KeyboardEvent {
     }
     objectValue["110"] = object.key;
     objectValue["111"] = object.code;
-    objectValue["112"] = object.repeat;
+    objectValue["112"] = object.isRepeat;
+    objectValue["113"] = object.isRedacted;
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
@@ -1911,7 +1970,8 @@ export class KeyPressEvent extends KeyboardEvent {
     return new KeyPressEvent({
       key: objectValue["110"],
       code: objectValue["111"],
-      repeat: objectValue["112"],
+      isRepeat: objectValue["112"],
+      isRedacted: objectValue["113"],
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
@@ -1974,7 +2034,8 @@ export class KeyPressEvent extends KeyboardEvent {
     }
     objectProto.key = object.key;
     objectProto.code = object.code;
-    objectProto.repeat = object.repeat;
+    objectProto.isRepeat = object.isRepeat;
+    objectProto.isRedacted = object.isRedacted;
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
@@ -1993,7 +2054,8 @@ export class KeyPressEvent extends KeyboardEvent {
     return new KeyPressEvent({
       key: objectProto.key,
       code: objectProto.code,
-      repeat: objectProto.repeat,
+      isRepeat: objectProto.isRepeat,
+      isRedacted: objectProto.isRedacted,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,

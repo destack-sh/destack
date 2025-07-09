@@ -307,7 +307,10 @@ export class NodeDefinitionReference extends StructFrozen {
     if (this.type == NodeDefinitionType.BUILTIN) {
       const nodeClass = NODE_CLASS_BY_TYPE[this.nodeType];
       const nodeDefinition = nodeClass.__definition__;
-      return nodeDefinition.traits.includes(TraitType.EXTENSIBLE);
+      return (
+        nodeDefinition.traits.includes(TraitType.EXTENSIBLE) ||
+        nodeDefinition.inheritedBy.length > 0
+      );
     } else if (this.type == NodeDefinitionType.CUSTOM) {
       throw new Error(`unexpected node definition reference: ${this.repr()}`);
     } else {

@@ -2,9 +2,6 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "type": "bun"
-    },
-    {
       "type": "bun",
       "internalConsoleOptions": "neverOpen",
       "request": "attach",

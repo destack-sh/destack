@@ -1383,7 +1383,6 @@ enum StructTypeProto {
   STRUCT_TYPE_QUERY_RESULT_GROUP = 552;
   STRUCT_TYPE_QUERY_UPDATE = 553;
   STRUCT_TYPE_HISTOGRAM = 554;
-  STRUCT_TYPE_SELECTION = 555;
   STRUCT_TYPE_VALUE = 600;
   STRUCT_TYPE_TYPE = 601;
   STRUCT_TYPE_NUMBER_CONSTRAINT = 650;
@@ -3730,7 +3729,8 @@ message KeyDownEventProto {
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
-  bool repeat = 112;
+  bool is_repeat = 112;
+  bool is_redacted = 113;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
@@ -3752,7 +3752,8 @@ message KeyPressEventProto {
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
-  bool repeat = 112;
+  bool is_repeat = 112;
+  bool is_redacted = 113;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
@@ -3774,7 +3775,8 @@ message KeyUpEventProto {
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
-  bool repeat = 112;
+  bool is_repeat = 112;
+  bool is_redacted = 113;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
@@ -3796,7 +3798,8 @@ message KeyboardEventProto {
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
-  bool repeat = 112;
+  bool is_repeat = 112;
+  bool is_redacted = 113;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
@@ -5441,10 +5444,6 @@ message ScriptProto {
 message SelectProto {
   StructTypeProto metatype = 1;
   repeated PropertyReferenceProto attributes = 101;
-}
-
-message SelectionProto {
-  StructTypeProto metatype = 1;
 }
 
 // A Service provides related functionality via Actions (and Methods).

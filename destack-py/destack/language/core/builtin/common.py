@@ -222,7 +222,6 @@ class StructType(Enum):
     QUERY_RESULT_GROUP = 552
     QUERY_UPDATE = 553
     HISTOGRAM = 554
-    SELECTION = 555
     # values
     VALUE = 600
     TYPE = 601
