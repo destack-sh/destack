@@ -11,6 +11,7 @@ from destack.language import (
     UNSET,
     BuiltinObject,
     ConstantDefinition,
+    EdgeType,
     Entity,
     EnumDefinition,
     Event,
@@ -119,7 +120,9 @@ def _is_property_tracked(prop: PropertyDeclaration) -> bool:
     )
 
 
-def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -> str:
+def _generate_property_scalar_type(
+    prop: PropertyDeclaration | TypeDeclaration, as_ptr: bool = True
+) -> str:
     """Generate a scalar property Typescript type annotation."""
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         if as_ptr:
@@ -127,7 +130,10 @@ def _generate_property_scalar_type(prop: TypeDeclaration, as_ptr: bool = True) -
         else:
             resolved_node_types = expand_node_types(prop.node_types, expand_inheritance=False)
             if not resolved_node_types or len(resolved_node_types) == len(NodeType):
-                return "Node"
+                if isinstance(prop, PropertyDeclaration) and prop.edge_type == EdgeType.PARENT:
+                    return "Entity"
+                else:
+                    return "Node"
             node_classes: list[str] = []
             for node_type in prop.node_types or ():
                 if isinstance(node_type, NodeType):
