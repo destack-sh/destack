@@ -26,7 +26,7 @@ import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { SingletonGraph } from "@destack/language/core/runtime/graph";
+import { PolyGraph, SingletonGraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -95,119 +95,165 @@ export abstract class Entity extends Node {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
-  /** Detach this Entity from its parent. Noop if it has no parent. */
+  /** Detach this Entity from its parent. Error if it has no parent. */
   detach(): void {
-    const parent = this.parent;
-    if (parent !== null) {
-      parent.removeChild(this);
+    if (this.parentPtr === null) {
+      throw new Error(`${this.repr()} has no parent to detach from`);
     }
-  }
-
-  /** Move this Entity to a new parent Entity. */
-  moveTo(parent: Entity): void {
-    throw new Error("not implemented");
+    this.moveTo(null);
   }
 
   /**
-   * Append a child Entity to this Entity.
-   * If the Entity is IsOrdered, it will be positioned (relative to after/before).
-   * If the Entity is new, it will be automatically created in this Entity's session (for convenience).
+   * Move this Entity to a new parent Entity.
+   * If the Entity IsOrdered, it will be positioned (relative to after/before).
+   * If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
    * (The same applies to all descendants.)
    */
-  addChild(child: Entity, options?: { after?: Node; before?: Node }): this {
-    const oldGraph = child._graph;
-    const newGraph = this._graph;
-    const session = this._session;
-    const nodes: Entity[] = [child, ...(child._graph.getDescendants(child) as Entity[])];
+  moveTo(parent: Entity | null, options?: { after?: Entity; before?: Entity }): void {
+    const { after, before } = options || {};
 
-    // validate parent-child definitionship
-    if (!PARENT_TYPES_BY_NODE_TYPE[child.metatype].includes(this.metatype)) {
-      throw new Error(
-        `${this.repr()} cannot parent ${child.repr()} (allowed: ${PARENT_TYPES_BY_NODE_TYPE[
-          child.metatype
-        ]
-          .map((type) => NodeType[type])
-          .join(", ")})`,
-      );
-    } else if (oldGraph === newGraph) {
-      throw new Error(`${child.repr()} is already in same graph of ${this.repr()}`);
-    } else if (oldGraph.supergraph !== this._supergraph) {
-      throw new Error(`${child.repr()} is not in supergraph of ${this.repr()}`);
+    // prepare graph & nodes
+    const supergraph = this._supergraph;
+    const oldGraph = this._graph;
+    let newGraph: Graph;
+    let parentPtr: NodeReference | null;
+
+    if (parent !== null) {
+      // move to new parent
+      if (oldGraph.supergraph !== parent._supergraph) {
+        throw new Error(`${this.repr()} is not in supergraph of ${parent.repr()}`);
+      }
+
+      if (!PARENT_TYPES_BY_NODE_TYPE[this.metatype].includes(parent.metatype)) {
+        throw new Error(
+          `${parent.repr()} cannot parent ${this.repr()} (allowed: ${PARENT_TYPES_BY_NODE_TYPE[
+            this.metatype
+          ]
+            .map((type) => NodeType[type])
+            .join(", ")})`,
+        );
+      }
+
+      if (
+        hasTrait(this, TraitType.SPATIAL) &&
+        hasTrait(parent, TraitType.SPATIAL) &&
+        (this as unknown as Node & IsSpatial).spacePtr !== null &&
+        (parent as unknown as Node & IsSpatial).spacePtr !== null &&
+        (this as unknown as Node & IsSpatial).spacePtr!.id !==
+          (parent as unknown as Node & IsSpatial).spacePtr!.id
+      ) {
+        throw new Error(`cannot move ${this.repr()} to ${parent.repr()} (different Space)`);
+      }
+
+      newGraph = parent._graph;
+      parentPtr = parent.toRef();
+
+      // promote parent to polygraph if needed
+      if (newGraph instanceof SingletonGraph) {
+        newGraph = supergraph.promoteToPolygraph(newGraph);
+        parent._graph = newGraph;
+      }
+    } else {
+      // detach from parent
+      if (this.parentPtr === null) {
+        return; // nothing to do
+      }
+      newGraph = new PolyGraph(supergraph);
+      supergraph.addGraph(newGraph);
+      parentPtr = null;
     }
+
+    const session = this._session;
+    const nodes: Entity[] = [this, ...(this._graph.getDescendants(this) as Entity[])];
 
     // assign order
-    if (hasTrait(child, TraitType.ORDERED)) {
-      const orderType = child.__inherits__.find((type) => type in INTER_ORDER_TYPES);
-      const peerClass = orderType
-        ? NODE_CLASS_BY_TYPE[orderType]
-        : (child.constructor as NodeClass);
-      const existingNodes = this._graph.getChildren(this, peerClass) as (Node & IsOrdered)[];
-      if (existingNodes.length > 0) {
-        const orderKey = getOrderKey(existingNodes[existingNodes.length - 1].orderKey, null);
-        // @ts-expect-error(readonly)
-        (child as unknown as Node & IsOrdered).orderKey = orderKey;
-      }
-    }
-
-    // promote self to polygraph if needed
-    if (newGraph instanceof SingletonGraph) {
-      const promotedGraph = this._supergraph.promoteToPolygraph(newGraph);
-      this._graph = promotedGraph;
+    if (parent !== null && hasTrait(this, TraitType.ORDERED)) {
+      parent._assignOrder(this, after, before);
     }
 
     // move to new graph
-    if (nodes.length === oldGraph.size) {
-      // all nodes were moved
-      this._supergraph.removeGraph(oldGraph);
-    } else {
+    (this as any).parentPtr = parentPtr;
+    if (oldGraph !== newGraph) {
+      if (nodes.length === oldGraph.size) {
+        // all nodes were moved
+        supergraph.removeGraph(oldGraph);
+      } else {
+        for (const node of nodes) {
+          oldGraph.remove(node);
+        }
+      }
       for (const node of nodes) {
-        oldGraph.remove(node);
+        node._graph = newGraph;
+        newGraph.add(node);
       }
     }
 
-    // set parent reference
-    (child as any).parentPtr = this.toRef();
-    for (const node of nodes) {
-      node._graph = this._graph;
-      this._graph.add(node);
-    }
-
-    // assign space for spatial nodes
-    if (hasTrait(child, TraitType.SPATIAL)) {
+    // assign space
+    if (hasTrait(this, TraitType.SPATIAL)) {
       let spacePtr: NodeReference | null = null;
       if (
-        hasTrait(this, TraitType.SPATIAL) &&
-        (this as unknown as Node & IsSpatial).spacePtr != null
+        parent !== null &&
+        hasTrait(parent, TraitType.SPATIAL) &&
+        (parent as unknown as Node & IsSpatial).spacePtr !== null
       ) {
-        spacePtr = (this as unknown as Node & IsSpatial).spacePtr;
-      } else if (this.metatype === NodeType.SPACE) {
-        spacePtr = this.toRef();
+        spacePtr = (parent as unknown as Node & IsSpatial).spacePtr;
+      } else if (parent !== null && parent.metatype === NodeType.SPACE) {
+        spacePtr = parent.toRef();
       }
+
       if (spacePtr) {
         for (const node of nodes) {
           if (hasTrait(node, TraitType.SPATIAL)) {
             // @ts-expect-error(readonly)
-            (node as unknown as Node & Spatial).spacePtr = spacePtr;
+            (node as unknown as Node & IsSpatial).spacePtr = spacePtr;
           }
         }
       }
     }
 
-    // create new nodes if needed
-    if (child._isNew && this._isAttached) {
+    // create new nodes
+    if (this._isNew && parent !== null && parent._isAttached) {
       for (const node of nodes) {
         node._ref = null; // invalidate cached ref
         session.create(node);
       }
     }
+  }
 
+  /**
+   * Add an Entity as a sibling of this Entity.
+   * If the Entity IsOrdered, it will be positioned (relative to after/before).
+   * If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
+   * (The same applies to all descendants.)
+   */
+  addSibling(sibling: Entity, options?: { after?: Entity; before?: Entity }): this {
+    sibling.moveTo(this.parent, options);
     return this;
   }
 
-  /** Append multiple children to this Entity. */
-  addChildren(children: Entity[], options?: { after?: Node; before?: Node }): this {
+  /** Add multiple Entities as siblings of this Entity. */
+  addSiblings(siblings: Entity[], options?: { after?: Entity; before?: Entity }): this {
+    for (const sibling of siblings) {
+      sibling.moveTo(this.parent, options);
+    }
+    return this;
+  }
+
+  /**
+   * Append an Entity as a child of this Entity (and all its descendants).
+   * If the Entity IsOrdered, it will be positioned (relative to after/before).
+   * If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
+   * (The same applies to all descendants.)
+   */
+  addChild(child: Entity, options?: { after?: Entity; before?: Entity }): this {
+    child.moveTo(this, options);
+    return this;
+  }
+
+  /** Append multiple Entities as children of this Entity. */
+  addChildren(children: Entity[], options?: { after?: Entity; before?: Entity }): this {
     for (const child of children) {
-      this.addChild(child, options);
+      child.moveTo(this, options);
     }
     return this;
   }
@@ -217,8 +263,49 @@ export abstract class Entity extends Node {
    * The child Entity will NOT be deleted or archived, it will simply be detached.
    * (The same applies to all descendants.)
    */
-  removeChild(child: Entity): void {
-    throw new Error("not implemented");
+  removeChild(child: Entity): this {
+    child.detach();
+    return this;
+  }
+
+  /** Assign an order key to a child Entity. */
+  private _assignOrder(
+    child: Entity,
+    after?: Entity,
+    before?: Entity,
+    existingNodes?: Entity[],
+  ): void {
+    const orderTrait = child.__inherits__.find((trait) => INTER_ORDER_TYPES.includes(trait));
+
+    if (existingNodes === undefined) {
+      const nodeClass = orderTrait
+        ? NODE_CLASS_BY_TYPE[orderTrait]
+        : (child.constructor as NodeClass);
+      existingNodes = this._graph.getChildren(this, nodeClass) as Entity[];
+    }
+
+    if (existingNodes.length > 0) {
+      let afterOrderKey: string | null = null;
+      if (after === undefined) {
+        after = existingNodes[existingNodes.length - 1];
+      }
+      if (hasTrait(after, TraitType.ORDERED)) {
+        afterOrderKey = (after as unknown as Node & IsOrdered).orderKey;
+      }
+
+      let beforeOrderKey: string | null = null;
+      if (
+        hasTrait(before, TraitType.ORDERED) &&
+        afterOrderKey !== null &&
+        (before as unknown as Node & IsOrdered).orderKey > afterOrderKey
+      ) {
+        beforeOrderKey = (before as unknown as Node & IsOrdered).orderKey;
+      }
+
+      const orderKey = getOrderKey(afterOrderKey, beforeOrderKey);
+      // @ts-expect-error(readonly)
+      (child as unknown as Node & IsOrdered).orderKey = orderKey;
+    }
   }
 
   /* ==== DESTACK_CUSTOM_END ==== */

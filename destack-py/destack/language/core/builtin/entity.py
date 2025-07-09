@@ -161,15 +161,160 @@ class Entity(Node):
     if not TYPE_CHECKING:
         __setattr__ = _do_set
 
-    def detach(self):
-        """Detach this Entity from its parent. Noop if it has no parent."""
-        if (parent := self.parent) is not None:
-            parent.remove_child(self)
+    def _assign_order(
+        self,
+        child: "Entity",
+        after: "Entity | None" = None,
+        before: "Entity | None" = None,
+        *,
+        _existing_nodes: Sequence["Entity"] | None = None,
+    ):
+        """Assign an order key to a child Entity."""
+        order_trait = next(
+            (trait for trait in child.__traits__ if trait in INTER_ORDER_TYPES), None
+        )
+        if _existing_nodes is None:
+            _existing_nodes = cast(
+                Sequence[Entity], self._graph.get_children(self, type=order_trait or child.metatype)
+            )
+        if _existing_nodes:
+            if after is None:
+                after = _existing_nodes[-1]
+            after_order_key = after.order_key if isinstance(after, IsOrdered) else None
+            if (
+                isinstance(before, IsOrdered)
+                and after_order_key is not None
+                and before.order_key > after_order_key
+            ):
+                before_order_key = before.order_key
+            else:
+                before_order_key = None
+            assert isinstance(child, Entity), f"{child!r} is not an Entity"
+            order_key = get_order_key(after_order_key, before_order_key)
+            child._do_set("order_key", order_key)
 
-    def move_to(self, parent: "Entity"):
-        """Move this Entity to a new parent Entity."""
-        # nocheckin: Entity detach/move_to (split attachment from 'processing mode'/deletion/archivation)
-        raise NotImplementedError
+    def detach(self):
+        """
+        Detach this Entity from its parent. Error if it has no parent.
+        Does not delete or archive the Entity, just removes it from that tree.
+        """
+        if self.parent_ptr is None:
+            raise ValueError(f"{self!r} has no parent to detach from")
+        self.move_to(parent=None)
+
+    def move_to(
+        self,
+        parent: "Entity | None",
+        *,
+        after: "Entity | None" = None,
+        before: "Entity | None" = None,
+    ):
+        """
+        Move this Entity to a new parent Entity.
+        If the Entity IsOrdered, it will be positioned (relative to after/before).
+        If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
+        (The same applies to all descendants.)
+        """
+        from ..runtime import PolyGraph, SingletonGraph
+
+        # prepare graph & nodes
+        supergraph = self._supergraph
+        old_graph = self._graph
+        if parent is not None:
+            # move to new parent
+            assert old_graph.supergraph is parent._supergraph, (
+                f"{self!r} is not in supergraph of {parent!r}"
+            )
+            if not isinstance(parent, self.__parent_classes__):
+                raise ValueError(
+                    f"{parent!r} cannot parent {self!r} (allowed: {self.__parent_types__})"
+                )
+            if (
+                isinstance(self, IsSpatial)
+                and isinstance(parent, IsSpatial)
+                and self.space_ptr is not None
+                and parent.space_ptr is not None
+                and self.space_ptr.id != parent.space_ptr.id
+            ):
+                raise ValueError(f"cannot move {self!r} to {parent!r} (different Space)")
+            new_graph = parent._graph
+            parent_ptr = parent.to_ref()
+            # promote parent to polygraph if needed
+            if isinstance(new_graph, SingletonGraph):
+                new_graph = supergraph.promote_to_polygraph(new_graph)
+                parent._graph = new_graph
+        else:
+            # detach from parent
+            if self.parent_ptr is None:
+                return  # nothing to do
+            new_graph = PolyGraph(supergraph)
+            supergraph.add_graph(new_graph)
+            parent_ptr = None
+        session = self._session
+        nodes: tuple[Entity, ...] = (self, *self._graph.get_descendants(self))
+
+        # assign order
+        if parent is not None and isinstance(self, IsOrdered):
+            parent._assign_order(self, after=after, before=before)
+
+        # move to new graph
+        self.parent_ptr = parent_ptr
+        if old_graph is not new_graph:
+            if len(nodes) == len(old_graph):  # all nodes were moved
+                supergraph.remove_graph(old_graph)
+            else:
+                for node in nodes:
+                    old_graph.remove(node)
+            for node in nodes:
+                node._graph = new_graph
+                new_graph.add(node)
+
+        # assign space
+        if isinstance(self, IsSpatial) and (
+            (isinstance(parent, IsSpatial) and (space_ptr := parent.space_ptr) is not None)
+            or (
+                parent is not None
+                and parent.metatype == NodeType.SPACE
+                and (space_ptr := parent.to_ref()) is not None
+            )
+        ):
+            for node in nodes:
+                if isinstance(node, IsSpatial):
+                    node.space_ptr = space_ptr
+
+        # create new nodes
+        if self._is_new and parent is not None and parent._is_attached:
+            for node in nodes:
+                assert isinstance(node, Entity), f"{node!r} of {parent!r} is not an Entity"
+                node._ref = None  # invalidate cached ref
+                session.create(node)
+
+    def add_sibling(
+        self,
+        sibling: "Entity",
+        *,
+        after: "Entity | None" = None,
+        before: "Entity | None" = None,
+    ) -> Self:
+        """
+        Add an Entity as a sibling of this Entity.
+        If the Entity IsOrdered, it will be positioned (relative to after/before).
+        If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
+        (The same applies to all descendants.)
+        """
+        sibling.move_to(self.parent, after=after, before=before)
+        return self
+
+    def add_siblings(
+        self,
+        *siblings: "Entity",
+        after: "Entity | None" = None,
+        before: "Entity | None" = None,
+    ) -> Self:
+        """Add multiple Entities as siblings of this Entity."""
+        for sibling in siblings:
+            sibling.move_to(self.parent, after=after, before=before)
+        return self
 
     def add_child(
         self,
@@ -181,67 +326,10 @@ class Entity(Node):
         """
         Append an Entity as a child of this Entity (and all its descendants).
         If the Entity IsOrdered, it will be positioned (relative to after/before).
-        If the Entity is new, it will be automatically created in this Entity's session (for convenience).
+        If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        from ..runtime import SingletonGraph
-
-        old_graph = child._graph
-        new_graph = self._graph
-        session = self._session
-        nodes: tuple[Entity, ...] = (child, *child._graph.get_descendants(child))
-
-        assert isinstance(self, child.__parent_classes__), (
-            f"{self!r} cannot parent {child!r} (allowed: {child.__parent_types__})"
-        )
-        assert old_graph is not new_graph, f"{child!r} is already in same graph of {self!r}"
-        assert old_graph.supergraph is self._supergraph, (
-            f"{child!r} is not in supergraph of {self!r}"
-        )
-
-        # assign order
-        if isinstance(child, IsOrdered):
-            order_trait = next(
-                (trait for trait in child.__traits__ if trait in INTER_ORDER_TYPES), None
-            )
-            existing_nodes = self._graph.get_children(self, type=order_trait or child.metatype)
-            if existing_nodes:
-                assert isinstance(child, Entity), f"{child!r} is not an Entity"
-                order_key = get_order_key(getattr(existing_nodes[-1], "order_key", None), None)
-                child._do_set("order_key", order_key)
-
-        # promote self to polygraph if needed
-        if isinstance(new_graph, SingletonGraph):
-            new_graph = self._supergraph.promote_to_polygraph(new_graph)
-            self._graph = new_graph
-
-        # move to new graph
-        if len(nodes) == len(old_graph):  # all nodes were moved
-            self._supergraph.remove_graph(old_graph)
-        else:
-            for node in nodes:
-                old_graph.remove(node)
-        child.parent_ptr = self.to_ref()
-        for node in nodes:
-            node._graph = new_graph
-            new_graph.add(node)
-
-        # assign space
-        if isinstance(child, IsSpatial) and (
-            (isinstance(self, IsSpatial) and (space_ptr := self.space_ptr) is not None)
-            or (self.metatype == NodeType.SPACE and (space_ptr := self.to_ref()) is not None)
-        ):
-            for node in nodes:
-                if isinstance(node, IsSpatial):
-                    node.space_ptr = space_ptr
-
-        # create new nodes
-        if child._is_new and self._is_attached:
-            for node in nodes:
-                assert isinstance(node, Entity), f"{node!r} of {self!r} is not an Entity"
-                node._ref = None  # invalidate cached ref
-                session.create(node)
-
+        child.move_to(self, after=after, before=before)
         return self
 
     def add_children(
@@ -251,11 +339,10 @@ class Entity(Node):
         before: "Entity | None" = None,
     ) -> Self:
         """
-        Append multiple Nodes as children of this Node.
-        TODO :Performance: batch Node.add_children (per type?)
+        Append multiple Entities as children of this Entity.
         """
         for child in children:
-            self.add_child(child, after=after, before=before)
+            child.move_to(self, after=after, before=before)
         return self
 
     def remove_child(self, child: "Entity") -> Self:
@@ -264,7 +351,8 @@ class Entity(Node):
         The child Entity will NOT be deleted or archived, it will simply be detached.
         (The same applies to all descendants.)
         """
-        raise NotImplementedError
+        child.detach()
+        return self
 
     def get_children[N: Entity = Entity](
         self,
@@ -272,7 +360,7 @@ class Entity(Node):
         include_deleted: bool = False,
         include_archived: bool = False,
     ) -> Sequence[N]:
-        """Gets the children of this Node."""
+        """Gets the children of this Entity."""
         return self._graph.get_children(self, type=type)
 
     def get_child[N: Entity = Entity](
