@@ -1,4 +1,9 @@
-import { NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
+import {
+  NodeType,
+  StoreDomain,
+  StructType,
+  TraitType,
+} from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
 import type {
@@ -28,6 +33,7 @@ import {
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { Casing, toCasing } from "@destack/utils/string";
+import { uuid7 } from "@destack/utils/uuid";
 import { v4 as uuid4 } from "uuid";
 
 export type NodeFilter = {
@@ -76,7 +82,7 @@ export abstract class Node extends BuiltinObject {
     _isNew: boolean,
   ) {
     super(_supergraph);
-    this.id = id ?? uuid4();
+    this.id = id ?? (this.__definition__.storeDomain == StoreDomain.EVENT ? uuid7() : uuid4());
     this.parentPtr = parentPtr;
     this._session = _session ?? activeSession();
     this._supergraph = _supergraph ?? this._session.supergraph;

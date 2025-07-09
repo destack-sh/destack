@@ -32,7 +32,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:600 ==== */
 /**
- * A generic Value of any Type.
+ * A generic Value of any Type (encoded as JSON).
  */
 export class Value extends StructFrozen {
   static metatype: StructType = StructType.VALUE;

@@ -47,7 +47,9 @@ type_ = type
 
 @builtin_struct(StructType.VALUE, frozen=True)
 class Value(StructFrozen[ValueProto]):
-    """A generic Value of any Type."""
+    """A generic Value of any Type (encoded as JSON)."""
+
+    # NOTE :Performance: also support Value encoding in our binary/proto format?
 
     type: Type = builtin_property(100, is_repr=True)
     value: Json | None = builtin_property(110, default=None)
@@ -59,9 +61,8 @@ class Value(StructFrozen[ValueProto]):
         if self._unpacked is None:
             value_unpacked = unpack_value(self.value, self.type)
             object.__setattr__(self, "_unpacked", value_unpacked)
-        if type is not None:
-            if not isinstance(self._unpacked, type):
-                raise TypeError(f"expected {type!r}, got {self._unpacked!r}")
+        if type is not None and not isinstance(self._unpacked, type):
+            raise TypeError(f"expected {type!r}, got {self._unpacked!r}")
         return cast(T, self._unpacked)
 
 

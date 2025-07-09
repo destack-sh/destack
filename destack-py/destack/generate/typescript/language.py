@@ -495,7 +495,7 @@ if (_{ts_name_in} === null) {{
             if prop.default_factory == ValueFactory.UUID:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
-    _{ts_name_in} = uuid4();
+    _{ts_name_in} = uuid7();
 }}""")
             elif prop.default_factory == ValueFactory.NOW:
                 body_parts.append(f"""\
@@ -1863,6 +1863,7 @@ def _generate_file(
     import_parts.append("import type { IMessageType } from '@protobuf-ts/runtime';")
     import_parts.append("import { Temporal } from 'temporal-polyfill';")
     import_parts.append("import { v4 as uuid4 } from 'uuid';")
+    import_parts.append("import { uuid7 } from '@destack/utils/uuid';")
     import_parts.append(
         "import { hashString, hashBytes, hashInt, hashFloat, hashBool } from '@destack/utils/hash';"
     )
