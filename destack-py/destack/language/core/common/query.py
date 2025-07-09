@@ -9,6 +9,7 @@ from ..builtin import (
     NodeReference,
     PropertyDeclaration,
     Snapshot,
+    StoreDomain,
     StructFrozen,
     StructMutable,
     StructType,
@@ -325,42 +326,81 @@ JoinIn = Union[Join, "JoinType"]
 
 @builtin_enum(EnumType.QUERY_TYPE)
 class QueryType(Enum):
-    NODE = 1
-    SCALAR = 2
-    GROUPED_NODE = 10
-    GROUPED_SCALAR = 11
+    NODE = 1, "Node", "Flat list of Nodes"
+    SCALAR = 5, "Scalar", "Single scalar Value"
+    GROUPED_NODE = 10, "Grouped Node", "Grouped list of Nodes"
+    GROUPED_SCALAR = 15, "Grouped Scalar", "Grouped list of scalar Values"
 
 
 @builtin_struct(StructType.QUERY, frozen=True)
 class Query[RootT: "Trait | Node"](StructFrozen):
-    """A GraphQL-inspired Query node (with subqueries)."""
+    """
+    A Query into the supergraph about Nodes (node or scalar and potentially grouped).
+    Queries may either be about Entities or Events.
+    """
 
     # meta
     id: UUID = builtin_property(2, default_factory=ValueFactory.UUID)
-    type: QueryType = builtin_property(100, is_repr=True)
+    type: QueryType = builtin_property(100, is_repr=True, description="The type of Query.")
+    domain: StoreDomain = builtin_property(
+        101, is_repr=True, description="The domain of the Query (Entity or Event)."
+    )
     name: str = builtin_property(
-        101,
-        description="Name for this subquery. Must be unique within the parent Query.",
+        105,
+        description="Name for this subquery. Should be unique within the parent Query.",
         is_repr=True,
     )
-    definition: NodeDefinitionReference = builtin_property(102, is_repr=True)
-    subqueries: list["Query"] = builtin_property(109, is_repr=True)
-    # is_live/refreshing/routing/area/...
+    definition: NodeDefinitionReference = builtin_property(
+        106,
+        is_repr=True,
+        description="The Node definition this Query is about.",
+    )
+    subqueries: list["Query"] = builtin_property(
+        109,
+        is_repr=True,
+        description="Subqueries of this Query (if any).",
+    )
 
     # content
     join: Optional[Join] = builtin_property(
-        110, description="Relative to parent Query.", is_repr=True
+        110,
+        is_repr=True,
+        description="How to join this Query to the parent Query (if any).",
     )
-    select: Optional[Select] = builtin_property(111, is_repr=True)
-    where: Optional[Condition] = builtin_property(112, is_repr=True)
-    having: Optional[Condition] = builtin_property(113, is_repr=True)
-    group_by: list[Expression] = builtin_property(114, is_repr=True)
-    aggregation: Optional[Aggregation] = builtin_property(115, is_repr=True)
-    sort: list[Sort] = builtin_property(116, is_repr=True)
+    select: Optional[Select] = builtin_property(
+        111,
+        is_repr=True,
+        description="What to select from the Query.",
+    )
+    where: Optional[Condition] = builtin_property(
+        112, is_repr=True, description="Filter the Query."
+    )
+    having: Optional[Condition] = builtin_property(
+        113, is_repr=True, description="Filter the Query groups (for grouped Queries)."
+    )
+    group_by: list[Expression] = builtin_property(
+        114, is_repr=True, description="Discriminator for grouped Queries."
+    )
+    aggregation: Optional[Aggregation] = builtin_property(
+        115, is_repr=True, description="Aggregate the Query."
+    )
+    sort: list[Sort] = builtin_property(
+        116,
+        is_repr=True,
+        description="How to sort the Query results.",
+    )
 
     # pagination
-    limit: Optional[int] = builtin_property(120, is_repr=True)
-    offset: Optional[int] = builtin_property(121, is_repr=True)
+    limit: Optional[int] = builtin_property(
+        120,
+        is_repr=True,
+        description="Limit the number of results.",
+    )
+    offset: Optional[int] = builtin_property(
+        121,
+        is_repr=True,
+        description="Offset the results.",
+    )
     # count?
 
     # materialization
@@ -379,6 +419,9 @@ If Query.snapshot is set, this must contain at least one element.
     )
     if TYPE_CHECKING:
         snapshot_ptr: Optional[NodeReference] = None
+
+    # realtime
+    is_live: bool | None = builtin_property(140, is_repr=True)
 
     async def execute(self) -> "QueryConnection[RootT]":
         """Execute the Query."""
@@ -447,7 +490,7 @@ def to_subqueries(subqueries: dict[str, "Query"]) -> list["Query"]:
 
 @builtin_struct(StructType.HISTOGRAM, frozen=True)
 class Histogram(StructFrozen):
-    """A histogram."""
+    """A Histogram."""
 
     buckets: list[Value] = builtin_property(101, is_repr=True)
     counts: list[int] = builtin_property(102, is_repr=True)

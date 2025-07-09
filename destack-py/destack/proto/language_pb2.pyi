@@ -427,7 +427,8 @@ class EventStatusProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     EVENT_STATUS_UNSPECIFIED: _ClassVar[EventStatusProto]
     EVENT_STATUS_PENDING: _ClassVar[EventStatusProto]
-    EVENT_STATUS_COMPLETED: _ClassVar[EventStatusProto]
+    EVENT_STATUS_STAGED: _ClassVar[EventStatusProto]
+    EVENT_STATUS_APPROVED: _ClassVar[EventStatusProto]
     EVENT_STATUS_SKIPPED: _ClassVar[EventStatusProto]
     EVENT_STATUS_FAILED: _ClassVar[EventStatusProto]
     EVENT_STATUS_REJECTED: _ClassVar[EventStatusProto]
@@ -1879,7 +1880,8 @@ ENVIRONMENT_TYPE_STAGING: EnvironmentTypeProto
 ENVIRONMENT_TYPE_PRODUCTION: EnvironmentTypeProto
 EVENT_STATUS_UNSPECIFIED: EventStatusProto
 EVENT_STATUS_PENDING: EventStatusProto
-EVENT_STATUS_COMPLETED: EventStatusProto
+EVENT_STATUS_STAGED: EventStatusProto
+EVENT_STATUS_APPROVED: EventStatusProto
 EVENT_STATUS_SKIPPED: EventStatusProto
 EVENT_STATUS_FAILED: EventStatusProto
 EVENT_STATUS_REJECTED: EventStatusProto
@@ -8811,10 +8813,11 @@ class PropertyReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[PropertyReferenceTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., trait_type: _Optional[_Union[TraitTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., custom_property_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class QueryProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "snapshot_ptr", "snapshot_path")
+    __slots__ = ("metatype", "id", "type", "domain", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "snapshot_ptr", "snapshot_path", "is_live")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
+    DOMAIN_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_FIELD_NUMBER: _ClassVar[int]
     SUBQUERIES_FIELD_NUMBER: _ClassVar[int]
@@ -8829,9 +8832,11 @@ class QueryProto(_message.Message):
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_PATH_FIELD_NUMBER: _ClassVar[int]
+    IS_LIVE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: str
     type: QueryTypeProto
+    domain: StoreDomainProto
     name: str
     definition: NodeDefinitionReferenceProto
     subqueries: _containers.RepeatedCompositeFieldContainer[QueryProto]
@@ -8846,7 +8851,8 @@ class QueryProto(_message.Message):
     offset: int
     snapshot_ptr: NodeReferenceProto
     snapshot_path: _containers.RepeatedScalarFieldContainer[str]
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_path: _Optional[_Iterable[str]] = ...) -> None: ...
+    is_live: bool
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., domain: _Optional[_Union[StoreDomainProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_path: _Optional[_Iterable[str]] = ..., is_live: bool = ...) -> None: ...
 
 class QueryResultProto(_message.Message):
     __slots__ = ("metatype", "id", "type", "groups", "subresults", "nodes", "count", "exists", "scalar")

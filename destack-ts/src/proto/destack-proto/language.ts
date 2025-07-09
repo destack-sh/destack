@@ -11615,11 +11615,15 @@ export interface QueryProto {
      */
     type: QueryTypeProto;
     /**
-     * @generated from protobuf field: string name = 101
+     * @generated from protobuf field: symbol.destack.StoreDomainProto domain = 101
+     */
+    domain: StoreDomainProto;
+    /**
+     * @generated from protobuf field: string name = 105
      */
     name: string;
     /**
-     * @generated from protobuf field: symbol.destack.NodeDefinitionReferenceProto definition = 102
+     * @generated from protobuf field: symbol.destack.NodeDefinitionReferenceProto definition = 106
      */
     definition?: NodeDefinitionReferenceProto;
     /**
@@ -11670,6 +11674,10 @@ export interface QueryProto {
      * @generated from protobuf field: repeated string snapshot_path = 131
      */
     snapshotPath: string[];
+    /**
+     * @generated from protobuf field: optional bool is_live = 140
+     */
+    isLive?: boolean;
 }
 /**
  * @generated from protobuf message symbol.destack.QueryResultProto
@@ -21263,9 +21271,13 @@ export enum EventStatusProto {
      */
     EVENT_STATUS_PENDING = 1,
     /**
-     * @generated from protobuf enum value: EVENT_STATUS_COMPLETED = 10;
+     * @generated from protobuf enum value: EVENT_STATUS_STAGED = 2;
      */
-    EVENT_STATUS_COMPLETED = 10,
+    EVENT_STATUS_STAGED = 2,
+    /**
+     * @generated from protobuf enum value: EVENT_STATUS_APPROVED = 10;
+     */
+    EVENT_STATUS_APPROVED = 10,
     /**
      * @generated from protobuf enum value: EVENT_STATUS_SKIPPED = 11;
      */
@@ -23589,17 +23601,17 @@ export enum QueryTypeProto {
      */
     QUERY_TYPE_NODE = 1,
     /**
-     * @generated from protobuf enum value: QUERY_TYPE_SCALAR = 2;
+     * @generated from protobuf enum value: QUERY_TYPE_SCALAR = 5;
      */
-    QUERY_TYPE_SCALAR = 2,
+    QUERY_TYPE_SCALAR = 5,
     /**
      * @generated from protobuf enum value: QUERY_TYPE_GROUPED_NODE = 10;
      */
     QUERY_TYPE_GROUPED_NODE = 10,
     /**
-     * @generated from protobuf enum value: QUERY_TYPE_GROUPED_SCALAR = 11;
+     * @generated from protobuf enum value: QUERY_TYPE_GROUPED_SCALAR = 15;
      */
-    QUERY_TYPE_GROUPED_SCALAR = 11
+    QUERY_TYPE_GROUPED_SCALAR = 15
 }
 /**
  * @generated from protobuf enum symbol.destack.QueryUpdateTypeProto
@@ -51516,8 +51528,9 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.QueryTypeProto", QueryTypeProto] },
-            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "definition", kind: "message", T: () => NodeDefinitionReferenceProto },
+            { no: 101, name: "domain", kind: "enum", T: () => ["symbol.destack.StoreDomainProto", StoreDomainProto] },
+            { no: 105, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 106, name: "definition", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 109, name: "subqueries", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => QueryProto },
             { no: 110, name: "join", kind: "message", T: () => JoinProto },
             { no: 111, name: "select", kind: "message", T: () => SelectProto },
@@ -51529,7 +51542,8 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 120, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 130, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 131, name: "snapshot_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
+            { no: 131, name: "snapshot_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
+            { no: 140, name: "is_live", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<QueryProto>): QueryProto {
@@ -51537,6 +51551,7 @@ class QueryProto$Type extends MessageType<QueryProto> {
         message.metatype = 0;
         message.id = "";
         message.type = 0;
+        message.domain = 0;
         message.name = "";
         message.subqueries = [];
         message.groupBy = [];
@@ -51560,10 +51575,13 @@ class QueryProto$Type extends MessageType<QueryProto> {
                 case /* symbol.destack.QueryTypeProto type */ 100:
                     message.type = reader.int32();
                     break;
-                case /* string name */ 101:
+                case /* symbol.destack.StoreDomainProto domain */ 101:
+                    message.domain = reader.int32();
+                    break;
+                case /* string name */ 105:
                     message.name = reader.string();
                     break;
-                case /* symbol.destack.NodeDefinitionReferenceProto definition */ 102:
+                case /* symbol.destack.NodeDefinitionReferenceProto definition */ 106:
                     message.definition = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definition);
                     break;
                 case /* repeated symbol.destack.QueryProto subqueries */ 109:
@@ -51602,6 +51620,9 @@ class QueryProto$Type extends MessageType<QueryProto> {
                 case /* repeated string snapshot_path */ 131:
                     message.snapshotPath.push(reader.string());
                     break;
+                case /* optional bool is_live */ 140:
+                    message.isLive = reader.bool();
+                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -51623,12 +51644,15 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* symbol.destack.QueryTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
-        /* string name = 101; */
+        /* symbol.destack.StoreDomainProto domain = 101; */
+        if (message.domain !== 0)
+            writer.tag(101, WireType.Varint).int32(message.domain);
+        /* string name = 105; */
         if (message.name !== "")
-            writer.tag(101, WireType.LengthDelimited).string(message.name);
-        /* symbol.destack.NodeDefinitionReferenceProto definition = 102; */
+            writer.tag(105, WireType.LengthDelimited).string(message.name);
+        /* symbol.destack.NodeDefinitionReferenceProto definition = 106; */
         if (message.definition)
-            NodeDefinitionReferenceProto.internalBinaryWrite(message.definition, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+            NodeDefinitionReferenceProto.internalBinaryWrite(message.definition, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         /* repeated symbol.destack.QueryProto subqueries = 109; */
         for (let i = 0; i < message.subqueries.length; i++)
             QueryProto.internalBinaryWrite(message.subqueries[i], writer.tag(109, WireType.LengthDelimited).fork(), options).join();
@@ -51665,6 +51689,9 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* repeated string snapshot_path = 131; */
         for (let i = 0; i < message.snapshotPath.length; i++)
             writer.tag(131, WireType.LengthDelimited).string(message.snapshotPath[i]);
+        /* optional bool is_live = 140; */
+        if (message.isLive !== undefined)
+            writer.tag(140, WireType.Varint).bool(message.isLive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
