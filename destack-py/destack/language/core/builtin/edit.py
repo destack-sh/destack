@@ -27,15 +27,15 @@ tracer = trace.get_tracer(__name__)
 class EditType(Enum):
     """The type of Edit."""
 
-    CREATE = 1
-    UPSERT = 2
-    UPDATE = 3
-    MOVE = 4
-    ARCHIVE = 5
-    UNARCHIVE = 6
-    DELETE = 7
-    RESTORE = 8
-    ERASE = 9
+    CREATE = 1, "Create a new Entity"
+    UPSERT = 2, "Upsert an Entity (create if not exists, update if exists)"
+    UPDATE = 3, "Update an existing Entity"
+    MOVE = 4, "Move an Entity to a new parent Entity (or detach)"
+    ARCHIVE = 5, "Archive an Entity (and its descendants)"
+    UNARCHIVE = 6, "Unarchive an Entity (and its descendants)"
+    DELETE = 7, "Delete an Entity (and its descendants)"
+    RESTORE = 8, "Restore a deleted Entity (and its descendants)"
+    ERASE = 9, "Erase an Entity forever (and its descendants)"
 
 
 CASCADING_EDIT_TYPES: tuple[EditType, ...] = (
@@ -53,8 +53,8 @@ class EditOperation(Enum):
     """The update operation to perform on a Node."""
 
     # direct
-    SET = 1
-    CLEAR = 2
+    SET = 1, "Set a Property to a value"
+    CLEAR = 2, "Clear a Property"
 
     # collection
 
@@ -71,6 +71,9 @@ class EditOperation(Enum):
 
     # number
     # NUMBER_INCREMENT, NUMBER_DECREMENT, ...
+
+    # math/operation (more general than number with custom types, vectors, etc.)
+    # OPERATION_ADD, OPERATION_SUBTRACT, OPERATION_MULTIPLY, OPERATION_DIVIDE, ...
 
     # string
     # STRING_INSERT, STRING_DELETE, STRING_REPLACE, ...

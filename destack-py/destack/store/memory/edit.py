@@ -42,7 +42,8 @@ def execute_edits(
     context: MemoryContext, events: Sequence[EditEvent]
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """Execute the Events."""
-    assert events, f"no Events in {events!r}"
+    if not events:
+        return (), ()
 
     edits = _optimize_edits(context, events)
     cascaded_edits: list[EditEvent] = []
@@ -202,10 +203,13 @@ def _execute_edit(
     # move
     elif edit_type == EditType.MOVE:
         for edit in edits:
-            assert edit.value is not None and edit.value.value is not None, f"no value for {edit!r}"
-            assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
-                f"unexpected value: {edit!r}"
-            )
+            if edit.value is not None and edit.value.value is not None:
+                assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
+                    f"unexpected value: {edit!r}"
+                )
+                parent_ptr = NodeReference.from_value(edit.value.value)
+            else:
+                parent_ptr = None
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if row := table.rows.get(node_key):
@@ -215,8 +219,10 @@ def _execute_edit(
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
                     parent_table.rows_by_parent[parent_key].remove(row)
                 # update parent pointer
-                row.parent_ptr = NodeReference.from_value(edit.value.value)
-                row.value[NODE_PARENT_KEY] = edit.value.value
+                row.parent_ptr = parent_ptr
+                row.value[NODE_PARENT_KEY] = (
+                    parent_ptr.to_value() if parent_ptr is not None else None
+                )
                 # add to new parent
                 if row.parent_ptr is not None:
                     parent_table = context.get(row.parent_ptr)

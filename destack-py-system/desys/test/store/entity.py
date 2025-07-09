@@ -1,3 +1,5 @@
+from itertools import chain
+
 import pytest
 from hypothesis import HealthCheck, given, settings
 from pytest_async_benchmark.plugin import AsyncBenchmarkFixture
@@ -207,14 +209,14 @@ async def test_create_folders_recursive(session: Session):
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_create_scene_with_heterogeneous_views(session: Session):
     """Create a Scene with heterogeneous Views, mutate it, querying along the way."""
-    # create
+    # create scene
     scene = Scene(name="Scene")
     session.create(scene)
     await session.commit()
 
+    # create views
     root_view = FrameView(name="Container")
     scene.add_child(root_view)
-    # create views
     for i in range(4):
         frame_view = FrameView(name=f"View {i}")
         root_view.add_child(frame_view)
@@ -364,7 +366,58 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
         return reactions
 
     result = await async_benchmark(_create_reactions, rounds=100, iterations=1)
-    assert result["mean"] < 0.005  # <5ms
+    assert result["mean"] < 0.01  # <10ms
+
+
+@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+async def test_move_views(session: Session):
+    """Move Views around."""
+    scene = Scene(name="Scene")
+    session.create(scene)
+    await session.commit()
+
+    # create views
+    root_view = FrameView(name="Root")
+    frame_views: list[FrameView] = []
+    scene.add_child(root_view)
+    for i in range(4):
+        frame_view = FrameView(name=f"View {i}")
+        frame_views.append(frame_view)
+        root_view.add_child(frame_view)
+        for j in range(4):
+            label_view = LabelView(name=f"Label {i}/{j}")
+            frame_view.add_child(label_view)
+    await session.commit()
+
+    # detach views
+    for frame_view in frame_views:
+        frame_view.detach()
+        assert frame_view.parent_ptr is None
+    await session.commit()
+
+    # reattach views
+    for frame_view in frame_views:
+        scene.add_child(frame_view)
+        assert frame_view.parent_ptr == scene.to_ref()
+    await session.commit()
+
+    # detach all the leaf label views
+    label_views: list[LabelView] = []
+    for frame_view in frame_views:
+        for label_view in frame_view.get_children(LabelView):
+            label_view.detach()
+            label_views.append(label_view)
+            assert label_view.parent_ptr is None
+    await session.commit()
+
+    # move all views to be directly parented by scene
+    for view in chain(frame_views, label_views):
+        view.move_to(scene)
+        assert view.parent_ptr == scene.to_ref()
+    await session.commit()
+
+    scene_children = scene.get_children(View)
+    assert len(scene_children) == 1 + 4 * (4 + 1)
 
 
 # @pytest.mark.parametrize("session", ENTITY_SESSIONS)

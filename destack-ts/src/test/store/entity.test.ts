@@ -360,3 +360,59 @@ sessionTest("create reaction groups", async ({ session }) => {
     );
   }
 });
+
+sessionTest("move views", async ({ session }) => {
+  const scene = new Scene({ name: "Scene" });
+  session.create(scene);
+  await session.commit();
+
+  // create views
+  const rootView = new FrameView({ name: "Root" });
+  const frameViews: FrameView[] = [];
+  scene.addChild(rootView);
+  for (let i = 0; i < 4; i++) {
+    const frameView = new FrameView({ name: `View ${i}` });
+    frameViews.push(frameView);
+    rootView.addChild(frameView);
+    for (let j = 0; j < 4; j++) {
+      const labelView = new LabelView({ name: `Label ${i}/${j}` });
+      frameView.addChild(labelView);
+    }
+  }
+  await session.commit();
+
+  // detach views
+  for (const frameView of frameViews) {
+    frameView.detach();
+    expect(frameView.parentPtr).toBeNull();
+  }
+  await session.commit();
+
+  // reattach views
+  for (const frameView of frameViews) {
+    scene.addChild(frameView);
+    expect(frameView.parentPtr).toEqual(scene.toRef());
+  }
+  await session.commit();
+
+  // detach all the leaf label views
+  const labelViews: LabelView[] = [];
+  for (const frameView of frameViews) {
+    for (const labelView of frameView.getChildren(LabelView)) {
+      labelView.detach();
+      labelViews.push(labelView);
+      expect(labelView.parentPtr).toBeNull();
+    }
+  }
+  await session.commit();
+
+  // move all views to be directly parented by scene
+  for (const view of [...frameViews, ...labelViews]) {
+    view.moveTo(scene);
+    expect(view.parentPtr).toEqual(scene.toRef());
+  }
+  await session.commit();
+
+  const sceneChildren = scene.getChildren(View);
+  expect(sceneChildren).toHaveLength(1 + 4 * (4 + 1));
+});

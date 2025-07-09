@@ -52,7 +52,19 @@ def test_node_ordering(session: Session):
 
     folder = Folder(name="MyFolder")
     session.create(folder)
-    tags = [Tag(name="A"), Tag(name="B"), Tag(name="C")]
-    folder.add_children(*tags)
-    assert folder.get_children(Tag) == tags
-    assert [t.order_key for t in tags] == ["a0", "a1", "a2"]
+    tag_a = Tag(name="A")
+    tag_b = Tag(name="B")
+    tag_c = Tag(name="C")
+    folder.add_children(tag_a, tag_b, tag_c)
+    assert folder.get_children(Tag) == [tag_a, tag_b, tag_c]
+    assert [t.order_key for t in folder.get_children(Tag)] == ["a0", "a1", "a2"]
+
+    tag_b1 = Tag(name="B1")
+    tag_b1.move_to(folder, after=tag_b, before=tag_c)
+    assert folder.get_children(Tag) == [tag_a, tag_b, tag_b1, tag_c]
+    assert [t.order_key for t in folder.get_children(Tag)] == ["a0", "a1", "a1P", "a2"]
+
+    tag_b2 = Tag(name="B2")
+    tag_b2.move_to(folder, after=tag_b1, before=tag_c)
+    assert folder.get_children(Tag) == [tag_a, tag_b, tag_b1, tag_b2, tag_c]
+    assert [t.order_key for t in folder.get_children(Tag)] == ["a0", "a1", "a1P", "a1h", "a2"]

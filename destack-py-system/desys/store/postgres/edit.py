@@ -38,7 +38,8 @@ async def execute_edits(
     conn: asyncpg.Connection, context: PostgresContext, events: Sequence[EditEvent]
 ) -> tuple[Sequence[EditEvent], Sequence[EditEvent]]:
     """Execute the Events."""
-    assert events, f"no Events in {events!r}"
+    if not events:
+        return (), ()
 
     edits = _optimize_edits(context, events)
     cascaded_edits: list[EditEvent] = []
@@ -269,12 +270,15 @@ WHERE id = ${len(update_template) + 1}
         # prepare values
         values_packed: list[Sequence[Any]] = []
         for edit in edits:
-            assert edit.value is not None, f"no value for {edit!r}"
-            assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
-                f"unexpected value: {edit!r}"
-            )
+            if edit.value is not None and edit.value.value is not None:
+                assert edit.value.type.scalar_type == ScalarType.NODE_REFERENCE, (
+                    f"unexpected value: {edit!r}"
+                )
+                parent_ptr_value = edit.value.value
+            else:
+                parent_ptr_value = None
             update: dict[str, Any] = {}
-            pack_column_wide(parent_prop_type, edit.value.value, table, parent_prop.name, update)
+            pack_column_wide(parent_prop_type, parent_ptr_value, table, parent_prop.name, update)
             row_values = (*update.values(), edit.node_ptr.id)
             values_packed.append(row_values)
         await conn.executemany(stmt, values_packed)
