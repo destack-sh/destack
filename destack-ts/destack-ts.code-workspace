@@ -16,6 +16,12 @@
         "name": "http://localhost:5173",
         "request": "launch",
         "url": "http://localhost:5173"
+      },
+      {
+        "type": "chrome",
+        "name": "localhost:5173",
+        "request": "launch",
+        "url": "localhost:5173"
       }
     ],
   },

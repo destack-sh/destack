@@ -1,9 +1,12 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 
 from destack.utils.uuid import UUID
 
 from .common import EnumType, RoleType, StoreDomain
+from .const import ACTIVE_EVENT
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
@@ -80,6 +83,7 @@ class Event[N: Node = Node](IsSpatial, Node):
     )
     client: Optional["Client"] = builtin_property(22, is_managed=True, is_readonly=True)
     client_nonce: Optional[UUID] = builtin_property(23, is_managed=True, is_readonly=True)
+    # client_epoch: int? (for client-side ordering)
     status: "EventStatus" = builtin_property(
         30,
         is_repr=True,
@@ -87,7 +91,6 @@ class Event[N: Node = Node](IsSpatial, Node):
         description="The status of the Event.",
     )
     # caused_by/cascaded_from? (other Events that caused this event, like InputEvent or for cascading edits)
-    # change_key? (bigger Change this is a part of)
     if TYPE_CHECKING:
         snapshot_ptr: Optional[NodeReference] = None
         created_by_ptr: Optional[NodeReference] = None
@@ -99,6 +102,16 @@ class Event[N: Node = Node](IsSpatial, Node):
         node_ptr: Optional[NodeReference] = None
     else:
         node: Optional["Node"] = builtin_property(101, description="The Node this Event is about.")
+
+    @contextmanager
+    def as_cause(self: "Event[Node]") -> Generator["Event[Node]", None, None]:
+        """Get this Event as the cause of another Event."""
+        token = ACTIVE_EVENT.set(self)
+        try:
+            ACTIVE_EVENT.set(self)
+            yield self
+        finally:
+            ACTIVE_EVENT.reset(token)
 
 
 @builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)

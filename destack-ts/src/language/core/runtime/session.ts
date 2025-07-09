@@ -99,6 +99,14 @@ export class Session {
     this._token = null;
   }
 
+  /** Append an Event. */
+  append(event: Event): void {
+    if (this.closedAt) {
+      throw new Error(`${this.repr()} is closed`);
+    }
+    this.pendingEvents.push(event);
+  }
+
   /** Create a new Entity. */
   create(node: Entity): void {
     if (this.closedAt) {

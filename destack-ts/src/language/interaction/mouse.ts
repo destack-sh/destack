@@ -21,10 +21,9 @@ import type { View } from "@destack/language/view";
 import {
   DoubleClickEventProto,
   EventStatusProto,
-  LeftClickEventProto,
-  MiddleClickEventProto,
   MouseButtonProto,
-  RightClickEventProto,
+  SingleClickEventProto,
+  TripleClickEventProto,
   WheelEventProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -113,7 +112,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  declare readonly pressure: number;
+  declare readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -134,11 +133,6 @@ export abstract class MouseEvent extends PointerEvent {
    * PointerEvent.metaKey
    */
   declare readonly metaKey: boolean;
-
-  /**
-   * PointerEvent.accelKey
-   */
-  declare readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
@@ -218,7 +212,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * PointerEvent.pressure
    */
-  declare readonly pressure: number;
+  declare readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -241,11 +235,6 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly metaKey: boolean;
 
   /**
-   * PointerEvent.accelKey
-   */
-  declare readonly accelKey: boolean;
-
-  /**
    * MouseEvent.button
    */
   declare readonly button: MouseButton;
@@ -259,10 +248,10 @@ registerNodeClass(NodeType.CLICK_EVENT, ClickEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:560202 ==== */
 /**
- * A LeftClickEvent is a ClickEvent when a pointer is clicked with the left button.
+ * A SingleClickEvent is a ClickEvent when a pointer is clicked once.
  */
-export class LeftClickEvent extends ClickEvent {
-  static metatype: NodeType = NodeType.LEFT_CLICK_EVENT;
+export class SingleClickEvent extends ClickEvent {
+  static metatype: NodeType = NodeType.SINGLE_CLICK_EVENT;
 
   /**
    * Event.parent
@@ -359,7 +348,7 @@ export class LeftClickEvent extends ClickEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -382,11 +371,6 @@ export class LeftClickEvent extends ClickEvent {
   readonly metaKey: boolean;
 
   /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
-  /**
    * MouseEvent.button
    */
   readonly button: MouseButton;
@@ -403,12 +387,11 @@ export class LeftClickEvent extends ClickEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     button: MouseButton;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -464,7 +447,7 @@ export class LeftClickEvent extends ClickEvent {
       _status = 1 /* EventStatus.PENDING */;
     }
     if (_status === null) {
-      throw new Error(`LeftClickEvent.status is required`);
+      throw new Error(`SingleClickEvent.status is required`);
     }
     this.status = _status;
     let _node = options.node ?? null;
@@ -474,42 +457,34 @@ export class LeftClickEvent extends ClickEvent {
     this.nodePtr = _node;
     let _position = options.position;
     if (_position === null) {
-      throw new Error(`LeftClickEvent.position is required`);
+      throw new Error(`SingleClickEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`LeftClickEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
-      throw new Error(`LeftClickEvent.shiftKey is required`);
+      throw new Error(`SingleClickEvent.shiftKey is required`);
     }
     this.shiftKey = _shiftKey;
     let _altKey = options.altKey;
     if (_altKey === null) {
-      throw new Error(`LeftClickEvent.altKey is required`);
+      throw new Error(`SingleClickEvent.altKey is required`);
     }
     this.altKey = _altKey;
     let _ctrlKey = options.ctrlKey;
     if (_ctrlKey === null) {
-      throw new Error(`LeftClickEvent.ctrlKey is required`);
+      throw new Error(`SingleClickEvent.ctrlKey is required`);
     }
     this.ctrlKey = _ctrlKey;
     let _metaKey = options.metaKey;
     if (_metaKey === null) {
-      throw new Error(`LeftClickEvent.metaKey is required`);
+      throw new Error(`SingleClickEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`LeftClickEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
     let _button = options.button;
     if (_button === null) {
-      throw new Error(`LeftClickEvent.button is required`);
+      throw new Error(`SingleClickEvent.button is required`);
     }
     this.button = _button;
 
@@ -520,7 +495,7 @@ export class LeftClickEvent extends ClickEvent {
       this.createdByPtr = null;
     } else {
       if (options.createdAt == null) {
-        throw new Error(`LeftClickEvent.createdAt is required for existing Events`);
+        throw new Error(`SingleClickEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -542,7 +517,11 @@ export class LeftClickEvent extends ClickEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -555,9 +534,6 @@ export class LeftClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -586,12 +562,13 @@ export class LeftClickEvent extends ClickEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.button) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -627,7 +604,7 @@ export class LeftClickEvent extends ClickEvent {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.LEFT_CLICK_EVENT,
+      type: NodeType.SINGLE_CLICK_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -637,7 +614,7 @@ export class LeftClickEvent extends ClickEvent {
   }
 
   get _pathKey(): string {
-    return `LeftClickEvent[id=${this.id}]`;
+    return `SingleClickEvent[id=${this.id}]`;
   }
 
   get path(): string {
@@ -657,15 +634,20 @@ export class LeftClickEvent extends ClickEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`button=${MouseButton[this.button]}`);
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<LeftClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SingleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return LeftClickEvent.__packValue__(this);
+    return SingleClickEvent.__packValue__(this);
   }
 
-  static __packValue__(object: LeftClickEvent): { readonly [key: string]: any } {
+  static __packValue__(object: SingleClickEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560202;
     objectValue["2"] = String(object.id);
@@ -693,12 +675,13 @@ export class LeftClickEvent extends ClickEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     objectValue["130"] = object.button;
     return objectValue;
   }
@@ -709,9 +692,11 @@ export class LeftClickEvent extends ClickEvent {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): LeftClickEvent {
+  ): SingleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -744,15 +729,14 @@ export class LeftClickEvent extends ClickEvent {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new LeftClickEvent({
+    return new SingleClickEvent({
       button: Number(objectValue["130"]),
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -775,1368 +759,8 @@ export class LeftClickEvent extends ClickEvent {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): LeftClickEvent {
-    return LeftClickEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): LeftClickEventProto {
-    return LeftClickEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: LeftClickEvent): LeftClickEventProto {
-    const objectProto: Partial<LeftClickEventProto> = { metatype: 560202 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    return objectProto as LeftClickEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: LeftClickEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): LeftClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    return new LeftClickEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: _Vector2f.fromProto(
-        objectProto.position!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      pressure: objectProto.pressure,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: LeftClickEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): LeftClickEvent {
-    return LeftClickEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): LeftClickEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = LeftClickEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.LEFT_CLICK_EVENT, LeftClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560202 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:560203 ==== */
-/**
- * A RightClickEvent is a ClickEvent when a pointer is clicked with the right button.
- */
-export class RightClickEvent extends ClickEvent {
-  static metatype: NodeType = NodeType.RIGHT_CLICK_EVENT;
-
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference | null;
-
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly snapshotPtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Entity & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * Event.client
-   */
-  get client(): Client | null {
-    const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
-    }
-    return null;
-  }
-  readonly clientPtr: NodeReference | null;
-
-  /**
-   * Event.clientNonce
-   */
-  readonly clientNonce: string | null;
-
-  /**
-   * The status of the Event.
-   */
-  readonly status: EventStatus;
-
-  /**
-   * InputEvent.node
-   */
-  get node(): View | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
-    }
-    return null;
-  }
-  readonly nodePtr: NodeReference | null;
-
-  /**
-   * PointerEvent.position
-   */
-  readonly position: Vector2f;
-
-  /**
-   * PointerEvent.pressure
-   */
-  readonly pressure: number;
-
-  /**
-   * PointerEvent.shiftKey
-   */
-  readonly shiftKey: boolean;
-
-  /**
-   * PointerEvent.altKey
-   */
-  readonly altKey: boolean;
-
-  /**
-   * PointerEvent.ctrlKey
-   */
-  readonly ctrlKey: boolean;
-
-  /**
-   * PointerEvent.metaKey
-   */
-  readonly metaKey: boolean;
-
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
-  /**
-   * MouseEvent.button
-   */
-  readonly button: MouseButton;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
-    status?: EventStatus;
-    node?: View | NodeReference | null;
-    position: Vector2f;
-    pressure: number;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
-    accelKey: boolean;
-    button: MouseButton;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    this.spacePtr = _space;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    this.snapshotPtr = _snapshot;
-    let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
-      _client = (_client as Node).toRef();
-    }
-    this.clientPtr = _client;
-    let _clientNonce = options.clientNonce ?? null;
-    this.clientNonce = _clientNonce;
-    let _status = options.status ?? null;
-    if (_status === null) {
-      _status = 1 /* EventStatus.PENDING */;
-    }
-    if (_status === null) {
-      throw new Error(`RightClickEvent.status is required`);
-    }
-    this.status = _status;
-    let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
-      _node = (_node as Node).toRef();
-    }
-    this.nodePtr = _node;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`RightClickEvent.position is required`);
-    }
-    this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`RightClickEvent.pressure is required`);
-    }
-    this.pressure = _pressure;
-    let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
-      throw new Error(`RightClickEvent.shiftKey is required`);
-    }
-    this.shiftKey = _shiftKey;
-    let _altKey = options.altKey;
-    if (_altKey === null) {
-      throw new Error(`RightClickEvent.altKey is required`);
-    }
-    this.altKey = _altKey;
-    let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
-      throw new Error(`RightClickEvent.ctrlKey is required`);
-    }
-    this.ctrlKey = _ctrlKey;
-    let _metaKey = options.metaKey;
-    if (_metaKey === null) {
-      throw new Error(`RightClickEvent.metaKey is required`);
-    }
-    this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`RightClickEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
-    let _button = options.button;
-    if (_button === null) {
-      throw new Error(`RightClickEvent.button is required`);
-    }
-    this.button = _button;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-    } else {
-      if (options.createdAt == null) {
-        throw new Error(`RightClickEvent.createdAt is required for existing Events`);
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.button === other.button)) {
-      return false;
-    }
-    if (!this.position.equals(other.position)) {
-      return false;
-    }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
-      return false;
-    }
-    if (!(this.shiftKey === other.shiftKey)) {
-      return false;
-    }
-    if (!(this.altKey === other.altKey)) {
-      return false;
-    }
-    if (!(this.ctrlKey === other.ctrlKey)) {
-      return false;
-    }
-    if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
-      return false;
-    }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
-      return false;
-    }
-    if (!(this.clientNonce === other.clientNonce)) {
-      return false;
-    }
-    if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.button) & 0xffffffff;
-    h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr !== null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce !== null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new _NodeReference({
-      type: NodeType.RIGHT_CLICK_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return `RightClickEvent[id=${this.id}]`;
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      lastNode = node;
-      node = node.parent;
-    }
-    if (!lastNode.isRoot) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RightClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    return RightClickEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: RightClickEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560203;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
-    }
-    if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
-    }
-    if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
-    }
-    objectValue["30"] = object.status;
-    if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
-    }
-    objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
-    objectValue["120"] = object.shiftKey;
-    objectValue["121"] = object.altKey;
-    objectValue["122"] = object.ctrlKey;
-    objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
-    objectValue["130"] = object.button;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RightClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["21"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const clientPtrValue = objectValue["22"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const clientNonceValue = objectValue["23"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new RightClickEvent({
-      button: Number(objectValue["130"]),
-      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
-      shiftKey: objectValue["120"],
-      altKey: objectValue["121"],
-      ctrlKey: objectValue["122"],
-      metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      snapshot: unpackedSnapshotPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RightClickEvent {
-    return RightClickEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): RightClickEventProto {
-    return RightClickEvent.__packProto__(this);
-  }
-
-  static __packProto__(object: RightClickEvent): RightClickEventProto {
-    const objectProto: Partial<RightClickEventProto> = { metatype: 560203 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    if (object.clientPtr != null) {
-      objectProto.clientPtr = object.clientPtr.toProto();
-    }
-    if (object.clientNonce != null) {
-      objectProto.clientNonce = String(object.clientNonce);
-    }
-    objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.nodePtr != null) {
-      objectProto.nodePtr = object.nodePtr.toProto();
-    }
-    objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
-    objectProto.shiftKey = object.shiftKey;
-    objectProto.altKey = object.altKey;
-    objectProto.ctrlKey = object.ctrlKey;
-    objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
-    objectProto.button = Number(object.button) as MouseButtonProto;
-    return objectProto as RightClickEventProto;
-  }
-
-  static __unpackProto__(
-    objectProto: RightClickEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RightClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    return new RightClickEvent({
-      button: Number(objectProto.button) as MouseButton,
-      position: _Vector2f.fromProto(
-        objectProto.position!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      pressure: objectProto.pressure,
-      shiftKey: objectProto.shiftKey,
-      altKey: objectProto.altKey,
-      ctrlKey: objectProto.ctrlKey,
-      metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      client:
-        objectProto.clientPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.clientPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
-      status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      id: String(objectProto.id),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: RightClickEventProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): RightClickEvent {
-    return RightClickEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): RightClickEvent {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = RightClickEventProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.RIGHT_CLICK_EVENT, RightClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560203 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:560204 ==== */
-/**
- * A MiddleClickEvent is a ClickEvent when a pointer is clicked with the middle button.
- */
-export class MiddleClickEvent extends ClickEvent {
-  static metatype: NodeType = NodeType.MIDDLE_CLICK_EVENT;
-
-  /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference | null;
-
-  /**
-   * The Snapshot this Event originated from.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly snapshotPtr: NodeReference | null;
-
-  /**
-   * Event.createdAt
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * Event.createdBy
-   */
-  get createdBy(): (Entity & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * Event.client
-   */
-  get client(): Client | null {
-    const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Client | null;
-    }
-    return null;
-  }
-  readonly clientPtr: NodeReference | null;
-
-  /**
-   * Event.clientNonce
-   */
-  readonly clientNonce: string | null;
-
-  /**
-   * The status of the Event.
-   */
-  readonly status: EventStatus;
-
-  /**
-   * InputEvent.node
-   */
-  get node(): View | null {
-    const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as View | null;
-    }
-    return null;
-  }
-  readonly nodePtr: NodeReference | null;
-
-  /**
-   * PointerEvent.position
-   */
-  readonly position: Vector2f;
-
-  /**
-   * PointerEvent.pressure
-   */
-  readonly pressure: number;
-
-  /**
-   * PointerEvent.shiftKey
-   */
-  readonly shiftKey: boolean;
-
-  /**
-   * PointerEvent.altKey
-   */
-  readonly altKey: boolean;
-
-  /**
-   * PointerEvent.ctrlKey
-   */
-  readonly ctrlKey: boolean;
-
-  /**
-   * PointerEvent.metaKey
-   */
-  readonly metaKey: boolean;
-
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
-  /**
-   * MouseEvent.button
-   */
-  readonly button: MouseButton;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
-    client?: Client | NodeReference | null;
-    clientNonce?: string | null;
-    status?: EventStatus;
-    node?: View | NodeReference | null;
-    position: Vector2f;
-    pressure: number;
-    shiftKey: boolean;
-    altKey: boolean;
-    ctrlKey: boolean;
-    metaKey: boolean;
-    accelKey: boolean;
-    button: MouseButton;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    this.spacePtr = _space;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    this.snapshotPtr = _snapshot;
-    let _client = options.client ?? null;
-    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
-      _client = (_client as Node).toRef();
-    }
-    this.clientPtr = _client;
-    let _clientNonce = options.clientNonce ?? null;
-    this.clientNonce = _clientNonce;
-    let _status = options.status ?? null;
-    if (_status === null) {
-      _status = 1 /* EventStatus.PENDING */;
-    }
-    if (_status === null) {
-      throw new Error(`MiddleClickEvent.status is required`);
-    }
-    this.status = _status;
-    let _node = options.node ?? null;
-    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
-      _node = (_node as Node).toRef();
-    }
-    this.nodePtr = _node;
-    let _position = options.position;
-    if (_position === null) {
-      throw new Error(`MiddleClickEvent.position is required`);
-    }
-    this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`MiddleClickEvent.pressure is required`);
-    }
-    this.pressure = _pressure;
-    let _shiftKey = options.shiftKey;
-    if (_shiftKey === null) {
-      throw new Error(`MiddleClickEvent.shiftKey is required`);
-    }
-    this.shiftKey = _shiftKey;
-    let _altKey = options.altKey;
-    if (_altKey === null) {
-      throw new Error(`MiddleClickEvent.altKey is required`);
-    }
-    this.altKey = _altKey;
-    let _ctrlKey = options.ctrlKey;
-    if (_ctrlKey === null) {
-      throw new Error(`MiddleClickEvent.ctrlKey is required`);
-    }
-    this.ctrlKey = _ctrlKey;
-    let _metaKey = options.metaKey;
-    if (_metaKey === null) {
-      throw new Error(`MiddleClickEvent.metaKey is required`);
-    }
-    this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`MiddleClickEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
-    let _button = options.button;
-    if (_button === null) {
-      throw new Error(`MiddleClickEvent.button is required`);
-    }
-    this.button = _button;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-    } else {
-      if (options.createdAt == null) {
-        throw new Error(`MiddleClickEvent.createdAt is required for existing Events`);
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.button === other.button)) {
-      return false;
-    }
-    if (!this.position.equals(other.position)) {
-      return false;
-    }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
-      return false;
-    }
-    if (!(this.shiftKey === other.shiftKey)) {
-      return false;
-    }
-    if (!(this.altKey === other.altKey)) {
-      return false;
-    }
-    if (!(this.ctrlKey === other.ctrlKey)) {
-      return false;
-    }
-    if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
-      return false;
-    }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
-      return false;
-    }
-    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
-      return false;
-    }
-    if (!(this.clientNonce === other.clientNonce)) {
-      return false;
-    }
-    if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.button) & 0xffffffff;
-    h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    if (this.clientPtr !== null) {
-      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
-    }
-    if (this.clientNonce !== null) {
-      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
-    }
-    h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new _NodeReference({
-      type: NodeType.MIDDLE_CLICK_EVENT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return `MiddleClickEvent[id=${this.id}]`;
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
-      pathParts.push(node._pathKey);
-      lastNode = node;
-      node = node.parent;
-    }
-    if (!lastNode.isRoot) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<MiddleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    return MiddleClickEvent.__packValue__(this);
-  }
-
-  static __packValue__(object: MiddleClickEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560204;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
-    }
-    if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
-    }
-    if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
-    }
-    objectValue["30"] = object.status;
-    if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
-    }
-    objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
-    objectValue["120"] = object.shiftKey;
-    objectValue["121"] = object.altKey;
-    objectValue["122"] = object.ctrlKey;
-    objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
-    objectValue["130"] = object.button;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MiddleClickEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["21"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const clientPtrValue = objectValue["22"];
-    const unpackedClientPtr =
-      clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const clientNonceValue = objectValue["23"];
-    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new MiddleClickEvent({
-      button: Number(objectValue["130"]),
-      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
-      shiftKey: objectValue["120"],
-      altKey: objectValue["121"],
-      ctrlKey: objectValue["122"],
-      metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
-      node: unpackedNodePtr,
-      parent: unpackedParentPtr,
-      snapshot: unpackedSnapshotPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdBy: unpackedCreatedByPtr,
-      client: unpackedClientPtr,
-      clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
-      id: String(objectValue["2"]),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MiddleClickEvent {
-    return MiddleClickEvent.__unpackValue__(
+  ): SingleClickEvent {
+    return SingleClickEvent.__unpackValue__(
       objectValue,
       _session,
       _supergraph,
@@ -2145,12 +769,12 @@ export class MiddleClickEvent extends ClickEvent {
     );
   }
 
-  toProto(): MiddleClickEventProto {
-    return MiddleClickEvent.__packProto__(this);
+  toProto(): SingleClickEventProto {
+    return SingleClickEvent.__packProto__(this);
   }
 
-  static __packProto__(object: MiddleClickEvent): MiddleClickEventProto {
-    const objectProto: Partial<MiddleClickEventProto> = { metatype: 560204 };
+  static __packProto__(object: SingleClickEvent): SingleClickEventProto {
+    const objectProto: Partial<SingleClickEventProto> = { metatype: 560202 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2176,26 +800,27 @@ export class MiddleClickEvent extends ClickEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     objectProto.button = Number(object.button) as MouseButtonProto;
-    return objectProto as MiddleClickEventProto;
+    return objectProto as SingleClickEventProto;
   }
 
   static __unpackProto__(
-    objectProto: MiddleClickEventProto,
+    objectProto: SingleClickEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): MiddleClickEvent {
+  ): SingleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    return new MiddleClickEvent({
+    return new SingleClickEvent({
       button: Number(objectProto.button) as MouseButton,
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -2204,12 +829,11 @@ export class MiddleClickEvent extends ClickEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2281,13 +905,13 @@ export class MiddleClickEvent extends ClickEvent {
   }
 
   static fromProto(
-    objectProto: MiddleClickEventProto,
+    objectProto: SingleClickEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): MiddleClickEvent {
-    return MiddleClickEvent.__unpackProto__(
+  ): SingleClickEvent {
+    return SingleClickEvent.__unpackProto__(
       objectProto,
       _session,
       _supergraph,
@@ -2296,9 +920,9 @@ export class MiddleClickEvent extends ClickEvent {
     );
   }
 
-  static fromProtoString(packedProtoString: string): MiddleClickEvent {
+  static fromProtoString(packedProtoString: string): SingleClickEvent {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MiddleClickEventProto.fromBinary(packedProtoBytes);
+    const packedProto = SingleClickEventProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -2306,10 +930,10 @@ export class MiddleClickEvent extends ClickEvent {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.MIDDLE_CLICK_EVENT, MiddleClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560204 ==== */
+registerNodeClass(NodeType.SINGLE_CLICK_EVENT, SingleClickEvent);
+/* ==== DESTACK_GENERATED_END:NODE:560202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560205 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:560203 ==== */
 /**
  * A DoubleClickEvent is a ClickEvent when a pointer is clicked twice in a short time.
  */
@@ -2411,7 +1035,7 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -2434,11 +1058,6 @@ export class DoubleClickEvent extends ClickEvent {
   readonly metaKey: boolean;
 
   /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
-  /**
    * MouseEvent.button
    */
   readonly button: MouseButton;
@@ -2455,12 +1074,11 @@ export class DoubleClickEvent extends ClickEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     button: MouseButton;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2529,10 +1147,7 @@ export class DoubleClickEvent extends ClickEvent {
       throw new Error(`DoubleClickEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`DoubleClickEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -2554,11 +1169,6 @@ export class DoubleClickEvent extends ClickEvent {
       throw new Error(`DoubleClickEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`DoubleClickEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
     let _button = options.button;
     if (_button === null) {
       throw new Error(`DoubleClickEvent.button is required`);
@@ -2594,7 +1204,11 @@ export class DoubleClickEvent extends ClickEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -2607,9 +1221,6 @@ export class DoubleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -2638,12 +1249,13 @@ export class DoubleClickEvent extends ClickEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.button) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2709,6 +1321,11 @@ export class DoubleClickEvent extends ClickEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`button=${MouseButton[this.button]}`);
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DoubleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -2719,7 +1336,7 @@ export class DoubleClickEvent extends ClickEvent {
 
   static __packValue__(object: DoubleClickEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560205;
+    objectValue["1"] = 560203;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2745,12 +1362,13 @@ export class DoubleClickEvent extends ClickEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     objectValue["130"] = object.button;
     return objectValue;
   }
@@ -2764,6 +1382,8 @@ export class DoubleClickEvent extends ClickEvent {
   ): DoubleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -2799,12 +1419,11 @@ export class DoubleClickEvent extends ClickEvent {
     return new DoubleClickEvent({
       button: Number(objectValue["130"]),
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -2842,7 +1461,7 @@ export class DoubleClickEvent extends ClickEvent {
   }
 
   static __packProto__(object: DoubleClickEvent): DoubleClickEventProto {
-    const objectProto: Partial<DoubleClickEventProto> = { metatype: 560205 };
+    const objectProto: Partial<DoubleClickEventProto> = { metatype: 560203 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2868,12 +1487,13 @@ export class DoubleClickEvent extends ClickEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     objectProto.button = Number(object.button) as MouseButtonProto;
     return objectProto as DoubleClickEventProto;
   }
@@ -2896,12 +1516,11 @@ export class DoubleClickEvent extends ClickEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2999,9 +1618,696 @@ export class DoubleClickEvent extends ClickEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DOUBLE_CLICK_EVENT, DoubleClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560205 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:560203 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560206 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:560204 ==== */
+/**
+ * A TripleClickEvent is a ClickEvent when a pointer is clicked three times in a short time.
+ */
+export class TripleClickEvent extends ClickEvent {
+  static metatype: NodeType = NodeType.TRIPLE_CLICK_EVENT;
+
+  /**
+   * Event.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference | null;
+
+  /**
+   * The Snapshot this Event originated from.
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * Event.createdAt
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * Event.createdBy
+   */
+  get createdBy(): (Entity & IsSubject) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * Event.client
+   */
+  get client(): Client | null {
+    const nodePtr: NodeReference | null = this.clientPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Client | null;
+    }
+    return null;
+  }
+  readonly clientPtr: NodeReference | null;
+
+  /**
+   * Event.clientNonce
+   */
+  readonly clientNonce: string | null;
+
+  /**
+   * The status of the Event.
+   */
+  readonly status: EventStatus;
+
+  /**
+   * InputEvent.node
+   */
+  get node(): View | null {
+    const nodePtr: NodeReference | null = this.nodePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as View | null;
+    }
+    return null;
+  }
+  readonly nodePtr: NodeReference | null;
+
+  /**
+   * PointerEvent.position
+   */
+  readonly position: Vector2f;
+
+  /**
+   * PointerEvent.pressure
+   */
+  readonly pressure: number | null;
+
+  /**
+   * PointerEvent.shiftKey
+   */
+  readonly shiftKey: boolean;
+
+  /**
+   * PointerEvent.altKey
+   */
+  readonly altKey: boolean;
+
+  /**
+   * PointerEvent.ctrlKey
+   */
+  readonly ctrlKey: boolean;
+
+  /**
+   * PointerEvent.metaKey
+   */
+  readonly metaKey: boolean;
+
+  /**
+   * MouseEvent.button
+   */
+  readonly button: MouseButton;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference | null;
+    snapshot?: Snapshot | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    client?: Client | NodeReference | null;
+    clientNonce?: string | null;
+    status?: EventStatus;
+    node?: View | NodeReference | null;
+    position: Vector2f;
+    pressure?: number | null;
+    shiftKey: boolean;
+    altKey: boolean;
+    ctrlKey: boolean;
+    metaKey: boolean;
+    button: MouseButton;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    this.spacePtr = _space;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    this.snapshotPtr = _snapshot;
+    let _client = options.client ?? null;
+    if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
+      _client = (_client as Node).toRef();
+    }
+    this.clientPtr = _client;
+    let _clientNonce = options.clientNonce ?? null;
+    this.clientNonce = _clientNonce;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 1 /* EventStatus.PENDING */;
+    }
+    if (_status === null) {
+      throw new Error(`TripleClickEvent.status is required`);
+    }
+    this.status = _status;
+    let _node = options.node ?? null;
+    if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
+      _node = (_node as Node).toRef();
+    }
+    this.nodePtr = _node;
+    let _position = options.position;
+    if (_position === null) {
+      throw new Error(`TripleClickEvent.position is required`);
+    }
+    this.position = _position;
+    let _pressure = options.pressure ?? null;
+    this.pressure = _pressure;
+    let _shiftKey = options.shiftKey;
+    if (_shiftKey === null) {
+      throw new Error(`TripleClickEvent.shiftKey is required`);
+    }
+    this.shiftKey = _shiftKey;
+    let _altKey = options.altKey;
+    if (_altKey === null) {
+      throw new Error(`TripleClickEvent.altKey is required`);
+    }
+    this.altKey = _altKey;
+    let _ctrlKey = options.ctrlKey;
+    if (_ctrlKey === null) {
+      throw new Error(`TripleClickEvent.ctrlKey is required`);
+    }
+    this.ctrlKey = _ctrlKey;
+    let _metaKey = options.metaKey;
+    if (_metaKey === null) {
+      throw new Error(`TripleClickEvent.metaKey is required`);
+    }
+    this.metaKey = _metaKey;
+    let _button = options.button;
+    if (_button === null) {
+      throw new Error(`TripleClickEvent.button is required`);
+    }
+    this.button = _button;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      this.createdAt = now;
+      this.createdByPtr = null;
+    } else {
+      if (options.createdAt == null) {
+        throw new Error(`TripleClickEvent.createdAt is required for existing Events`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.button === other.button)) {
+      return false;
+    }
+    if (!this.position.equals(other.position)) {
+      return false;
+    }
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
+      return false;
+    }
+    if (!(this.shiftKey === other.shiftKey)) {
+      return false;
+    }
+    if (!(this.altKey === other.altKey)) {
+      return false;
+    }
+    if (!(this.ctrlKey === other.ctrlKey)) {
+      return false;
+    }
+    if (!(this.metaKey === other.metaKey)) {
+      return false;
+    }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientPtr?.id === other.clientPtr?.id)) {
+      return false;
+    }
+    if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.status === other.status)) {
+      return false;
+    }
+    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.button) & 0xffffffff;
+    h = (h * 31 + this.position.hash()) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
+    if (this.parentPtr !== null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this.snapshotPtr !== null) {
+      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr !== null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    if (this.clientPtr !== null) {
+      h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
+    }
+    if (this.clientNonce !== null) {
+      h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
+    }
+    h = (h * 31 + this.status) & 0xffffffff;
+    if (this.spacePtr !== null) {
+      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.TRIPLE_CLICK_EVENT,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return `TripleClickEvent[id=${this.id}]`;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Node | null = this;
+    let lastNode: Node | null = this;
+    while (node !== null) {
+      pathParts.push(node._pathKey);
+      lastNode = node;
+      node = node.parent;
+    }
+    if (!lastNode.isRoot) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`button=${MouseButton[this.button]}`);
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
+    propertyReprs.push(`status=${EventStatus[this.status]}`);
+    return `<TripleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    return TripleClickEvent.__packValue__(this);
+  }
+
+  static __packValue__(object: TripleClickEvent): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 560204;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    if (object.spacePtr != null) {
+      objectValue["5"] = object.spacePtr.toValue();
+    }
+    if (object.snapshotPtr != null) {
+      objectValue["11"] = object.snapshotPtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    if (object.createdByPtr != null) {
+      objectValue["21"] = object.createdByPtr.toValue();
+    }
+    if (object.clientPtr != null) {
+      objectValue["22"] = object.clientPtr.toValue();
+    }
+    if (object.clientNonce != null) {
+      objectValue["23"] = String(object.clientNonce);
+    }
+    objectValue["30"] = object.status;
+    if (object.nodePtr != null) {
+      objectValue["101"] = object.nodePtr.toValue();
+    }
+    objectValue["110"] = object.position.toValue();
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
+    objectValue["120"] = object.shiftKey;
+    objectValue["121"] = object.altKey;
+    objectValue["122"] = object.ctrlKey;
+    objectValue["123"] = object.metaKey;
+    objectValue["130"] = object.button;
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TripleClickEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const snapshotPtrValue = objectValue["11"];
+    const unpackedSnapshotPtr =
+      snapshotPtrValue != undefined
+        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const createdByPtrValue = objectValue["21"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientPtrValue = objectValue["22"];
+    const unpackedClientPtr =
+      clientPtrValue != undefined
+        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const clientNonceValue = objectValue["23"];
+    const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const spacePtrValue = objectValue["5"];
+    const unpackedSpacePtr =
+      spacePtrValue != undefined
+        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new TripleClickEvent({
+      button: Number(objectValue["130"]),
+      position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
+      pressure: unpackedPressure,
+      shiftKey: objectValue["120"],
+      altKey: objectValue["121"],
+      ctrlKey: objectValue["122"],
+      metaKey: objectValue["123"],
+      node: unpackedNodePtr,
+      parent: unpackedParentPtr,
+      snapshot: unpackedSnapshotPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdBy: unpackedCreatedByPtr,
+      client: unpackedClientPtr,
+      clientNonce: unpackedClientNonce,
+      status: Number(objectValue["30"]),
+      space: unpackedSpacePtr,
+      id: String(objectValue["2"]),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TripleClickEvent {
+    return TripleClickEvent.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): TripleClickEventProto {
+    return TripleClickEvent.__packProto__(this);
+  }
+
+  static __packProto__(object: TripleClickEvent): TripleClickEventProto {
+    const objectProto: Partial<TripleClickEventProto> = { metatype: 560204 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    if (object.spacePtr != null) {
+      objectProto.spacePtr = object.spacePtr.toProto();
+    }
+    if (object.snapshotPtr != null) {
+      objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    if (object.clientPtr != null) {
+      objectProto.clientPtr = object.clientPtr.toProto();
+    }
+    if (object.clientNonce != null) {
+      objectProto.clientNonce = String(object.clientNonce);
+    }
+    objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.nodePtr != null) {
+      objectProto.nodePtr = object.nodePtr.toProto();
+    }
+    objectProto.position = object.position.toProto();
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
+    objectProto.shiftKey = object.shiftKey;
+    objectProto.altKey = object.altKey;
+    objectProto.ctrlKey = object.ctrlKey;
+    objectProto.metaKey = object.metaKey;
+    objectProto.button = Number(object.button) as MouseButtonProto;
+    return objectProto as TripleClickEventProto;
+  }
+
+  static __unpackProto__(
+    objectProto: TripleClickEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TripleClickEvent {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    return new TripleClickEvent({
+      button: Number(objectProto.button) as MouseButton,
+      position: _Vector2f.fromProto(
+        objectProto.position!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
+      shiftKey: objectProto.shiftKey,
+      altKey: objectProto.altKey,
+      ctrlKey: objectProto.ctrlKey,
+      metaKey: objectProto.metaKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot:
+        objectProto.snapshotPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      client:
+        objectProto.clientPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.clientPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      status: Number(objectProto.status) as EventStatus,
+      space:
+        objectProto.spacePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.spacePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      id: String(objectProto.id),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: TripleClickEventProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): TripleClickEvent {
+    return TripleClickEvent.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): TripleClickEvent {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = TripleClickEventProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.TRIPLE_CLICK_EVENT, TripleClickEvent);
+/* ==== DESTACK_GENERATED_END:NODE:560204 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:560205 ==== */
 /**
  * A WheelEvent is a MouseEvent when a wheel is scrolled.
  */
@@ -3103,7 +2409,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -3124,11 +2430,6 @@ export class WheelEvent extends MouseEvent {
    * PointerEvent.metaKey
    */
   readonly metaKey: boolean;
-
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
 
   /**
    * MouseEvent.button
@@ -3152,12 +2453,11 @@ export class WheelEvent extends MouseEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     button: MouseButton;
     delta: Vector2f;
     _session?: Session | null;
@@ -3227,10 +2527,7 @@ export class WheelEvent extends MouseEvent {
       throw new Error(`WheelEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`WheelEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -3252,11 +2549,6 @@ export class WheelEvent extends MouseEvent {
       throw new Error(`WheelEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`WheelEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
     let _button = options.button;
     if (_button === null) {
       throw new Error(`WheelEvent.button is required`);
@@ -3300,7 +2592,11 @@ export class WheelEvent extends MouseEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -3313,9 +2609,6 @@ export class WheelEvent extends MouseEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -3345,12 +2638,13 @@ export class WheelEvent extends MouseEvent {
     h = (h * 31 + this.delta.hash()) & 0xffffffff;
     h = (h * 31 + this.button) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -3416,6 +2710,11 @@ export class WheelEvent extends MouseEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`button=${MouseButton[this.button]}`);
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<WheelEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -3426,7 +2725,7 @@ export class WheelEvent extends MouseEvent {
 
   static __packValue__(object: WheelEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560206;
+    objectValue["1"] = 560205;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -3452,12 +2751,13 @@ export class WheelEvent extends MouseEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     objectValue["130"] = object.button;
     objectValue["140"] = object.delta.toValue();
     return objectValue;
@@ -3472,6 +2772,8 @@ export class WheelEvent extends MouseEvent {
   ): WheelEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -3508,12 +2810,11 @@ export class WheelEvent extends MouseEvent {
       delta: _Vector2f.fromValue(objectValue["140"], _session, _supergraph, _graph, _connection),
       button: Number(objectValue["130"]),
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -3545,7 +2846,7 @@ export class WheelEvent extends MouseEvent {
   }
 
   static __packProto__(object: WheelEvent): WheelEventProto {
-    const objectProto: Partial<WheelEventProto> = { metatype: 560206 };
+    const objectProto: Partial<WheelEventProto> = { metatype: 560205 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -3571,12 +2872,13 @@ export class WheelEvent extends MouseEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     objectProto.button = Number(object.button) as MouseButtonProto;
     objectProto.delta = object.delta.toProto();
     return objectProto as WheelEventProto;
@@ -3601,12 +2903,11 @@ export class WheelEvent extends MouseEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -3698,4 +2999,4 @@ export class WheelEvent extends MouseEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WHEEL_EVENT, WheelEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560206 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:560205 ==== */

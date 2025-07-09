@@ -105,6 +105,11 @@ class Session:
             self._token = None
         self.closed_at = self.oracle.utc()
 
+    def append(self, event: Event):
+        """Appends an Event."""
+        assert self.closed_at is None, f"{self!r} is closed"
+        self.pending_events.append(event)
+
     def create(self, node: Entity):
         """Creates a new Entity."""
         assert self.closed_at is None, f"{self!r} is closed"

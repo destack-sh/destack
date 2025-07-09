@@ -14,7 +14,7 @@ from .input import InputEvent
 class DragEvent(InputEvent):
     """A DragEvent is an InputEvent that corresponds to some direct user input with a drag."""
 
-    position: Vector2f = builtin_property(110)
+    position: Vector2f = builtin_property(110, is_repr=True)
 
 
 @builtin_node(NodeType.DRAG_START_EVENT, frozen=True)

@@ -146,18 +146,6 @@ export class EditEvent extends Event {
   readonly status: EventStatus;
 
   /**
-   * The EditEvent that caused this EditEvent.
-   */
-  get cascadedFrom(): EditEvent | null {
-    const nodePtr: NodeReference | null = this.cascadedFromPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as EditEvent | null;
-    }
-    return null;
-  }
-  readonly cascadedFromPtr: NodeReference | null;
-
-  /**
    * The type of Edit.
    */
   readonly type: EditType;
@@ -214,7 +202,6 @@ export class EditEvent extends Event {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    cascadedFrom?: EditEvent | NodeReference | null;
     type: EditType;
     node: Entity | NodeReference;
     operation?: EditOperation | null;
@@ -280,11 +267,6 @@ export class EditEvent extends Event {
       throw new Error(`EditEvent.status is required`);
     }
     this.status = _status;
-    let _cascadedFrom = options.cascadedFrom ?? null;
-    if (_cascadedFrom != null && _cascadedFrom.metatype != StructType.NODE_REFERENCE) {
-      _cascadedFrom = (_cascadedFrom as Node).toRef();
-    }
-    this.cascadedFromPtr = _cascadedFrom;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`EditEvent.type is required`);
@@ -332,9 +314,6 @@ export class EditEvent extends Event {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.cascadedFromPtr?.id === other.cascadedFromPtr?.id)) {
       return false;
     }
     if (!(this.type === other.type)) {
@@ -394,9 +373,6 @@ export class EditEvent extends Event {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.cascadedFromPtr !== null) {
-      h = (h * 31 + hashString(this.cascadedFromPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     if (this.operation !== null) {
@@ -479,9 +455,6 @@ export class EditEvent extends Event {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    if (this.cascadedFrom !== null) {
-      propertyReprs.push(`cascadedFrom=${this.cascadedFrom?.repr()}`);
-    }
     propertyReprs.push(`type=${EditType[this.type]}`);
     propertyReprs.push(`node=${this.node?.repr()}`);
     if (this.operation !== null) {
@@ -531,9 +504,6 @@ export class EditEvent extends Event {
       objectValue["23"] = String(object.clientNonce);
     }
     objectValue["30"] = object.status;
-    if (object.cascadedFromPtr != null) {
-      objectValue["85"] = object.cascadedFromPtr.toValue();
-    }
     objectValue["100"] = object.type;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.operation != null) {
@@ -569,11 +539,6 @@ export class EditEvent extends Event {
       StructType.PROPERTY_REFERENCE
     ] as typeof PropertyReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const cascadedFromPtrValue = objectValue["85"];
-    const unpackedCascadedFromPtr =
-      cascadedFromPtrValue != undefined
-        ? _NodeReference.fromValue(cascadedFromPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const operationValue = objectValue["102"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
     const attributeValue = objectValue["103"];
@@ -627,7 +592,6 @@ export class EditEvent extends Event {
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new EditEvent({
-      cascadedFrom: unpackedCascadedFromPtr,
       type: Number(objectValue["100"]),
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -694,9 +658,6 @@ export class EditEvent extends Event {
       objectProto.clientNonce = String(object.clientNonce);
     }
     objectProto.status = Number(object.status) as EventStatusProto;
-    if (object.cascadedFromPtr != null) {
-      objectProto.cascadedFromPtr = object.cascadedFromPtr.toProto();
-    }
     objectProto.type = Number(object.type) as EditTypeProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.operation != null) {
@@ -733,16 +694,6 @@ export class EditEvent extends Event {
     ] as typeof PropertyReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     return new EditEvent({
-      cascadedFrom:
-        objectProto.cascadedFromPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.cascadedFromPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       type: Number(objectProto.type) as EditType,
       node: _NodeReference.fromProto(
         objectProto.nodePtr!,

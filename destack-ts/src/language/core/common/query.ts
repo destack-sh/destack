@@ -2010,6 +2010,11 @@ export class QueryUpdate extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
+   * The id of the corresponding Query.
+   */
+  readonly id: string;
+
+  /**
    * QueryUpdate.type
    */
   readonly type: QueryUpdateType;
@@ -2020,6 +2025,7 @@ export class QueryUpdate extends StructFrozen {
   readonly result: QueryResult | null;
 
   constructor(options: {
+    id: string;
     type: QueryUpdateType;
     result?: QueryResult | null;
     _session?: Session | null;
@@ -2037,6 +2043,11 @@ export class QueryUpdate extends StructFrozen {
     );
 
     // properties
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`QueryUpdate.id is required`);
+    }
+    this.id = _id;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`QueryUpdate.type is required`);
@@ -2060,6 +2071,9 @@ export class QueryUpdate extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.id === other.id)) {
+      return false;
+    }
     if (!(this.type === other.type)) {
       return false;
     }
@@ -2075,6 +2089,7 @@ export class QueryUpdate extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`type=${QueryUpdateType[this.type]}`);
       if (this.result !== null) {
         propertyReprs.push(`result=${this.result.repr()}`);
@@ -2092,6 +2107,7 @@ export class QueryUpdate extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.result !== null) {
       h = (h * 31 + this.result.hash()) & 0xffffffff;
@@ -2117,6 +2133,7 @@ export class QueryUpdate extends StructFrozen {
   static __packValue__(object: QueryUpdate): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 553;
+    objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     if (object.result != null) {
       objectValue["101"] = object.result.toValue();
@@ -2138,6 +2155,7 @@ export class QueryUpdate extends StructFrozen {
         ? _QueryResult.fromValue(resultValue, _session, _supergraph, _graph, _connection)
         : null;
     return new QueryUpdate({
+      id: String(objectValue["2"]),
       type: Number(objectValue["100"]),
       result: unpackedResult,
       _value: objectValue,
@@ -2165,6 +2183,7 @@ export class QueryUpdate extends StructFrozen {
 
   static __packProto__(object: QueryUpdate): QueryUpdateProto {
     const objectProto: Partial<QueryUpdateProto> = { metatype: 553 };
+    objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryUpdateTypeProto;
     if (object.result != null) {
       objectProto.result = object.result.toProto();
@@ -2181,6 +2200,7 @@ export class QueryUpdate extends StructFrozen {
   ): QueryUpdate {
     const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
     return new QueryUpdate({
+      id: String(objectProto.id),
       type: Number(objectProto.type) as QueryUpdateType,
       result:
         objectProto.result != undefined
@@ -3122,7 +3142,7 @@ registerStructClass(StructType.QUERY, Query);
 /* ==== DESTACK_GENERATED_START:STRUCT:551 ==== */
 /**
  * The result of a Query.
- * For grouped queries, group results are in Query.groups.
+ * For grouped queries, the grouped results are in Query.groups.
  * The subresults correspond to Query.subqueries.
  * If subresults for a Query clause may be missing if the subquery was deemed empty.
  */
@@ -3131,7 +3151,7 @@ export class QueryResult extends Struct {
   static __isFrozen__: boolean = false;
 
   /**
-   * QueryResult.id
+   * The id of the corresponding Query.
    */
   id: string;
 
@@ -4467,7 +4487,6 @@ registerEnumClass(EnumType.QUERY_TYPE, QueryType);
  */
 export enum QueryUpdateType {
   FULL_RESULT = 1,
-  PARTIAL_RESULT = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

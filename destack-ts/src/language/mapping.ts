@@ -274,11 +274,10 @@ import type {
 import type {
   ClickEvent,
   DoubleClickEvent,
-  LeftClickEvent,
-  MiddleClickEvent,
   MouseButton,
   MouseEvent,
-  RightClickEvent,
+  SingleClickEvent,
+  TripleClickEvent,
   WheelEvent,
 } from "@destack/language/interaction/mouse";
 import type {
@@ -572,10 +571,9 @@ export type NodeTypeMapping = {
   [NodeType.POINTER_LONG_PRESS_EVENT]: PointerLongPressEvent;
   [NodeType.MOUSE_EVENT]: MouseEvent;
   [NodeType.CLICK_EVENT]: ClickEvent;
-  [NodeType.LEFT_CLICK_EVENT]: LeftClickEvent;
-  [NodeType.RIGHT_CLICK_EVENT]: RightClickEvent;
-  [NodeType.MIDDLE_CLICK_EVENT]: MiddleClickEvent;
+  [NodeType.SINGLE_CLICK_EVENT]: SingleClickEvent;
   [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
+  [NodeType.TRIPLE_CLICK_EVENT]: TripleClickEvent;
   [NodeType.WHEEL_EVENT]: WheelEvent;
   [NodeType.METHOD]: Method;
   [NodeType.ACTION]: Action;

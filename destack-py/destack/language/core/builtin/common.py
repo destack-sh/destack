@@ -699,11 +699,10 @@ class NodeType(Enum):
     # mouse events
     MOUSE_EVENT = 560_200, "Mouse Event", None, "fas fa-mouse-pointer"
     CLICK_EVENT = 560_201, "Click Event", None, "fas fa-mouse-pointer"
-    LEFT_CLICK_EVENT = 560_202, "Left Click Event", None, "fas fa-mouse-pointer"
-    RIGHT_CLICK_EVENT = 560_203, "Right Click Event", None, "fas fa-mouse-pointer"
-    MIDDLE_CLICK_EVENT = 560_204, "Middle Click Event", None, "fas fa-mouse-pointer"
-    DOUBLE_CLICK_EVENT = 560_205, "Double Click Event", None, "fas fa-mouse-pointer"
-    WHEEL_EVENT = 560_206, "Wheel Event", None, "fas fa-mouse-pointer"
+    SINGLE_CLICK_EVENT = 560_202, "Single Click Event", None, "fas fa-mouse-pointer"
+    DOUBLE_CLICK_EVENT = 560_203, "Double Click Event", None, "fas fa-mouse-pointer"
+    TRIPLE_CLICK_EVENT = 560_204, "Triple Click Event", None, "fas fa-mouse-pointer"
+    WHEEL_EVENT = 560_205, "Wheel Event", None, "fas fa-mouse-pointer"
     # keyboard events
     KEYBOARD_EVENT = 560_300, "Key Event", None, "fas fa-keyboard"
     KEY_DOWN_EVENT = 560_301, "Key Down Event", None, "fas fa-keyboard"

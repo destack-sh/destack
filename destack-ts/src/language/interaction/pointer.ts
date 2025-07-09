@@ -94,7 +94,7 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * PointerEvent.pressure
    */
-  declare readonly pressure: number;
+  declare readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -115,11 +115,6 @@ export abstract class PointerEvent extends InputEvent {
    * PointerEvent.metaKey
    */
   declare readonly metaKey: boolean;
-
-  /**
-   * PointerEvent.accelKey
-   */
-  declare readonly accelKey: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -230,7 +225,7 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -252,11 +247,6 @@ export class PointerDownEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -269,12 +259,11 @@ export class PointerDownEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -342,10 +331,7 @@ export class PointerDownEvent extends PointerEvent {
       throw new Error(`PointerDownEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerDownEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -367,11 +353,6 @@ export class PointerDownEvent extends PointerEvent {
       throw new Error(`PointerDownEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerDownEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -399,7 +380,11 @@ export class PointerDownEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -412,9 +397,6 @@ export class PointerDownEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -442,12 +424,13 @@ export class PointerDownEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -513,6 +496,10 @@ export class PointerDownEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -549,12 +536,13 @@ export class PointerDownEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -567,6 +555,8 @@ export class PointerDownEvent extends PointerEvent {
   ): PointerDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -601,12 +591,11 @@ export class PointerDownEvent extends PointerEvent {
         : null;
     return new PointerDownEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -670,12 +659,13 @@ export class PointerDownEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerDownEventProto;
   }
 
@@ -696,12 +686,11 @@ export class PointerDownEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -903,7 +892,7 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -925,11 +914,6 @@ export class PointerUpEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -942,12 +926,11 @@ export class PointerUpEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1015,10 +998,7 @@ export class PointerUpEvent extends PointerEvent {
       throw new Error(`PointerUpEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerUpEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -1040,11 +1020,6 @@ export class PointerUpEvent extends PointerEvent {
       throw new Error(`PointerUpEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerUpEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -1072,7 +1047,11 @@ export class PointerUpEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -1085,9 +1064,6 @@ export class PointerUpEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -1115,12 +1091,13 @@ export class PointerUpEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1186,6 +1163,10 @@ export class PointerUpEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1222,12 +1203,13 @@ export class PointerUpEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -1240,6 +1222,8 @@ export class PointerUpEvent extends PointerEvent {
   ): PointerUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1274,12 +1258,11 @@ export class PointerUpEvent extends PointerEvent {
         : null;
     return new PointerUpEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -1337,12 +1320,13 @@ export class PointerUpEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerUpEventProto;
   }
 
@@ -1363,12 +1347,11 @@ export class PointerUpEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -1564,7 +1547,7 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -1586,11 +1569,6 @@ export class PointerMoveEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -1603,12 +1581,11 @@ export class PointerMoveEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1676,10 +1653,7 @@ export class PointerMoveEvent extends PointerEvent {
       throw new Error(`PointerMoveEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerMoveEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -1701,11 +1675,6 @@ export class PointerMoveEvent extends PointerEvent {
       throw new Error(`PointerMoveEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerMoveEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -1733,7 +1702,11 @@ export class PointerMoveEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -1746,9 +1719,6 @@ export class PointerMoveEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -1776,12 +1746,13 @@ export class PointerMoveEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -1847,6 +1818,10 @@ export class PointerMoveEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerMoveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -1883,12 +1858,13 @@ export class PointerMoveEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -1901,6 +1877,8 @@ export class PointerMoveEvent extends PointerEvent {
   ): PointerMoveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1935,12 +1913,11 @@ export class PointerMoveEvent extends PointerEvent {
         : null;
     return new PointerMoveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -2004,12 +1981,13 @@ export class PointerMoveEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerMoveEventProto;
   }
 
@@ -2030,12 +2008,11 @@ export class PointerMoveEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2237,7 +2214,7 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -2259,11 +2236,6 @@ export class PointerEnterEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -2276,12 +2248,11 @@ export class PointerEnterEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2349,10 +2320,7 @@ export class PointerEnterEvent extends PointerEvent {
       throw new Error(`PointerEnterEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerEnterEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -2374,11 +2342,6 @@ export class PointerEnterEvent extends PointerEvent {
       throw new Error(`PointerEnterEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerEnterEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -2406,7 +2369,11 @@ export class PointerEnterEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -2419,9 +2386,6 @@ export class PointerEnterEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -2449,12 +2413,13 @@ export class PointerEnterEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -2520,6 +2485,10 @@ export class PointerEnterEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -2556,12 +2525,13 @@ export class PointerEnterEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -2574,6 +2544,8 @@ export class PointerEnterEvent extends PointerEvent {
   ): PointerEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -2608,12 +2580,11 @@ export class PointerEnterEvent extends PointerEvent {
         : null;
     return new PointerEnterEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -2677,12 +2648,13 @@ export class PointerEnterEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerEnterEventProto;
   }
 
@@ -2703,12 +2675,11 @@ export class PointerEnterEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -2910,7 +2881,7 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -2932,11 +2903,6 @@ export class PointerOverEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -2949,12 +2915,11 @@ export class PointerOverEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -3022,10 +2987,7 @@ export class PointerOverEvent extends PointerEvent {
       throw new Error(`PointerOverEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerOverEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -3047,11 +3009,6 @@ export class PointerOverEvent extends PointerEvent {
       throw new Error(`PointerOverEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerOverEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -3079,7 +3036,11 @@ export class PointerOverEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -3092,9 +3053,6 @@ export class PointerOverEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -3122,12 +3080,13 @@ export class PointerOverEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -3193,6 +3152,10 @@ export class PointerOverEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -3229,12 +3192,13 @@ export class PointerOverEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -3247,6 +3211,8 @@ export class PointerOverEvent extends PointerEvent {
   ): PointerOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -3281,12 +3247,11 @@ export class PointerOverEvent extends PointerEvent {
         : null;
     return new PointerOverEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -3350,12 +3315,13 @@ export class PointerOverEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerOverEventProto;
   }
 
@@ -3376,12 +3342,11 @@ export class PointerOverEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -3583,7 +3548,7 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -3605,11 +3570,6 @@ export class PointerLeaveEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -3622,12 +3582,11 @@ export class PointerLeaveEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -3695,10 +3654,7 @@ export class PointerLeaveEvent extends PointerEvent {
       throw new Error(`PointerLeaveEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerLeaveEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -3720,11 +3676,6 @@ export class PointerLeaveEvent extends PointerEvent {
       throw new Error(`PointerLeaveEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerLeaveEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -3752,7 +3703,11 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -3765,9 +3720,6 @@ export class PointerLeaveEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -3795,12 +3747,13 @@ export class PointerLeaveEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -3866,6 +3819,10 @@ export class PointerLeaveEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -3902,12 +3859,13 @@ export class PointerLeaveEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -3920,6 +3878,8 @@ export class PointerLeaveEvent extends PointerEvent {
   ): PointerLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -3954,12 +3914,11 @@ export class PointerLeaveEvent extends PointerEvent {
         : null;
     return new PointerLeaveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -4023,12 +3982,13 @@ export class PointerLeaveEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerLeaveEventProto;
   }
 
@@ -4049,12 +4009,11 @@ export class PointerLeaveEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
@@ -4256,7 +4215,7 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * PointerEvent.pressure
    */
-  readonly pressure: number;
+  readonly pressure: number | null;
 
   /**
    * PointerEvent.shiftKey
@@ -4278,11 +4237,6 @@ export class PointerLongPressEvent extends PointerEvent {
    */
   readonly metaKey: boolean;
 
-  /**
-   * PointerEvent.accelKey
-   */
-  readonly accelKey: boolean;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -4295,12 +4249,11 @@ export class PointerLongPressEvent extends PointerEvent {
     status?: EventStatus;
     node?: View | NodeReference | null;
     position: Vector2f;
-    pressure: number;
+    pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
-    accelKey: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -4368,10 +4321,7 @@ export class PointerLongPressEvent extends PointerEvent {
       throw new Error(`PointerLongPressEvent.position is required`);
     }
     this.position = _position;
-    let _pressure = options.pressure;
-    if (_pressure === null) {
-      throw new Error(`PointerLongPressEvent.pressure is required`);
-    }
+    let _pressure = options.pressure ?? null;
     this.pressure = _pressure;
     let _shiftKey = options.shiftKey;
     if (_shiftKey === null) {
@@ -4393,11 +4343,6 @@ export class PointerLongPressEvent extends PointerEvent {
       throw new Error(`PointerLongPressEvent.metaKey is required`);
     }
     this.metaKey = _metaKey;
-    let _accelKey = options.accelKey;
-    if (_accelKey === null) {
-      throw new Error(`PointerLongPressEvent.accelKey is required`);
-    }
-    this.accelKey = _accelKey;
 
     // identity
     if (options.id == null) {
@@ -4425,7 +4370,11 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!this.position.equals(other.position)) {
       return false;
     }
-    if (!(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10)) {
+    if (
+      (this.pressure == null) !== (other.pressure == null) ||
+      (this.pressure != null &&
+        !(this.pressure === other.pressure || Math.abs(this.pressure - other.pressure) < 1e-10))
+    ) {
       return false;
     }
     if (!(this.shiftKey === other.shiftKey)) {
@@ -4438,9 +4387,6 @@ export class PointerLongPressEvent extends PointerEvent {
       return false;
     }
     if (!(this.metaKey === other.metaKey)) {
-      return false;
-    }
-    if (!(this.accelKey === other.accelKey)) {
       return false;
     }
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
@@ -4468,12 +4414,13 @@ export class PointerLongPressEvent extends PointerEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    if (this.pressure !== null) {
+      h = (h * 31 + hashFloat(this.pressure)) & 0xffffffff;
+    }
     h = (h * 31 + hashBool(this.shiftKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.accelKey)) & 0xffffffff;
     if (this.nodePtr !== null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
@@ -4539,6 +4486,10 @@ export class PointerLongPressEvent extends PointerEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`position=${this.position.repr()}`);
+    if (this.pressure !== null) {
+      propertyReprs.push(`pressure=${this.pressure}`);
+    }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerLongPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
@@ -4575,12 +4526,13 @@ export class PointerLongPressEvent extends PointerEvent {
       objectValue["101"] = object.nodePtr.toValue();
     }
     objectValue["110"] = object.position.toValue();
-    objectValue["111"] = object.pressure;
+    if (object.pressure != null) {
+      objectValue["111"] = object.pressure;
+    }
     objectValue["120"] = object.shiftKey;
     objectValue["121"] = object.altKey;
     objectValue["122"] = object.ctrlKey;
     objectValue["123"] = object.metaKey;
-    objectValue["124"] = object.accelKey;
     return objectValue;
   }
 
@@ -4593,6 +4545,8 @@ export class PointerLongPressEvent extends PointerEvent {
   ): PointerLongPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const pressureValue = objectValue["111"];
+    const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -4627,12 +4581,11 @@ export class PointerLongPressEvent extends PointerEvent {
         : null;
     return new PointerLongPressEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
-      pressure: objectValue["111"],
+      pressure: unpackedPressure,
       shiftKey: objectValue["120"],
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
-      accelKey: objectValue["124"],
       node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
@@ -4696,12 +4649,13 @@ export class PointerLongPressEvent extends PointerEvent {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
     objectProto.position = object.position.toProto();
-    objectProto.pressure = object.pressure;
+    if (object.pressure != null) {
+      objectProto.pressure = object.pressure;
+    }
     objectProto.shiftKey = object.shiftKey;
     objectProto.altKey = object.altKey;
     objectProto.ctrlKey = object.ctrlKey;
     objectProto.metaKey = object.metaKey;
-    objectProto.accelKey = object.accelKey;
     return objectProto as PointerLongPressEventProto;
   }
 
@@ -4722,12 +4676,11 @@ export class PointerLongPressEvent extends PointerEvent {
         _graph,
         _connection,
       ),
-      pressure: objectProto.pressure,
+      pressure: objectProto.pressure != undefined ? objectProto.pressure : null,
       shiftKey: objectProto.shiftKey,
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
-      accelKey: objectProto.accelKey,
       node:
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(

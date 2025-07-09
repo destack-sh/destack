@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import ClassVar, cast, override
+from typing import ClassVar, assert_never, cast, override
 
 import opentelemetry.trace as trace
 import structlog
@@ -12,6 +12,7 @@ from destack.language import (
     NodeType,
     Query,
     QueryResult,
+    StoreDomain,
     StoreImplementation,
     StoreKey,
     to_value,
@@ -128,7 +129,12 @@ class MemoryStore(EntityStore, EventStore):
 
     @override
     async def query(self, query: Query) -> QueryResult:
-        return await self.entity_store.query(query)
+        if query.domain == StoreDomain.ENTITY:
+            return await self.entity_store.query(query)
+        elif query.domain == StoreDomain.EVENT:
+            return await self.event_store.query(query)
+        else:
+            assert_never(query.domain)
 
     @override
     async def commit(self, events: Sequence[EditEvent]) -> Sequence[EditEvent]:

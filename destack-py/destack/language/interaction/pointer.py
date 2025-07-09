@@ -14,14 +14,13 @@ from .input import InputEvent
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
-    position: Vector2f = builtin_property(110)
-    pressure: float = builtin_property(111)
+    position: Vector2f = builtin_property(110, is_repr=True)
+    pressure: float | None = builtin_property(111, is_repr=True)
 
     shift_key: bool = builtin_property(120)
     alt_key: bool = builtin_property(121)
     ctrl_key: bool = builtin_property(122)
     meta_key: bool = builtin_property(123)
-    accel_key: bool = builtin_property(124)
 
 
 @builtin_node(NodeType.POINTER_DOWN_EVENT, frozen=True)

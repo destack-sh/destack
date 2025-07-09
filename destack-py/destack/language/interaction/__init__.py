@@ -28,11 +28,10 @@ from .keyboard import (
 from .mouse import (
     ClickEvent,
     DoubleClickEvent,
-    LeftClickEvent,
-    MiddleClickEvent,
     MouseButton,
     MouseEvent,
-    RightClickEvent,
+    SingleClickEvent,
+    TripleClickEvent,
     WheelEvent,
 )
 from .pointer import (
@@ -67,8 +66,6 @@ __all__ = [
     "KeyPressEvent",
     "KeyUpEvent",
     "KeyboardEvent",
-    "LeftClickEvent",
-    "MiddleClickEvent",
     "MouseButton",
     "MouseEvent",
     "PasteEvent",
@@ -80,6 +77,7 @@ __all__ = [
     "PointerMoveEvent",
     "PointerOverEvent",
     "PointerUpEvent",
-    "RightClickEvent",
+    "SingleClickEvent",
+    "TripleClickEvent",
     "WheelEvent",
 ]
