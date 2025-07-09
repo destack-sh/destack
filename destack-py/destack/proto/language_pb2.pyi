@@ -1286,8 +1286,6 @@ class StoreTierProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STORE_TIER_UNSPECIFIED: _ClassVar[StoreTierProto]
     STORE_TIER_PRIMARY: _ClassVar[StoreTierProto]
-    STORE_TIER_SEARCH: _ClassVar[StoreTierProto]
-    STORE_TIER_AGGREGATE: _ClassVar[StoreTierProto]
 
 class StringFormatProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2533,8 +2531,6 @@ STORE_SCOPE_GLOBAL: StoreScopeProto
 STORE_SCOPE_SPATIAL: StoreScopeProto
 STORE_TIER_UNSPECIFIED: StoreTierProto
 STORE_TIER_PRIMARY: StoreTierProto
-STORE_TIER_SEARCH: StoreTierProto
-STORE_TIER_AGGREGATE: StoreTierProto
 STRING_FORMAT_UNSPECIFIED: StringFormatProto
 STRING_FORMAT_NAME: StringFormatProto
 STRING_FORMAT_SLUG: StringFormatProto

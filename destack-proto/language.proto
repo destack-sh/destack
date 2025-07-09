@@ -1319,8 +1319,6 @@ enum StoreScopeProto {
 enum StoreTierProto {
   STORE_TIER_UNSPECIFIED = 0;
   STORE_TIER_PRIMARY = 10;
-  STORE_TIER_SEARCH = 20;
-  STORE_TIER_AGGREGATE = 30;
 }
 
 // The format of a string.

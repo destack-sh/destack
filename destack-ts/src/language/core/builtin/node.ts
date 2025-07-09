@@ -51,14 +51,20 @@ export abstract class Node extends BuiltinObject {
   readonly parentPtr: NodeReference | null;
 
   // runtime
+  /* The current Session this Node is in. */
   _session: Session;
+  /* The Supergraph this Node is part of. */
   _supergraph: Supergraph;
+  /* The specific Graph this Node is part of. */
   _graph: Graph;
+  /* The QueryConnection this Node is from (if any). */
   _connection: QueryConnection | null;
+  /* The hash of this Node. */
   _hash: string | null;
+  /* The cached reference to this Node. */
   _ref: NodeReference | null;
+  /* Whether this Node is new. */
   _isNew: boolean;
-  _isAttached: boolean;
 
   constructor(
     id: string | null,
@@ -68,7 +74,6 @@ export abstract class Node extends BuiltinObject {
     _graph: Graph | null,
     _connection: QueryConnection | null,
     _isNew: boolean,
-    _isAttached: boolean,
   ) {
     super(_supergraph);
     this.id = id ?? uuid4();
@@ -85,7 +90,6 @@ export abstract class Node extends BuiltinObject {
     this._hash = this.id;
     this._ref = null;
     this._isNew = _isNew;
-    this._isAttached = _isAttached;
   }
 
   get metatype(): NodeType {
@@ -126,6 +130,10 @@ export abstract class Node extends BuiltinObject {
 
   get __descendantTypes__(): NodeType[] {
     return (this.constructor as typeof Node).__definition__.descendantTypes;
+  }
+
+  get isRoot(): boolean {
+    return (this.constructor as typeof Node).__definition__.rootType == null;
   }
 
   get _pathKey(): string {

@@ -395,8 +395,6 @@ export class Space
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      true,
     );
 
     // properties

@@ -100,7 +100,6 @@ def _generate_init[ObjectT: BuiltinObject](
     if is_node:
         header_properties.pop("_ref")
         header_properties.pop("_is_new")
-        header_properties.pop("_is_attached")
     properties_in_order = list(header_properties.values())
     properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
     method_header_lines = ["def __init__(self, *"]
@@ -173,7 +172,6 @@ def _generate_init[ObjectT: BuiltinObject](
         body_properties.pop("_connection")
         body_properties.pop("_ref")
         body_properties.pop("_is_new")
-        body_properties.pop("_is_attached")
         method_body_lines.append(f"""\
 # session
 if _session is None:
@@ -204,10 +202,8 @@ if id is None:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         method_body_lines.append(f"""\
     _is_new = True
-    _is_attached = {"True" if is_root_node else "_graph is not None"}
 else:
     _is_new = False
-    _is_attached = True # if we already have an id, assume we're attached
 {set_template_str.format("id", "id")}
 """)
 
@@ -225,7 +221,6 @@ else:
         method_body_lines.append(f"""\
 {set_template_str.format("_ref", "None")}
 {set_template_str.format("_is_new", "_is_new")}
-{set_template_str.format("_is_attached", "_is_attached")}
 """)
 
     else:
@@ -821,10 +816,12 @@ path = _path_key
 def path(self) -> str:
     path_parts: list[str] = []
     node = self
+    last_node = self
     while node is not None:
         path_parts.append(node._path_key)
+        last_node = node
         node = node.parent
-    if not self._is_attached:
+    if not last_node.is_root:
         path_parts.append("<detached>")
     return "/".join(reversed(path_parts))
 """

@@ -111,7 +111,6 @@ export class Session {
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
-    node._isAttached = true;
   }
 
   /** Create or update an Entity. */
@@ -126,7 +125,6 @@ export class Session {
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
-    node._isAttached = true;
   }
 
   /** Update an Entity. */

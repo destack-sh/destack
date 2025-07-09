@@ -283,7 +283,7 @@ class Entity(Node):
                     node.space_ptr = space_ptr
 
         # create new nodes
-        if self._is_new and parent is not None and parent._is_attached:
+        if self._is_new and parent is not None and not parent._is_new:
             for node in nodes:
                 assert isinstance(node, Entity), f"{node!r} of {parent!r} is not an Entity"
                 node._ref = None  # invalidate cached ref

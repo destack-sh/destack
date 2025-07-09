@@ -24276,15 +24276,7 @@ export enum StoreTierProto {
     /**
      * @generated from protobuf enum value: STORE_TIER_PRIMARY = 10;
      */
-    STORE_TIER_PRIMARY = 10,
-    /**
-     * @generated from protobuf enum value: STORE_TIER_SEARCH = 20;
-     */
-    STORE_TIER_SEARCH = 20,
-    /**
-     * @generated from protobuf enum value: STORE_TIER_AGGREGATE = 30;
-     */
-    STORE_TIER_AGGREGATE = 30
+    STORE_TIER_PRIMARY = 10
 }
 /**
  * The format of a string.
