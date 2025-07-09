@@ -19,7 +19,7 @@ import React, { useRef } from "react";
 const currentLine = signal<Line | null>(null);
 
 // nocheckin: reactive TS graphs & querying
-// basic reactive keys:
+// basic reactive keys (in (Reactive)Graphs):
 //  - get: snapshot_id + node_id
 //    - get_property?: snapshot_id + node_id + [property_id]
 //  - get_children: snapshot_id + node_id + [node_type]
@@ -34,7 +34,11 @@ function useQuery<T extends Node = Node>(
   useSignalEffect(() => {
     query.value.execute().then((c) => {
       connection.value = c;
-      console.log("query.execute", session.store, query.value.name, c.nodes.length);
+      console.log("query.execute", query.value.name, c.nodes.length, {
+        store: c.store,
+        storeRepr: c.store.repr(),
+        query: query.value,
+      });
     });
   });
 

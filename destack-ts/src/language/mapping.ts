@@ -170,7 +170,6 @@ import type {
   QueryUpdate,
   QueryUpdateType,
   Select,
-  Selection,
   Sort,
   SortMode,
   SortType,
@@ -719,7 +718,6 @@ export type StructTypeMapping = {
   [StructType.QUERY_RESULT]: QueryResult;
   [StructType.QUERY_RESULT_GROUP]: QueryResultGroup;
   [StructType.QUERY_UPDATE]: QueryUpdate;
-  [StructType.SELECTION]: Selection;
   [StructType.CUSTOM_STRUCT]: CustomStruct;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;

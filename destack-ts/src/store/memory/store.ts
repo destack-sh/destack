@@ -111,6 +111,11 @@ export class MemoryEventStore implements EventStore {
       const row = packNodeRow(table, eventValue);
       const rowKey = table.getNodeKey(row);
       table.rows.set(rowKey, row);
+      const snapshotId = event.snapshotPtr?.id ?? null;
+      if (!table.rowsBySnapshot.has(snapshotId)) {
+        table.rowsBySnapshot.set(snapshotId, new Map());
+      }
+      table.rowsBySnapshot.get(snapshotId)!.set(rowKey, row);
     }
     return events;
   }

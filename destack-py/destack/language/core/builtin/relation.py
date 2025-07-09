@@ -63,7 +63,7 @@ class NodeDefinitionReference(StructFrozen):
         if self.type == NodeDefinitionType.BUILTIN:
             assert self.node_type is not None, f"no node_type for {self!r}"
             node_cls = NODE_CLASS_BY_TYPE[self.node_type]
-            return TraitType.EXTENSIBLE in node_cls.__traits__ and bool(node_cls.__extended_by__)
+            return (TraitType.EXTENSIBLE in node_cls.__traits__) or bool(node_cls.__inherited_by__)
         elif self.type == NodeDefinitionType.CUSTOM:
             raise NotImplementedError(f"unexpected node definition reference: {self!r}")
         else:

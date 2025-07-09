@@ -254,7 +254,6 @@ AnyStructProto = Union[
     QueryResultProto,
     QueryResultGroupProto,
     QueryUpdateProto,
-    SelectionProto,
     CustomStructProto,
     TextSpanProto,
     TextProto,

@@ -7622,9 +7622,13 @@ export interface KeyDownEventProto {
      */
     code: string;
     /**
-     * @generated from protobuf field: bool repeat = 112
+     * @generated from protobuf field: bool is_repeat = 112
      */
-    repeat: boolean;
+    isRepeat: boolean;
+    /**
+     * @generated from protobuf field: bool is_redacted = 113
+     */
+    isRedacted: boolean;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -7701,9 +7705,13 @@ export interface KeyPressEventProto {
      */
     code: string;
     /**
-     * @generated from protobuf field: bool repeat = 112
+     * @generated from protobuf field: bool is_repeat = 112
      */
-    repeat: boolean;
+    isRepeat: boolean;
+    /**
+     * @generated from protobuf field: bool is_redacted = 113
+     */
+    isRedacted: boolean;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -7780,9 +7788,13 @@ export interface KeyUpEventProto {
      */
     code: string;
     /**
-     * @generated from protobuf field: bool repeat = 112
+     * @generated from protobuf field: bool is_repeat = 112
      */
-    repeat: boolean;
+    isRepeat: boolean;
+    /**
+     * @generated from protobuf field: bool is_redacted = 113
+     */
+    isRedacted: boolean;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -7859,9 +7871,13 @@ export interface KeyboardEventProto {
      */
     code: string;
     /**
-     * @generated from protobuf field: bool repeat = 112
+     * @generated from protobuf field: bool is_repeat = 112
      */
-    repeat: boolean;
+    isRepeat: boolean;
+    /**
+     * @generated from protobuf field: bool is_redacted = 113
+     */
+    isRedacted: boolean;
     /**
      * @generated from protobuf field: bool shift_key = 120
      */
@@ -13712,15 +13728,6 @@ export interface SelectProto {
      * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto attributes = 101
      */
     attributes: PropertyReferenceProto[];
-}
-/**
- * @generated from protobuf message symbol.destack.SelectionProto
- */
-export interface SelectionProto {
-    /**
-     * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
-     */
-    metatype: StructTypeProto;
 }
 /**
  * A Service provides related functionality via Actions (and Methods).
@@ -24360,10 +24367,6 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_HISTOGRAM = 554;
      */
     STRUCT_TYPE_HISTOGRAM = 554,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SELECTION = 555;
-     */
-    STRUCT_TYPE_SELECTION = 555,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VALUE = 600;
      */
@@ -42168,7 +42171,8 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "code", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 112, name: "repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 112, name: "is_repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 113, name: "is_redacted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42182,7 +42186,8 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
         message.status = 0;
         message.key = "";
         message.code = "";
-        message.repeat = false;
+        message.isRepeat = false;
+        message.isRedacted = false;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
@@ -42235,8 +42240,11 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
                 case /* string code */ 111:
                     message.code = reader.string();
                     break;
-                case /* bool repeat */ 112:
-                    message.repeat = reader.bool();
+                case /* bool is_repeat */ 112:
+                    message.isRepeat = reader.bool();
+                    break;
+                case /* bool is_redacted */ 113:
+                    message.isRedacted = reader.bool();
                     break;
                 case /* bool shift_key */ 120:
                     message.shiftKey = reader.bool();
@@ -42301,9 +42309,12 @@ class KeyDownEventProto$Type extends MessageType<KeyDownEventProto> {
         /* string code = 111; */
         if (message.code !== "")
             writer.tag(111, WireType.LengthDelimited).string(message.code);
-        /* bool repeat = 112; */
-        if (message.repeat !== false)
-            writer.tag(112, WireType.Varint).bool(message.repeat);
+        /* bool is_repeat = 112; */
+        if (message.isRepeat !== false)
+            writer.tag(112, WireType.Varint).bool(message.isRepeat);
+        /* bool is_redacted = 113; */
+        if (message.isRedacted !== false)
+            writer.tag(113, WireType.Varint).bool(message.isRedacted);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
             writer.tag(120, WireType.Varint).bool(message.shiftKey);
@@ -42343,7 +42354,8 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "code", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 112, name: "repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 112, name: "is_repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 113, name: "is_redacted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42357,7 +42369,8 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
         message.status = 0;
         message.key = "";
         message.code = "";
-        message.repeat = false;
+        message.isRepeat = false;
+        message.isRedacted = false;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
@@ -42410,8 +42423,11 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
                 case /* string code */ 111:
                     message.code = reader.string();
                     break;
-                case /* bool repeat */ 112:
-                    message.repeat = reader.bool();
+                case /* bool is_repeat */ 112:
+                    message.isRepeat = reader.bool();
+                    break;
+                case /* bool is_redacted */ 113:
+                    message.isRedacted = reader.bool();
                     break;
                 case /* bool shift_key */ 120:
                     message.shiftKey = reader.bool();
@@ -42476,9 +42492,12 @@ class KeyPressEventProto$Type extends MessageType<KeyPressEventProto> {
         /* string code = 111; */
         if (message.code !== "")
             writer.tag(111, WireType.LengthDelimited).string(message.code);
-        /* bool repeat = 112; */
-        if (message.repeat !== false)
-            writer.tag(112, WireType.Varint).bool(message.repeat);
+        /* bool is_repeat = 112; */
+        if (message.isRepeat !== false)
+            writer.tag(112, WireType.Varint).bool(message.isRepeat);
+        /* bool is_redacted = 113; */
+        if (message.isRedacted !== false)
+            writer.tag(113, WireType.Varint).bool(message.isRedacted);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
             writer.tag(120, WireType.Varint).bool(message.shiftKey);
@@ -42518,7 +42537,8 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "code", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 112, name: "repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 112, name: "is_repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 113, name: "is_redacted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42532,7 +42552,8 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
         message.status = 0;
         message.key = "";
         message.code = "";
-        message.repeat = false;
+        message.isRepeat = false;
+        message.isRedacted = false;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
@@ -42585,8 +42606,11 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
                 case /* string code */ 111:
                     message.code = reader.string();
                     break;
-                case /* bool repeat */ 112:
-                    message.repeat = reader.bool();
+                case /* bool is_repeat */ 112:
+                    message.isRepeat = reader.bool();
+                    break;
+                case /* bool is_redacted */ 113:
+                    message.isRedacted = reader.bool();
                     break;
                 case /* bool shift_key */ 120:
                     message.shiftKey = reader.bool();
@@ -42651,9 +42675,12 @@ class KeyUpEventProto$Type extends MessageType<KeyUpEventProto> {
         /* string code = 111; */
         if (message.code !== "")
             writer.tag(111, WireType.LengthDelimited).string(message.code);
-        /* bool repeat = 112; */
-        if (message.repeat !== false)
-            writer.tag(112, WireType.Varint).bool(message.repeat);
+        /* bool is_repeat = 112; */
+        if (message.isRepeat !== false)
+            writer.tag(112, WireType.Varint).bool(message.isRepeat);
+        /* bool is_redacted = 113; */
+        if (message.isRedacted !== false)
+            writer.tag(113, WireType.Varint).bool(message.isRedacted);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
             writer.tag(120, WireType.Varint).bool(message.shiftKey);
@@ -42693,7 +42720,8 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 110, name: "key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "code", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 112, name: "repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 112, name: "is_repeat", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
+            { no: 113, name: "is_redacted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -42707,7 +42735,8 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
         message.status = 0;
         message.key = "";
         message.code = "";
-        message.repeat = false;
+        message.isRepeat = false;
+        message.isRedacted = false;
         message.shiftKey = false;
         message.altKey = false;
         message.ctrlKey = false;
@@ -42760,8 +42789,11 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
                 case /* string code */ 111:
                     message.code = reader.string();
                     break;
-                case /* bool repeat */ 112:
-                    message.repeat = reader.bool();
+                case /* bool is_repeat */ 112:
+                    message.isRepeat = reader.bool();
+                    break;
+                case /* bool is_redacted */ 113:
+                    message.isRedacted = reader.bool();
                     break;
                 case /* bool shift_key */ 120:
                     message.shiftKey = reader.bool();
@@ -42826,9 +42858,12 @@ class KeyboardEventProto$Type extends MessageType<KeyboardEventProto> {
         /* string code = 111; */
         if (message.code !== "")
             writer.tag(111, WireType.LengthDelimited).string(message.code);
-        /* bool repeat = 112; */
-        if (message.repeat !== false)
-            writer.tag(112, WireType.Varint).bool(message.repeat);
+        /* bool is_repeat = 112; */
+        if (message.isRepeat !== false)
+            writer.tag(112, WireType.Varint).bool(message.isRepeat);
+        /* bool is_redacted = 113; */
+        if (message.isRedacted !== false)
+            writer.tag(113, WireType.Varint).bool(message.isRedacted);
         /* bool shift_key = 120; */
         if (message.shiftKey !== false)
             writer.tag(120, WireType.Varint).bool(message.shiftKey);
@@ -56315,53 +56350,6 @@ class SelectProto$Type extends MessageType<SelectProto> {
  */
 export const SelectProto = new SelectProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class SelectionProto$Type extends MessageType<SelectionProto> {
-    constructor() {
-        super("symbol.destack.SelectionProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] }
-        ]);
-    }
-    create(value?: PartialMessage<SelectionProto>): SelectionProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        if (value !== undefined)
-            reflectionMergePartial<SelectionProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: SelectionProto): SelectionProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.StructTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: SelectionProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.StructTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.SelectionProto
- */
-export const SelectionProto = new SelectionProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class ServiceProto$Type extends MessageType<ServiceProto> {
     constructor() {
         super("symbol.destack.ServiceProto", [
@@ -69050,6 +69038,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 // Any...
 export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
-export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | SelectionProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     
