@@ -120,12 +120,12 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -137,12 +137,12 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -156,6 +156,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   /**
    * Organization.slug
    */
+  /**
+   * Organization.slug
+   */
   get slug(): string {
     return this._slug;
   }
@@ -166,6 +169,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   }
   _slug: string;
 
+  /**
+   * Organization.status
+   */
   /**
    * Organization.status
    */
@@ -189,6 +195,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     }
     return null;
   }
+  /**
+   * Organization.space
+   */
   get spacePtr(): NodeReference {
     return this._spacePtr;
   }
@@ -209,6 +218,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     }
     return null;
   }
+  /**
+   * Organization.handle
+   */
   get handlePtr(): NodeReference | null {
     return this._handlePtr;
   }
@@ -450,11 +462,11 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return `<Organization '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Organization.__packValue__(this);
   }
 
-  static __packValue__(object: Organization): { [key: string]: any } {
+  static __packValue__(object: Organization): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 22000;
     objectValue["2"] = String(object.id);
@@ -492,7 +504,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -568,7 +580,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

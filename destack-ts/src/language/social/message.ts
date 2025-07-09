@@ -113,12 +113,12 @@ export class Message
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -130,12 +130,12 @@ export class Message
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -168,6 +168,9 @@ export class Message
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -195,6 +198,9 @@ export class Message
       this.threadPtr = node.toRef();
     }
   }
+  /**
+   * Message.thread
+   */
   get threadPtr(): NodeReference | null {
     return this._threadPtr;
   }
@@ -205,6 +211,9 @@ export class Message
   }
   _threadPtr: NodeReference | null;
 
+  /**
+   * Message.editedAt
+   */
   /**
    * Message.editedAt
    */
@@ -235,6 +244,9 @@ export class Message
       this.replyToPtr = node.toRef();
     }
   }
+  /**
+   * Message.replyTo
+   */
   get replyToPtr(): NodeReference | null {
     return this._replyToPtr;
   }
@@ -262,6 +274,9 @@ export class Message
       this.forwardedFromPtr = node.toRef();
     }
   }
+  /**
+   * Message.forwardedFrom
+   */
   get forwardedFromPtr(): NodeReference | null {
     return this._forwardedFromPtr;
   }
@@ -272,6 +287,9 @@ export class Message
   }
   _forwardedFromPtr: NodeReference | null;
 
+  /**
+   * Message.text
+   */
   /**
    * Message.text
    */
@@ -302,6 +320,9 @@ export class Message
       this.nodePtr = node.toRef();
     }
   }
+  /**
+   * Message.node
+   */
   get nodePtr(): NodeReference | null {
     return this._nodePtr;
   }
@@ -609,11 +630,11 @@ export class Message
     }
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Message.__packValue__(this);
   }
 
-  static __packValue__(object: Message): { [key: string]: any } {
+  static __packValue__(object: Message): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220100;
     objectValue["2"] = String(object.id);
@@ -672,7 +693,7 @@ export class Message
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -794,7 +815,7 @@ export class Message
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

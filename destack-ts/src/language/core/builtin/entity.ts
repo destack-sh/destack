@@ -57,6 +57,9 @@ import { Temporal } from "temporal-polyfill";
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;
 
+  /**
+   * Entity.parent
+   */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
@@ -65,31 +68,49 @@ export abstract class Entity extends Node {
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): Entity | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): Entity | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
@@ -411,12 +432,12 @@ export class CustomEntityDefinition
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -428,12 +449,12 @@ export class CustomEntityDefinition
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -452,15 +473,18 @@ export class CustomEntityDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -484,6 +508,9 @@ export class CustomEntityDefinition
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -494,6 +521,9 @@ export class CustomEntityDefinition
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * CustomEntityDefinition.baseType
+   */
   /**
    * CustomEntityDefinition.baseType
    */
@@ -510,16 +540,22 @@ export class CustomEntityDefinition
   /**
    * CustomEntityDefinition.baseTraits
    */
-  get baseTraits(): Array<NodeDefinitionReference> {
+  /**
+   * CustomEntityDefinition.baseTraits
+   */
+  get baseTraits(): readonly NodeDefinitionReference[] {
     return this._baseTraits;
   }
-  set baseTraits(value: Array<NodeDefinitionReference>) {
+  set baseTraits(value: readonly NodeDefinitionReference[]) {
     const prop = (this.constructor as NodeClass).__properties__["base_traits"];
     this._session.updateSetProperty(this, prop, value);
     this._baseTraits = value;
   }
-  _baseTraits: Array<NodeDefinitionReference>;
+  _baseTraits: readonly NodeDefinitionReference[];
 
+  /**
+   * CustomEntityDefinition.isAbstract
+   */
   /**
    * CustomEntityDefinition.isAbstract
    */
@@ -550,6 +586,9 @@ export class CustomEntityDefinition
       this.prototypePtr = node.toRef();
     }
   }
+  /**
+   * A custom Entity's prototype is the default template new CustomEntity instances are based on.
+   */
   get prototypePtr(): NodeReference | null {
     return this._prototypePtr;
   }
@@ -589,6 +628,9 @@ export class CustomEntityDefinition
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -602,6 +644,9 @@ export class CustomEntityDefinition
   /**
    * CustomEntityDefinition.name
    */
+  /**
+   * CustomEntityDefinition.name
+   */
   get name(): string {
     return this._name;
   }
@@ -612,6 +657,9 @@ export class CustomEntityDefinition
   }
   _name: string;
 
+  /**
+   * CustomEntityDefinition.icon
+   */
   /**
    * CustomEntityDefinition.icon
    */
@@ -639,11 +687,11 @@ export class CustomEntityDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     ownedBy?: (Entity & IsOwner) | NodeReference | null;
     baseType: NodeDefinitionReference;
-    baseTraits?: Array<NodeDefinitionReference>;
+    baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
     prototype?: Entity | NodeReference | null;
     source?: Script | NodeReference | null;
@@ -719,7 +767,7 @@ export class CustomEntityDefinition
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -846,7 +894,7 @@ export class CustomEntityDefinition
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -985,11 +1033,11 @@ export class CustomEntityDefinition
     return `<CustomEntityDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomEntityDefinition.__packValue__(this);
   }
 
-  static __packValue__(object: CustomEntityDefinition): { [key: string]: any } {
+  static __packValue__(object: CustomEntityDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 100;
     objectValue["2"] = String(object.id);
@@ -1023,9 +1071,9 @@ export class CustomEntityDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -1060,7 +1108,7 @@ export class CustomEntityDefinition
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1100,12 +1148,15 @@ export class CustomEntityDefinition
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -1197,7 +1248,7 @@ export class CustomEntityDefinition
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1250,8 +1301,8 @@ export class CustomEntityDefinition
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -1305,7 +1356,7 @@ export class CustomEntityDefinition
         );
       }
     }
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
@@ -1580,12 +1631,12 @@ export class CustomTraitDefinition
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1597,12 +1648,12 @@ export class CustomTraitDefinition
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1621,21 +1672,27 @@ export class CustomTraitDefinition
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
 
+  /**
+   * CustomTraitDefinition.baseType
+   */
   /**
    * CustomTraitDefinition.baseType
    */
@@ -1652,16 +1709,22 @@ export class CustomTraitDefinition
   /**
    * CustomTraitDefinition.baseTraits
    */
-  get baseTraits(): Array<NodeDefinitionReference> {
+  /**
+   * CustomTraitDefinition.baseTraits
+   */
+  get baseTraits(): readonly NodeDefinitionReference[] {
     return this._baseTraits;
   }
-  set baseTraits(value: Array<NodeDefinitionReference>) {
+  set baseTraits(value: readonly NodeDefinitionReference[]) {
     const prop = (this.constructor as NodeClass).__properties__["base_traits"];
     this._session.updateSetProperty(this, prop, value);
     this._baseTraits = value;
   }
-  _baseTraits: Array<NodeDefinitionReference>;
+  _baseTraits: readonly NodeDefinitionReference[];
 
+  /**
+   * CustomTraitDefinition.isAbstract
+   */
   /**
    * CustomTraitDefinition.isAbstract
    */
@@ -1704,6 +1767,9 @@ export class CustomTraitDefinition
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -1717,6 +1783,9 @@ export class CustomTraitDefinition
   /**
    * CustomTraitDefinition.name
    */
+  /**
+   * CustomTraitDefinition.name
+   */
   get name(): string {
     return this._name;
   }
@@ -1727,6 +1796,9 @@ export class CustomTraitDefinition
   }
   _name: string;
 
+  /**
+   * CustomTraitDefinition.icon
+   */
   /**
    * CustomTraitDefinition.icon
    */
@@ -1754,10 +1826,10 @@ export class CustomTraitDefinition
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     baseType?: NodeDefinitionReference | null;
-    baseTraits?: Array<NodeDefinitionReference>;
+    baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
     source?: Script | NodeReference | null;
     script?: Script | NodeReference | null;
@@ -1832,7 +1904,7 @@ export class CustomTraitDefinition
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -1952,7 +2024,7 @@ export class CustomTraitDefinition
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -2075,11 +2147,11 @@ export class CustomTraitDefinition
     return `<CustomTraitDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomTraitDefinition.__packValue__(this);
   }
 
-  static __packValue__(object: CustomTraitDefinition): { [key: string]: any } {
+  static __packValue__(object: CustomTraitDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 101;
     objectValue["2"] = String(object.id);
@@ -2113,9 +2185,9 @@ export class CustomTraitDefinition
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -2146,7 +2218,7 @@ export class CustomTraitDefinition
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2207,12 +2279,15 @@ export class CustomTraitDefinition
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -2276,7 +2351,7 @@ export class CustomTraitDefinition
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2329,8 +2404,8 @@ export class CustomTraitDefinition
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -2380,7 +2455,7 @@ export class CustomTraitDefinition
         );
       }
     }
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(
@@ -2563,12 +2638,21 @@ export abstract class Record
 {
   static metatype: NodeType = NodeType.RECORD;
 
+  /**
+   * Entity.parent
+   */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The CustomEntityDefinition this Record is an instance of.
+   */
   abstract get definition(): CustomEntityDefinition | null;
   declare readonly definitionPtr: NodeReference;
 
@@ -2582,31 +2666,49 @@ export abstract class Record
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): Record | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): Record | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
@@ -2626,9 +2728,12 @@ export abstract class Record
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  abstract get customValues(): Map<string, Value>;
-  abstract set customValues(value: Map<string, Value>);
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
 
+  /**
+   * IsOwnable.ownedBy
+   */
   abstract get ownedBy(): (Entity & IsOwner) | null;
   abstract set ownedBy(value: (Entity & IsOwner) | null);
   /**
@@ -2637,6 +2742,9 @@ export abstract class Record
   abstract get ownedByPtr(): NodeReference | null;
   abstract set ownedByPtr(value: NodeReference | null);
 
+  /**
+   * The main / root Script of this Node.
+   */
   abstract get script(): Script | null;
   abstract set script(value: Script | null);
   /**
@@ -2660,9 +2768,15 @@ registerNodeClass(NodeType.RECORD, Record);
 export abstract class Resource extends Entity implements IsDeletable, IsExtensible {
   static metatype: NodeType = NodeType.RESOURCE;
 
+  /**
+   * Entity.parent
+   */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
   abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference | null;
 
@@ -2676,31 +2790,49 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): Resource | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): Resource | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
@@ -2715,9 +2847,12 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  abstract get customValues(): Map<string, Value>;
-  abstract set customValues(value: Map<string, Value>);
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
 
+  /**
+   * The main / root Script of this Node.
+   */
   abstract get script(): Script | null;
   abstract set script(value: Script | null);
   /**
@@ -2828,12 +2963,12 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2845,12 +2980,12 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2888,6 +3023,9 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -2906,6 +3044,9 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   /**
    * Snapshot.name
    */
+  /**
+   * Snapshot.name
+   */
   get name(): string {
     return this._name;
   }
@@ -2916,6 +3057,9 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   }
   _name: string;
 
+  /**
+   * Snapshot.status
+   */
   /**
    * Snapshot.status
    */
@@ -3202,11 +3346,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     return `<Snapshot '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Snapshot.__packValue__(this);
   }
 
-  static __packValue__(object: Snapshot): { [key: string]: any } {
+  static __packValue__(object: Snapshot): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 1300;
     objectValue["2"] = String(object.id);
@@ -3251,7 +3395,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3340,7 +3484,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

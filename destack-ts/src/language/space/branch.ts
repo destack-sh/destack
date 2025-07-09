@@ -107,12 +107,12 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -124,12 +124,12 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -162,6 +162,9 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -175,6 +178,9 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
   /**
    * Branch.name
    */
+  /**
+   * Branch.name
+   */
   get name(): string {
     return this._name;
   }
@@ -185,6 +191,9 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
   }
   _name: string;
 
+  /**
+   * Branch.icon
+   */
   /**
    * Branch.icon
    */
@@ -215,6 +224,9 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
       this.headPtr = node.toRef();
     }
   }
+  /**
+   * Branch.head
+   */
   get headPtr(): NodeReference | null {
     return this._headPtr;
   }
@@ -484,11 +496,11 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
     return `<Branch '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Branch.__packValue__(this);
   }
 
-  static __packValue__(object: Branch): { [key: string]: any } {
+  static __packValue__(object: Branch): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 45000;
     objectValue["2"] = String(object.id);
@@ -536,7 +548,7 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -629,7 +641,7 @@ export class Branch extends Entity implements IsSpatial, IsOwnable, IsDeletable 
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

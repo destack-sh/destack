@@ -251,7 +251,7 @@ function evaluateCondition(options: {
  */
 function evaluateSort(options: {
   context: MemoryContext;
-  sort: Sort[];
+  sort: readonly Sort[];
   rows: MemoryRow[];
 }): MemoryRow[] {
   const { context, sort, rows } = options;
@@ -427,10 +427,10 @@ function queryNode(options: {
   definition: NodeDefinitionReference;
   select: Select | null;
   where: Condition | null;
-  sort: Sort[] | null;
+  sort: readonly Sort[] | null;
   limit: number | null;
   offset: number | null;
-  snapshotPath: string[];
+  snapshotPath: readonly string[];
   ignoreMulti?: boolean;
 }): { nodes: Value[]; nodePtrs: NodeReference[] } {
   const {
@@ -518,7 +518,7 @@ function queryScalar(options: {
   definition: NodeDefinitionReference;
   aggregation: Aggregation;
   where?: Condition | null;
-  snapshotPath: string[];
+  snapshotPath: readonly string[];
 }): Value {
   const { context, definition, aggregation, where, snapshotPath } = options;
   const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
@@ -560,11 +560,11 @@ function queryGroupedNode(options: {
   select?: Select | null;
   where?: Condition | null;
   having?: Condition | null;
-  sort?: Sort[] | null;
-  groupBy: Expression[];
+  sort?: readonly Sort[] | null;
+  groupBy: readonly Expression[];
   limit?: number | null;
   offset?: number | null;
-  snapshotPath: string[];
+  snapshotPath: readonly string[];
 }): Array<{ discriminator: Value; nodes: Value[]; nodePtrs: NodeReference[] }> {
   const { context, definition, select, where, having, sort, groupBy, limit, offset, snapshotPath } =
     options;
@@ -650,8 +650,8 @@ function queryGroupedScalar(options: {
   aggregation: Aggregation;
   where: Condition | null;
   having: Condition | null;
-  groupBy: Expression[];
-  snapshotPath: string[];
+  groupBy: readonly Expression[];
+  snapshotPath: readonly string[];
 }): Array<{ discriminator: Value; scalar: Value }> {
   const { context, definition, aggregation, where, having, groupBy, snapshotPath } = options;
 
@@ -711,17 +711,9 @@ export function walkNode(options: {
   direction: EdgeDirection;
   depth: number;
   where: Condition | null;
-  snapshotPath: string[];
+  snapshotPath: readonly string[];
 }): { cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> } {
-  const {
-    context,
-    definition,
-    nodesPtrs,
-    direction,
-    depth,
-    where,
-    snapshotPath,
-  } = options;
+  const { context, definition, nodesPtrs, direction, depth, where, snapshotPath } = options;
 
   const nodesById = new Map<string, NodeReference>();
   const sourceIdByNodeId = new Map<string, string>();

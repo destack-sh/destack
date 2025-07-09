@@ -202,7 +202,7 @@ export class Arrow extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Arrow.__packValue__(this);
@@ -210,7 +210,7 @@ export class Arrow extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Arrow): { [key: string]: any } {
+  static __packValue__(object: Arrow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 540300;
     objectValue["200"] = object.startType;
@@ -221,7 +221,7 @@ export class Arrow extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -239,7 +239,7 @@ export class Arrow extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -417,12 +417,12 @@ export class ArrowShape extends Shape {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -434,12 +434,12 @@ export class ArrowShape extends Shape {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -458,15 +458,18 @@ export class ArrowShape extends Shape {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -490,6 +493,9 @@ export class ArrowShape extends Shape {
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -500,6 +506,9 @@ export class ArrowShape extends Shape {
   }
   _scriptPtr: NodeReference | null;
 
+  /**
+   * View.name
+   */
   /**
    * View.name
    */
@@ -516,6 +525,9 @@ export class ArrowShape extends Shape {
   /**
    * View.position
    */
+  /**
+   * View.position
+   */
   get position(): Position | null {
     return this._position;
   }
@@ -526,6 +538,9 @@ export class ArrowShape extends Shape {
   }
   _position: Position | null;
 
+  /**
+   * View.width
+   */
   /**
    * View.width
    */
@@ -542,6 +557,9 @@ export class ArrowShape extends Shape {
   /**
    * View.height
    */
+  /**
+   * View.height
+   */
   get height(): Dimension | null {
     return this._height;
   }
@@ -552,6 +570,9 @@ export class ArrowShape extends Shape {
   }
   _height: Dimension | null;
 
+  /**
+   * View.minWidth
+   */
   /**
    * View.minWidth
    */
@@ -568,6 +589,9 @@ export class ArrowShape extends Shape {
   /**
    * View.minHeight
    */
+  /**
+   * View.minHeight
+   */
   get minHeight(): Dimension | null {
     return this._minHeight;
   }
@@ -578,6 +602,9 @@ export class ArrowShape extends Shape {
   }
   _minHeight: Dimension | null;
 
+  /**
+   * View.maxWidth
+   */
   /**
    * View.maxWidth
    */
@@ -594,6 +621,9 @@ export class ArrowShape extends Shape {
   /**
    * View.maxHeight
    */
+  /**
+   * View.maxHeight
+   */
   get maxHeight(): Dimension | null {
     return this._maxHeight;
   }
@@ -604,6 +634,9 @@ export class ArrowShape extends Shape {
   }
   _maxHeight: Dimension | null;
 
+  /**
+   * ContainerView.layout
+   */
   /**
    * ContainerView.layout
    */
@@ -620,6 +653,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.direction
    */
+  /**
+   * ContainerView.direction
+   */
   get direction(): Direction | null {
     return this._direction;
   }
@@ -630,6 +666,9 @@ export class ArrowShape extends Shape {
   }
   _direction: Direction | null;
 
+  /**
+   * ContainerView.distribute
+   */
   /**
    * ContainerView.distribute
    */
@@ -646,6 +685,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.align
    */
+  /**
+   * ContainerView.align
+   */
   get align(): Align | null {
     return this._align;
   }
@@ -656,6 +698,9 @@ export class ArrowShape extends Shape {
   }
   _align: Align | null;
 
+  /**
+   * ContainerView.gap
+   */
   /**
    * ContainerView.gap
    */
@@ -672,6 +717,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.padding
    */
+  /**
+   * ContainerView.padding
+   */
   get padding(): Insets | null {
     return this._padding;
   }
@@ -682,6 +730,9 @@ export class ArrowShape extends Shape {
   }
   _padding: Insets | null;
 
+  /**
+   * ContainerView.grid
+   */
   /**
    * ContainerView.grid
    */
@@ -698,6 +749,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.gridSpan
    */
+  /**
+   * ContainerView.gridSpan
+   */
   get gridSpan(): GridSpan | null {
     return this._gridSpan;
   }
@@ -708,6 +762,9 @@ export class ArrowShape extends Shape {
   }
   _gridSpan: GridSpan | null;
 
+  /**
+   * ContainerView.aspectRatio
+   */
   /**
    * ContainerView.aspectRatio
    */
@@ -724,6 +781,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.isWrap
    */
+  /**
+   * ContainerView.isWrap
+   */
   get isWrap(): boolean | null {
     return this._isWrap;
   }
@@ -734,6 +794,9 @@ export class ArrowShape extends Shape {
   }
   _isWrap: boolean | null;
 
+  /**
+   * ContainerView.isVisible
+   */
   /**
    * ContainerView.isVisible
    */
@@ -750,6 +813,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.opacity
    */
+  /**
+   * ContainerView.opacity
+   */
   get opacity(): number | null {
     return this._opacity;
   }
@@ -760,6 +826,9 @@ export class ArrowShape extends Shape {
   }
   _opacity: number | null;
 
+  /**
+   * ContainerView.fill
+   */
   /**
    * ContainerView.fill
    */
@@ -776,6 +845,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.rotation
    */
+  /**
+   * ContainerView.rotation
+   */
   get rotation(): Axis3 | null {
     return this._rotation;
   }
@@ -786,6 +858,9 @@ export class ArrowShape extends Shape {
   }
   _rotation: Axis3 | null;
 
+  /**
+   * ContainerView.skew
+   */
   /**
    * ContainerView.skew
    */
@@ -802,6 +877,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.scale
    */
+  /**
+   * ContainerView.scale
+   */
   get scale(): number | null {
     return this._scale;
   }
@@ -812,6 +890,9 @@ export class ArrowShape extends Shape {
   }
   _scale: number | null;
 
+  /**
+   * ContainerView.shadow
+   */
   /**
    * ContainerView.shadow
    */
@@ -828,6 +909,9 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.border
    */
+  /**
+   * ContainerView.border
+   */
   get border(): Border | null {
     return this._border;
   }
@@ -838,6 +922,9 @@ export class ArrowShape extends Shape {
   }
   _border: Border | null;
 
+  /**
+   * ContainerView.radius
+   */
   /**
    * ContainerView.radius
    */
@@ -854,6 +941,9 @@ export class ArrowShape extends Shape {
   /**
    * Shape.stroke
    */
+  /**
+   * Shape.stroke
+   */
   get stroke(): Stroke | null {
     return this._stroke;
   }
@@ -864,6 +954,9 @@ export class ArrowShape extends Shape {
   }
   _stroke: Stroke | null;
 
+  /**
+   * ArrowShape.startType
+   */
   /**
    * ArrowShape.startType
    */
@@ -880,6 +973,9 @@ export class ArrowShape extends Shape {
   /**
    * ArrowShape.start
    */
+  /**
+   * ArrowShape.start
+   */
   get start(): Vector2f {
     return this._start;
   }
@@ -893,6 +989,9 @@ export class ArrowShape extends Shape {
   /**
    * ArrowShape.endType
    */
+  /**
+   * ArrowShape.endType
+   */
   get endType(): ArrowHeadType {
     return this._endType;
   }
@@ -903,6 +1002,9 @@ export class ArrowShape extends Shape {
   }
   _endType: ArrowHeadType;
 
+  /**
+   * ArrowShape.end
+   */
   /**
    * ArrowShape.end
    */
@@ -932,7 +1034,7 @@ export class ArrowShape extends Shape {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     script?: Script | NodeReference | null;
     name: string;
@@ -1043,7 +1145,7 @@ export class ArrowShape extends Shape {
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -1369,7 +1471,7 @@ export class ArrowShape extends Shape {
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -1563,11 +1665,11 @@ export class ArrowShape extends Shape {
     return `<ArrowShape '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ArrowShape.__packValue__(this);
   }
 
-  static __packValue__(object: ArrowShape): { [key: string]: any } {
+  static __packValue__(object: ArrowShape): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 540300;
     objectValue["2"] = String(object.id);
@@ -1607,9 +1709,9 @@ export class ArrowShape extends Shape {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -1708,7 +1810,7 @@ export class ArrowShape extends Shape {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1901,12 +2003,15 @@ export class ArrowShape extends Shape {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -1973,7 +2078,7 @@ export class ArrowShape extends Shape {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2026,8 +2131,8 @@ export class ArrowShape extends Shape {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -2149,7 +2254,7 @@ export class ArrowShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

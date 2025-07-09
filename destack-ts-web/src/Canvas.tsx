@@ -18,6 +18,10 @@ import React, { useRef } from "react";
 const currentLine = signal<Line | null>(null);
 
 // nocheckin: reactive TS graphs & querying
+// basic reactive keys:
+//  - get: snapshot_id + node_id
+//    - get_property?: snapshot_id + node_id + [property_id]
+//  - get_children: snapshot_id + node_id + [node_type]
 
 function useQuery<T extends Node = Node>(
   query: Signal<Query<T>>,
@@ -27,6 +31,7 @@ function useQuery<T extends Node = Node>(
   const nodes = useComputed(() => connection.value?.toList() ?? []);
 
   useSignalEffect(() => {
+    console.log("query.execute", query.value);
     query.value.execute().then((c) => (connection.value = c));
   });
 
@@ -93,9 +98,9 @@ export const Canvas: React.FC = () => {
       session.create(lineShape);
       session.flush();
       events.value = [...events.value, ...session.pendingEvents];
-      console.log("events", events.value);
-      session.commit();
-      query.value = LineShape.search({}); // nocheckin (reactivity hack)
+      session.commit().then(() => {
+        query.value = LineShape.search({}); // nocheckin (reactivity hack)
+      });
       currentLine.value = null;
       lastMousePosition.value = null;
     }

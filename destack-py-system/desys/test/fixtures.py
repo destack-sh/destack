@@ -120,7 +120,7 @@ async def omni_postgres_database(
 
 @pytest.fixture
 def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresEntityStore:
-    return PostgresEntityStore(database=omni_postgres_database, types=tuple(StoreKey))
+    return PostgresEntityStore(database=omni_postgres_database, keys=tuple(StoreKey))
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
@@ -136,7 +136,7 @@ async def postgres_session(
 
 @pytest.fixture
 def memory_store() -> MemoryEntityStore:
-    return MemoryEntityStore(types=tuple(StoreKey))
+    return MemoryEntityStore(keys=tuple(StoreKey))
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")

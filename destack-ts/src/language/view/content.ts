@@ -28,12 +28,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class ContentView extends View {
   static metatype: NodeType = NodeType.CONTENT_VIEW;
 
+  /**
+   * View.parent
+   */
   abstract get parent(): Window | Scene | Layer | ContainerView | Folder | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The definitionthis CustomEntity is an instance of.
+   */
   abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
   declare readonly definitionPtr: NodeReference | null;
 
@@ -47,31 +56,49 @@ export abstract class ContentView extends View {
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): ContentView | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): ContentView | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
@@ -86,14 +113,17 @@ export abstract class ContentView extends View {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  abstract get customValues(): Map<string, Value>;
-  abstract set customValues(value: Map<string, Value>);
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
 
   /**
    * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
 
+  /**
+   * The main / root Script of this Node.
+   */
   abstract get script(): Script | null;
   abstract set script(value: Script | null);
   /**

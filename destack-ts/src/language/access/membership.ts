@@ -47,12 +47,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class MembershipEvent extends Event {
   static metatype: NodeType = NodeType.MEMBERSHIP_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -61,9 +70,15 @@ export abstract class MembershipEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -77,12 +92,21 @@ export abstract class MembershipEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * MembershipEvent.node
+   */
   abstract get node(): Membership | null;
   declare readonly nodePtr: NodeReference;
 
+  /**
+   * MembershipEvent.joinable
+   */
   abstract get joinable(): (Entity & IsJoinable) | null;
   declare readonly joinablePtr: NodeReference;
 
+  /**
+   * MembershipEvent.member
+   */
   abstract get member(): (Entity & IsSubject) | null;
   declare readonly memberPtr: NodeReference;
 
@@ -468,11 +492,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
     return `<MembershipJoinedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return MembershipJoinedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: MembershipJoinedEvent): { [key: string]: any } {
+  static __packValue__(object: MembershipJoinedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60002;
     objectValue["2"] = String(object.id);
@@ -505,7 +529,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -585,7 +609,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1097,11 +1121,11 @@ export class MembershipLeftEvent extends MembershipEvent {
     return `<MembershipLeftEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return MembershipLeftEvent.__packValue__(this);
   }
 
-  static __packValue__(object: MembershipLeftEvent): { [key: string]: any } {
+  static __packValue__(object: MembershipLeftEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60003;
     objectValue["2"] = String(object.id);
@@ -1132,7 +1156,7 @@ export class MembershipLeftEvent extends MembershipEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1204,7 +1228,7 @@ export class MembershipLeftEvent extends MembershipEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1456,12 +1480,12 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1473,12 +1497,12 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1511,6 +1535,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -1534,6 +1561,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   set member(node: Entity & IsSubject) {
     this.memberPtr = node.toRef();
   }
+  /**
+   * Membership.member
+   */
   get memberPtr(): NodeReference {
     return this._memberPtr;
   }
@@ -1561,6 +1591,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       this.rolePtr = node.toRef();
     }
   }
+  /**
+   * Membership.role
+   */
   get rolePtr(): NodeReference | null {
     return this._rolePtr;
   }
@@ -1571,6 +1604,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   }
   _rolePtr: NodeReference | null;
 
+  /**
+   * Membership.roleType
+   */
   /**
    * Membership.roleType
    */
@@ -1848,11 +1884,11 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
     }
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Membership.__packValue__(this);
   }
 
-  static __packValue__(object: Membership): { [key: string]: any } {
+  static __packValue__(object: Membership): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60000;
     objectValue["2"] = String(object.id);
@@ -1900,7 +1936,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1995,7 +2031,7 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

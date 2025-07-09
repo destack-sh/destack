@@ -64,12 +64,21 @@ registerEnumClass(EnumType.ENTITLEMENT_TYPE, EntitlementType);
 export abstract class EntitlementEvent extends Event {
   static metatype: NodeType = NodeType.ENTITLEMENT_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -78,9 +87,15 @@ export abstract class EntitlementEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -94,9 +109,15 @@ export abstract class EntitlementEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * EntitlementEvent.node
+   */
   abstract get node(): Entitlement | null;
   declare readonly nodePtr: NodeReference;
 
+  /**
+   * EntitlementEvent.target
+   */
   abstract get target(): (Entity & IsSubject) | null;
   declare readonly targetPtr: NodeReference;
 
@@ -417,11 +438,11 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     return `<EntitlementRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return EntitlementRequestedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: EntitlementRequestedEvent): { [key: string]: any } {
+  static __packValue__(object: EntitlementRequestedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60502;
     objectValue["2"] = String(object.id);
@@ -451,7 +472,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -516,7 +537,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -985,11 +1006,11 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     return `<EntitlementGrantedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return EntitlementGrantedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: EntitlementGrantedEvent): { [key: string]: any } {
+  static __packValue__(object: EntitlementGrantedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60503;
     objectValue["2"] = String(object.id);
@@ -1019,7 +1040,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1084,7 +1105,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1553,11 +1574,11 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     return `<EntitlementRevokedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return EntitlementRevokedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: EntitlementRevokedEvent): { [key: string]: any } {
+  static __packValue__(object: EntitlementRevokedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60504;
     objectValue["2"] = String(object.id);
@@ -1587,7 +1608,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1652,7 +1673,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2121,11 +2142,11 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     return `<EntitlementExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return EntitlementExpiredEvent.__packValue__(this);
   }
 
-  static __packValue__(object: EntitlementExpiredEvent): { [key: string]: any } {
+  static __packValue__(object: EntitlementExpiredEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60505;
     objectValue["2"] = String(object.id);
@@ -2155,7 +2176,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2220,7 +2241,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2467,12 +2488,12 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2484,12 +2505,12 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2508,6 +2529,9 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   /**
    * Entitlement.type
    */
+  /**
+   * Entitlement.type
+   */
   get type(): EntitlementType {
     return this._type;
   }
@@ -2518,6 +2542,9 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   }
   _type: EntitlementType;
 
+  /**
+   * Entitlement.expiresAt
+   */
   /**
    * Entitlement.expiresAt
    */
@@ -2544,6 +2571,9 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   set target(node: Entity & IsSubject) {
     this.targetPtr = node.toRef();
   }
+  /**
+   * Entitlement.target
+   */
   get targetPtr(): NodeReference {
     return this._targetPtr;
   }
@@ -2796,11 +2826,11 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
     return `<Entitlement '${this.path}'>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Entitlement.__packValue__(this);
   }
 
-  static __packValue__(object: Entitlement): { [key: string]: any } {
+  static __packValue__(object: Entitlement): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60500;
     objectValue["2"] = String(object.id);
@@ -2843,7 +2873,7 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2930,7 +2960,7 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

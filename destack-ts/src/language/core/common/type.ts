@@ -328,7 +328,7 @@ export class StringConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = StringConstraint.__packValue__(this);
@@ -336,7 +336,7 @@ export class StringConstraint extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: StringConstraint): { [key: string]: any } {
+  static __packValue__(object: StringConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 651;
     if (object.format != null) {
@@ -355,7 +355,7 @@ export class StringConstraint extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -380,7 +380,7 @@ export class StringConstraint extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -626,7 +626,7 @@ export class NumberConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = NumberConstraint.__packValue__(this);
@@ -634,7 +634,7 @@ export class NumberConstraint extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: NumberConstraint): { [key: string]: any } {
+  static __packValue__(object: NumberConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 650;
     if (object.format != null) {
@@ -659,7 +659,7 @@ export class NumberConstraint extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -690,7 +690,7 @@ export class NumberConstraint extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -876,7 +876,7 @@ export class CollectionConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = CollectionConstraint.__packValue__(this);
@@ -884,7 +884,7 @@ export class CollectionConstraint extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: CollectionConstraint): { [key: string]: any } {
+  static __packValue__(object: CollectionConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 652;
     if (object.minLength != null) {
@@ -897,7 +897,7 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -916,7 +916,7 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1005,16 +1005,16 @@ export class NodeConstraint extends StructFrozen {
   /**
    * NodeConstraint.nodeTypes
    */
-  readonly nodeTypes: Array<NodeType>;
+  readonly nodeTypes: readonly NodeType[];
 
   /**
    * NodeConstraint.nodeTraits
    */
-  readonly nodeTraits: Array<TraitType>;
+  readonly nodeTraits: readonly TraitType[];
 
   constructor(options: {
-    nodeTypes?: Array<NodeType>;
-    nodeTraits?: Array<TraitType>;
+    nodeTypes?: readonly NodeType[];
+    nodeTraits?: readonly TraitType[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1106,7 +1106,7 @@ export class NodeConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = NodeConstraint.__packValue__(this);
@@ -1114,7 +1114,7 @@ export class NodeConstraint extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: NodeConstraint): { [key: string]: any } {
+  static __packValue__(object: NodeConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 653;
     if (object.nodeTypes.length > 0) {
@@ -1135,7 +1135,7 @@ export class NodeConstraint extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1162,7 +1162,7 @@ export class NodeConstraint extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1603,7 +1603,7 @@ export class Type extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Type.__packValue__(this);
@@ -1611,7 +1611,7 @@ export class Type extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Type): { [key: string]: any } {
+  static __packValue__(object: Type): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 601;
     objectValue["110"] = object.cardinality;
@@ -1659,7 +1659,7 @@ export class Type extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1768,7 +1768,7 @@ export class Type extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

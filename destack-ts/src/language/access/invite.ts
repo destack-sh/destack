@@ -49,12 +49,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class InviteEvent extends Event {
   static metatype: NodeType = NodeType.INVITE_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -63,9 +72,15 @@ export abstract class InviteEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -79,12 +94,21 @@ export abstract class InviteEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * InviteEvent.node
+   */
   abstract get node(): Invite | null;
   declare readonly nodePtr: NodeReference;
 
+  /**
+   * InviteEvent.joinable
+   */
   abstract get joinable(): (Entity & IsJoinable) | null;
   declare readonly joinablePtr: NodeReference;
 
+  /**
+   * InviteEvent.member
+   */
   abstract get member(): (Entity & IsSubject) | null;
   declare readonly memberPtr: NodeReference;
 
@@ -470,11 +494,11 @@ export class InviteSentEvent extends InviteEvent {
     return `<InviteSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return InviteSentEvent.__packValue__(this);
   }
 
-  static __packValue__(object: InviteSentEvent): { [key: string]: any } {
+  static __packValue__(object: InviteSentEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60102;
     objectValue["2"] = String(object.id);
@@ -507,7 +531,7 @@ export class InviteSentEvent extends InviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -587,7 +611,7 @@ export class InviteSentEvent extends InviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1087,11 +1111,11 @@ export class InviteRescindedEvent extends InviteEvent {
     return `<InviteRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return InviteRescindedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: InviteRescindedEvent): { [key: string]: any } {
+  static __packValue__(object: InviteRescindedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60103;
     objectValue["2"] = String(object.id);
@@ -1122,7 +1146,7 @@ export class InviteRescindedEvent extends InviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1194,7 +1218,7 @@ export class InviteRescindedEvent extends InviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1736,11 +1760,11 @@ export class InviteAcceptedEvent extends InviteEvent {
     return `<InviteAcceptedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return InviteAcceptedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: InviteAcceptedEvent): { [key: string]: any } {
+  static __packValue__(object: InviteAcceptedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60104;
     objectValue["2"] = String(object.id);
@@ -1773,7 +1797,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1853,7 +1877,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2365,11 +2389,11 @@ export class InviteRejectedEvent extends InviteEvent {
     return `<InviteRejectedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return InviteRejectedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: InviteRejectedEvent): { [key: string]: any } {
+  static __packValue__(object: InviteRejectedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60105;
     objectValue["2"] = String(object.id);
@@ -2400,7 +2424,7 @@ export class InviteRejectedEvent extends InviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2472,7 +2496,7 @@ export class InviteRejectedEvent extends InviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2724,12 +2748,12 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2741,12 +2765,12 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2779,6 +2803,9 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -2802,6 +2829,9 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   set member(node: Entity & IsSubject) {
     this.memberPtr = node.toRef();
   }
+  /**
+   * Invite.member
+   */
   get memberPtr(): NodeReference {
     return this._memberPtr;
   }
@@ -2829,6 +2859,9 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       this.rolePtr = node.toRef();
     }
   }
+  /**
+   * Invite.role
+   */
   get rolePtr(): NodeReference | null {
     return this._rolePtr;
   }
@@ -2839,6 +2872,9 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   }
   _rolePtr: NodeReference | null;
 
+  /**
+   * Invite.roleType
+   */
   /**
    * Invite.roleType
    */
@@ -3114,11 +3150,11 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
     }
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Invite.__packValue__(this);
   }
 
-  static __packValue__(object: Invite): { [key: string]: any } {
+  static __packValue__(object: Invite): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 60100;
     objectValue["2"] = String(object.id);
@@ -3166,7 +3202,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3261,7 +3297,7 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

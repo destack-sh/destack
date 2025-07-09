@@ -218,7 +218,7 @@ export class Border extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Border.__packValue__(this);
@@ -226,7 +226,7 @@ export class Border extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Border): { [key: string]: any } {
+  static __packValue__(object: Border): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600600;
     objectValue["100"] = object.type;
@@ -243,7 +243,7 @@ export class Border extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -278,7 +278,7 @@ export class Border extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -453,12 +453,12 @@ export class BorderStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -470,12 +470,12 @@ export class BorderStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -499,6 +499,9 @@ export class BorderStyle extends Style {
   /**
    * BorderStyle.type
    */
+  /**
+   * BorderStyle.type
+   */
   get type(): BorderType {
     return this._type;
   }
@@ -509,6 +512,9 @@ export class BorderStyle extends Style {
   }
   _type: BorderType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -525,6 +531,9 @@ export class BorderStyle extends Style {
   /**
    * BorderStyle.color
    */
+  /**
+   * BorderStyle.color
+   */
   get color(): Color | null {
     return this._color;
   }
@@ -535,6 +544,9 @@ export class BorderStyle extends Style {
   }
   _color: Color | null;
 
+  /**
+   * BorderStyle.width
+   */
   /**
    * BorderStyle.width
    */
@@ -565,6 +577,9 @@ export class BorderStyle extends Style {
       this.stylePtr = node.toRef();
     }
   }
+  /**
+   * BorderStyle.style
+   */
   get stylePtr(): NodeReference | null {
     return this._stylePtr;
   }
@@ -866,11 +881,11 @@ export class BorderStyle extends Style {
     return `<BorderStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return BorderStyle.__packValue__(this);
   }
 
-  static __packValue__(object: BorderStyle): { [key: string]: any } {
+  static __packValue__(object: BorderStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600600;
     objectValue["2"] = String(object.id);
@@ -920,7 +935,7 @@ export class BorderStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1016,7 +1031,7 @@ export class BorderStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

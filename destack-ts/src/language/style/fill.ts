@@ -319,7 +319,7 @@ export class Fill extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Fill.__packValue__(this);
@@ -327,7 +327,7 @@ export class Fill extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Fill): { [key: string]: any } {
+  static __packValue__(object: Fill): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600400;
     objectValue["100"] = object.type;
@@ -353,7 +353,7 @@ export class Fill extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -400,7 +400,7 @@ export class Fill extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -597,12 +597,12 @@ export class FillStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -614,12 +614,12 @@ export class FillStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -643,6 +643,9 @@ export class FillStyle extends Style {
   /**
    * FillStyle.type
    */
+  /**
+   * FillStyle.type
+   */
   get type(): FillType {
     return this._type;
   }
@@ -653,6 +656,9 @@ export class FillStyle extends Style {
   }
   _type: FillType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -669,6 +675,9 @@ export class FillStyle extends Style {
   /**
    * FillStyle.color
    */
+  /**
+   * FillStyle.color
+   */
   get color(): Color | null {
     return this._color;
   }
@@ -679,6 +688,9 @@ export class FillStyle extends Style {
   }
   _color: Color | null;
 
+  /**
+   * FillStyle.gradient
+   */
   /**
    * FillStyle.gradient
    */
@@ -709,6 +721,9 @@ export class FillStyle extends Style {
       this.imagePtr = node.toRef();
     }
   }
+  /**
+   * FillStyle.image
+   */
   get imagePtr(): NodeReference | null {
     return this._imagePtr;
   }
@@ -722,6 +737,9 @@ export class FillStyle extends Style {
   /**
    * FillStyle.position
    */
+  /**
+   * FillStyle.position
+   */
   get position(): FillPosition | null {
     return this._position;
   }
@@ -732,6 +750,9 @@ export class FillStyle extends Style {
   }
   _position: FillPosition | null;
 
+  /**
+   * FillStyle.size
+   */
   /**
    * FillStyle.size
    */
@@ -1057,11 +1078,11 @@ export class FillStyle extends Style {
     return `<FillStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FillStyle.__packValue__(this);
   }
 
-  static __packValue__(object: FillStyle): { [key: string]: any } {
+  static __packValue__(object: FillStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600400;
     objectValue["2"] = String(object.id);
@@ -1117,7 +1138,7 @@ export class FillStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1219,7 +1240,7 @@ export class FillStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

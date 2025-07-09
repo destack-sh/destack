@@ -139,12 +139,12 @@ export class NodeDefinition extends BuiltinDefinition {
   /**
    * NodeDefinition.properties
    */
-  readonly properties: Array<PropertyDefinition>;
+  readonly properties: readonly PropertyDefinition[];
 
   /**
    * NodeDefinition.groups
    */
-  readonly groups: Array<PropertyGroupDefinition>;
+  readonly groups: readonly PropertyGroupDefinition[];
 
   /**
    * Whether this Node is global.
@@ -179,27 +179,27 @@ export class NodeDefinition extends BuiltinDefinition {
   /**
    * Nodes that extend this Node type (directly).
    */
-  readonly extendedBy: Array<NodeType>;
+  readonly extendedBy: readonly NodeType[];
 
   /**
    * Nodes that this Node inherits (directly and indirectly).
    */
-  readonly inherits: Array<NodeType>;
+  readonly inherits: readonly NodeType[];
 
   /**
    * Nodes that inherit this Node type (directly and indirectly).
    */
-  readonly inheritedBy: Array<NodeType>;
+  readonly inheritedBy: readonly NodeType[];
 
   /**
    * Traits directly inherited by this Node (directly).
    */
-  readonly baseTraits: Array<TraitType>;
+  readonly baseTraits: readonly TraitType[];
 
   /**
    * Traits directly and indirectly inherited by this Node (directly and indirectly).
    */
-  readonly traits: Array<TraitType>;
+  readonly traits: readonly TraitType[];
 
   /**
    * The root ancestor type of this Node type (if any).
@@ -209,37 +209,37 @@ export class NodeDefinition extends BuiltinDefinition {
   /**
    * The parent types of this Node type (directly).
    */
-  readonly parentTypes: Array<NodeType>;
+  readonly parentTypes: readonly NodeType[];
 
   /**
    * The child types of this Node type (directly).
    */
-  readonly childTypes: Array<NodeType>;
+  readonly childTypes: readonly NodeType[];
 
   /**
    * The ancestor types of this Node type (directly and indirectly).
    */
-  readonly ancestorTypes: Array<NodeType>;
+  readonly ancestorTypes: readonly NodeType[];
 
   /**
    * The descendant types of this Node type (directly and indirectly).
    */
-  readonly descendantTypes: Array<NodeType>;
+  readonly descendantTypes: readonly NodeType[];
 
   /**
    * The event types of this Node (directly and indirectly).
    */
-  readonly eventTypes: Array<NodeType>;
+  readonly eventTypes: readonly NodeType[];
 
   /**
    * The base event types of this Node (directly).
    */
-  readonly baseEventTypes: Array<NodeType>;
+  readonly baseEventTypes: readonly NodeType[];
 
   /**
    * NodeDefinition.primaryStoreKeys
    */
-  readonly primaryStoreKeys: Array<StoreKey>;
+  readonly primaryStoreKeys: readonly StoreKey[];
 
   /**
    * NodeDefinition.storeDomain
@@ -252,27 +252,27 @@ export class NodeDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: Array<PropertyDefinition>;
-    groups?: Array<PropertyGroupDefinition>;
+    properties?: readonly PropertyDefinition[];
+    groups?: readonly PropertyGroupDefinition[];
     isGlobal: boolean;
     isSpatial: boolean;
     isAbstract: boolean;
     isExtensible: boolean;
     isFrozen: boolean;
     baseType?: NodeType | null;
-    extendedBy?: Array<NodeType>;
-    inherits?: Array<NodeType>;
-    inheritedBy?: Array<NodeType>;
-    baseTraits?: Array<TraitType>;
-    traits?: Array<TraitType>;
+    extendedBy?: readonly NodeType[];
+    inherits?: readonly NodeType[];
+    inheritedBy?: readonly NodeType[];
+    baseTraits?: readonly TraitType[];
+    traits?: readonly TraitType[];
     rootType?: NodeType | null;
-    parentTypes?: Array<NodeType>;
-    childTypes?: Array<NodeType>;
-    ancestorTypes?: Array<NodeType>;
-    descendantTypes?: Array<NodeType>;
-    eventTypes?: Array<NodeType>;
-    baseEventTypes?: Array<NodeType>;
-    primaryStoreKeys?: Array<StoreKey>;
+    parentTypes?: readonly NodeType[];
+    childTypes?: readonly NodeType[];
+    ancestorTypes?: readonly NodeType[];
+    descendantTypes?: readonly NodeType[];
+    eventTypes?: readonly NodeType[];
+    baseEventTypes?: readonly NodeType[];
+    primaryStoreKeys?: readonly StoreKey[];
     storeDomain?: StoreDomain | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -712,7 +712,7 @@ export class NodeDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = NodeDefinition.__packValue__(this);
@@ -720,7 +720,7 @@ export class NodeDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: NodeDefinition): { [key: string]: any } {
+  static __packValue__(object: NodeDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 101;
     objectValue["2"] = object.id;
@@ -848,7 +848,7 @@ export class NodeDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -996,7 +996,7 @@ export class NodeDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1360,12 +1360,12 @@ export class TraitDefinition extends BuiltinDefinition {
   /**
    * TraitDefinition.properties
    */
-  readonly properties: Array<PropertyDefinition>;
+  readonly properties: readonly PropertyDefinition[];
 
   /**
    * TraitDefinition.groups
    */
-  readonly groups: Array<PropertyGroupDefinition>;
+  readonly groups: readonly PropertyGroupDefinition[];
 
   /**
    * TraitDefinition.alias
@@ -1380,22 +1380,22 @@ export class TraitDefinition extends BuiltinDefinition {
   /**
    * Traits directly and indirectly inherited by this trait.
    */
-  readonly traits: Array<TraitType>;
+  readonly traits: readonly TraitType[];
 
   /**
    * Traits directly inherited by this trait.
    */
-  readonly baseTraits: Array<TraitType>;
+  readonly baseTraits: readonly TraitType[];
 
   /**
    * The event types of this Trait (directly and indirectly).
    */
-  readonly eventTypes: Array<NodeType>;
+  readonly eventTypes: readonly NodeType[];
 
   /**
    * The base event types of this Trait (directly).
    */
-  readonly baseEventTypes: Array<NodeType>;
+  readonly baseEventTypes: readonly NodeType[];
 
   constructor(options: {
     id: number;
@@ -1403,14 +1403,14 @@ export class TraitDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: Array<PropertyDefinition>;
-    groups?: Array<PropertyGroupDefinition>;
+    properties?: readonly PropertyDefinition[];
+    groups?: readonly PropertyGroupDefinition[];
     alias: string;
     isExtensible: boolean;
-    traits?: Array<TraitType>;
-    baseTraits?: Array<TraitType>;
-    eventTypes?: Array<NodeType>;
-    baseEventTypes?: Array<NodeType>;
+    traits?: readonly TraitType[];
+    baseTraits?: readonly TraitType[];
+    eventTypes?: readonly NodeType[];
+    baseEventTypes?: readonly NodeType[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1651,7 +1651,7 @@ export class TraitDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = TraitDefinition.__packValue__(this);
@@ -1659,7 +1659,7 @@ export class TraitDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: TraitDefinition): { [key: string]: any } {
+  static __packValue__(object: TraitDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 102;
     objectValue["2"] = object.id;
@@ -1719,7 +1719,7 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1799,7 +1799,7 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2028,12 +2028,12 @@ export class StructDefinition extends BuiltinDefinition {
   /**
    * StructDefinition.properties
    */
-  readonly properties: Array<PropertyDefinition>;
+  readonly properties: readonly PropertyDefinition[];
 
   /**
    * StructDefinition.groups
    */
-  readonly groups: Array<PropertyGroupDefinition>;
+  readonly groups: readonly PropertyGroupDefinition[];
 
   /**
    * Whether this Struct cannot be modified.
@@ -2058,17 +2058,17 @@ export class StructDefinition extends BuiltinDefinition {
   /**
    * Structs that extend this Struct type (directly).
    */
-  readonly extendedBy: Array<StructType>;
+  readonly extendedBy: readonly StructType[];
 
   /**
    * Structs that this Struct inherits (directly and indirectly).
    */
-  readonly inherits: Array<StructType>;
+  readonly inherits: readonly StructType[];
 
   /**
    * Structs that inherit this Struct type (directly and indirectly).
    */
-  readonly inheritedBy: Array<StructType>;
+  readonly inheritedBy: readonly StructType[];
 
   constructor(options: {
     id: number;
@@ -2076,15 +2076,15 @@ export class StructDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: Array<PropertyDefinition>;
-    groups?: Array<PropertyGroupDefinition>;
+    properties?: readonly PropertyDefinition[];
+    groups?: readonly PropertyGroupDefinition[];
     isFrozen: boolean;
     isAbstract: boolean;
     isExtensible: boolean;
     baseType?: StructType | null;
-    extendedBy?: Array<StructType>;
-    inherits?: Array<StructType>;
-    inheritedBy?: Array<StructType>;
+    extendedBy?: readonly StructType[];
+    inherits?: readonly StructType[];
+    inheritedBy?: readonly StructType[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2322,7 +2322,7 @@ export class StructDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = StructDefinition.__packValue__(this);
@@ -2330,7 +2330,7 @@ export class StructDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: StructDefinition): { [key: string]: any } {
+  static __packValue__(object: StructDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 103;
     objectValue["2"] = object.id;
@@ -2387,7 +2387,7 @@ export class StructDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2464,7 +2464,7 @@ export class StructDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2679,7 +2679,7 @@ export class EnumDefinition extends BuiltinDefinition {
   /**
    * EnumDefinition.options
    */
-  readonly options: Array<OptionDefinition>;
+  readonly options: readonly OptionDefinition[];
 
   constructor(options: {
     id: number;
@@ -2687,7 +2687,7 @@ export class EnumDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    options?: Array<OptionDefinition>;
+    options?: readonly OptionDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2818,7 +2818,7 @@ export class EnumDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = EnumDefinition.__packValue__(this);
@@ -2826,7 +2826,7 @@ export class EnumDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: EnumDefinition): { [key: string]: any } {
+  static __packValue__(object: EnumDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 104;
     objectValue["2"] = object.id;
@@ -2849,7 +2849,7 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2887,7 +2887,7 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3615,7 +3615,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = PropertyDefinition.__packValue__(this);
@@ -3623,7 +3623,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: PropertyDefinition): { [key: string]: any } {
+  static __packValue__(object: PropertyDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 110;
     objectValue["2"] = object.id;
@@ -3697,7 +3697,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3847,7 +3847,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4373,7 +4373,7 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = PropertyGroupDefinition.__packValue__(this);
@@ -4381,7 +4381,7 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: PropertyGroupDefinition): { [key: string]: any } {
+  static __packValue__(object: PropertyGroupDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 111;
     objectValue["2"] = object.id;
@@ -4396,7 +4396,7 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4421,7 +4421,7 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4672,7 +4672,7 @@ export class OptionDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = OptionDefinition.__packValue__(this);
@@ -4680,7 +4680,7 @@ export class OptionDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: OptionDefinition): { [key: string]: any } {
+  static __packValue__(object: OptionDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 112;
     objectValue["2"] = object.id;
@@ -4699,7 +4699,7 @@ export class OptionDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4728,7 +4728,7 @@ export class OptionDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4955,7 +4955,7 @@ export class OptionGroupDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = OptionGroupDefinition.__packValue__(this);
@@ -4963,7 +4963,7 @@ export class OptionGroupDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: OptionGroupDefinition): { [key: string]: any } {
+  static __packValue__(object: OptionGroupDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 113;
     objectValue["2"] = object.id;
@@ -4978,7 +4978,7 @@ export class OptionGroupDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5003,7 +5003,7 @@ export class OptionGroupDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5221,7 +5221,7 @@ export class ConstantDefinition extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = ConstantDefinition.__packValue__(this);
@@ -5229,7 +5229,7 @@ export class ConstantDefinition extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: ConstantDefinition): { [key: string]: any } {
+  static __packValue__(object: ConstantDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 120;
     objectValue["101"] = object.name;
@@ -5242,7 +5242,7 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5262,7 +5262,7 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5374,14 +5374,14 @@ export class MethodDefinition extends BuiltinDefinition {
   /**
    * MethodDefinition.properties
    */
-  readonly properties: Array<PropertyDefinition>;
+  readonly properties: readonly PropertyDefinition[];
 
   constructor(options: {
     id: number;
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: Array<PropertyDefinition>;
+    properties?: readonly PropertyDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -5502,7 +5502,7 @@ export class MethodDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = MethodDefinition.__packValue__(this);
@@ -5510,7 +5510,7 @@ export class MethodDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: MethodDefinition): { [key: string]: any } {
+  static __packValue__(object: MethodDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 130;
     objectValue["2"] = object.id;
@@ -5532,7 +5532,7 @@ export class MethodDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5569,7 +5569,7 @@ export class MethodDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5687,7 +5687,7 @@ export class ActionDefinition extends MethodDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: Array<PropertyDefinition>;
+    properties?: readonly PropertyDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -5777,7 +5777,7 @@ export class ActionDefinition extends MethodDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = ActionDefinition.__packValue__(this);
@@ -5785,7 +5785,7 @@ export class ActionDefinition extends MethodDefinition {
     return this._value;
   }
 
-  static __packValue__(object: ActionDefinition): { [key: string]: any } {
+  static __packValue__(object: ActionDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 131;
     objectValue["2"] = object.id;
@@ -5807,7 +5807,7 @@ export class ActionDefinition extends MethodDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -5844,7 +5844,7 @@ export class ActionDefinition extends MethodDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -6116,7 +6116,7 @@ export class PermissionDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = PermissionDefinition.__packValue__(this);
@@ -6124,7 +6124,7 @@ export class PermissionDefinition extends BuiltinDefinition {
     return this._value;
   }
 
-  static __packValue__(object: PermissionDefinition): { [key: string]: any } {
+  static __packValue__(object: PermissionDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 140;
     objectValue["2"] = object.id;
@@ -6141,7 +6141,7 @@ export class PermissionDefinition extends BuiltinDefinition {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -6168,7 +6168,7 @@ export class PermissionDefinition extends BuiltinDefinition {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

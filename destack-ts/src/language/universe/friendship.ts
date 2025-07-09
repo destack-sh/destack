@@ -111,12 +111,12 @@ export class Friendship extends Entity implements IsGlobal {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -128,12 +128,12 @@ export class Friendship extends Entity implements IsGlobal {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -154,6 +154,9 @@ export class Friendship extends Entity implements IsGlobal {
     }
     return null;
   }
+  /**
+   * Friendship.userA
+   */
   get userAPtr(): NodeReference {
     return this._userAPtr;
   }
@@ -174,6 +177,9 @@ export class Friendship extends Entity implements IsGlobal {
     }
     return null;
   }
+  /**
+   * Friendship.userB
+   */
   get userBPtr(): NodeReference {
     return this._userBPtr;
   }
@@ -393,11 +399,11 @@ export class Friendship extends Entity implements IsGlobal {
     return `<Friendship '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Friendship.__packValue__(this);
   }
 
-  static __packValue__(object: Friendship): { [key: string]: any } {
+  static __packValue__(object: Friendship): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21100;
     objectValue["2"] = String(object.id);
@@ -431,7 +437,7 @@ export class Friendship extends Entity implements IsGlobal {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -506,7 +512,7 @@ export class Friendship extends Entity implements IsGlobal {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -684,12 +690,21 @@ registerNodeClass(NodeType.FRIENDSHIP, Friendship);
 export abstract class FriendshipInviteEvent extends Event {
   static metatype: NodeType = NodeType.FRIENDSHIP_INVITE_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -698,9 +713,15 @@ export abstract class FriendshipInviteEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -714,6 +735,9 @@ export abstract class FriendshipInviteEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * FriendshipInviteEvent.node
+   */
   abstract get node(): FriendshipInvite | null;
   declare readonly nodePtr: NodeReference;
 
@@ -1009,11 +1033,11 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     return `<FriendshipInviteSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FriendshipInviteSentEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FriendshipInviteSentEvent): { [key: string]: any } {
+  static __packValue__(object: FriendshipInviteSentEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21202;
     objectValue["2"] = String(object.id);
@@ -1042,7 +1066,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1100,7 +1124,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1536,11 +1560,11 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     return `<FriendshipInviteRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FriendshipInviteRescindedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FriendshipInviteRescindedEvent): { [key: string]: any } {
+  static __packValue__(object: FriendshipInviteRescindedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21203;
     objectValue["2"] = String(object.id);
@@ -1569,7 +1593,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1627,7 +1651,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2065,11 +2089,11 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     return `<FriendshipInviteAcceptedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FriendshipInviteAcceptedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FriendshipInviteAcceptedEvent): { [key: string]: any } {
+  static __packValue__(object: FriendshipInviteAcceptedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21204;
     objectValue["2"] = String(object.id);
@@ -2098,7 +2122,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2156,7 +2180,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2592,11 +2616,11 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     return `<FriendshipInviteRejectedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FriendshipInviteRejectedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: FriendshipInviteRejectedEvent): { [key: string]: any } {
+  static __packValue__(object: FriendshipInviteRejectedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21205;
     objectValue["2"] = String(object.id);
@@ -2625,7 +2649,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2683,7 +2707,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2907,12 +2931,12 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2924,12 +2948,12 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2953,6 +2977,9 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   set ownedBy(node: Entity & IsSubject) {
     this.ownedByPtr = node.toRef();
   }
+  /**
+   * FriendshipInvite.ownedBy
+   */
   get ownedByPtr(): NodeReference {
     return this._ownedByPtr;
   }
@@ -3158,11 +3185,11 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
     return `<FriendshipInvite '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return FriendshipInvite.__packValue__(this);
   }
 
-  static __packValue__(object: FriendshipInvite): { [key: string]: any } {
+  static __packValue__(object: FriendshipInvite): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 21200;
     objectValue["2"] = String(object.id);
@@ -3195,7 +3222,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -3263,7 +3290,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

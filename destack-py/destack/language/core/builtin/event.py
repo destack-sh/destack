@@ -28,10 +28,13 @@ if TYPE_CHECKING:
 class EventStatus(Enum):
     """The (forever) status of an Event."""
 
-    PENDING = 1, "Pending", "Pending application"
-    COMPLETED = 10, "Completed", "Successfully applied"
-    SKIPPED = 11, "Skipped", "Skipped and ignored"
-    FAILED = 12, "Failed", "Could not apply"
+    # client
+    PENDING = 1, "Pending", "Pending application on client"
+    STAGED = 2, "Staged", "Optimistically staged on client"
+    # system
+    APPROVED = 10, "Completed", "Successfully applied in system"
+    SKIPPED = 11, "Skipped", "Skipped and ignored in system"
+    FAILED = 12, "Failed", "Could not apply in system"
     REJECTED = 13, "Rejected", "Denied by the system"
 
 
@@ -83,6 +86,8 @@ class Event[N: Node = Node](IsSpatial, Node):
         default=EventStatus.PENDING,
         description="The status of the Event.",
     )
+    # caused_by/cascaded_from? (other Events that caused this event, like InputEvent or for cascading edits)
+    # change_key? (bigger Change this is a part of)
     if TYPE_CHECKING:
         snapshot_ptr: Optional[NodeReference] = None
         created_by_ptr: Optional[NodeReference] = None

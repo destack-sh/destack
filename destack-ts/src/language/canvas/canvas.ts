@@ -183,12 +183,12 @@ export class Canvas extends ContainerView {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -200,12 +200,12 @@ export class Canvas extends ContainerView {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -224,15 +224,18 @@ export class Canvas extends ContainerView {
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
-  get customValues(): Map<string, Value> {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
     return this._customValues;
   }
-  set customValues(value: Map<string, Value>) {
+  set customValues(value: { readonly [key: string]: Value }) {
     const prop = (this.constructor as NodeClass).__properties__["custom_values"];
     this._session.updateSetProperty(this, prop, value);
     this._customValues = value;
   }
-  _customValues: Map<string, Value>;
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -256,6 +259,9 @@ export class Canvas extends ContainerView {
       this.scriptPtr = node.toRef();
     }
   }
+  /**
+   * The main / root Script of this Node.
+   */
   get scriptPtr(): NodeReference | null {
     return this._scriptPtr;
   }
@@ -266,6 +272,9 @@ export class Canvas extends ContainerView {
   }
   _scriptPtr: NodeReference | null;
 
+  /**
+   * Canvas.type
+   */
   /**
    * Canvas.type
    */
@@ -282,6 +291,9 @@ export class Canvas extends ContainerView {
   /**
    * View.name
    */
+  /**
+   * View.name
+   */
   get name(): string {
     return this._name;
   }
@@ -292,6 +304,9 @@ export class Canvas extends ContainerView {
   }
   _name: string;
 
+  /**
+   * View.position
+   */
   /**
    * View.position
    */
@@ -308,6 +323,9 @@ export class Canvas extends ContainerView {
   /**
    * View.width
    */
+  /**
+   * View.width
+   */
   get width(): Dimension | null {
     return this._width;
   }
@@ -318,6 +336,9 @@ export class Canvas extends ContainerView {
   }
   _width: Dimension | null;
 
+  /**
+   * View.height
+   */
   /**
    * View.height
    */
@@ -334,6 +355,9 @@ export class Canvas extends ContainerView {
   /**
    * View.minWidth
    */
+  /**
+   * View.minWidth
+   */
   get minWidth(): Dimension | null {
     return this._minWidth;
   }
@@ -344,6 +368,9 @@ export class Canvas extends ContainerView {
   }
   _minWidth: Dimension | null;
 
+  /**
+   * View.minHeight
+   */
   /**
    * View.minHeight
    */
@@ -360,6 +387,9 @@ export class Canvas extends ContainerView {
   /**
    * View.maxWidth
    */
+  /**
+   * View.maxWidth
+   */
   get maxWidth(): Dimension | null {
     return this._maxWidth;
   }
@@ -370,6 +400,9 @@ export class Canvas extends ContainerView {
   }
   _maxWidth: Dimension | null;
 
+  /**
+   * View.maxHeight
+   */
   /**
    * View.maxHeight
    */
@@ -386,6 +419,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.layout
    */
+  /**
+   * ContainerView.layout
+   */
   get layout(): Layout | null {
     return this._layout;
   }
@@ -396,6 +432,9 @@ export class Canvas extends ContainerView {
   }
   _layout: Layout | null;
 
+  /**
+   * ContainerView.direction
+   */
   /**
    * ContainerView.direction
    */
@@ -412,6 +451,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.distribute
    */
+  /**
+   * ContainerView.distribute
+   */
   get distribute(): Distribute | null {
     return this._distribute;
   }
@@ -422,6 +464,9 @@ export class Canvas extends ContainerView {
   }
   _distribute: Distribute | null;
 
+  /**
+   * ContainerView.align
+   */
   /**
    * ContainerView.align
    */
@@ -438,6 +483,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.gap
    */
+  /**
+   * ContainerView.gap
+   */
   get gap(): Axis2 | null {
     return this._gap;
   }
@@ -448,6 +496,9 @@ export class Canvas extends ContainerView {
   }
   _gap: Axis2 | null;
 
+  /**
+   * ContainerView.padding
+   */
   /**
    * ContainerView.padding
    */
@@ -464,6 +515,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.grid
    */
+  /**
+   * ContainerView.grid
+   */
   get grid(): Grid | null {
     return this._grid;
   }
@@ -474,6 +528,9 @@ export class Canvas extends ContainerView {
   }
   _grid: Grid | null;
 
+  /**
+   * ContainerView.gridSpan
+   */
   /**
    * ContainerView.gridSpan
    */
@@ -490,6 +547,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.aspectRatio
    */
+  /**
+   * ContainerView.aspectRatio
+   */
   get aspectRatio(): number | null {
     return this._aspectRatio;
   }
@@ -500,6 +560,9 @@ export class Canvas extends ContainerView {
   }
   _aspectRatio: number | null;
 
+  /**
+   * ContainerView.isWrap
+   */
   /**
    * ContainerView.isWrap
    */
@@ -516,6 +579,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.isVisible
    */
+  /**
+   * ContainerView.isVisible
+   */
   get isVisible(): boolean | null {
     return this._isVisible;
   }
@@ -526,6 +592,9 @@ export class Canvas extends ContainerView {
   }
   _isVisible: boolean | null;
 
+  /**
+   * ContainerView.opacity
+   */
   /**
    * ContainerView.opacity
    */
@@ -542,6 +611,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.fill
    */
+  /**
+   * ContainerView.fill
+   */
   get fill(): Fill | null {
     return this._fill;
   }
@@ -552,6 +624,9 @@ export class Canvas extends ContainerView {
   }
   _fill: Fill | null;
 
+  /**
+   * ContainerView.rotation
+   */
   /**
    * ContainerView.rotation
    */
@@ -568,6 +643,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.skew
    */
+  /**
+   * ContainerView.skew
+   */
   get skew(): Vector2f | null {
     return this._skew;
   }
@@ -578,6 +656,9 @@ export class Canvas extends ContainerView {
   }
   _skew: Vector2f | null;
 
+  /**
+   * ContainerView.scale
+   */
   /**
    * ContainerView.scale
    */
@@ -594,6 +675,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.shadow
    */
+  /**
+   * ContainerView.shadow
+   */
   get shadow(): Shadow | null {
     return this._shadow;
   }
@@ -607,6 +691,9 @@ export class Canvas extends ContainerView {
   /**
    * ContainerView.border
    */
+  /**
+   * ContainerView.border
+   */
   get border(): Border | null {
     return this._border;
   }
@@ -617,6 +704,9 @@ export class Canvas extends ContainerView {
   }
   _border: Border | null;
 
+  /**
+   * ContainerView.radius
+   */
   /**
    * ContainerView.radius
    */
@@ -646,7 +736,7 @@ export class Canvas extends ContainerView {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: Map<string, Value>;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     script?: Script | NodeReference | null;
     type?: CanvasType;
@@ -753,7 +843,7 @@ export class Canvas extends ContainerView {
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
-      _customValues = new Map();
+      _customValues = {};
     }
     this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
@@ -1048,7 +1138,7 @@ export class Canvas extends ContainerView {
       if (!(key in other._customValues)) {
         return false;
       }
-      if (!this._customValues.get(key)!.equals(other._customValues.get(key)!)) {
+      if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
     }
@@ -1233,11 +1323,11 @@ export class Canvas extends ContainerView {
     return `<Canvas '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Canvas.__packValue__(this);
   }
 
-  static __packValue__(object: Canvas): { [key: string]: any } {
+  static __packValue__(object: Canvas): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 540000;
     objectValue["2"] = String(object.id);
@@ -1277,9 +1367,9 @@ export class Canvas extends ContainerView {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (object._customValues.size > 0) {
-      const packedCustomValues: { [key: string]: any } = {};
-      for (const [key, value] of object._customValues) {
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
@@ -1372,7 +1462,7 @@ export class Canvas extends ContainerView {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1559,12 +1649,15 @@ export class Canvas extends ContainerView {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromValue(value as any, _session, _supergraph, _graph, _connection),
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
         );
       }
     }
@@ -1627,7 +1720,7 @@ export class Canvas extends ContainerView {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1680,8 +1773,8 @@ export class Canvas extends ContainerView {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
-      objectProto.customValues = {};
-      for (const [key, value] of object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
@@ -1796,7 +1889,7 @@ export class Canvas extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
-    const unpackedCustomValues = new Map();
+    const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
         unpackedCustomValues.set(

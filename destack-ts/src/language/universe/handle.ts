@@ -91,12 +91,12 @@ export class Handle extends Entity implements IsGlobal {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -108,12 +108,12 @@ export class Handle extends Entity implements IsGlobal {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -124,6 +124,9 @@ export class Handle extends Entity implements IsGlobal {
   }
   readonly updatedByPtr: NodeReference | null;
 
+  /**
+   * Handle.slug
+   */
   /**
    * Handle.slug
    */
@@ -338,11 +341,11 @@ export class Handle extends Entity implements IsGlobal {
     return `<Handle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Handle.__packValue__(this);
   }
 
-  static __packValue__(object: Handle): { [key: string]: any } {
+  static __packValue__(object: Handle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 20200;
     objectValue["2"] = String(object.id);
@@ -375,7 +378,7 @@ export class Handle extends Entity implements IsGlobal {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -437,7 +440,7 @@ export class Handle extends Entity implements IsGlobal {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

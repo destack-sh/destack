@@ -42,7 +42,7 @@ def generate_object_value(cls: type["BuiltinObject"]) -> str:
 
     if cls.__is_frozen__ and not cls.__is_node__:
         to_value_method = f"""
-  toValue(): {{ [key: string]: any }} {{
+  toValue(): {{ readonly [key: string]: any }} {{
     if (this._value === null) {{
       // @ts-expect-error(readonly)
       this._value = {cls.__name__}.__packValue__(this);
@@ -51,18 +51,18 @@ def generate_object_value(cls: type["BuiltinObject"]) -> str:
   }}"""
     else:
         to_value_method = f"""
-  toValue(): {{ [key: string]: any }} {{
+  toValue(): {{ readonly [key: string]: any }} {{
     return {cls.__name__}.__packValue__(this);
   }}"""
 
     return f"""{to_value_method}
 
-  static __packValue__(object: {cls.__name__}): {{ [key: string]: any }} {{
+  static __packValue__(object: {cls.__name__}): {{ readonly [key: string]: any }} {{
 {textwrap.indent(pack_value, "  ")}
   }}
 
   static __unpackValue__(
-    objectValue: {{ [key: string]: any }},
+    objectValue: {{ readonly [key: string]: any }},
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -72,7 +72,7 @@ def generate_object_value(cls: type["BuiltinObject"]) -> str:
   }}
 
   static fromValue(
-    objectValue: {{ [key: string]: any }},
+    objectValue: {{ readonly [key: string]: any }},
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -202,9 +202,9 @@ def _generate_pack_value_property(prop: "PropertyDeclaration") -> list[str]:
         lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"if ({obj_value}.size > 0) {{")
-        lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}};")
-        lines.append(f"  for (const [key, value] of {obj_value}) {{")
+        lines.append(f"if (Object.keys({obj_value}).length > 0) {{")
+        lines.append(f"  const {packed_name}: {{ [key: string]: any }} = {{}} as any;")
+        lines.append(f"  for (const [key, value] of Object.entries({obj_value})) {{")
         key_expr = _generate_pack_value_scalar(prop.key_type, "key")
         value_expr = _generate_pack_value_scalar(prop, "value")
         lines.append(f"    {packed_name}[String({key_expr})] = {value_expr};")
@@ -244,12 +244,12 @@ def _generate_unpack_value_property(prop: "PropertyDeclaration") -> list[str]:
         lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"const {var_name} = new Map();")
+        lines.append(f"const {var_name} = {{}} as any;")
         lines.append(f"if ({data_value} != undefined) {{")
         lines.append(f"  for (const [key, value] of Object.entries({data_value})) {{")
         key_expr = _generate_unpack_value_scalar(prop.key_type, "key")
         value_expr = _generate_unpack_value_scalar(prop, "value as any")
-        lines.append(f"    {var_name}.set({key_expr}, {value_expr});")
+        lines.append(f"    {var_name}[{key_expr}] = {value_expr};")
         lines.append("  }")
         lines.append("}")
     else:

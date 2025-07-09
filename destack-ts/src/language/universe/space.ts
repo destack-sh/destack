@@ -143,12 +143,12 @@ export class Space
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -160,12 +160,12 @@ export class Space
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -193,6 +193,9 @@ export class Space
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -203,6 +206,9 @@ export class Space
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * Space.name
+   */
   /**
    * Space.name
    */
@@ -219,6 +225,9 @@ export class Space
   /**
    * Space.slug
    */
+  /**
+   * Space.slug
+   */
   get slug(): string {
     return this._slug;
   }
@@ -229,6 +238,9 @@ export class Space
   }
   _slug: string;
 
+  /**
+   * Space.status
+   */
   /**
    * Space.status
    */
@@ -252,6 +264,9 @@ export class Space
     }
     return null;
   }
+  /**
+   * Space.handle
+   */
   get handlePtr(): NodeReference | null {
     return this._handlePtr;
   }
@@ -272,6 +287,9 @@ export class Space
     }
     return null;
   }
+  /**
+   * The system Folder.
+   */
   get systemFolderPtr(): NodeReference | null {
     return this._systemFolderPtr;
   }
@@ -292,6 +310,9 @@ export class Space
     }
     return null;
   }
+  /**
+   * The home Folder.
+   */
   get homeFolderPtr(): NodeReference | null {
     return this._homeFolderPtr;
   }
@@ -305,6 +326,9 @@ export class Space
   /**
    * Space.region
    */
+  /**
+   * Space.region
+   */
   get region(): Region {
     return this._region;
   }
@@ -315,6 +339,9 @@ export class Space
   }
   _region: Region;
 
+  /**
+   * Space.galaxyName
+   */
   /**
    * Space.galaxyName
    */
@@ -338,6 +365,9 @@ export class Space
     }
     return null;
   }
+  /**
+   * Space.database
+   */
   get databasePtr(): NodeReference | null {
     return this._databasePtr;
   }
@@ -655,11 +685,11 @@ export class Space
     return `<Space '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Space.__packValue__(this);
   }
 
-  static __packValue__(object: Space): { [key: string]: any } {
+  static __packValue__(object: Space): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 20100;
     objectValue["2"] = String(object.id);
@@ -716,7 +746,7 @@ export class Space
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -820,7 +850,7 @@ export class Space
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

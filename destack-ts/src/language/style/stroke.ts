@@ -275,7 +275,7 @@ export class Stroke extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Stroke.__packValue__(this);
@@ -283,7 +283,7 @@ export class Stroke extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Stroke): { [key: string]: any } {
+  static __packValue__(object: Stroke): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 6001100;
     objectValue["100"] = object.type;
@@ -305,7 +305,7 @@ export class Stroke extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -344,7 +344,7 @@ export class Stroke extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -546,7 +546,7 @@ export class StrokeCap extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = StrokeCap.__packValue__(this);
@@ -554,7 +554,7 @@ export class StrokeCap extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: StrokeCap): { [key: string]: any } {
+  static __packValue__(object: StrokeCap): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 6001101;
     objectValue["101"] = object.cap;
@@ -564,7 +564,7 @@ export class StrokeCap extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -580,7 +580,7 @@ export class StrokeCap extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -825,7 +825,7 @@ export class StrokePoint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = StrokePoint.__packValue__(this);
@@ -833,7 +833,7 @@ export class StrokePoint extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: StrokePoint): { [key: string]: any } {
+  static __packValue__(object: StrokePoint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 6001103;
     objectValue["101"] = object.point.toValue();
@@ -847,7 +847,7 @@ export class StrokePoint extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -880,7 +880,7 @@ export class StrokePoint extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -976,10 +976,10 @@ export class StrokePath extends StructFrozen {
   /**
    * StrokePath.points
    */
-  readonly points: Array<StrokePoint>;
+  readonly points: readonly StrokePoint[];
 
   constructor(options: {
-    points?: Array<StrokePoint>;
+    points?: readonly StrokePoint[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1066,7 +1066,7 @@ export class StrokePath extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = StrokePath.__packValue__(this);
@@ -1074,7 +1074,7 @@ export class StrokePath extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: StrokePath): { [key: string]: any } {
+  static __packValue__(object: StrokePath): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 6001102;
     if (object.points.length > 0) {
@@ -1088,7 +1088,7 @@ export class StrokePath extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1111,7 +1111,7 @@ export class StrokePath extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1271,12 +1271,12 @@ export class StrokeStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1288,12 +1288,12 @@ export class StrokeStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1317,6 +1317,9 @@ export class StrokeStyle extends Style {
   /**
    * StrokeStyle.type
    */
+  /**
+   * StrokeStyle.type
+   */
   get type(): StrokeType {
     return this._type;
   }
@@ -1327,6 +1330,9 @@ export class StrokeStyle extends Style {
   }
   _type: StrokeType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -1343,6 +1349,9 @@ export class StrokeStyle extends Style {
   /**
    * The stroke size/width.
    */
+  /**
+   * The stroke size/width.
+   */
   get size(): number {
     return this._size;
   }
@@ -1353,6 +1362,9 @@ export class StrokeStyle extends Style {
   }
   _size: number;
 
+  /**
+   * The amount of pressure-based thinning (0-1).
+   */
   /**
    * The amount of pressure-based thinning (0-1).
    */
@@ -1369,6 +1381,9 @@ export class StrokeStyle extends Style {
   /**
    * The amount of path smoothing (0-1).
    */
+  /**
+   * The amount of path smoothing (0-1).
+   */
   get smoothing(): number {
     return this._smoothing;
   }
@@ -1379,6 +1394,9 @@ export class StrokeStyle extends Style {
   }
   _smoothing: number;
 
+  /**
+   * The amount of streamlining applied to path (0-1).
+   */
   /**
    * The amount of streamlining applied to path (0-1).
    */
@@ -1395,6 +1413,9 @@ export class StrokeStyle extends Style {
   /**
    * The easing function for pressure mapping.
    */
+  /**
+   * The easing function for pressure mapping.
+   */
   get easing(): Easing {
     return this._easing;
   }
@@ -1408,6 +1429,9 @@ export class StrokeStyle extends Style {
   /**
    * The start cap configuration.
    */
+  /**
+   * The start cap configuration.
+   */
   get start(): StrokeCap | null {
     return this._start;
   }
@@ -1418,6 +1442,9 @@ export class StrokeStyle extends Style {
   }
   _start: StrokeCap | null;
 
+  /**
+   * The end cap configuration.
+   */
   /**
    * The end cap configuration.
    */
@@ -1758,11 +1785,11 @@ export class StrokeStyle extends Style {
     return `<StrokeStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return StrokeStyle.__packValue__(this);
   }
 
-  static __packValue__(object: StrokeStyle): { [key: string]: any } {
+  static __packValue__(object: StrokeStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 6001100;
     objectValue["2"] = String(object.id);
@@ -1814,7 +1841,7 @@ export class StrokeStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1908,7 +1935,7 @@ export class StrokeStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

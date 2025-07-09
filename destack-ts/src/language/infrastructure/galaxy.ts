@@ -122,7 +122,7 @@ export class GalaxyInfo extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = GalaxyInfo.__packValue__(this);
@@ -130,7 +130,7 @@ export class GalaxyInfo extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: GalaxyInfo): { [key: string]: any } {
+  static __packValue__(object: GalaxyInfo): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 140101;
     objectValue["110"] = object.region;
@@ -140,7 +140,7 @@ export class GalaxyInfo extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -156,7 +156,7 @@ export class GalaxyInfo extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

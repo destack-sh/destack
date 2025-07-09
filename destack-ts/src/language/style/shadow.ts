@@ -305,7 +305,7 @@ export class Shadow extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Shadow.__packValue__(this);
@@ -313,7 +313,7 @@ export class Shadow extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Shadow): { [key: string]: any } {
+  static __packValue__(object: Shadow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600700;
     objectValue["100"] = object.type;
@@ -340,7 +340,7 @@ export class Shadow extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -385,7 +385,7 @@ export class Shadow extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -574,12 +574,12 @@ export class ShadowStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -591,12 +591,12 @@ export class ShadowStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -620,6 +620,9 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.type
    */
+  /**
+   * ShadowStyle.type
+   */
   get type(): ShadowType {
     return this._type;
   }
@@ -630,6 +633,9 @@ export class ShadowStyle extends Style {
   }
   _type: ShadowType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -646,6 +652,9 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.color
    */
+  /**
+   * ShadowStyle.color
+   */
   get color(): Color | null {
     return this._color;
   }
@@ -656,6 +665,9 @@ export class ShadowStyle extends Style {
   }
   _color: Color | null;
 
+  /**
+   * ShadowStyle.position
+   */
   /**
    * ShadowStyle.position
    */
@@ -672,6 +684,9 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.offset
    */
+  /**
+   * ShadowStyle.offset
+   */
   get offset(): Axis2 | null {
     return this._offset;
   }
@@ -682,6 +697,9 @@ export class ShadowStyle extends Style {
   }
   _offset: Axis2 | null;
 
+  /**
+   * ShadowStyle.blur
+   */
   /**
    * ShadowStyle.blur
    */
@@ -698,6 +716,9 @@ export class ShadowStyle extends Style {
   /**
    * ShadowStyle.spread
    */
+  /**
+   * ShadowStyle.spread
+   */
   get spread(): number | null {
     return this._spread;
   }
@@ -708,6 +729,9 @@ export class ShadowStyle extends Style {
   }
   _spread: number | null;
 
+  /**
+   * ShadowStyle.diffusion
+   */
   /**
    * ShadowStyle.diffusion
    */
@@ -1054,11 +1078,11 @@ export class ShadowStyle extends Style {
     return `<ShadowStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ShadowStyle.__packValue__(this);
   }
 
-  static __packValue__(object: ShadowStyle): { [key: string]: any } {
+  static __packValue__(object: ShadowStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600700;
     objectValue["2"] = String(object.id);
@@ -1115,7 +1139,7 @@ export class ShadowStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1215,7 +1239,7 @@ export class ShadowStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

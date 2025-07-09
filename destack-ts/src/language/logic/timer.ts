@@ -62,12 +62,21 @@ registerEnumClass(EnumType.TIMER_TYPE, TimerType);
 export abstract class TimerEvent extends Event {
   static metatype: NodeType = NodeType.TIMER_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -76,9 +85,15 @@ export abstract class TimerEvent extends Event {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -92,6 +107,9 @@ export abstract class TimerEvent extends Event {
    */
   declare readonly status: EventStatus;
 
+  /**
+   * TimerEvent.node
+   */
   abstract get node(): Timer | null;
   declare readonly nodePtr: NodeReference;
 
@@ -387,11 +405,11 @@ export class TimerStartedEvent extends TimerEvent {
     return `<TimerStartedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return TimerStartedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: TimerStartedEvent): { [key: string]: any } {
+  static __packValue__(object: TimerStartedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 107102;
     objectValue["2"] = String(object.id);
@@ -420,7 +438,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -478,7 +496,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -914,11 +932,11 @@ export class TimerCompletedEvent extends TimerEvent {
     return `<TimerCompletedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return TimerCompletedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: TimerCompletedEvent): { [key: string]: any } {
+  static __packValue__(object: TimerCompletedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 107103;
     objectValue["2"] = String(object.id);
@@ -947,7 +965,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1005,7 +1023,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1441,11 +1459,11 @@ export class TimerCancelledEvent extends TimerEvent {
     return `<TimerCancelledEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return TimerCancelledEvent.__packValue__(this);
   }
 
-  static __packValue__(object: TimerCancelledEvent): { [key: string]: any } {
+  static __packValue__(object: TimerCancelledEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 107104;
     objectValue["2"] = String(object.id);
@@ -1474,7 +1492,7 @@ export class TimerCancelledEvent extends TimerEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1532,7 +1550,7 @@ export class TimerCancelledEvent extends TimerEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1768,12 +1786,12 @@ export class Timer extends Entity implements IsSpatial {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1785,12 +1803,12 @@ export class Timer extends Entity implements IsSpatial {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1801,6 +1819,9 @@ export class Timer extends Entity implements IsSpatial {
   }
   readonly updatedByPtr: NodeReference | null;
 
+  /**
+   * Timer.type
+   */
   /**
    * Timer.type
    */
@@ -1817,6 +1838,9 @@ export class Timer extends Entity implements IsSpatial {
   /**
    * Timer.name
    */
+  /**
+   * Timer.name
+   */
   get name(): string {
     return this._name;
   }
@@ -1827,6 +1851,9 @@ export class Timer extends Entity implements IsSpatial {
   }
   _name: string;
 
+  /**
+   * Timer.schedule
+   */
   /**
    * Timer.schedule
    */
@@ -2077,11 +2104,11 @@ export class Timer extends Entity implements IsSpatial {
     return `<Timer '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Timer.__packValue__(this);
   }
 
-  static __packValue__(object: Timer): { [key: string]: any } {
+  static __packValue__(object: Timer): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 107100;
     objectValue["2"] = String(object.id);
@@ -2121,7 +2148,7 @@ export class Timer extends Entity implements IsSpatial {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2197,7 +2224,7 @@ export class Timer extends Entity implements IsSpatial {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

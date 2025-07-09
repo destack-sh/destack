@@ -155,12 +155,12 @@ export class CustomProperty
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -172,12 +172,12 @@ export class CustomProperty
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -218,6 +218,9 @@ export class CustomProperty
   /**
    * CustomProperty.type
    */
+  /**
+   * CustomProperty.type
+   */
   get type(): PropertyType {
     return this._type;
   }
@@ -231,6 +234,9 @@ export class CustomProperty
   /**
    * CustomProperty.name
    */
+  /**
+   * CustomProperty.name
+   */
   get name(): string {
     return this._name;
   }
@@ -241,6 +247,9 @@ export class CustomProperty
   }
   _name: string;
 
+  /**
+   * CustomProperty.icon
+   */
   /**
    * CustomProperty.icon
    */
@@ -271,6 +280,9 @@ export class CustomProperty
       this.groupPtr = node.toRef();
     }
   }
+  /**
+   * CustomProperty.group
+   */
   get groupPtr(): NodeReference | null {
     return this._groupPtr;
   }
@@ -281,6 +293,9 @@ export class CustomProperty
   }
   _groupPtr: NodeReference | null;
 
+  /**
+   * CustomProperty.cardinality
+   */
   /**
    * CustomProperty.cardinality
    */
@@ -297,6 +312,9 @@ export class CustomProperty
   /**
    * CustomProperty.scalarType
    */
+  /**
+   * CustomProperty.scalarType
+   */
   get scalarType(): ScalarType {
     return this._scalarType;
   }
@@ -307,6 +325,9 @@ export class CustomProperty
   }
   _scalarType: ScalarType;
 
+  /**
+   * CustomProperty.primitiveType
+   */
   /**
    * CustomProperty.primitiveType
    */
@@ -323,6 +344,9 @@ export class CustomProperty
   /**
    * CustomProperty.enumType
    */
+  /**
+   * CustomProperty.enumType
+   */
   get enumType(): EnumType | null {
     return this._enumType;
   }
@@ -336,6 +360,9 @@ export class CustomProperty
   /**
    * CustomProperty.nodeType
    */
+  /**
+   * CustomProperty.nodeType
+   */
   get nodeType(): NodeType | null {
     return this._nodeType;
   }
@@ -346,6 +373,9 @@ export class CustomProperty
   }
   _nodeType: NodeType | null;
 
+  /**
+   * CustomProperty.structType
+   */
   /**
    * CustomProperty.structType
    */
@@ -396,6 +426,9 @@ export class CustomProperty
       this.definitionPtr = node.toRef();
     }
   }
+  /**
+   * CustomProperty.definition
+   */
   get definitionPtr(): NodeReference | null {
     return this._definitionPtr;
   }
@@ -406,6 +439,9 @@ export class CustomProperty
   }
   _definitionPtr: NodeReference | null;
 
+  /**
+   * CustomProperty.keyType
+   */
   /**
    * CustomProperty.keyType
    */
@@ -422,6 +458,9 @@ export class CustomProperty
   /**
    * CustomProperty.value
    */
+  /**
+   * CustomProperty.value
+   */
   get value(): Value | null {
     return this._value;
   }
@@ -432,6 +471,9 @@ export class CustomProperty
   }
   _value: Value | null;
 
+  /**
+   * CustomProperty.valueFactory
+   */
   /**
    * CustomProperty.valueFactory
    */
@@ -448,6 +490,9 @@ export class CustomProperty
   /**
    * CustomProperty.collectionConstraint
    */
+  /**
+   * CustomProperty.collectionConstraint
+   */
   get collectionConstraint(): CollectionConstraint | null {
     return this._collectionConstraint;
   }
@@ -458,6 +503,9 @@ export class CustomProperty
   }
   _collectionConstraint: CollectionConstraint | null;
 
+  /**
+   * CustomProperty.stringConstraint
+   */
   /**
    * CustomProperty.stringConstraint
    */
@@ -474,6 +522,9 @@ export class CustomProperty
   /**
    * CustomProperty.numberConstraint
    */
+  /**
+   * CustomProperty.numberConstraint
+   */
   get numberConstraint(): NumberConstraint | null {
     return this._numberConstraint;
   }
@@ -484,6 +535,9 @@ export class CustomProperty
   }
   _numberConstraint: NumberConstraint | null;
 
+  /**
+   * CustomProperty.nodeConstraint
+   */
   /**
    * CustomProperty.nodeConstraint
    */
@@ -500,6 +554,9 @@ export class CustomProperty
   /**
    * CustomProperty.edgeType
    */
+  /**
+   * CustomProperty.edgeType
+   */
   get edgeType(): EdgeType | null {
     return this._edgeType;
   }
@@ -510,6 +567,9 @@ export class CustomProperty
   }
   _edgeType: EdgeType | null;
 
+  /**
+   * CustomProperty.cascade
+   */
   /**
    * CustomProperty.cascade
    */
@@ -526,6 +586,9 @@ export class CustomProperty
   /**
    * CustomProperty.isRequired
    */
+  /**
+   * CustomProperty.isRequired
+   */
   get isRequired(): boolean | null {
     return this._isRequired;
   }
@@ -536,6 +599,9 @@ export class CustomProperty
   }
   _isRequired: boolean | null;
 
+  /**
+   * CustomProperty.isUnique
+   */
   /**
    * CustomProperty.isUnique
    */
@@ -552,6 +618,9 @@ export class CustomProperty
   /**
    * CustomProperty.isComputed
    */
+  /**
+   * CustomProperty.isComputed
+   */
   get isComputed(): boolean | null {
     return this._isComputed;
   }
@@ -562,6 +631,9 @@ export class CustomProperty
   }
   _isComputed: boolean | null;
 
+  /**
+   * CustomProperty.isReadonly
+   */
   /**
    * CustomProperty.isReadonly
    */
@@ -1096,11 +1168,11 @@ export class CustomProperty
     return `<CustomProperty '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomProperty.__packValue__(this);
   }
 
-  static __packValue__(object: CustomProperty): { [key: string]: any } {
+  static __packValue__(object: CustomProperty): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 110;
     objectValue["2"] = String(object.id);
@@ -1209,7 +1281,7 @@ export class CustomProperty
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1420,7 +1492,7 @@ export class CustomProperty
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1948,12 +2020,12 @@ export class CustomPropertyGroup
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1965,12 +2037,12 @@ export class CustomPropertyGroup
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -2011,6 +2083,9 @@ export class CustomPropertyGroup
   /**
    * CustomPropertyGroup.name
    */
+  /**
+   * CustomPropertyGroup.name
+   */
   get name(): string {
     return this._name;
   }
@@ -2021,6 +2096,9 @@ export class CustomPropertyGroup
   }
   _name: string;
 
+  /**
+   * CustomPropertyGroup.icon
+   */
   /**
    * CustomPropertyGroup.icon
    */
@@ -2296,11 +2374,11 @@ export class CustomPropertyGroup
     return `<CustomPropertyGroup '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return CustomPropertyGroup.__packValue__(this);
   }
 
-  static __packValue__(object: CustomPropertyGroup): { [key: string]: any } {
+  static __packValue__(object: CustomPropertyGroup): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 111;
     objectValue["2"] = String(object.id);
@@ -2349,7 +2427,7 @@ export class CustomPropertyGroup
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2443,7 +2521,7 @@ export class CustomPropertyGroup
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

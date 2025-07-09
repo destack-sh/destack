@@ -92,12 +92,12 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -109,12 +109,12 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -128,6 +128,9 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   /**
    * Team.name
    */
+  /**
+   * Team.name
+   */
   get name(): string {
     return this._name;
   }
@@ -138,6 +141,9 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   }
   _name: string;
 
+  /**
+   * Team.slug
+   */
   /**
    * Team.slug
    */
@@ -352,11 +358,11 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
     return `<Team '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Team.__packValue__(this);
   }
 
-  static __packValue__(object: Team): { [key: string]: any } {
+  static __packValue__(object: Team): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 22100;
     objectValue["2"] = String(object.id);
@@ -390,7 +396,7 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -453,7 +459,7 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

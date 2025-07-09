@@ -123,12 +123,12 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -140,12 +140,12 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -174,6 +174,9 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   set ownedBy(node: Entity & IsOwner) {
     this.ownedByPtr = node.toRef();
   }
+  /**
+   * IsOwned.ownedBy
+   */
   get ownedByPtr(): NodeReference {
     return this._ownedByPtr;
   }
@@ -407,11 +410,11 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
     return `<Star '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Star.__packValue__(this);
   }
 
-  static __packValue__(object: Star): { [key: string]: any } {
+  static __packValue__(object: Star): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220300;
     objectValue["2"] = String(object.id);
@@ -450,7 +453,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -530,7 +533,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -996,11 +999,11 @@ export class StarEvent extends Event {
     return `<StarEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return StarEvent.__packValue__(this);
   }
 
-  static __packValue__(object: StarEvent): { [key: string]: any } {
+  static __packValue__(object: StarEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220301;
     objectValue["2"] = String(object.id);
@@ -1029,7 +1032,7 @@ export class StarEvent extends Event {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1087,7 +1090,7 @@ export class StarEvent extends Event {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1352,11 +1355,11 @@ export class StarAddedEvent extends StarEvent {
     return `<StarAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return StarAddedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: StarAddedEvent): { [key: string]: any } {
+  static __packValue__(object: StarAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220302;
     objectValue["2"] = String(object.id);
@@ -1385,7 +1388,7 @@ export class StarAddedEvent extends StarEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1443,7 +1446,7 @@ export class StarAddedEvent extends StarEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1708,11 +1711,11 @@ export class StarRemovedEvent extends StarEvent {
     return `<StarRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return StarRemovedEvent.__packValue__(this);
   }
 
-  static __packValue__(object: StarRemovedEvent): { [key: string]: any } {
+  static __packValue__(object: StarRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220303;
     objectValue["2"] = String(object.id);
@@ -1741,7 +1744,7 @@ export class StarRemovedEvent extends StarEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1799,7 +1802,7 @@ export class StarRemovedEvent extends StarEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

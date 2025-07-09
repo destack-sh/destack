@@ -122,6 +122,7 @@ class Entity(Node):
         is_eq=False,
         is_readonly=True,
         can_write=RoleType.SYSTEM,
+        description="The time this Entity was created.",
     )
     created_by: Optional["IsSubject"] = builtin_property(
         21,
@@ -131,12 +132,14 @@ class Entity(Node):
         is_readonly=True,
         node_space_from="self",
         can_write=RoleType.SYSTEM,
+        description="The Subject that created this Entity.",
     )
     updated_at: datetime = builtin_property(
         22,
         is_managed=True,
         is_eq=False,
         can_write=RoleType.SYSTEM,
+        description="The time this Entity was last updated.",
     )
     updated_by: Optional["IsSubject"] = builtin_property(
         23,
@@ -145,6 +148,7 @@ class Entity(Node):
         is_eq=False,
         node_space_from="self",
         can_write=RoleType.SYSTEM,
+        description="The Subject that last updated this Entity.",
     )
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None

@@ -112,7 +112,7 @@ export class Transition extends StructFrozen {
   /**
    * Transition.ease
    */
-  readonly ease: Array<number>;
+  readonly ease: readonly number[];
 
   /**
    * Transition.stiffness
@@ -144,7 +144,7 @@ export class Transition extends StructFrozen {
     style?: TransitionStyle | NodeReference | null;
     delay?: number | null;
     duration?: number | null;
-    ease?: Array<number>;
+    ease?: readonly number[];
     stiffness?: number | null;
     damping?: number | null;
     mass?: number | null;
@@ -358,7 +358,7 @@ export class Transition extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Transition.__packValue__(this);
@@ -366,7 +366,7 @@ export class Transition extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Transition): { [key: string]: any } {
+  static __packValue__(object: Transition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600900;
     objectValue["100"] = object.type;
@@ -405,7 +405,7 @@ export class Transition extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -454,7 +454,7 @@ export class Transition extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -656,12 +656,12 @@ export class TransitionStyle extends Style {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -673,12 +673,12 @@ export class TransitionStyle extends Style {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -702,6 +702,9 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.type
    */
+  /**
+   * TransitionStyle.type
+   */
   get type(): TransitionType {
     return this._type;
   }
@@ -712,6 +715,9 @@ export class TransitionStyle extends Style {
   }
   _type: TransitionType;
 
+  /**
+   * Style.name
+   */
   /**
    * Style.name
    */
@@ -728,6 +734,9 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.delay
    */
+  /**
+   * TransitionStyle.delay
+   */
   get delay(): number | null {
     return this._delay;
   }
@@ -738,6 +747,9 @@ export class TransitionStyle extends Style {
   }
   _delay: number | null;
 
+  /**
+   * TransitionStyle.duration
+   */
   /**
    * TransitionStyle.duration
    */
@@ -754,16 +766,22 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.ease
    */
-  get ease(): Array<number> {
+  /**
+   * TransitionStyle.ease
+   */
+  get ease(): readonly number[] {
     return this._ease;
   }
-  set ease(value: Array<number>) {
+  set ease(value: readonly number[]) {
     const prop = (this.constructor as NodeClass).__properties__["ease"];
     this._session.updateSetProperty(this, prop, value);
     this._ease = value;
   }
-  _ease: Array<number>;
+  _ease: readonly number[];
 
+  /**
+   * TransitionStyle.stiffness
+   */
   /**
    * TransitionStyle.stiffness
    */
@@ -780,6 +798,9 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.damping
    */
+  /**
+   * TransitionStyle.damping
+   */
   get damping(): number | null {
     return this._damping;
   }
@@ -790,6 +811,9 @@ export class TransitionStyle extends Style {
   }
   _damping: number | null;
 
+  /**
+   * TransitionStyle.mass
+   */
   /**
    * TransitionStyle.mass
    */
@@ -806,6 +830,9 @@ export class TransitionStyle extends Style {
   /**
    * TransitionStyle.bounce
    */
+  /**
+   * TransitionStyle.bounce
+   */
   get bounce(): number | null {
     return this._bounce;
   }
@@ -816,6 +843,9 @@ export class TransitionStyle extends Style {
   }
   _bounce: number | null;
 
+  /**
+   * TransitionStyle.springType
+   */
   /**
    * TransitionStyle.springType
    */
@@ -848,7 +878,7 @@ export class TransitionStyle extends Style {
     name: string;
     delay?: number | null;
     duration?: number | null;
-    ease?: Array<number>;
+    ease?: readonly number[];
     stiffness?: number | null;
     damping?: number | null;
     mass?: number | null;
@@ -1208,11 +1238,11 @@ export class TransitionStyle extends Style {
     return `<TransitionStyle '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return TransitionStyle.__packValue__(this);
   }
 
-  static __packValue__(object: TransitionStyle): { [key: string]: any } {
+  static __packValue__(object: TransitionStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 600900;
     objectValue["2"] = String(object.id);
@@ -1281,7 +1311,7 @@ export class TransitionStyle extends Style {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1385,7 +1415,7 @@ export class TransitionStyle extends Style {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

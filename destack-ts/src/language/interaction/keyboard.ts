@@ -12,6 +12,7 @@ import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/langua
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
+import type { View } from "@destack/language/view";
 import {
   EventStatusProto,
   KeyDownEventProto,
@@ -29,12 +30,21 @@ import { Temporal } from "temporal-polyfill";
 export abstract class KeyboardEvent extends InputEvent {
   static metatype: NodeType = NodeType.KEYBOARD_EVENT;
 
+  /**
+   * Event.parent
+   */
   abstract get parent(): Space | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
+  /**
+   * The Snapshot this Event originated from.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
@@ -43,9 +53,15 @@ export abstract class KeyboardEvent extends InputEvent {
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * Event.createdBy
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
+  /**
+   * Event.client
+   */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
@@ -59,7 +75,10 @@ export abstract class KeyboardEvent extends InputEvent {
    */
   declare readonly status: EventStatus;
 
-  abstract get node(): Node | null;
+  /**
+   * InputEvent.node
+   */
+  abstract get node(): View | null;
   declare readonly nodePtr: NodeReference | null;
 
   /**
@@ -187,12 +206,12 @@ export class KeyDownEvent extends KeyboardEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -243,7 +262,7 @@ export class KeyDownEvent extends KeyboardEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     key: string;
     code: string;
     repeat: boolean;
@@ -393,6 +412,9 @@ export class KeyDownEvent extends KeyboardEvent {
     if (!(this.metaKey === other.metaKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -403,9 +425,6 @@ export class KeyDownEvent extends KeyboardEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -424,6 +443,9 @@ export class KeyDownEvent extends KeyboardEvent {
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -441,9 +463,6 @@ export class KeyDownEvent extends KeyboardEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -493,11 +512,11 @@ export class KeyDownEvent extends KeyboardEvent {
     return `<KeyDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return KeyDownEvent.__packValue__(this);
   }
 
-  static __packValue__(object: KeyDownEvent): { [key: string]: any } {
+  static __packValue__(object: KeyDownEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560301;
     objectValue["2"] = String(object.id);
@@ -535,13 +554,18 @@ export class KeyDownEvent extends KeyboardEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): KeyDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -564,11 +588,6 @@ export class KeyDownEvent extends KeyboardEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -582,6 +601,7 @@ export class KeyDownEvent extends KeyboardEvent {
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -589,7 +609,6 @@ export class KeyDownEvent extends KeyboardEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -599,7 +618,7 @@ export class KeyDownEvent extends KeyboardEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -664,6 +683,16 @@ export class KeyDownEvent extends KeyboardEvent {
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -707,16 +736,6 @@ export class KeyDownEvent extends KeyboardEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -840,12 +859,12 @@ export class KeyUpEvent extends KeyboardEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -896,7 +915,7 @@ export class KeyUpEvent extends KeyboardEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     key: string;
     code: string;
     repeat: boolean;
@@ -1046,6 +1065,9 @@ export class KeyUpEvent extends KeyboardEvent {
     if (!(this.metaKey === other.metaKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1056,9 +1078,6 @@ export class KeyUpEvent extends KeyboardEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1077,6 +1096,9 @@ export class KeyUpEvent extends KeyboardEvent {
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1094,9 +1116,6 @@ export class KeyUpEvent extends KeyboardEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1146,11 +1165,11 @@ export class KeyUpEvent extends KeyboardEvent {
     return `<KeyUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return KeyUpEvent.__packValue__(this);
   }
 
-  static __packValue__(object: KeyUpEvent): { [key: string]: any } {
+  static __packValue__(object: KeyUpEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560302;
     objectValue["2"] = String(object.id);
@@ -1188,13 +1207,18 @@ export class KeyUpEvent extends KeyboardEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): KeyUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1217,11 +1241,6 @@ export class KeyUpEvent extends KeyboardEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1235,6 +1254,7 @@ export class KeyUpEvent extends KeyboardEvent {
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1242,7 +1262,6 @@ export class KeyUpEvent extends KeyboardEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1252,7 +1271,7 @@ export class KeyUpEvent extends KeyboardEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1317,6 +1336,16 @@ export class KeyUpEvent extends KeyboardEvent {
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1360,16 +1389,6 @@ export class KeyUpEvent extends KeyboardEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(
@@ -1493,12 +1512,12 @@ export class KeyPressEvent extends KeyboardEvent {
   readonly status: EventStatus;
 
   /**
-   * The Node this Event is about.
+   * InputEvent.node
    */
-  get node(): Node | null {
+  get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Node | null;
+      return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
   }
@@ -1549,7 +1568,7 @@ export class KeyPressEvent extends KeyboardEvent {
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
-    node?: Node | NodeReference | null;
+    node?: View | NodeReference | null;
     key: string;
     code: string;
     repeat: boolean;
@@ -1699,6 +1718,9 @@ export class KeyPressEvent extends KeyboardEvent {
     if (!(this.metaKey === other.metaKey)) {
       return false;
     }
+    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1709,9 +1731,6 @@ export class KeyPressEvent extends KeyboardEvent {
       return false;
     }
     if (!(this.status === other.status)) {
-      return false;
-    }
-    if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
@@ -1730,6 +1749,9 @@ export class KeyPressEvent extends KeyboardEvent {
     h = (h * 31 + hashBool(this.altKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.ctrlKey)) & 0xffffffff;
     h = (h * 31 + hashBool(this.metaKey)) & 0xffffffff;
+    if (this.nodePtr !== null) {
+      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1747,9 +1769,6 @@ export class KeyPressEvent extends KeyboardEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
-      h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    }
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
@@ -1799,11 +1818,11 @@ export class KeyPressEvent extends KeyboardEvent {
     return `<KeyPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return KeyPressEvent.__packValue__(this);
   }
 
-  static __packValue__(object: KeyPressEvent): { [key: string]: any } {
+  static __packValue__(object: KeyPressEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560303;
     objectValue["2"] = String(object.id);
@@ -1841,13 +1860,18 @@ export class KeyPressEvent extends KeyboardEvent {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): KeyPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const nodePtrValue = objectValue["101"];
+    const unpackedNodePtr =
+      nodePtrValue != undefined
+        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1870,11 +1894,6 @@ export class KeyPressEvent extends KeyboardEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
-    const unpackedNodePtr =
-      nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const spacePtrValue = objectValue["5"];
     const unpackedSpacePtr =
       spacePtrValue != undefined
@@ -1888,6 +1907,7 @@ export class KeyPressEvent extends KeyboardEvent {
       altKey: objectValue["121"],
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
+      node: unpackedNodePtr,
       parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1895,7 +1915,6 @@ export class KeyPressEvent extends KeyboardEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      node: unpackedNodePtr,
       space: unpackedSpacePtr,
       id: String(objectValue["2"]),
       _session,
@@ -1905,7 +1924,7 @@ export class KeyPressEvent extends KeyboardEvent {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1970,6 +1989,16 @@ export class KeyPressEvent extends KeyboardEvent {
       altKey: objectProto.altKey,
       ctrlKey: objectProto.ctrlKey,
       metaKey: objectProto.metaKey,
+      node:
+        objectProto.nodePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.nodePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2013,16 +2042,6 @@ export class KeyPressEvent extends KeyboardEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      node:
-        objectProto.nodePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       space:
         objectProto.spacePtr != undefined
           ? _NodeReference.fromProto(

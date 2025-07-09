@@ -177,7 +177,7 @@ export class NodeDefinitionReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = NodeDefinitionReference.__packValue__(this);
@@ -185,7 +185,7 @@ export class NodeDefinitionReference extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: NodeDefinitionReference): { [key: string]: any } {
+  static __packValue__(object: NodeDefinitionReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 200;
     objectValue["100"] = object.type;
@@ -197,7 +197,7 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -219,7 +219,7 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -571,7 +571,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = ObjectDefinitionReference.__packValue__(this);
@@ -579,7 +579,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: ObjectDefinitionReference): { [key: string]: any } {
+  static __packValue__(object: ObjectDefinitionReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 201;
     objectValue["100"] = object.type;
@@ -599,7 +599,7 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -629,7 +629,7 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -935,7 +935,7 @@ export class PropertyReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = PropertyReference.__packValue__(this);
@@ -943,7 +943,7 @@ export class PropertyReference extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: PropertyReference): { [key: string]: any } {
+  static __packValue__(object: PropertyReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 251;
     objectValue["100"] = object.type;
@@ -966,7 +966,7 @@ export class PropertyReference extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1005,7 +1005,7 @@ export class PropertyReference extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1358,7 +1358,7 @@ export class StructDefinitionReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = StructDefinitionReference.__packValue__(this);
@@ -1366,7 +1366,7 @@ export class StructDefinitionReference extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: StructDefinitionReference): { [key: string]: any } {
+  static __packValue__(object: StructDefinitionReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 202;
     objectValue["100"] = object.type;
@@ -1378,7 +1378,7 @@ export class StructDefinitionReference extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1403,7 +1403,7 @@ export class StructDefinitionReference extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1658,7 +1658,7 @@ export class NodeReference extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = NodeReference.__packValue__(this);
@@ -1666,7 +1666,7 @@ export class NodeReference extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: NodeReference): { [key: string]: any } {
+  static __packValue__(object: NodeReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 250;
     objectValue["100"] = object.type;
@@ -1687,7 +1687,7 @@ export class NodeReference extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1714,7 +1714,7 @@ export class NodeReference extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

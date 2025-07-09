@@ -196,8 +196,8 @@ def _generate_pack_proto_property(prop: "PropertyDeclaration") -> list[str]:
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
         lines.append(f"if ({obj_value}) {{")
-        lines.append(f"  objectProto.{ts_name} = {{}};")
-        lines.append(f"  for (const [key, value] of {obj_value}) {{")
+        lines.append(f"  objectProto.{ts_name} = {{}} as any;")
+        lines.append(f"  for (const [key, value] of Object.entries({obj_value}) ) {{")
         key_expr = _generate_pack_proto_scalar(prop.key_type, "key")
         value_expr = _generate_pack_proto_scalar(prop, "value")
         lines.append(f"    objectProto.{ts_name}![{key_expr}] = {value_expr};")
@@ -235,7 +235,7 @@ def _generate_unpack_proto_property(prop: "PropertyDeclaration") -> list[str]:
         lines.append("}")
     elif prop.cardinality == TypeCardinality.MAP:
         assert prop.key_type is not None, f"no key type for {prop!r}"
-        lines.append(f"const {var_name} = new Map();")
+        lines.append(f"const {var_name} = {{}} as any;")
         lines.append(f"if ({proto_value}) {{")
         lines.append(f"  for (const [key, value] of Object.entries({proto_value})) {{")
         key_expr = _generate_unpack_proto_scalar(prop.key_type, "key")

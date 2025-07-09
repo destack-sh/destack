@@ -239,7 +239,7 @@ export class TextSpan extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = TextSpan.__packValue__(this);
@@ -247,7 +247,7 @@ export class TextSpan extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: TextSpan): { [key: string]: any } {
+  static __packValue__(object: TextSpan): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 80021;
     objectValue["100"] = object.type;
@@ -279,7 +279,7 @@ export class TextSpan extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -321,7 +321,7 @@ export class TextSpan extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -435,7 +435,7 @@ export class Text extends StructFrozen {
   /**
    * Text.spans
    */
-  readonly spans: Array<TextSpan>;
+  readonly spans: readonly TextSpan[];
 
   /**
    * Text.isBold
@@ -463,7 +463,7 @@ export class Text extends StructFrozen {
   readonly isCode: boolean | null;
 
   constructor(options: {
-    spans?: Array<TextSpan>;
+    spans?: readonly TextSpan[];
     isBold?: boolean | null;
     isItalic?: boolean | null;
     isStrikethrough?: boolean | null;
@@ -582,7 +582,7 @@ export class Text extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Text.__packValue__(this);
@@ -590,7 +590,7 @@ export class Text extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Text): { [key: string]: any } {
+  static __packValue__(object: Text): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 80020;
     if (object.spans.length > 0) {
@@ -619,7 +619,7 @@ export class Text extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -655,7 +655,7 @@ export class Text extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

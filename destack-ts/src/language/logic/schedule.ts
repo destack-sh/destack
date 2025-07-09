@@ -48,52 +48,52 @@ export class Schedule extends Struct {
   /**
    * Schedule.bySetPos
    */
-  bySetPos: Array<number>;
+  bySetPos: readonly number[];
 
   /**
    * Schedule.byMonth
    */
-  byMonth: Array<Month>;
+  byMonth: readonly Month[];
 
   /**
    * Schedule.byMonthDay
    */
-  byMonthDay: Array<number>;
+  byMonthDay: readonly number[];
 
   /**
    * Schedule.byYearDay
    */
-  byYearDay: Array<number>;
+  byYearDay: readonly number[];
 
   /**
    * Schedule.byEaster
    */
-  byEaster: Array<number>;
+  byEaster: readonly number[];
 
   /**
    * Schedule.byWeekNo
    */
-  byWeekNo: Array<number>;
+  byWeekNo: readonly number[];
 
   /**
    * Schedule.byWeekDay
    */
-  byWeekDay: Array<DayOfWeek>;
+  byWeekDay: readonly DayOfWeek[];
 
   /**
    * Schedule.byHour
    */
-  byHour: Array<number>;
+  byHour: readonly number[];
 
   /**
    * Schedule.byMinute
    */
-  byMinute: Array<number>;
+  byMinute: readonly number[];
 
   /**
    * Schedule.bySecond
    */
-  bySecond: Array<number>;
+  bySecond: readonly number[];
 
   constructor(options: {
     frequency: ScheduleFrequency;
@@ -102,16 +102,16 @@ export class Schedule extends Struct {
     end?: Temporal.ZonedDateTime | null;
     count?: number | null;
     weekStart?: DayOfWeek | null;
-    bySetPos?: Array<number>;
-    byMonth?: Array<Month>;
-    byMonthDay?: Array<number>;
-    byYearDay?: Array<number>;
-    byEaster?: Array<number>;
-    byWeekNo?: Array<number>;
-    byWeekDay?: Array<DayOfWeek>;
-    byHour?: Array<number>;
-    byMinute?: Array<number>;
-    bySecond?: Array<number>;
+    bySetPos?: readonly number[];
+    byMonth?: readonly Month[];
+    byMonthDay?: readonly number[];
+    byYearDay?: readonly number[];
+    byEaster?: readonly number[];
+    byWeekNo?: readonly number[];
+    byWeekDay?: readonly DayOfWeek[];
+    byHour?: readonly number[];
+    byMinute?: readonly number[];
+    bySecond?: readonly number[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
   }) {
@@ -383,11 +383,11 @@ export class Schedule extends Struct {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return Schedule.__packValue__(this);
   }
 
-  static __packValue__(object: Schedule): { [key: string]: any } {
+  static __packValue__(object: Schedule): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 100001;
     objectValue["101"] = object.frequency;
@@ -478,7 +478,7 @@ export class Schedule extends Struct {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -576,7 +576,7 @@ export class Schedule extends Struct {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

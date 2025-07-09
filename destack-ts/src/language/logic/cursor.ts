@@ -67,9 +67,15 @@ registerEnumClass(EnumType.CURSOR_STATUS, CursorStatus);
 export abstract class Cursor extends Entity implements IsSpatial, IsOwnable {
   static metatype: NodeType = NodeType.CURSOR;
 
+  /**
+   * Entity.parent
+   */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
+  /**
+   * The Space this Node is in.
+   */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference | null;
 
@@ -78,34 +84,55 @@ export abstract class Cursor extends Entity implements IsSpatial, IsOwnable {
    */
   declare readonly materialization: Materialization;
 
+  /**
+   * The Snapshot this Entity is part of.
+   */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
 
+  /**
+   * The previous Entity this Entity is based on (from another Snapshot).
+   */
   abstract get predecessor(): Cursor | null;
   declare readonly predecessorPtr: NodeReference | null;
 
+  /**
+   * The template this Entity instance is based on (from the template tree).
+   */
   abstract get template(): Cursor | null;
   declare readonly templatePtr: NodeReference | null;
 
+  /**
+   * The (root) Entity in this Entity's instance tree (not the template tree).
+   */
   abstract get instanceRoot(): Entity | null;
   declare readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that created this Entity.
+   */
   abstract get createdBy(): (Entity & IsSubject) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
+  /**
+   * The Subject that last updated this Entity.
+   */
   abstract get updatedBy(): (Entity & IsSubject) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
+  /**
+   * IsOwnable.ownedBy
+   */
   abstract get ownedBy(): (Entity & IsOwner) | null;
   abstract set ownedBy(value: (Entity & IsOwner) | null);
   /**
@@ -224,12 +251,12 @@ export class EventCursor extends Cursor {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -241,12 +268,12 @@ export class EventCursor extends Cursor {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -274,6 +301,9 @@ export class EventCursor extends Cursor {
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -287,6 +317,9 @@ export class EventCursor extends Cursor {
   /**
    * Cursor.status
    */
+  /**
+   * Cursor.status
+   */
   get status(): CursorStatus {
     return this._status;
   }
@@ -297,6 +330,9 @@ export class EventCursor extends Cursor {
   }
   _status: CursorStatus;
 
+  /**
+   * Cursor.activeAt
+   */
   /**
    * Cursor.activeAt
    */
@@ -553,11 +589,11 @@ export class EventCursor extends Cursor {
     return `<EventCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return EventCursor.__packValue__(this);
   }
 
-  static __packValue__(object: EventCursor): { [key: string]: any } {
+  static __packValue__(object: EventCursor): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 108100;
     objectValue["2"] = String(object.id);
@@ -599,7 +635,7 @@ export class EventCursor extends Cursor {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -679,7 +715,7 @@ export class EventCursor extends Cursor {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -952,12 +988,12 @@ export class ScreenCursor extends Cursor {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -969,12 +1005,12 @@ export class ScreenCursor extends Cursor {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1002,6 +1038,9 @@ export class ScreenCursor extends Cursor {
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -1012,6 +1051,9 @@ export class ScreenCursor extends Cursor {
   }
   _ownedByPtr: NodeReference | null;
 
+  /**
+   * Cursor.status
+   */
   /**
    * Cursor.status
    */
@@ -1028,6 +1070,9 @@ export class ScreenCursor extends Cursor {
   /**
    * Cursor.activeAt
    */
+  /**
+   * Cursor.activeAt
+   */
   get activeAt(): Temporal.ZonedDateTime | null {
     return this._activeAt;
   }
@@ -1038,6 +1083,9 @@ export class ScreenCursor extends Cursor {
   }
   _activeAt: Temporal.ZonedDateTime | null;
 
+  /**
+   * ScreenCursor.position
+   */
   /**
    * ScreenCursor.position
    */
@@ -1306,11 +1354,11 @@ export class ScreenCursor extends Cursor {
     return `<ScreenCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ScreenCursor.__packValue__(this);
   }
 
-  static __packValue__(object: ScreenCursor): { [key: string]: any } {
+  static __packValue__(object: ScreenCursor): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 108200;
     objectValue["2"] = String(object.id);
@@ -1355,7 +1403,7 @@ export class ScreenCursor extends Cursor {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1442,7 +1490,7 @@ export class ScreenCursor extends Cursor {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1723,12 +1771,12 @@ export class ThreadCursor extends Cursor {
   readonly instanceRootPtr: NodeReference | null;
 
   /**
-   * Entity.createdAt
+   * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.createdBy
+   * The Subject that created this Entity.
    */
   get createdBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1740,12 +1788,12 @@ export class ThreadCursor extends Cursor {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Entity.updatedAt
+   * The time this Entity was last updated.
    */
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * Entity.updatedBy
+   * The Subject that last updated this Entity.
    */
   get updatedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
@@ -1773,6 +1821,9 @@ export class ThreadCursor extends Cursor {
       this.ownedByPtr = node.toRef();
     }
   }
+  /**
+   * IsOwnable.ownedBy
+   */
   get ownedByPtr(): NodeReference | null {
     return this._ownedByPtr;
   }
@@ -1786,6 +1837,9 @@ export class ThreadCursor extends Cursor {
   /**
    * Cursor.status
    */
+  /**
+   * Cursor.status
+   */
   get status(): CursorStatus {
     return this._status;
   }
@@ -1796,6 +1850,9 @@ export class ThreadCursor extends Cursor {
   }
   _status: CursorStatus;
 
+  /**
+   * Cursor.activeAt
+   */
   /**
    * Cursor.activeAt
    */
@@ -2052,11 +2109,11 @@ export class ThreadCursor extends Cursor {
     return `<ThreadCursor '${this.path}' ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     return ThreadCursor.__packValue__(this);
   }
 
-  static __packValue__(object: ThreadCursor): { [key: string]: any } {
+  static __packValue__(object: ThreadCursor): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 108300;
     objectValue["2"] = String(object.id);
@@ -2098,7 +2155,7 @@ export class ThreadCursor extends Cursor {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2178,7 +2235,7 @@ export class ThreadCursor extends Cursor {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,

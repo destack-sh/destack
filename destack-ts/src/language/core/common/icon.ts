@@ -212,7 +212,7 @@ export class Icon extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { [key: string]: any } {
+  toValue(): { readonly [key: string]: any } {
     if (this._value === null) {
       // @ts-expect-error(readonly)
       this._value = Icon.__packValue__(this);
@@ -220,7 +220,7 @@ export class Icon extends StructFrozen {
     return this._value;
   }
 
-  static __packValue__(object: Icon): { [key: string]: any } {
+  static __packValue__(object: Icon): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 80031;
     objectValue["100"] = object.type;
@@ -246,7 +246,7 @@ export class Icon extends StructFrozen {
   }
 
   static __unpackValue__(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -286,7 +286,7 @@ export class Icon extends StructFrozen {
   }
 
   static fromValue(
-    objectValue: { [key: string]: any },
+    objectValue: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
