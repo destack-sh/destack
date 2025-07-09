@@ -222,8 +222,6 @@ export class Friendship extends Entity implements IsGlobal {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      true,
     );
 
     // properties
@@ -855,8 +853,6 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -995,11 +991,13 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -1382,8 +1380,6 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -1522,11 +1518,13 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -1911,8 +1909,6 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -2051,11 +2047,13 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -2438,8 +2436,6 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -2578,11 +2574,13 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -3002,8 +3000,6 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      true,
     );
 
     // properties

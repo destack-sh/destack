@@ -205,13 +205,18 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     if TYPE_CHECKING:
         parent_ptr: Optional[NodeReference] = None
 
+    """The current Session this Node is in."""
     _session: "Session" = builtin_property_runtime()
+    """The Supergraph this Node is part of."""
     _supergraph: "Supergraph" = builtin_property_runtime()
+    """The specific Graph this Node is part of."""
     _graph: "Graph" = builtin_property_runtime(default=None)
+    """The QueryConnection this Node is from (if any)."""
     _connection: "QueryConnection | None" = builtin_property_runtime(default=None)
+    """The cached reference to this Node."""
     _ref: "Optional[NodeReference]" = builtin_property_runtime(default=None)
+    """Whether this Node is new."""
     _is_new: bool = builtin_property_runtime(default=False)
-    _is_attached: bool = builtin_property_runtime(default=False)
 
     # 20-40: node tracking
     # IsTracked.created_at/created_by/updated_at/updated_by: 20-23
@@ -235,6 +240,10 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     def __hash__(self):
         """Hash the Node's identity."""
         return self.id.int
+
+    @property
+    def is_root(self) -> bool:
+        return self.__root_type__ is None
 
     @property
     def path(self) -> str:

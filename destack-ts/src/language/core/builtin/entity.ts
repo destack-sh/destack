@@ -212,7 +212,7 @@ export abstract class Entity extends Node {
     }
 
     // create new nodes
-    if (this._isNew && parent !== null && parent._isAttached) {
+    if (this._isNew && parent !== null && !parent._isNew) {
       for (const node of nodes) {
         node._ref = null; // invalidate cached ref
         session.create(node);
@@ -674,8 +674,6 @@ export class CustomEntityDefinition
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -966,11 +964,13 @@ export class CustomEntityDefinition
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -1787,8 +1787,6 @@ export class CustomTraitDefinition
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -2059,11 +2057,13 @@ export class CustomTraitDefinition
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -2972,8 +2972,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -3183,11 +3181,13 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");

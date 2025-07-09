@@ -189,8 +189,6 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      true,
     );
 
     // properties

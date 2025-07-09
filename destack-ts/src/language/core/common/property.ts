@@ -647,8 +647,6 @@ export class CustomProperty
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -1060,11 +1058,13 @@ export class CustomProperty
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -2077,8 +2077,6 @@ export class CustomPropertyGroup
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -2280,11 +2278,13 @@ export class CustomPropertyGroup
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");

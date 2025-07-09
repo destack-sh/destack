@@ -1,4 +1,4 @@
-export const VERSION = "2025.07.08.1";
+export const VERSION = "2025.07.09.0";
 
 // global environment variables :DestackWebEnv
 export const COMMIT = import.meta.env.VITE_COMMIT;

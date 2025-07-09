@@ -259,8 +259,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      true,
     );
 
     // properties

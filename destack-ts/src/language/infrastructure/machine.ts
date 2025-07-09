@@ -495,8 +495,6 @@ export class Machine extends Resource implements IsSpatial {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -575,7 +573,7 @@ export class Machine extends Resource implements IsSpatial {
     this._type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.08.1";
+      _version = "2025.07.09.0";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);
@@ -854,11 +852,13 @@ export class Machine extends Resource implements IsSpatial {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");

@@ -269,8 +269,6 @@ export class InviteSentEvent extends InviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -454,11 +452,13 @@ export class InviteSentEvent extends InviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -907,8 +907,6 @@ export class InviteRescindedEvent extends InviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -1071,11 +1069,13 @@ export class InviteRescindedEvent extends InviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -1535,8 +1535,6 @@ export class InviteAcceptedEvent extends InviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -1720,11 +1718,13 @@ export class InviteAcceptedEvent extends InviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -2185,8 +2185,6 @@ export class InviteRejectedEvent extends InviteEvent {
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -2349,11 +2347,13 @@ export class InviteRejectedEvent extends InviteEvent {
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");
@@ -2894,8 +2894,6 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       options._connection ?? null,
       // is_new
       options.id == null,
-      // is_attached
-      options.id != null || options._graph != null,
     );
 
     // properties
@@ -3092,11 +3090,13 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
   get path(): string {
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {
       pathParts.push(node._pathKey);
+      lastNode = node;
       node = node.parent;
     }
-    if (!this._isAttached) {
+    if (!lastNode.isRoot) {
       pathParts.push("<detached>");
     }
     return pathParts.reverse().join("/");

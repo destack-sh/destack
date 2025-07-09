@@ -111,7 +111,6 @@ class Session:
         edit = EditEvent(type=EditType.CREATE, node=node, value=to_value(node, node_as_value=True))
         self.pending_events.append(edit)
         node._is_new = False
-        node._is_attached = True
 
     def upsert(self, node: Entity):
         """Creates or updates an Entity."""
@@ -119,7 +118,6 @@ class Session:
         edit = EditEvent(type=EditType.UPSERT, node=node, value=to_value(node, node_as_value=True))
         self.pending_events.append(edit)
         node._is_new = False
-        node._is_attached = True
 
     def update_set_property(self, node: Entity, prop: PropertyDeclaration, new_value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""

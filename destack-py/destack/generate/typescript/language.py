@@ -413,8 +413,7 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
 super(options);
 """
     elif issubclass(cls, Node):
-        is_root_node = cls.__root_type__ is None
-        super_str = f"""\
+        super_str = """\
 super(
     // id
     options.id ?? null,
@@ -430,8 +429,6 @@ super(
     options._connection ?? null,
     // is_new
     options.id == null,
-    // is_attached
-    {"options.id != null || options._graph != null" if not is_root_node else "true"},
 );
 """
     else:
@@ -769,11 +766,13 @@ get _pathKey(): string {{
 get path(): string {{
     const pathParts: string[] = [];
     let node: Node | null = this;
+    let lastNode: Node | null = this;
     while (node !== null) {{
         pathParts.push(node._pathKey);
+        lastNode = node;
         node = node.parent;
     }}
-    if (!this._isAttached) {{
+    if (!lastNode.isRoot) {{
         pathParts.push("<detached>");
     }}
     return pathParts.reverse().join("/");
