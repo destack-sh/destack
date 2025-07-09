@@ -108,7 +108,7 @@ export class MemoryTable {
   }
 
   toString(): string {
-    return `node_type=${this.nodeType}, rows=${this.rows.size}`;
+    return `nodeType=${NodeType[this.nodeType]}, rows=${this.rows.size}`;
   }
 
   repr(): string {
@@ -152,7 +152,7 @@ export class MemoryRow {
   }
 
   toString(): string {
-    return `node_type=${this.nodeType}, id=${this.id}, value=${Object.keys(this.value).length}`;
+    return `nodeType${this.nodeType}, id=${this.id}, value=${Object.keys(this.value).length}`;
   }
 
   repr(): string {

@@ -434,6 +434,64 @@ class PolyGraph(Graph):
         return descendants  # type: ignore (must be right type)
 
 
+class NullGraph(Graph):
+    """An always empty Graph."""
+
+    def __init__(self, supergraph: "Supergraph"):
+        self.supergraph = supergraph
+
+    @property
+    def nodes(self) -> Collection["Node"]:
+        return ()
+
+    def __len__(self):
+        return 0
+
+    def get(self, id: UUID) -> Optional["Node"]:
+        return None
+
+    def has(self, id: UUID) -> bool:
+        return False
+
+    def clear(self):
+        pass
+
+    def add(self, node: "Node"):
+        pass
+
+    def get_roots[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        return ()
+
+    def remove(self, node: "Node"):
+        pass
+
+    def get_leaves[N: Node = Node](
+        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
+    ) -> Sequence[N]:
+        return ()
+
+    def get_children[N: Node = Node](
+        self,
+        node: "Node",
+        type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        return ()
+
+    def get_ancestors[N: Node = Node](
+        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
+    ) -> Sequence[N]:
+        return ()
+
+    def get_descendants[N: Node = Node](
+        self,
+        node: "Node",
+        type: NodeType | TraitType | type[N] | None = None,
+    ) -> Sequence[N]:
+        return ()
+
+
 _MISSING = object()
 
 
