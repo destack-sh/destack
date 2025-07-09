@@ -27,7 +27,7 @@ from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
 from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
 from destack.utils.string import Casing, to_casing
-from destack.utils.uuid import UUID, uuid4
+from destack.utils.uuid import UUID, uuid4, uuid7
 
 from .common import (
     EdgeType,
@@ -145,6 +145,7 @@ def _generate_init[ObjectT: BuiltinObject](
     extra_glbls["EMPTY_LIST"] = frozenlist()
     extra_glbls["EMPTY_DICT"] = frozendict()
     extra_glbls["uuid4"] = uuid4
+    extra_glbls["uuid7"] = uuid7
     extra_glbls["REGION"] = REGION
 
     method_body_lines = []
@@ -185,16 +186,17 @@ if _supergraph is None:
 
 # node identity
 if id is None:
-    id = uuid4()
     """)
         if NodeType.ENTITY in inherits:
             method_body_lines.append("""\
+    id = uuid4()
     now = self._session.oracle.utc()
     created_at = now
     updated_at = now
 """)
         elif NodeType.EVENT in inherits:
             method_body_lines.append("""\
+    id = uuid7()
     now = self._session.oracle.utc()
     created_at = now
 """)
