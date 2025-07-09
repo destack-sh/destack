@@ -399,6 +399,53 @@ export class PolyGraph extends Graph {
   }
 }
 
+/** An always empty Graph. */
+export class NullGraph extends Graph {
+  override get size(): number {
+    return 0;
+  }
+
+  override get nodes(): Node[] {
+    return [];
+  }
+
+  override get(id: string): Node | null {
+    return null;
+  }
+
+  override has(id: string): boolean {
+    return false;
+  }
+
+  override clear(): void {
+    // do nothing
+  }
+
+  override add(node: Node): void {
+    throw new Error("cannot add a Node to a NullGraph");
+  }
+
+  override remove(node: Node): void {
+    throw new Error("cannot remove a Node from a NullGraph");
+  }
+
+  override getRoots(): Node[] {
+    return [];
+  }
+
+  override getLeaves(): Node[] {
+    return [];
+  }
+
+  override getChildren(node: Node): Node[] {
+    return [];
+  }
+
+  override getDescendants(node: Node): Node[] {
+    return [];
+  }
+}
+
 const _MISSING = Symbol("missing");
 
 /** A Supergraph is a collection of Graphs. */

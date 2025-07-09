@@ -1,6 +1,7 @@
 from .connection import QueryConnection, QueryResultContainer
 from .graph import (
     Graph,
+    NullGraph,
     PolyGraph,
     SingletonGraph,
     Supergraph,
@@ -20,6 +21,7 @@ __all__ = [
     "EventStore",
     "Graph",
     "LiveStore",
+    "NullGraph",
     "Oracle",
     "PolyGraph",
     "QueryConnection",
