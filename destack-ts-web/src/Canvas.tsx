@@ -53,14 +53,13 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
   const session = useSession();
   const supergraph = useSupergraph();
   const canvas = supergraph.getOrError(canvasPtr.id) as Canvas;
-  const lines = canvas.getChildren(LineShape);
+  const lines = canvas.getDescendants(LineShape);
 
   const [currentLine, setCurrentLine] = useState<LineShape | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [lastMousePosition, setLastMousePosition] = useState<Vector2f | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  console.log("CanvasView.render", canvasPtr.id, lines, canvas.getChildren(LineShape).length);
   const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2f => {
     if (!svgRef.current) {
       throw new Error("SVG element not found");
@@ -79,7 +78,6 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
     const line = new LineShape({ name: "LineShape", points: [point] });
     setCurrentLine(line);
     canvas.addChild(line);
-    console.log("handleMouseDown", canvas.getChildren().length);
     session.commit();
   };
 

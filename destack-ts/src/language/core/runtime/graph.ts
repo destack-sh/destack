@@ -253,7 +253,7 @@ export class PolyGraph extends Graph {
     }
   }
 
-  override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
+  override getChildren(options: { node: Node; nodeType?: NodeType | NodeType[] }): Node[] {
     // bail if no children
     if (this.nodesByParent.size === 0) {
       return [];
@@ -284,7 +284,9 @@ export class PolyGraph extends Graph {
       return children;
     } else {
       // turn into type
-      const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
+      const nodeTypes = Array.isArray(options.nodeType)
+        ? options.nodeType
+        : expandNodeTypes(options.nodeType, { expandInheritance: true });
       if (nodeTypes === null) {
         // collect children across all types
         const children: Node[] = [];
@@ -350,22 +352,13 @@ export class PolyGraph extends Graph {
     const descendants: Node[] = [];
     while (queue.length > 0) {
       const current = queue.shift()!;
-      const childrenByType = this.nodesByParent.get(current.id);
-      if (!childrenByType) {
-        continue;
-      }
-      for (const childrenOfType of childrenByType.values()) {
-        queue.push(...childrenOfType);
-      }
+      const children = this.getChildren({ node: current, nodeType: options.nodeType });
+      queue.push(...children);
       // collect level
       if (nodeTypes === null) {
-        for (const childrenOfType of childrenByType.values()) {
-          descendants.push(...childrenOfType);
-        }
+        descendants.push(...children);
       } else {
-        for (const nodeType of nodeTypes) {
-          descendants.push(...(childrenByType.get(nodeType) || []));
-        }
+        descendants.push(...children.filter((child) => nodeTypes.includes(child.metatype)));
       }
     }
 
