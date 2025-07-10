@@ -3,7 +3,6 @@ import { NodeType, TraitType } from "@destack/language/core/builtin/common";
 import { hasTrait } from "@destack/language/core/builtin/node";
 import { TraitClass } from "@destack/language/core/builtin/trait";
 import type { Session } from "@destack/language/core/runtime/session";
-import type { TraitTypeMapping } from "@destack/language/mapping";
 import { NODE_CLASS_BY_TYPE, NODE_TYPES_BY_TRAIT_TYPE } from "@destack/language/registry";
 import { INTEGER_ZERO } from "@destack/utils/fractional";
 
@@ -50,33 +49,16 @@ export abstract class Graph {
   abstract remove(node: Node): void;
 
   /** Find root Nodes in the graph. */
-  abstract getRoots(): Node[];
-  abstract getRoots<N extends Node>(classOrTrait: NodeClass<N>): N[];
-  abstract getRoots<T extends TraitType>(
-    clasOrTrait: TraitClass<any, T>,
-  ): (Node & TraitTypeMapping[T])[];
-  abstract getRoots(classOrTrait?: NodeClass | TraitClass): Node[];
+  abstract getRoots(options?: { nodeType?: NodeType }): Node[];
 
   /** Find leaf Nodes in the graph. */
-  abstract getLeaves(): Node[];
-  abstract getLeaves<N extends Node>(classOrTrait: NodeClass<N>, options?: { node?: Node }): N[];
-  abstract getLeaves<T extends TraitType>(
-    classOrTrait: TraitClass<any, T>,
-    options?: { node?: Node },
-  ): (Node & TraitTypeMapping[T])[];
-  abstract getLeaves(classOrTrait?: NodeClass | TraitClass, options?: { node?: Node }): Node[];
+  abstract getLeaves(options?: { nodeType?: NodeType; node?: Node }): Node[];
 
   /**
    * Collect child Nodes (one level down).
    * If the Nodes are IsOrdered, their order is preserved.
    */
-  abstract getChildren(node: Node): Node[];
-  abstract getChildren<N extends Node>(node: Node, classOrTrait: NodeClass<N>): N[];
-  abstract getChildren<T extends TraitType>(
-    node: Node,
-    classOrTrait: TraitClass<any, T>,
-  ): (Node & TraitTypeMapping[T])[];
-  abstract getChildren(node: Node, classOrTrait?: NodeClass | TraitClass): Node[];
+  abstract getChildren(options: { node: Node; nodeType?: NodeType }): Node[];
 
   /**
    * Collect descendant Nodes (recursively down).
@@ -84,13 +66,7 @@ export abstract class Graph {
    * (Descendants are not collected unless all their ancestors are included).
    * Nodes are BFS but IsOrdered is ignored.
    */
-  abstract getDescendants(node: Node): Node[];
-  abstract getDescendants<N extends Node>(node: Node, classOrTrait: NodeClass<N>): N[];
-  abstract getDescendants<T extends TraitType>(
-    node: Node,
-    classOrTrait: TraitClass<any, T>,
-  ): (Node & TraitTypeMapping[T])[];
-  abstract getDescendants(node: Node, classOrTrait?: NodeClass | TraitClass): Node[];
+  abstract getDescendants(options: { node: Node; nodeType?: NodeType }): Node[];
 }
 
 /** A Graph that contains only a single Node. */
@@ -144,11 +120,11 @@ export class SingletonGraph extends Graph {
     return [this.node];
   }
 
-  override getChildren(node: Node): Node[] {
+  override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
     return [];
   }
 
-  override getDescendants(node: Node): Node[] {
+  override getDescendants(options: { node: Node; nodeType?: NodeType }): Node[] {
     return [];
   }
 }
@@ -251,8 +227,8 @@ export class PolyGraph extends Graph {
     this.nodesById.delete(node.id);
   }
 
-  override getRoots(classOrTrait?: NodeClass | TraitClass): Node[] {
-    const nodeTypes = expandNodeTypes(classOrTrait);
+  override getRoots(options?: { nodeType?: NodeType }): Node[] {
+    const nodeTypes = expandNodeTypes(options?.nodeType, { expandInheritance: true });
     if (nodeTypes === null) {
       return this.nodes.filter((node) => node.parentPtr === null);
     }
@@ -261,33 +237,39 @@ export class PolyGraph extends Graph {
     );
   }
 
-  override getLeaves(classOrTrait?: NodeClass | TraitClass, options?: { node?: Node }): Node[] {
+  override getLeaves(options?: { nodeType?: NodeType; node?: Node }): Node[] {
+    const nodeTypes = expandNodeTypes(options?.nodeType, { expandInheritance: true });
     if (options?.node == null) {
-      const nodeTypes = expandNodeTypes(classOrTrait);
-
       if (nodeTypes === null) {
         return this.nodes.filter((node) => !this.nodesByParent.has(node.id));
+      } else {
+        return this.nodes.filter(
+          (node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype),
+        );
       }
-      return this.nodes.filter(
-        (node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype),
-      );
     } else {
-      const descendants = this.getDescendants(options.node, classOrTrait);
-      return descendants.filter((node) => !this.nodesByParent.has(node.id));
+      const descendants = this.getDescendants({ node: options.node });
+      if (nodeTypes === null) {
+        return descendants.filter((node) => !this.nodesByParent.has(node.id));
+      } else {
+        return descendants.filter(
+          (node) => !this.nodesByParent.has(node.id) && nodeTypes.includes(node.metatype),
+        );
+      }
     }
   }
 
-  override getChildren(node: Node, classOrTrait?: NodeClass | TraitClass): Node[] {
+  override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
     // bail if no children
     if (this.nodesByParent.size === 0) {
       return [];
     }
-    const childrenByType = this.nodesByParent.get(node.id);
+    const childrenByType = this.nodesByParent.get(options.node.id);
     if (!childrenByType) {
       return [];
     }
 
-    if (classOrTrait === undefined) {
+    if (options.nodeType === undefined) {
       // collect children across all types
       const children: Node[] = [];
       let isOrdered = false;
@@ -308,7 +290,7 @@ export class PolyGraph extends Graph {
       return children;
     } else {
       // turn into type
-      const nodeTypes = expandNodeTypes(classOrTrait);
+      const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
       if (nodeTypes === null) {
         // collect children across all types
         const children: Node[] = [];
@@ -363,16 +345,16 @@ export class PolyGraph extends Graph {
     }
   }
 
-  override getDescendants(node: Node, classOrTrait?: NodeClass | TraitClass): Node[] {
+  override getDescendants(options: { node: Node; nodeType?: NodeType }): Node[] {
     if (this.nodesByParent.size === 0) {
       return [];
     }
 
-    const queue: Node[] = [node];
+    const queue: Node[] = [options.node];
     const descendants: Node[] = [];
 
     // collect
-    const nodeTypes = expandNodeTypes(classOrTrait);
+    const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
     while (queue.length > 0) {
       const current = queue.shift()!;
       const childrenByType = this.nodesByParent.get(current.id);
@@ -437,11 +419,11 @@ export class NullGraph extends Graph {
     return [];
   }
 
-  override getChildren(node: Node): Node[] {
+  override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
     return [];
   }
 
-  override getDescendants(node: Node): Node[] {
+  override getDescendants(options: { node: Node; nodeType?: NodeType }): Node[] {
     return [];
   }
 }
@@ -464,6 +446,28 @@ export class Supergraph {
     return `<Supergraph ${this.graphs.length} graphs>`;
   }
 
+  /** Create a new SingletonGraph and add it to this Supergraph. */
+  createSingletonGraph(node: Node): SingletonGraph {
+    const newGraph = new SingletonGraph(this, node);
+    this.addGraph(newGraph);
+    return newGraph;
+  }
+
+  /** Create a new PolyGraph and add it to this Supergraph. */
+  createPolyGraph(): PolyGraph {
+    const newGraph = new PolyGraph(this);
+    this.addGraph(newGraph);
+    return newGraph;
+  }
+
+  /** Promote a SingletonGraph to a PolyGraph in one operation. */
+  promoteToPolygraph(graph: SingletonGraph): PolyGraph {
+    const newGraph = graph.toPolygraph();
+    this.graphs.splice(this.graphs.indexOf(graph), 1);
+    this.graphs.push(newGraph);
+    return newGraph;
+  }
+
   /** Add a Graph to this Supergraph. */
   addGraph(graph: Graph): void {
     this.graphs.push(graph);
@@ -483,14 +487,6 @@ export class Supergraph {
         this._cachedNodesById.delete(node.id);
       }
     }
-  }
-
-  /** Promote a SingletonGraph to a PolyGraph in one operation. */
-  promoteToPolygraph(graph: SingletonGraph): PolyGraph {
-    const newGraph = graph.toPolygraph();
-    this.graphs.splice(this.graphs.indexOf(graph), 1);
-    this.graphs.push(newGraph);
-    return newGraph;
   }
 
   /** Get a node by ID. */

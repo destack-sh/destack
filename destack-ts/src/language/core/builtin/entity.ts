@@ -26,7 +26,7 @@ import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { PolyGraph, SingletonGraph } from "@destack/language/core/runtime/graph";
+import { SingletonGraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -116,6 +116,44 @@ export abstract class Entity extends Node {
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
+  /** Get the children of this Node. */
+  getChildren(): Node[];
+  getChildren<N extends Node>(nodeType?: NodeClass<N>): N[];
+  getChildren(nodeType?: NodeClass): Node[] {
+    return this._graph.getChildren({ node: this, nodeType: nodeType?.metatype });
+  }
+
+  /** Get a specific child of this Node by name. */
+  getChild<N extends Node>(nodeType: NodeClass<N>, name: string): N | null;
+  getChild(nodeType: NodeClass, name: string): Node | null;
+  getChild(nodeType: NodeClass, name: string): Node | null {
+    const children = this._graph.getChildren({ node: this, nodeType: nodeType.metatype });
+    for (const child of children) {
+      if ((child as any).name === name) {
+        return child;
+      }
+    }
+    return null;
+  }
+
+  /** Get a specific child of this Node by name, or raises an error if not found. */
+  child<N extends Node>(nodeType: NodeClass<N>, name: string): N;
+  child(nodeType: NodeClass, name: string): Node;
+  child(nodeType: NodeClass, name: string): Node {
+    const child = this.getChild(nodeType, name);
+    if (child === null) {
+      throw new Error(`no child ${name} of ${this}`);
+    }
+    return child;
+  }
+
+  /** Get the descendants of this Node. */
+  getDescendants(): Node[];
+  getDescendants<N extends Node>(nodeType?: NodeClass<N>): N[];
+  getDescendants(nodeType?: NodeClass): Node[] {
+    return this._graph.getDescendants({ node: this, nodeType: nodeType?.metatype });
+  }
+
   /** Detach this Entity from its parent. Error if it has no parent. */
   detach(): void {
     if (this.parentPtr === null) {
@@ -179,13 +217,12 @@ export abstract class Entity extends Node {
       if (this.parentPtr === null) {
         return; // nothing to do
       }
-      newGraph = new PolyGraph(supergraph);
-      supergraph.addGraph(newGraph);
+      newGraph = supergraph.createPolyGraph();
       parentPtr = null;
     }
 
     const session = this._session;
-    const nodes: Entity[] = [this, ...(this._graph.getDescendants(this) as Entity[])];
+    const nodes: Entity[] = [this, ...(this._graph.getDescendants({ node: this }) as Entity[])];
 
     // assign order
     if (parent !== null && hasTrait(this, TraitType.ORDERED)) {
@@ -302,7 +339,10 @@ export abstract class Entity extends Node {
       const nodeClass = orderTrait
         ? NODE_CLASS_BY_TYPE[orderTrait]
         : (child.constructor as NodeClass);
-      existingNodes = this._graph.getChildren(this, nodeClass) as Entity[];
+      existingNodes = this._graph.getChildren({
+        node: this,
+        nodeType: nodeClass.metatype,
+      }) as Entity[];
     }
 
     if (existingNodes.length > 0) {

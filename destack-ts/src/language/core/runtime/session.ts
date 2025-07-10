@@ -45,6 +45,7 @@ export class Session {
     clientNonce?: string | null;
     subject?: (Node & IsSubject) | null;
     store?: EventStore | EntityStore | null;
+    supergraphClass?: typeof Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
     this.space = options?.space ?? null;
@@ -52,7 +53,7 @@ export class Session {
     this.clientNonce = options?.clientNonce ?? null;
     this.subject = options?.subject ?? null;
     this.store = options?.store ?? null;
-    this.supergraph = new Supergraph(this);
+    this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
 
     // runtime
     this.pendingEvents = [];
@@ -75,7 +76,7 @@ export class Session {
     if (this.closedAt) {
       contentParts.push(`closed_at=${this.closedAt.toString()}`);
     }
-    return `Session(${contentParts.join(", ")})`;
+    return `<${this.constructor.name} ${contentParts.join(", ")}>`;
   }
 
   /**
@@ -184,7 +185,7 @@ export class Session {
       reverseOperation: undoOperation,
       reverseValue: oldValue,
     });
-    this.pendingEvents.push(edit);
+    this.update(node, edit);
   }
 
   /** Move a Node to a new parent. */

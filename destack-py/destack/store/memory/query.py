@@ -19,7 +19,6 @@ from destack.language import (
     Node,
     NodeDefinitionReference,
     NodeReference,
-    PrimitiveType,
     PropertyReference,
     PropertyReferenceType,
     Query,
@@ -45,6 +44,8 @@ logger = structlog.get_logger(__name__)
 MAX_RECURSION_DEPTH = 100
 
 NODE_PARENT_KEY = str(Node.property("parent").id)
+NODE_ID_ID = Node.property("id").id
+NODE_ID_KEY = str(Node.property("id").id)
 
 NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
@@ -301,22 +302,21 @@ def _extract_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
         and left.type == ExpressionType.ATTRIBUTE
         and (attribute := left.attribute) is not None
         and attribute.type == PropertyReferenceType.BUILTIN
-        and (attribute.id == 2)
+        and (attribute.id == NODE_ID_ID)
         and (right := condition.right) is not None
         and right.type == ExpressionType.LITERAL
     ):
         assert right.literal is not None, f"no literal for {right!r}"
         if right.literal.type.cardinality == TypeCardinality.SCALAR:
-            if right.literal.type.primitive_type == PrimitiveType.UUID:
-                ids = (right.literal.unpack(),)
+            if right.literal.type.scalar_type == ScalarType.PRIMITIVE:
+                return True, (right.literal.unpack(),)
             else:
-                ids = (right.literal.unpack().id,)
-        else:
-            if right.literal.type.primitive_type == PrimitiveType.UUID:
-                ids = right.literal.unpack()
+                return True, (right.literal.unpack().id,)
+        elif right.literal.type.cardinality == TypeCardinality.LIST:
+            if right.literal.type.scalar_type == ScalarType.PRIMITIVE:
+                return True, right.literal.unpack()
             else:
-                ids = [ptr.id for ptr in right.literal.unpack()]
-        return True, ids
+                return True, [ptr.id for ptr in right.literal.unpack()]
 
     return False, ()
 
@@ -362,12 +362,14 @@ def _query_node(
 
     # filter
     if where is not None:
-        is_id_query, id_values = _extract_id_condition(where)
+        is_id_query, node_ids = _extract_id_condition(where)
         if is_id_query:
             filtered_rows: list[MemoryRow] = []
-            for id_val in id_values:
+            for id_val in node_ids:
                 node_key = VersionedNodeKey(id=id_val, snapshot_id=snapshot_id)
-                if (row := table.rows.get(node_key)) is not None:
+                if (row := table.rows.get(node_key)) is not None and _evaluate_condition(
+                    context, where, row
+                ):
                     filtered_rows.append(row)
         else:
             filtered_rows = []

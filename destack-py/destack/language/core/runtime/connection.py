@@ -188,12 +188,12 @@ class QueryConnection[NodeT: "Node" = Node](QueryResultContainer[NodeT]):
             result=None,
         )
 
-        from .graph import Graph, PolyGraph
+        from .graph import Graph
 
         self.store: Store = store
         self.session: Session = session
         self.lock = asyncio.Lock()
-        self.graph: Graph = PolyGraph(session.supergraph)
+        self.graph: Graph = session.supergraph.create_polygraph()
 
     def __repr__(self) -> str:
         return f"<QueryConnection query={self.query!r}>"

@@ -175,14 +175,17 @@ sessionTest("create folders recursive", async ({ session }) => {
     expect(folderTreeUnpacked.length).toBe(subtreeFolderCount);
 
     // query folder up (parent, recursive)
-    const folderLeaves = folder._graph.getLeaves(Folder, { node: folder });
+    const folderLeaves = folder._graph.getLeaves({
+      nodeType: Folder.metatype,
+      node: folder,
+    }) as Folder[];
     const connection2 = await Folder.get({
       where: Folder.property("id").eq(folderLeaves[0].id),
       Folders: Folder.search({
         join: Join.of(JoinType.PARENT, { recursive: true }),
       }),
     }).execute();
-    const foldersUnpacked = connection2.graph.getRoots(Folder);
+    const foldersUnpacked = connection2.graph.getRoots({ nodeType: Folder.metatype }) as Folder[];
     expect(foldersUnpacked.length).toBe(1);
     expect(foldersUnpacked[0].equals(rootFolder));
   }
@@ -283,12 +286,15 @@ sessionTest("create scene with heterogeneous views", async ({ session }) => {
   expect(viewTreeUnpacked2.length).toBe(4 + 4 * (1 + 4 * (1 + 4)));
 
   // query view (parent, recursive)
-  const viewLeaves = scene._graph.getLeaves(TextView, { node: scene });
+  const viewLeaves = scene._graph.getLeaves({
+    nodeType: TextView.metatype,
+    node: scene,
+  }) as TextView[];
   const sceneTree3 = await TextView.get({
     where: TextView.property("id").eq(viewLeaves[0].id),
     Parents: View.search({ join: Join.of(JoinType.PARENT, { recursive: true }) }),
   }).execute();
-  const sceneUnpacked3 = sceneTree3.graph.getRoots(View);
+  const sceneUnpacked3 = sceneTree3.graph.getRoots({ nodeType: View.metatype }) as View[];
   expect(sceneUnpacked3.length).toBe(1);
   expect(sceneUnpacked3[0].equals(scene));
 });

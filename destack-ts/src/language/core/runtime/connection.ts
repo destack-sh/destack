@@ -241,7 +241,7 @@ export class QueryConnection<T extends Node = Node> extends QueryResultContainer
     this.connection = this;
     this.store = options.store;
     this.session = options.session;
-    this.graph = new PolyGraph(this.session.supergraph);
+    this.graph = this.session.supergraph.createPolyGraph();
   }
 
   repr(): string {
