@@ -1,4 +1,4 @@
-import { ReactiveSession } from "@destack-web/language";
+import { ReactiveSession, SessionProvider } from "@destack-web/language";
 import { ACTIVE_SESSION, Canvas, MemoryStore, Region, Space, SpaceStatus, StoreKey } from "destack";
 import React from "react";
 import CanvasView from "./Canvas";
@@ -22,9 +22,11 @@ await session.commit();
 
 const Destack: React.FC = () => {
   return (
-    <div>
-      <CanvasView canvasPtr={canvas.toRef()} />
-    </div>
+    <SessionProvider session={session}>
+      <div>
+        <CanvasView canvasPtr={canvas.toRef()} />
+      </div>
+    </SessionProvider>
   );
 };
 
