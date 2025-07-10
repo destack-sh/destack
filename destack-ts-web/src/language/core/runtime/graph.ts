@@ -97,17 +97,17 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   touchAll(): void {
-    console.log("touchAll");
+    console.log("ReactiveGraph.touchAll");
     this._signalAll.value++;
   }
 
   subscribeAll(): void {
-    console.log("subscribeAll");
+    console.log("ReactiveGraph.subscribeAll");
     this._signalAll.value;
   }
 
   touch(id: string): void {
-    console.log("touch", id);
+    console.log("ReactiveGraph.touch", id);
     this._signalAll.value++;
     if (this._signalById.has(id)) {
       this._signalById.get(id)!.value += 1;
@@ -119,7 +119,7 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   subscribe(id: string): void {
-    console.log("subscribe", id);
+    console.log("ReactiveGraph.subscribe", id);
     this._signalAll.value;
     if (this.nodesById.has(id)) {
       if (!this._signalById.has(id)) {
@@ -130,7 +130,7 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   touchChildren(id: string): void {
-    console.log("touchChildren", id);
+    console.log("ReactiveGraph.touchChildren", id);
     this._signalAll.value++;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value += 1;
@@ -138,7 +138,7 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   subscribeChildren(id: string): void {
-    console.log("subscribeChildren", id);
+    console.log("ReactiveGraph.subscribeChildren", id);
     this._signalAll.value;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value;
