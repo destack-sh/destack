@@ -711,8 +711,8 @@ export class Client extends Entity implements IsGlobal, IsDeletable {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${ClientType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
-    return `<Client '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Client "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

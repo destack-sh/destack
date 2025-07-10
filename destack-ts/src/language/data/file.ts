@@ -1178,10 +1178,10 @@ export class File extends Resource implements IsSpatial, IsGlobal {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FileType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`source=${FileSource[this.source]}`);
     if (this.mimeType !== null) {
-      propertyReprs.push(`mimeType=${this.mimeType}`);
+      propertyReprs.push(`mimeType=${`"${this.mimeType}"`}`);
     }
     if (this.format !== null) {
       propertyReprs.push(`format=${FileFormat[this.format]}`);
@@ -1190,9 +1190,9 @@ export class File extends Resource implements IsSpatial, IsGlobal {
       propertyReprs.push(`size=${this.size}`);
     }
     if (this.url !== null) {
-      propertyReprs.push(`url=${this.url}`);
+      propertyReprs.push(`url=${`"${this.url}"`}`);
     }
-    return `<File '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<File "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

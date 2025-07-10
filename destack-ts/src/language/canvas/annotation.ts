@@ -1333,8 +1333,8 @@ export class AnnotationShape extends Shape {
     if (this.stroke !== null) {
       propertyReprs.push(`stroke=${this.stroke.repr()}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<AnnotationShape '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<AnnotationShape "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

@@ -437,9 +437,9 @@ export class Reaction
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`content=${this.content}`);
+    propertyReprs.push(`content=${`"${this.content}"`}`);
     propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
-    return `<Reaction '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Reaction "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1047,7 +1047,7 @@ export class ReactionEvent extends Event {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<ReactionEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ReactionEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1412,7 +1412,7 @@ export class ReactionAddedEvent extends ReactionEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<ReactionAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ReactionAddedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1789,7 +1789,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<ReactionRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ReactionRemovedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

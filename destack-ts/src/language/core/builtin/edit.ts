@@ -473,7 +473,7 @@ export class EditEvent extends Event {
       propertyReprs.push(`reverseValue=${this.reverseValue.repr()}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<EditEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<EditEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

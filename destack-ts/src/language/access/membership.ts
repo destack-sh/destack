@@ -489,7 +489,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<MembershipJoinedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<MembershipJoinedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1118,7 +1118,7 @@ export class MembershipLeftEvent extends MembershipEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<MembershipLeftEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<MembershipLeftEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1878,9 +1878,9 @@ export class Membership extends Entity implements IsGlobal, IsSpatial, IsOwnable
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
-      return `<Membership '${this.path}' ${propertyReprs.join(" ")}>`;
+      return `<Membership "${this.path}" ${propertyReprs.join(" ")}>`;
     } else {
-      return `<Membership '${this.path}'>`;
+      return `<Membership "${this.path}">`;
     }
   }
 

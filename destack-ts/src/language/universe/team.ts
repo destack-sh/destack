@@ -353,9 +353,9 @@ export class Team extends Entity implements IsGlobal, IsOwner, IsJoinable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    propertyReprs.push(`slug=${this.slug}`);
-    return `<Team '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    propertyReprs.push(`slug=${`"${this.slug}"`}`);
+    return `<Team "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

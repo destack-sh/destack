@@ -11,7 +11,6 @@ import type {
   NodeReference,
 } from "@destack/language/core/builtin/relation";
 import { isStruct } from "@destack/language/core/builtin/struct";
-import type { TraitClass } from "@destack/language/core/builtin/trait";
 import type {
   Aggregation,
   Condition,
@@ -23,13 +22,7 @@ import type {
   Sort,
 } from "@destack/language/core/common";
 import { AggregationType, JoinType, QueryType } from "@destack/language/core/common/query";
-import {
-  Graph,
-  QueryConnection,
-  Session,
-  SingletonGraph,
-  Supergraph,
-} from "@destack/language/core/runtime";
+import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { Casing, toCasing } from "@destack/utils/string";

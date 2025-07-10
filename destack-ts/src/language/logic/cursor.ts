@@ -586,7 +586,7 @@ export class EventCursor extends Cursor {
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<EventCursor '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<EventCursor "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1351,7 +1351,7 @@ export class ScreenCursor extends Cursor {
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<ScreenCursor '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ScreenCursor "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2106,7 +2106,7 @@ export class ThreadCursor extends Cursor {
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<ThreadCursor '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ThreadCursor "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

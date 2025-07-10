@@ -630,11 +630,11 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<Variant '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Variant "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

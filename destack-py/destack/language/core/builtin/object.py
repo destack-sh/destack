@@ -336,7 +336,7 @@ def _generate_repr[ObjectT: BuiltinObject](
         if cls.__is_node__:
             repr_impl = f"""\
 def __repr__(self) -> str:
-    return f"<{cls.__name__} '{{self.path}}'>"
+    return f"<{cls.__name__} \\"{{self.path}}\\">"
 __str__ = __repr__
 """
         else:
@@ -421,15 +421,15 @@ if self.{prop_name}:
         if has_required_repr_props:
             inner_repr_impl = f"""\
 {repr_parts_str}
-return f"<{cls.__name__} '{{self.path}}' {{' '.join(property_reprs)}}>"
+return f"<{cls.__name__} \\"{{self.path}}\\" {{' '.join(property_reprs)}}>"
 """
         else:
             inner_repr_impl = f"""\
 {repr_parts_str}
 if property_reprs:
-    return f"<{cls.__name__} '{{self.path}}' {{' '.join(property_reprs)}}>"
+    return f"<{cls.__name__} \\"{{self.path}}\\" {{' '.join(property_reprs)}}>"
 else:
-    return f"<{cls.__name__} '{{self.path}}'>"
+    return f"<{cls.__name__} \\"{{self.path}}\\">"
 """
     else:
         if has_required_repr_props:

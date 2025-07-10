@@ -898,8 +898,8 @@ export class SliderInputView extends InputView {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<SliderInputView '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<SliderInputView "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

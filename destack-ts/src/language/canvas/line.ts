@@ -1597,8 +1597,8 @@ export class LineShape extends Shape {
     if (this.stroke !== null) {
       propertyReprs.push(`stroke=${this.stroke.repr()}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<LineShape '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<LineShape "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

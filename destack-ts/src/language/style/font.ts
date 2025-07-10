@@ -1315,8 +1315,8 @@ export class FontStyle extends Style {
     if (this.transform !== null) {
       propertyReprs.push(`transform=${TextTransform[this.transform]}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<FontStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<FontStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

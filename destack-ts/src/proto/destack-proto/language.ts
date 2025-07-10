@@ -24014,17 +24014,9 @@ export enum SpaceStatusProto {
      */
     SPACE_STATUS_CREATING = 1,
     /**
-     * @generated from protobuf enum value: SPACE_STATUS_QUEUED = 3;
+     * @generated from protobuf enum value: SPACE_STATUS_ACTIVE = 10;
      */
-    SPACE_STATUS_QUEUED = 3,
-    /**
-     * @generated from protobuf enum value: SPACE_STATUS_RUNNING = 10;
-     */
-    SPACE_STATUS_RUNNING = 10,
-    /**
-     * @generated from protobuf enum value: SPACE_STATUS_PAUSED = 20;
-     */
-    SPACE_STATUS_PAUSED = 20
+    SPACE_STATUS_ACTIVE = 10
 }
 /**
  * Built-in spring types.

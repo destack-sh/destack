@@ -407,7 +407,7 @@ export class Follow extends Entity implements IsGlobal, IsSpatial, IsDeletable, 
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
-    return `<Follow '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Follow "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -996,7 +996,7 @@ export class FollowEvent extends Event {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FollowEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FollowEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1352,7 +1352,7 @@ export class FollowAddedEvent extends FollowEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FollowAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FollowAddedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1720,7 +1720,7 @@ export class FollowRemovedEvent extends FollowEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FollowRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FollowRemovedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

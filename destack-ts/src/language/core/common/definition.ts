@@ -592,9 +592,9 @@ export class NodeDefinition extends BuiltinDefinition {
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`isFrozen=${this.isFrozen}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<NodeDefinition ${propertyReprs.join(" ")}>`;
@@ -1580,12 +1580,12 @@ export class TraitDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${TraitType[this.type]}`);
-      propertyReprs.push(`alias=${this.alias}`);
+      propertyReprs.push(`alias=${`"${this.alias}"`}`);
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<TraitDefinition ${propertyReprs.join(" ")}>`;
@@ -2255,9 +2255,9 @@ export class StructDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${StructType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<StructDefinition ${propertyReprs.join(" ")}>`;
@@ -2777,9 +2777,9 @@ export class EnumDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<EnumDefinition ${propertyReprs.join(" ")}>`;
@@ -3521,9 +3521,9 @@ export class PropertyDefinition extends BuiltinDefinition {
       propertyReprs.push(`isRequired=${this.isRequired}`);
       propertyReprs.push(`isUnique=${this.isUnique}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<PropertyDefinition ${propertyReprs.join(" ")}>`;
@@ -4338,9 +4338,9 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<PropertyGroupDefinition ${propertyReprs.join(" ")}>`;
@@ -4633,9 +4633,9 @@ export class OptionDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<OptionDefinition ${propertyReprs.join(" ")}>`;
@@ -4920,9 +4920,9 @@ export class OptionGroupDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<OptionGroupDefinition ${propertyReprs.join(" ")}>`;
@@ -5188,9 +5188,9 @@ export class ConstantDefinition extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<ConstantDefinition ${propertyReprs.join(" ")}>`;
@@ -5462,9 +5462,9 @@ export class MethodDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<MethodDefinition ${propertyReprs.join(" ")}>`;
@@ -5737,9 +5737,9 @@ export class ActionDefinition extends MethodDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<ActionDefinition ${propertyReprs.join(" ")}>`;
@@ -6079,9 +6079,9 @@ export class PermissionDefinition extends BuiltinDefinition {
       propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description !== null) {
-        propertyReprs.push(`description=${this.description}`);
+        propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<PermissionDefinition ${propertyReprs.join(" ")}>`;

@@ -486,9 +486,9 @@ export class Route
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
-      return `<Route '${this.path}' ${propertyReprs.join(" ")}>`;
+      return `<Route "${this.path}" ${propertyReprs.join(" ")}>`;
     } else {
-      return `<Route '${this.path}'>`;
+      return `<Route "${this.path}">`;
     }
   }
 

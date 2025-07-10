@@ -605,14 +605,14 @@ export class Folder
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FolderType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.slug !== null) {
-      propertyReprs.push(`slug=${this.slug}`);
+      propertyReprs.push(`slug=${`"${this.slug}"`}`);
     }
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<Folder '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Folder "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

@@ -640,7 +640,7 @@ export class SingleClickEvent extends ClickEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<SingleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SingleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1327,7 +1327,7 @@ export class DoubleClickEvent extends ClickEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DoubleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DoubleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2014,7 +2014,7 @@ export class TripleClickEvent extends ClickEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<TripleClickEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<TripleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2716,7 +2716,7 @@ export class WheelEvent extends MouseEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<WheelEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<WheelEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

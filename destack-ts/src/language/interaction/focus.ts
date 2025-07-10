@@ -364,7 +364,7 @@ export class FocusInEvent extends FocusEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FocusInEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FocusInEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -884,7 +884,7 @@ export class FocusOutEvent extends FocusEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FocusOutEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FocusOutEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

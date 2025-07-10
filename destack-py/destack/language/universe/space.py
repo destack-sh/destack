@@ -29,9 +29,7 @@ class SpaceStatus(Enum):
     """The status of a Space"""
 
     CREATING = 1
-    QUEUED = 3
-    RUNNING = 10
-    PAUSED = 20
+    ACTIVE = 10
 
 
 @builtin_node(NodeType.SPACE, root_type=None)

@@ -94,8 +94,8 @@ export class GalaxyInfo extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`region=${Region[this.region]}`);
-      propertyReprs.push(`name=${this.name}`);
-      propertyReprs.push(`host=${this.host}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
+      propertyReprs.push(`host=${`"${this.host}"`}`);
       // @ts-expect-error(readonly)
       this._repr = `<GalaxyInfo ${propertyReprs.join(" ")}>`;
     }

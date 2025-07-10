@@ -1246,9 +1246,7 @@ class SpaceStatusProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SPACE_STATUS_UNSPECIFIED: _ClassVar[SpaceStatusProto]
     SPACE_STATUS_CREATING: _ClassVar[SpaceStatusProto]
-    SPACE_STATUS_QUEUED: _ClassVar[SpaceStatusProto]
-    SPACE_STATUS_RUNNING: _ClassVar[SpaceStatusProto]
-    SPACE_STATUS_PAUSED: _ClassVar[SpaceStatusProto]
+    SPACE_STATUS_ACTIVE: _ClassVar[SpaceStatusProto]
 
 class SpringTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2507,9 +2505,7 @@ SORT_TYPE_ASCENDING: SortTypeProto
 SORT_TYPE_DESCENDING: SortTypeProto
 SPACE_STATUS_UNSPECIFIED: SpaceStatusProto
 SPACE_STATUS_CREATING: SpaceStatusProto
-SPACE_STATUS_QUEUED: SpaceStatusProto
-SPACE_STATUS_RUNNING: SpaceStatusProto
-SPACE_STATUS_PAUSED: SpaceStatusProto
+SPACE_STATUS_ACTIVE: SpaceStatusProto
 SPRING_TYPE_UNSPECIFIED: SpringTypeProto
 SPRING_TYPE_TIME: SpringTypeProto
 SPRING_TYPE_PHYSICS: SpringTypeProto

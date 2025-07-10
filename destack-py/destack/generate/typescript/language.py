@@ -605,7 +605,7 @@ def _generate_repr(cls: type[BuiltinObject]) -> str:
         if cls.__is_node__:
             repr_impl = f"""\
 repr(): string {{
-    return `<{cls.__name__} '${{this.path}}'>`
+    return `<{cls.__name__} "${{this.path}}">`
 }}
 """
         else:
@@ -631,6 +631,8 @@ repr(): string {{
                 return f"{value_expr}.toString({{ timeZoneName: 'never'}})"
             elif prop.primitive_type in (PrimitiveType.DATE, PrimitiveType.TIME):
                 return f"{value_expr}.toString()"
+            elif prop.primitive_type == PrimitiveType.STRING:
+                return f'`"${{{value_expr}}}"`'
             else:
                 return value_expr
         else:
@@ -677,15 +679,15 @@ repr(): string {{
         if has_required_repr_props:
             inner_repr_impl = f"""\
 {repr_parts_str}
-return `<{cls.__name__} '${{this.path}}' ${{propertyReprs.join(' ')}}>`
+return `<{cls.__name__} "${{this.path}}" ${{propertyReprs.join(' ')}}>`
 """
         else:
             inner_repr_impl = f"""\
 {repr_parts_str}
 if (propertyReprs.length > 0) {{
-    return `<{cls.__name__} '${{this.path}}' ${{propertyReprs.join(' ')}}>`;
+    return `<{cls.__name__} "${{this.path}}" ${{propertyReprs.join(' ')}}>`;
 }} else {{
-    return `<{cls.__name__} '${{this.path}}'>`;
+    return `<{cls.__name__} "${{this.path}}">`;
 }}
 """
     else:

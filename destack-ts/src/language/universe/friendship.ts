@@ -396,7 +396,7 @@ export class Friendship extends Entity implements IsGlobal {
     const propertyReprs: string[] = [];
     propertyReprs.push(`userA=${this.userA?.repr()}`);
     propertyReprs.push(`userB=${this.userB?.repr()}`);
-    return `<Friendship '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Friendship "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1030,7 +1030,7 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FriendshipInviteSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FriendshipInviteSentEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1557,7 +1557,7 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FriendshipInviteRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FriendshipInviteRescindedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2086,7 +2086,7 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FriendshipInviteAcceptedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FriendshipInviteAcceptedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2613,7 +2613,7 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<FriendshipInviteRejectedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FriendshipInviteRejectedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3182,7 +3182,7 @@ export class FriendshipInvite extends Entity implements IsGlobal, IsOwnable {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
-    return `<FriendshipInvite '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<FriendshipInvite "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

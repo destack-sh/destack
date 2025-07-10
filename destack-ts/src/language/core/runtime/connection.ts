@@ -4,14 +4,15 @@ import {
   QueryResult,
   QueryResultGroup,
   QueryType,
+  QueryUpdate,
 } from "@destack/language/core/common/query";
 import { unpackValue, Value } from "@destack/language/core/common/value";
-import { Graph, PolyGraph } from "@destack/language/core/runtime/graph";
+import { Graph } from "@destack/language/core/runtime/graph";
 import { Session } from "@destack/language/core/runtime/session";
 import { Store } from "@destack/language/core/runtime/store";
 
 /** A container for some (part of a) QueryResult. */
-export class QueryResultContainer<T extends Node = Node> {
+export class QuerySubresult<T extends Node = Node> {
   readonly connection: QueryConnection;
   readonly type: QueryType;
   readonly query: Query;
@@ -19,7 +20,7 @@ export class QueryResultContainer<T extends Node = Node> {
   result: QueryResult | QueryResultGroup | null;
   nodes: T[];
   discriminator: Value | null;
-  subcontainers: QueryResultContainer[];
+  subresults: QuerySubresult[];
 
   constructor(options: {
     connection: QueryConnection;
@@ -34,7 +35,7 @@ export class QueryResultContainer<T extends Node = Node> {
     this.result = options.result;
     this.nodes = [];
     this.discriminator = options.discriminator;
-    this.subcontainers = [];
+    this.subresults = [];
   }
 
   repr(): string {
@@ -45,6 +46,7 @@ export class QueryResultContainer<T extends Node = Node> {
     return `<QueryResultContainer ${contentParts.join(", ")}>`;
   }
 
+  /** Add a new result to the subresult. */
   _addResult(result: QueryResult | QueryResultGroup, query: Query): void {
     const session = this.connection.session;
     const supergraph = session.supergraph;
@@ -75,31 +77,36 @@ export class QueryResultContainer<T extends Node = Node> {
         } else {
           throw new Error(`unexpected query type: ${query.type}`);
         }
-        const subcontainer = new QueryResultContainer({
+        const subcontainer = new QuerySubresult({
           connection: this.connection,
           type: subtype,
           query: query,
           result: group,
           discriminator: group.discriminator,
         });
-        this.subcontainers.push(subcontainer);
+        this.subresults.push(subcontainer);
         subcontainer._addResult(group, query);
       }
       // subqueries
       for (let i = 0; i < result.subresults.length; i++) {
         const subresult = result.subresults[i];
         const subquery = query.subqueries[i];
-        const subcontainer = new QueryResultContainer({
+        const subcontainer = new QuerySubresult({
           connection: this.connection,
           type: subquery.type,
           query: subquery,
           result: subresult,
           discriminator: null,
         });
-        this.subcontainers.push(subcontainer);
+        this.subresults.push(subcontainer);
         subcontainer._addResult(subresult, subquery);
       }
     }
+  }
+
+  /** Update the subresult with a new result. */
+  _updateResult(result: QueryUpdate, query: Query): void {
+    throw new Error("not implemented");
   }
 
   /** Get the main Node (if any). */
@@ -186,7 +193,7 @@ export class QueryResultContainer<T extends Node = Node> {
       throw new Error(`not a grouped scalar Query: ${this.query.repr()}`);
     }
     const scalarByGroup: Record<string, any> = {};
-    for (const subcontainer of this.subcontainers) {
+    for (const subcontainer of this.subresults) {
       if (subcontainer.discriminator == null) {
         continue;
       }
@@ -202,7 +209,7 @@ export class QueryResultContainer<T extends Node = Node> {
       throw new Error(`not a grouped node Query: ${this.query.repr()}`);
     }
     const listByGroup: Record<string, T[]> = {};
-    for (const subcontainer of this.subcontainers) {
+    for (const subcontainer of this.subresults) {
       if (subcontainer.discriminator == null) {
         continue;
       }
@@ -213,8 +220,8 @@ export class QueryResultContainer<T extends Node = Node> {
   }
 
   /** Get a subresult by name or id. */
-  get(key: string): QueryResultContainer {
-    for (const subcontainer of this.subcontainers) {
+  get(key: string): QuerySubresult {
+    for (const subcontainer of this.subresults) {
       if (subcontainer.query.name === key || subcontainer.query.id === key) {
         return subcontainer;
       }
@@ -224,7 +231,7 @@ export class QueryResultContainer<T extends Node = Node> {
 }
 
 /** A connection to a Query and its result. */
-export class QueryConnection<T extends Node = Node> extends QueryResultContainer<T> {
+export class QueryConnection<T extends Node = Node> extends QuerySubresult<T> {
   readonly store: Store;
   readonly session: Session;
   readonly graph: Graph;

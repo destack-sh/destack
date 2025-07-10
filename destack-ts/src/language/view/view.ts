@@ -379,7 +379,7 @@ export class ViewEnteredEvent extends ViewEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<ViewEnteredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ViewEnteredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -906,7 +906,7 @@ export class ViewExitedEvent extends ViewEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<ViewExitedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<ViewExitedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

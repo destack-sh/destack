@@ -44,9 +44,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export enum SpaceStatus {
   CREATING = 1,
-  QUEUED = 3,
-  RUNNING = 10,
-  PAUSED = 20,
+  ACTIVE = 10,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -676,13 +674,13 @@ export class Space
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${SpaceStatus[this.status]}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<Space '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Space "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

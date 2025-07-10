@@ -192,7 +192,7 @@ class UniverseService(ServiceBase, UniverseBase):
         await session.stage()
 
         # done
-        space.status = SpaceStatus.RUNNING
+        space.status = SpaceStatus.ACTIVE
         user.space = space
         user.status = UserStatus.ACTIVE
         await session.commit()

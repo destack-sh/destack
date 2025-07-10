@@ -1066,11 +1066,11 @@ export class CustomEntityDefinition
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<CustomEntityDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<CustomEntityDefinition "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2183,8 +2183,8 @@ export class CustomTraitDefinition
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<CustomTraitDefinition '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<CustomTraitDefinition "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3379,11 +3379,11 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<Snapshot '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Snapshot "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

@@ -459,8 +459,8 @@ export class Permission extends Entity implements IsSpatial, IsDeletable {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${PermissionType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
-    return `<Permission '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Permission "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

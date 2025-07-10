@@ -913,7 +913,7 @@ export class Machine extends Resource implements IsSpatial {
   }
 
   repr(): string {
-    return `<Machine '${this.path}'>`;
+    return `<Machine "${this.path}">`;
   }
 
   toValue(): { readonly [key: string]: any } {
