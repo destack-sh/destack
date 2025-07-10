@@ -337,8 +337,8 @@ export class Handle extends Entity implements IsGlobal {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`slug=${this.slug}`);
-    return `<Handle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`slug=${`"${this.slug}"`}`);
+    return `<Handle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

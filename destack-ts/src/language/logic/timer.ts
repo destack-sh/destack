@@ -402,7 +402,7 @@ export class TimerStartedEvent extends TimerEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<TimerStartedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<TimerStartedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -929,7 +929,7 @@ export class TimerCompletedEvent extends TimerEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<TimerCompletedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<TimerCompletedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1456,7 +1456,7 @@ export class TimerCancelledEvent extends TimerEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<TimerCancelledEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<TimerCancelledEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2100,8 +2100,8 @@ export class Timer extends Entity implements IsSpatial {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${TimerType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
-    return `<Timer '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Timer "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

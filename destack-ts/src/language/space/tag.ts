@@ -421,8 +421,8 @@ export class Tag extends Entity implements IsSpatial, IsOrdered, IsDeletable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<Tag '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Tag "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1124,7 +1124,7 @@ export class Tagging extends Entity implements IsSpatial, IsTaggable, IsOrdered,
   }
 
   repr(): string {
-    return `<Tagging '${this.path}'>`;
+    return `<Tagging "${this.path}">`;
   }
 
   toValue(): { readonly [key: string]: any } {

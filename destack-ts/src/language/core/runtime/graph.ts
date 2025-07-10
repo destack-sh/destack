@@ -350,11 +350,10 @@ export class PolyGraph extends Graph {
       return [];
     }
 
-    const queue: Node[] = [options.node];
-    const descendants: Node[] = [];
-
     // collect
     const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
+    const queue: Node[] = [options.node];
+    const descendants: Node[] = [];
     while (queue.length > 0) {
       const current = queue.shift()!;
       const childrenByType = this.nodesByParent.get(current.id);
@@ -364,7 +363,6 @@ export class PolyGraph extends Graph {
       for (const childrenOfType of childrenByType.values()) {
         queue.push(...childrenOfType);
       }
-
       // collect level
       if (nodeTypes === null) {
         for (const childrenOfType of childrenByType.values()) {

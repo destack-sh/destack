@@ -1074,8 +1074,8 @@ export class FillStyle extends Style {
     if (this.size !== null) {
       propertyReprs.push(`size=${FillSize[this.size]}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<FillStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<FillStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

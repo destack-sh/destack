@@ -501,7 +501,7 @@ export class PointerDownEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerDownEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerDownEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1168,7 +1168,7 @@ export class PointerUpEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerUpEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerUpEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1823,7 +1823,7 @@ export class PointerMoveEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerMoveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerMoveEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2490,7 +2490,7 @@ export class PointerEnterEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerEnterEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3157,7 +3157,7 @@ export class PointerOverEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerOverEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3824,7 +3824,7 @@ export class PointerLeaveEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerLeaveEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -4491,7 +4491,7 @@ export class PointerLongPressEvent extends PointerEvent {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PointerLongPressEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PointerLongPressEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

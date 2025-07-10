@@ -1119,8 +1119,8 @@ export class ColorStyle extends Style {
     if (this.alpha !== null) {
       propertyReprs.push(`alpha=${this.alpha}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<ColorStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<ColorStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

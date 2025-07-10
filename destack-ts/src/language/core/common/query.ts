@@ -2559,7 +2559,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${QueryType[this.type]}`);
       propertyReprs.push(`domain=${StoreDomain[this.domain]}`);
-      propertyReprs.push(`name=${this.name}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
       propertyReprs.push(`definition=${this.definition.repr()}`);
       if (this.subqueries.length > 0) {
         propertyReprs.push(`subqueries=${this.subqueries.map((_item) => _item.repr()).join(", ")}`);

@@ -435,7 +435,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<EntitlementRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<EntitlementRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1003,7 +1003,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<EntitlementGrantedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<EntitlementGrantedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1571,7 +1571,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<EntitlementRevokedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<EntitlementRevokedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2139,7 +2139,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<EntitlementExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<EntitlementExpiredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2823,7 +2823,7 @@ export class Entitlement extends Entity implements IsSpatial, IsDeletable {
   }
 
   repr(): string {
-    return `<Entitlement '${this.path}'>`;
+    return `<Entitlement "${this.path}">`;
   }
 
   toValue(): { readonly [key: string]: any } {

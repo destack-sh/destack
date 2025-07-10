@@ -628,8 +628,8 @@ export class GaugeMetric extends Metric {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<GaugeMetric '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<GaugeMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1260,7 +1260,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<GaugeMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<GaugeMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1940,8 +1940,8 @@ export class CounterMetric extends Metric {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<CounterMetric '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<CounterMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2572,7 +2572,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<CounterMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<CounterMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3252,8 +3252,8 @@ export class HistogramMetric extends Metric {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<HistogramMetric '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<HistogramMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3884,7 +3884,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<HistogramMeasurementEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<HistogramMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

@@ -407,7 +407,7 @@ export class Star extends Entity implements IsGlobal, IsSpatial, IsDeletable, Is
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
-    return `<Star '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Star "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -996,7 +996,7 @@ export class StarEvent extends Event {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<StarEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<StarEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1352,7 +1352,7 @@ export class StarAddedEvent extends StarEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<StarAddedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<StarAddedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1708,7 +1708,7 @@ export class StarRemovedEvent extends StarEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<StarRemovedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<StarRemovedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

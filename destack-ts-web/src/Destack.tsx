@@ -1,7 +1,7 @@
-import { ReactiveSession, ReactiveSupergraph } from "@destack-web/language";
-import { ACTIVE_SESSION, MemoryStore, StoreKey } from "destack";
+import { ReactiveSession } from "@destack-web/language";
+import { ACTIVE_SESSION, Canvas, MemoryStore, Region, Space, SpaceStatus, StoreKey } from "destack";
 import React from "react";
-import Canvas from "./Canvas";
+import CanvasView from "./Canvas";
 
 const store = new MemoryStore({
   types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
@@ -9,10 +9,21 @@ const store = new MemoryStore({
 const session = new ReactiveSession({ store });
 ACTIVE_SESSION.set(session);
 
+const space = new Space({
+  name: "My Space",
+  slug: "my-space",
+  status: SpaceStatus.ACTIVE,
+  region: Region.ZURICH,
+});
+session.create(space);
+const canvas = new Canvas({ name: "My Canvas", space });
+session.create(canvas);
+await session.commit();
+
 const Destack: React.FC = () => {
   return (
     <div>
-      <Canvas />
+      <CanvasView canvasPtr={canvas.toRef()} />
     </div>
   );
 };

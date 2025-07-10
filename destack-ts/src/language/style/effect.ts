@@ -1629,8 +1629,8 @@ export class EffectStyle extends Style {
     if (this.transition !== null) {
       propertyReprs.push(`transition=${this.transition.repr()}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<EffectStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<EffectStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

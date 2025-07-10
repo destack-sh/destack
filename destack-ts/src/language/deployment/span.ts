@@ -299,7 +299,7 @@ export class SpanEvent extends Event {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<SpanEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SpanEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

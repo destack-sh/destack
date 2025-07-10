@@ -204,11 +204,11 @@ export class DatabaseInfo extends StructFrozen {
       propertyReprs.push(`type=${DatabaseType[this.type]}`);
       propertyReprs.push(`region=${Region[this.region]}`);
       if (this.galaxyName !== null) {
-        propertyReprs.push(`galaxyName=${this.galaxyName}`);
+        propertyReprs.push(`galaxyName=${`"${this.galaxyName}"`}`);
       }
-      propertyReprs.push(`externalName=${this.externalName}`);
+      propertyReprs.push(`externalName=${`"${this.externalName}"`}`);
       if (this.customSchemaName !== null) {
-        propertyReprs.push(`customSchemaName=${this.customSchemaName}`);
+        propertyReprs.push(`customSchemaName=${`"${this.customSchemaName}"`}`);
       }
       propertyReprs.push(`tenancy=${Tenancy[this.tenancy]}`);
       // @ts-expect-error(readonly)
@@ -1103,18 +1103,18 @@ export class Database extends Resource implements IsSpatial {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`type=${DatabaseType[this.type]}`);
     propertyReprs.push(`region=${Region[this.region]}`);
     if (this.galaxyName !== null) {
-      propertyReprs.push(`galaxyName=${this.galaxyName}`);
+      propertyReprs.push(`galaxyName=${`"${this.galaxyName}"`}`);
     }
-    propertyReprs.push(`externalName=${this.externalName}`);
+    propertyReprs.push(`externalName=${`"${this.externalName}"`}`);
     if (this.customSchemaName !== null) {
-      propertyReprs.push(`customSchemaName=${this.customSchemaName}`);
+      propertyReprs.push(`customSchemaName=${`"${this.customSchemaName}"`}`);
     }
     propertyReprs.push(`tenancy=${Tenancy[this.tenancy]}`);
-    return `<Database '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Database "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

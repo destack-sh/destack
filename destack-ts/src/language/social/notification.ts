@@ -409,7 +409,7 @@ export class NotificationSentEvent extends NotificationEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<NotificationSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<NotificationSentEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -936,7 +936,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<NotificationRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<NotificationRescindedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1463,7 +1463,7 @@ export class NotificationReadEvent extends NotificationEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<NotificationReadEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<NotificationReadEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1990,7 +1990,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<NotificationDismissedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<NotificationDismissedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2517,7 +2517,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<NotificationExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<NotificationExpiredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3208,9 +3208,9 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
-      return `<Notification '${this.path}' ${propertyReprs.join(" ")}>`;
+      return `<Notification "${this.path}" ${propertyReprs.join(" ")}>`;
     } else {
-      return `<Notification '${this.path}'>`;
+      return `<Notification "${this.path}">`;
     }
   }
 

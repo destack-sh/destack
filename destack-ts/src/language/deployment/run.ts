@@ -442,7 +442,7 @@ export class RunStartedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunStartedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunStartedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1003,7 +1003,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunPauseRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunPauseRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1576,7 +1576,7 @@ export class RunPausedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunPausedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunPausedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2137,7 +2137,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunResumeRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunResumeRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2710,7 +2710,7 @@ export class RunResumedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunResumedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunResumedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3271,7 +3271,7 @@ export class RunStopRequestedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunStopRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunStopRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3844,7 +3844,7 @@ export class RunFailedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunFailedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunFailedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -4405,7 +4405,7 @@ export class RunCompletedEvent extends RunEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RunCompletedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RunCompletedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

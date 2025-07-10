@@ -364,7 +364,7 @@ export class CopyEvent extends ClipboardEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<CopyEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<CopyEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -884,7 +884,7 @@ export class CutEvent extends ClipboardEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<CutEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<CutEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1404,7 +1404,7 @@ export class PasteEvent extends ClipboardEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<PasteEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<PasteEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

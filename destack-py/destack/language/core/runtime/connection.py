@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from destack.language import Store, Value
 
 
-class QueryResultContainer[NodeT: "Trait | Node" = Node]:
+class QuerySubresult[NodeT: "Trait | Node" = Node]:
     """
     A container for some (part of a) QueryResult.
     """
@@ -33,7 +33,7 @@ class QueryResultContainer[NodeT: "Trait | Node" = Node]:
         self.result: QueryResult | QueryResultGroup | None = result
         self.nodes: list[NodeT] = []  # type: ignore (no idea why pyright freaks out sometimes)
         self.discriminator: Any | None = discriminator
-        self.subcontainers: list[QueryResultContainer] = []
+        self.subcontainers: list[QuerySubresult] = []
 
     def __str__(self) -> str:
         content_parts: list[str] = [f"query={self.query!r}"]
@@ -74,7 +74,7 @@ class QueryResultContainer[NodeT: "Trait | Node" = Node]:
                     subtype = QueryType.SCALAR
                 else:
                     raise ValueError(f"unexpected query type: {query.type!r}")
-                subcontainer = QueryResultContainer(
+                subcontainer = QuerySubresult(
                     self.connection, subtype, query, group, group.discriminator
                 )
                 self.subcontainers.append(subcontainer)
@@ -82,9 +82,7 @@ class QueryResultContainer[NodeT: "Trait | Node" = Node]:
             # subqueries
             for i, subresult in enumerate(result.subresults):
                 subquery = query.subqueries[i]
-                subcontainer = QueryResultContainer(
-                    self.connection, subquery.type, subquery, subresult
-                )
+                subcontainer = QuerySubresult(self.connection, subquery.type, subquery, subresult)
                 self.subcontainers.append(subcontainer)
                 subcontainer._add_result(subresult, subquery)
 
@@ -157,7 +155,7 @@ class QueryResultContainer[NodeT: "Trait | Node" = Node]:
             list_by_group[discriminator] = subcontainer.to_list()
         return list_by_group
 
-    def get(self, key: str | UUID) -> "QueryResultContainer":
+    def get(self, key: str | UUID) -> "QuerySubresult":
         """Get a subresult by name or id."""
         for subcontainer in self.subcontainers:
             if subcontainer.query.name == key or subcontainer.query.id == key:
@@ -165,7 +163,7 @@ class QueryResultContainer[NodeT: "Trait | Node" = Node]:
         raise KeyError(f"no subresult for {key!r} in {self!r}")
 
 
-class QueryConnection[NodeT: "Node" = Node](QueryResultContainer[NodeT]):
+class QueryConnection[NodeT: "Node" = Node](QuerySubresult[NodeT]):
     """
     A connection to a Query and its result.
     """

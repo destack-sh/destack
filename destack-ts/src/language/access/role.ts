@@ -418,7 +418,7 @@ export class RoleAssignedEvent extends RoleEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RoleAssignedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RoleAssignedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -986,7 +986,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<RoleUnassignedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<RoleUnassignedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1672,8 +1672,8 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${RoleType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
-    return `<Role '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Role "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

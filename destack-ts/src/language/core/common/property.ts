@@ -1144,7 +1144,7 @@ export class CustomProperty
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
     propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
     if (this.primitiveType !== null) {
@@ -1165,7 +1165,7 @@ export class CustomProperty
     if (this.keyType !== null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);
     }
-    return `<CustomProperty '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<CustomProperty "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2370,8 +2370,8 @@ export class CustomPropertyGroup
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    return `<CustomPropertyGroup '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<CustomPropertyGroup "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

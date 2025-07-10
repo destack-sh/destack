@@ -435,7 +435,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<SanctionRequestedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SanctionRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1003,7 +1003,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<SanctionGrantedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SanctionGrantedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1571,7 +1571,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<SanctionRevokedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SanctionRevokedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2139,7 +2139,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<SanctionExpiredEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<SanctionExpiredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2823,7 +2823,7 @@ export class Sanction extends Entity implements IsSpatial, IsDeletable {
   }
 
   repr(): string {
-    return `<Sanction '${this.path}'>`;
+    return `<Sanction "${this.path}">`;
   }
 
   toValue(): { readonly [key: string]: any } {

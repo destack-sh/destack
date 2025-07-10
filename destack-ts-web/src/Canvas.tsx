@@ -4,9 +4,9 @@ import {
   activeSession,
   Easing,
   Event,
-  Line,
   LineShape,
   Node,
+  NodeReference,
   PointerMoveEvent,
   Query,
   QueryConnection,
@@ -16,12 +16,11 @@ import {
 } from "destack";
 import React, { useRef } from "react";
 
-const currentLine = signal<Line | null>(null);
+const currentLine = signal<LineShape | null>(null);
 
 // nocheckin: reactive TS graphs & querying
 // basic reactive keys (in (Reactive)Graphs):
 //  - get: snapshot_id + node_id
-//    - get_property?: snapshot_id + node_id + [property_id]
 //  - get_children: snapshot_id + node_id + [node_type]
 
 function useQuery<T extends Node = Node>(
@@ -45,8 +44,9 @@ function useQuery<T extends Node = Node>(
   return { connection, nodes };
 }
 
-export const Canvas: React.FC = () => {
+export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }) => {
   const session = activeSession();
+  const canvas = session.supergraph.get(canvasPtr.id);
   const lineQuery = useSignal(LineShape.search({}));
   const eventQuery = useSignal(Event.search({}));
   const { nodes: lines } = useQuery(lineQuery);
@@ -80,7 +80,9 @@ export const Canvas: React.FC = () => {
     const point = getMousePosition(event);
     isDrawing.value = true;
     lastMousePosition.value = point;
-    currentLine.value = new Line({ points: [point] });
+    currentLine.value = new LineShape({ name: "LineShape", points: [point] });
+    session.create(currentLine.value);
+    session.commit();
   };
 
   // add points on mouse move
@@ -90,9 +92,7 @@ export const Canvas: React.FC = () => {
     if (isDrawing.value && currentLine.value) {
       const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
       if (lastPoint.x !== currentPoint.x || lastPoint.y !== currentPoint.y) {
-        currentLine.value = new Line({
-          points: [...currentLine.value.points, currentPoint],
-        });
+        currentLine.value.points = [...currentLine.value.points, currentPoint];
       }
     }
     const mouseEvent = new PointerMoveEvent({
@@ -103,22 +103,13 @@ export const Canvas: React.FC = () => {
       metaKey: event.metaKey,
     });
     session.append(mouseEvent);
-    session.commit().then(() => {
-      // eventQuery.value = Event.search({});
-    });
+    session.commit();
   };
 
   // finish drawing on mouse up
   const handleMouseUp = () => {
     if (isDrawing.value && currentLine.value) {
       isDrawing.value = false;
-      const lineShape = new LineShape({ name: "LineShape", ...currentLine.value });
-      session.create(lineShape);
-      session.flush();
-      session.commit().then(() => {
-        lineQuery.value = LineShape.search({});
-        // eventQuery.value = Event.search({});
-      });
       currentLine.value = null;
       lastMousePosition.value = null;
     }
@@ -126,6 +117,21 @@ export const Canvas: React.FC = () => {
 
   return (
     <div style={{ width: "100vw", height: "100vh", display: "flex", flexDirection: "column" }}>
+      {/* Stats */}
+      <div
+        style={{
+          height: "100px",
+          overflow: "auto",
+          background: "gray",
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <span>Lines: {lines.value.length}</span>
+        <span>Events: {events.value.length}</span>
+      </div>
+
+      {/* Lines */}
       <svg
         ref={svgRef}
         width="100%"
@@ -151,18 +157,9 @@ export const Canvas: React.FC = () => {
             />
           </g>
         ))}
-
-        {/* render current line being drawn */}
-        {currentLine.value && currentLine.value.points.length > 1 && (
-          <g>
-            <path
-              d={renderStroke(currentLine.value.points, strokeOptions, { isComplete: false })}
-              fill="#94a3b8"
-              stroke="#2563eb"
-            />
-          </g>
-        )}
       </svg>
+
+      {/* Events */}
       <div style={{ height: "100px", overflow: "auto", background: "gray" }}>
         {/* render events */}
         {events.value.slice(-3).map((event, index) => (
@@ -173,4 +170,4 @@ export const Canvas: React.FC = () => {
   );
 };
 
-export default Canvas;
+export default CanvasView;

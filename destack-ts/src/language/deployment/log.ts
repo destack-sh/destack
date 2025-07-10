@@ -383,7 +383,7 @@ export class LogEvent extends Event {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<LogEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<LogEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

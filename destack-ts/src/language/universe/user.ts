@@ -686,10 +686,10 @@ export class User
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${this.name}`);
-    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${UserStatus[this.status]}`);
-    return `<User '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<User "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

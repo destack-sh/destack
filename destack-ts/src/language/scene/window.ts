@@ -488,11 +488,11 @@ export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, I
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${WindowType[this.type]}`);
-    propertyReprs.push(`name=${this.name}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy !== null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    return `<Window '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Window "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

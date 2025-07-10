@@ -457,9 +457,9 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`slug=${this.slug}`);
+    propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${OrganizationStatus[this.status]}`);
-    return `<Organization '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<Organization "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

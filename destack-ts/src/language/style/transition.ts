@@ -1234,8 +1234,8 @@ export class TransitionStyle extends Style {
     if (this.springType !== null) {
       propertyReprs.push(`springType=${SpringType[this.springType]}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<TransitionStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<TransitionStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

@@ -1165,8 +1165,8 @@ export class GradientStyle extends Style {
     if (this.centerAnchor !== null) {
       propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<GradientStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<GradientStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

@@ -394,7 +394,7 @@ export class DragStartEvent extends DragEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DragStartEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DragStartEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -942,7 +942,7 @@ export class DragEndEvent extends DragEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DragEndEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DragEndEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1490,7 +1490,7 @@ export class DragOverEvent extends DragEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DragOverEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DragOverEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2038,7 +2038,7 @@ export class DragEnterEvent extends DragEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DragEnterEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DragEnterEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2586,7 +2586,7 @@ export class DragLeaveEvent extends DragEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DragLeaveEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DragLeaveEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3134,7 +3134,7 @@ export class DropEvent extends DragEvent {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<DropEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<DropEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {

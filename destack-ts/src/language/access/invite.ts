@@ -491,7 +491,7 @@ export class InviteSentEvent extends InviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<InviteSentEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<InviteSentEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1108,7 +1108,7 @@ export class InviteRescindedEvent extends InviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<InviteRescindedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<InviteRescindedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1757,7 +1757,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<InviteAcceptedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<InviteAcceptedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2386,7 +2386,7 @@ export class InviteRejectedEvent extends InviteEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`status=${EventStatus[this.status]}`);
-    return `<InviteRejectedEvent '${this.path}' ${propertyReprs.join(" ")}>`;
+    return `<InviteRejectedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3144,9 +3144,9 @@ export class Invite extends Entity implements IsGlobal, IsSpatial, IsOwnable, Is
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
-      return `<Invite '${this.path}' ${propertyReprs.join(" ")}>`;
+      return `<Invite "${this.path}" ${propertyReprs.join(" ")}>`;
     } else {
-      return `<Invite '${this.path}'>`;
+      return `<Invite "${this.path}">`;
     }
   }
 

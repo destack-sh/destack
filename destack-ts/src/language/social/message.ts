@@ -624,9 +624,9 @@ export class Message
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     if (propertyReprs.length > 0) {
-      return `<Message '${this.path}' ${propertyReprs.join(" ")}>`;
+      return `<Message "${this.path}" ${propertyReprs.join(" ")}>`;
     } else {
-      return `<Message '${this.path}'>`;
+      return `<Message "${this.path}">`;
     }
   }
 

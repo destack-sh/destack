@@ -877,8 +877,8 @@ export class BorderStyle extends Style {
     if (this.style !== null) {
       propertyReprs.push(`style=${this.style?.repr()}`);
     }
-    propertyReprs.push(`name=${this.name}`);
-    return `<BorderStyle '${this.path}' ${propertyReprs.join(" ")}>`;
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<BorderStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
