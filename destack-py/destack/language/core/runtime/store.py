@@ -67,6 +67,6 @@ class LiveStore(Store):
     @abc.abstractmethod
     async def subscribe(self, query: "Query") -> AsyncGenerator["QueryUpdate"]:
         """
-        Subscribe to a Query in the Store.
+        Subscribe to a Query in the Store. The initial update is a full QueryResult.
         """
         ...

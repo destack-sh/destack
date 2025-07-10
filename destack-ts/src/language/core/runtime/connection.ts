@@ -12,7 +12,7 @@ import { Session } from "@destack/language/core/runtime/session";
 import { Store } from "@destack/language/core/runtime/store";
 
 /** A container for some (part of a) QueryResult. */
-export class QuerySubresult<T extends Node = Node> {
+export class QueryContainer<T extends Node = Node> {
   readonly connection: QueryConnection;
   readonly type: QueryType;
   readonly query: Query;
@@ -20,7 +20,7 @@ export class QuerySubresult<T extends Node = Node> {
   result: QueryResult | QueryResultGroup | null;
   nodes: T[];
   discriminator: Value | null;
-  subresults: QuerySubresult[];
+  children: QueryContainer[];
 
   constructor(options: {
     connection: QueryConnection;
@@ -35,7 +35,7 @@ export class QuerySubresult<T extends Node = Node> {
     this.result = options.result;
     this.nodes = [];
     this.discriminator = options.discriminator;
-    this.subresults = [];
+    this.children = [];
   }
 
   repr(): string {
@@ -77,28 +77,28 @@ export class QuerySubresult<T extends Node = Node> {
         } else {
           throw new Error(`unexpected query type: ${query.type}`);
         }
-        const subcontainer = new QuerySubresult({
+        const subcontainer = new QueryContainer({
           connection: this.connection,
           type: subtype,
           query: query,
           result: group,
           discriminator: group.discriminator,
         });
-        this.subresults.push(subcontainer);
+        this.children.push(subcontainer);
         subcontainer._addResult(group, query);
       }
       // subqueries
       for (let i = 0; i < result.subresults.length; i++) {
         const subresult = result.subresults[i];
         const subquery = query.subqueries[i];
-        const subcontainer = new QuerySubresult({
+        const subcontainer = new QueryContainer({
           connection: this.connection,
           type: subquery.type,
           query: subquery,
           result: subresult,
           discriminator: null,
         });
-        this.subresults.push(subcontainer);
+        this.children.push(subcontainer);
         subcontainer._addResult(subresult, subquery);
       }
     }
@@ -111,89 +111,96 @@ export class QuerySubresult<T extends Node = Node> {
 
   /** Get the main Node (if any). */
   toOneOrNone(): T | null {
+    const nodes = this.nodes;
     if (this.type !== QueryType.NODE) {
       throw new Error(`not a node Query: ${this.query.repr()}`);
     } else if (this.result == null) {
       throw new Error(`no result for ${this.repr()}`);
-    } else if (this.nodes.length > 1) {
+    } else if (nodes.length > 1) {
       throw new Error(
-        `expected 0-1 root, got ${this.nodes.length} in ${this.repr()}: ${this.nodes.map((n) => n.repr()).join(", ")}`,
+        `expected 0-1 root, got ${nodes.length} in ${this.repr()}: ${nodes.map((n) => n.repr()).join(", ")}`,
       );
     } else {
-      return this.nodes[0] ?? null;
+      return nodes[0] ?? null;
     }
   }
 
   /** Get the main Node (error if none). */
   toOne(): T {
+    const nodes = this.nodes;
     if (this.type !== QueryType.NODE) {
       throw new Error(`not a node Query: ${this.query.repr()}`);
     } else if (this.result == null) {
       throw new Error(`no result for ${this.repr()}`);
-    } else if (this.nodes.length !== 1) {
+    } else if (nodes.length !== 1) {
       throw new Error(
-        `expected 1 root, got ${this.nodes.length} in ${this.repr()}: ${this.nodes.map((n) => n.repr()).join(", ")}`,
+        `expected 1 root, got ${nodes.length} in ${this.repr()}: ${nodes.map((n) => n.repr()).join(", ")}`,
       );
     } else {
-      return this.nodes[0];
+      return nodes[0];
     }
   }
 
   /** Get the list of main Nodes. */
   toList(): T[] {
+    const nodes = this.nodes;
     if (this.type !== QueryType.NODE) {
       throw new Error(`not a node Query: ${this.query.repr()}`);
     } else if (this.result == null) {
       throw new Error(`no result for ${this.repr()}`);
     } else {
-      return this.nodes;
+      return nodes;
     }
   }
 
   /** Get the count. */
   toCount(): number {
+    const result = this.result;
     if (this.type !== QueryType.SCALAR) {
       throw new Error(`not a scalar Query: ${this.query.repr()}`);
-    } else if (this.result == null) {
+    } else if (result == null) {
       throw new Error(`no result for ${this.repr()}`);
-    } else if (this.result.count == null) {
+    } else if (result.count == null) {
       throw new Error(`no count in ${this.repr()}`);
     } else {
-      return this.result.count;
+      return result.count;
     }
   }
 
   /** Get whether any results exist. */
   toExists(): boolean {
+    const result = this.result;
     if (this.type !== QueryType.SCALAR) {
       throw new Error(`not a scalar Query: ${this.query.repr()}`);
-    } else if (this.result == null) {
+    } else if (result == null) {
       throw new Error(`no result for ${this.repr()}`);
-    } else if (this.result.exists == null) {
+    } else if (result.exists == null) {
       throw new Error(`no exists in ${this.repr()}`);
     }
-    return this.result.exists;
+    return result.exists;
   }
 
   /** Get the scalar value. */
   toScalar(): any {
+    const result = this.result;
     if (this.type !== QueryType.SCALAR) {
       throw new Error(`not a scalar Query: ${this.query.repr()}`);
-    } else if (this.result == null) {
+    } else if (result == null) {
       throw new Error(`no result for ${this.repr()}`);
-    } else if (this.result.scalar == null) {
+    } else if (result.scalar == null) {
       throw new Error(`no scalar in ${this.repr()}`);
     }
-    return this.result.scalar.unpack();
+    return result.scalar.unpack();
   }
 
   /** Get the scalar value by group. */
   toScalarByGroup(): Record<string, any> {
+    const children = this.children;
     if (this.type !== QueryType.GROUPED_SCALAR) {
       throw new Error(`not a grouped scalar Query: ${this.query.repr()}`);
     }
     const scalarByGroup: Record<string, any> = {};
-    for (const subcontainer of this.subresults) {
+    for (const subcontainer of children) {
       if (subcontainer.discriminator == null) {
         continue;
       }
@@ -205,11 +212,12 @@ export class QuerySubresult<T extends Node = Node> {
 
   /** Get the list of main Nodes by group. */
   toListByGroup(): Record<string, T[]> {
+    const children = this.children;
     if (this.type !== QueryType.GROUPED_NODE) {
       throw new Error(`not a grouped node Query: ${this.query.repr()}`);
     }
     const listByGroup: Record<string, T[]> = {};
-    for (const subcontainer of this.subresults) {
+    for (const subcontainer of children) {
       if (subcontainer.discriminator == null) {
         continue;
       }
@@ -220,8 +228,8 @@ export class QuerySubresult<T extends Node = Node> {
   }
 
   /** Get a subresult by name or id. */
-  get(key: string): QuerySubresult {
-    for (const subcontainer of this.subresults) {
+  get(key: string): QueryContainer {
+    for (const subcontainer of this.children) {
       if (subcontainer.query.name === key || subcontainer.query.id === key) {
         return subcontainer;
       }
@@ -231,7 +239,7 @@ export class QuerySubresult<T extends Node = Node> {
 }
 
 /** A connection to a Query and its result. */
-export class QueryConnection<T extends Node = Node> extends QuerySubresult<T> {
+export class QueryConnection<T extends Node = Node> extends QueryContainer<T> {
   readonly store: Store;
   readonly session: Session;
   readonly graph: Graph;

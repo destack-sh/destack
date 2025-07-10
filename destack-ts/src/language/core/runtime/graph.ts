@@ -78,12 +78,6 @@ export class SingletonGraph extends Graph {
     this.node = node;
   }
 
-  toPolygraph(): PolyGraph {
-    const newGraph = new PolyGraph(this.supergraph);
-    newGraph.add(this.node);
-    return newGraph;
-  }
-
   override get size(): number {
     return 1;
   }
@@ -460,7 +454,8 @@ export class Supergraph {
 
   /** Promote a SingletonGraph to a PolyGraph in one operation. */
   promoteToPolygraph(graph: SingletonGraph): PolyGraph {
-    const newGraph = graph.toPolygraph();
+    const newGraph = this.createPolyGraph();
+    newGraph.add(graph.node);
     this.graphs.splice(this.graphs.indexOf(graph), 1);
     this.graphs.push(newGraph);
     return newGraph;

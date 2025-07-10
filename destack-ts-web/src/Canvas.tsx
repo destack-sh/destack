@@ -2,6 +2,7 @@ import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { Signal, signal, useComputed, useSignal, useSignalEffect } from "@preact/signals-react";
 import {
   activeSession,
+  Canvas,
   Easing,
   Event,
   LineShape,
@@ -30,38 +31,37 @@ function useQuery<T extends Node = Node>(
   const connection: Signal<QueryConnection<T> | null> = useSignal(null);
   const nodes = useComputed(() => connection.value?.toList() ?? []);
 
-  useSignalEffect(() => {
-    query.value.execute().then((c) => {
-      connection.value = c;
-      console.log("query.execute", query.value.name, c.nodes.length, {
-        store: c.store,
-        storeRepr: c.store.repr(),
-        query: query.value,
-      });
-    });
-  });
+  // useSignalEffect(() => {
+  //   query.value.execute().then((c) => {
+  //     connection.value = c;
+  //     console.log("query.execute", query.value.name);
+  //   });
+  // });
 
   return { connection, nodes };
 }
 
+const strokeOptions = new Stroke({
+  type: StrokeType.FREEHAND,
+  size: 12,
+  thinning: 0.5,
+  smoothing: 0.62,
+  streamline: 0.25,
+  easing: Easing.LINEAR,
+});
+
 export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }) => {
+  console.log("CanvasView.render", canvasPtr.id);
   const session = activeSession();
-  const canvas = session.supergraph.get(canvasPtr.id);
+  const canvas = session.supergraph.getOrError(canvasPtr.id) as Canvas;
   const lineQuery = useSignal(LineShape.search({}));
   const eventQuery = useSignal(Event.search({}));
-  const { nodes: lines } = useQuery(lineQuery);
+  // const { nodes: lines } = useQuery(lineQuery);
+  const lines = useComputed(() => canvas.getChildren(LineShape));
   const { nodes: events } = useQuery(eventQuery);
 
   const isDrawing = useSignal(false);
   const lastMousePosition = useSignal<Vector2f | null>(null);
-  const strokeOptions = new Stroke({
-    type: StrokeType.FREEHAND,
-    size: 12,
-    thinning: 0.5,
-    smoothing: 0.62,
-    streamline: 0.25,
-    easing: Easing.LINEAR,
-  });
 
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -81,7 +81,8 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
     isDrawing.value = true;
     lastMousePosition.value = point;
     currentLine.value = new LineShape({ name: "LineShape", points: [point] });
-    session.create(currentLine.value);
+    canvas.addChild(currentLine.value);
+    console.log("handleMouseDown", canvas.getChildren().length);
     session.commit();
   };
 

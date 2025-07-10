@@ -1,4 +1,4 @@
-from .connection import QueryConnection, QuerySubresult
+from .connection import QueryConnection, QueryContainer
 from .graph import (
     Graph,
     NullGraph,
@@ -25,7 +25,7 @@ __all__ = [
     "Oracle",
     "PolyGraph",
     "QueryConnection",
-    "QuerySubresult",
+    "QueryContainer",
     "RenderOptions",
     "Renderer",
     "Session",

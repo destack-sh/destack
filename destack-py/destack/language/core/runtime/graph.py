@@ -150,11 +150,6 @@ class SingletonGraph(Graph):
         self.supergraph = supergraph
         self.node = node
 
-    def to_polygraph(self) -> "PolyGraph":
-        graph = PolyGraph(self.supergraph)
-        graph.add(self.node)
-        return graph
-
     @property
     @override
     def nodes(self) -> Collection["Node"]:
@@ -528,7 +523,8 @@ class Supergraph:
 
     def promote_to_polygraph(self, graph: SingletonGraph) -> PolyGraph:
         """Promote a SingletonGraph to a PolyGraph in one operation."""
-        new_graph = graph.to_polygraph()
+        new_graph = self.create_polygraph()
+        new_graph.add(graph.node)
         self.graphs.remove(graph)
         self.graphs.append(new_graph)
         return new_graph
