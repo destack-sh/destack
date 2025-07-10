@@ -312,10 +312,7 @@ if {arg_name} is None:
         method_body_lines.append(f"""\
 # graph
 if _graph is None:
-    from destack.language.core import SingletonGraph
-                                 
-    _graph = SingletonGraph(_supergraph, self)
-    _supergraph.add_graph(_graph)
+    _graph = _supergraph.create_singleton_graph(self)
 else:
     _graph.add(self)
 {set_template_str.format("_graph", "_graph")}

@@ -87,7 +87,7 @@ export abstract class Node extends BuiltinObject {
     this._session = _session ?? activeSession();
     this._supergraph = _supergraph ?? this._session.supergraph;
     if (_graph == null) {
-      _graph = new SingletonGraph(this._supergraph, this);
+      _graph = this._supergraph.createSingletonGraph(this);
     } else {
       _graph.add(this);
     }
@@ -159,61 +159,6 @@ export abstract class Node extends BuiltinObject {
       this._ref = this.__toRef__();
     }
     return this._ref;
-  }
-
-  /** Get the children of this Node. */
-  getChildren(): Node[];
-  getChildren<N extends Node>(classOrTrait: NodeClass<N>, options?: NodeFilter): N[];
-  getChildren<T extends TraitType>(
-    classOrTrait: TraitClass<any, T>,
-    options?: NodeFilter,
-  ): (Node & TraitTypeMapping[T])[];
-  getChildren(classOrTrait?: NodeClass | TraitClass, options?: NodeFilter): Node[];
-  getChildren(classOrTrait?: NodeClass | TraitClass, options?: NodeFilter): Node[] {
-    return this._graph.getChildren(this, classOrTrait);
-  }
-
-  /** Get a specific child of this Node by name. */
-  getChild<N extends Node>(classOrTrait: NodeClass<N>, name: string): N | null;
-  getChild<T extends TraitType>(
-    classOrTrait: TraitClass<any, T>,
-    name: string,
-  ): (Node & TraitTypeMapping[T]) | null;
-  getChild(classOrTrait: NodeClass | TraitClass, name: string): Node | null;
-  getChild(classOrTrait: NodeClass | TraitClass, name: string, options?: NodeFilter): Node | null {
-    const children = this._graph.getChildren(this, classOrTrait);
-    for (const child of children) {
-      if ((child as any).name === name) {
-        return child;
-      }
-    }
-    return null;
-  }
-
-  /** Get a specific child of this Node by name, or raises an error if not found. */
-  child<N extends Node>(classOrTrait: NodeClass<N>, name: string): N;
-  child<T extends TraitType>(
-    classOrTrait: TraitClass<any, T>,
-    name: string,
-  ): Node & TraitTypeMapping[T];
-  child(classOrTrait: NodeClass | TraitClass, name: string): Node;
-  child(classOrTrait: NodeClass | TraitClass, name: string): Node {
-    const child = this.getChild(classOrTrait, name);
-    if (child === null) {
-      throw new Error(`no child ${name} of ${this}`);
-    }
-    return child;
-  }
-
-  /** Get the descendants of this Node. */
-  getDescendants(): Node[];
-  getDescendants<N extends Node>(classOrTrait: NodeClass<N>): N[];
-  getDescendants<T extends TraitType>(
-    classOrTrait: TraitClass<any, T>,
-  ): (Node & TraitTypeMapping[T])[];
-  getDescendants(classOrTrait?: NodeClass | TraitClass): Node[];
-  getDescendants(classOrTrait?: NodeClass | TraitClass): Node[] {
-    return this._graph.getDescendants(this, classOrTrait);
   }
 
   /** Make a get Query for this Node/Trait type. */

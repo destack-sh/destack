@@ -219,7 +219,7 @@ class Entity(Node):
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        from ..runtime import PolyGraph, SingletonGraph
+        from ..runtime import SingletonGraph
 
         # prepare graph & nodes
         supergraph = self._supergraph
@@ -251,8 +251,7 @@ class Entity(Node):
             # detach from parent
             if self.parent_ptr is None:
                 return  # nothing to do
-            new_graph = PolyGraph(supergraph)
-            supergraph.add_graph(new_graph)
+            new_graph = supergraph.create_polygraph()
             parent_ptr = None
         session = self._session
         nodes: tuple[Entity, ...] = (self, *self._graph.get_descendants(self))

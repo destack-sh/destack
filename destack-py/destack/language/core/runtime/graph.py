@@ -514,6 +514,25 @@ class Supergraph:
     def __repr__(self):
         return f"<Supergraph {self}>"
 
+    def create_singleton_graph(self, node: "Node") -> SingletonGraph:
+        """Create a new SingletonGraph and add it to this Supergraph."""
+        new_graph = SingletonGraph(self, node)
+        self.add_graph(new_graph)
+        return new_graph
+
+    def create_polygraph(self) -> PolyGraph:
+        """Create a new PolyGraph and add it to this Supergraph."""
+        new_graph = PolyGraph(self)
+        self.add_graph(new_graph)
+        return new_graph
+
+    def promote_to_polygraph(self, graph: SingletonGraph) -> PolyGraph:
+        """Promote a SingletonGraph to a PolyGraph in one operation."""
+        new_graph = graph.to_polygraph()
+        self.graphs.remove(graph)
+        self.graphs.append(new_graph)
+        return new_graph
+
     def add_graph(self, graph: Graph):
         """Add a Graph to this Supergraph."""
         self.graphs.append(graph)
@@ -527,13 +546,6 @@ class Supergraph:
         for node in graph.nodes:
             if self._cached_nodes_by_id.get(node.id) is node:
                 self._cached_nodes_by_id.pop(node.id)
-
-    def promote_to_polygraph(self, graph: SingletonGraph) -> PolyGraph:
-        """Promote a SingletonGraph to a PolyGraph in one operation."""
-        new_graph = graph.to_polygraph()
-        self.graphs.remove(graph)
-        self.graphs.append(new_graph)
-        return new_graph
 
     def get(self, node_id: "UUID") -> Optional["Node"]:
         """Get a node by ID."""

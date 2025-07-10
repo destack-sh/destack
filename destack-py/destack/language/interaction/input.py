@@ -18,3 +18,4 @@ class InputEvent[NodeT: View = View](Event[NodeT]):
     """An InputEvent is an Event that corresponds to some direct user input."""
 
     node: Optional["View"] = builtin_property(101)
+    # is_handled?

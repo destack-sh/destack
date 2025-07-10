@@ -12,6 +12,7 @@ import {
   Node,
   NodeDefinitionReference,
   NodeReference,
+  PrimitiveType,
   PropertyReferenceType,
   Query,
   QueryResult,
@@ -21,6 +22,7 @@ import {
   Select,
   Sort,
   SortType,
+  TypeCardinality,
   Value,
   toValue,
 } from "@destack/language";
@@ -31,6 +33,8 @@ import { assertNever } from "@destack/utils";
 const MAX_RECURSION_DEPTH = 100;
 
 const NODE_PARENT_KEY = String(Node.property("parent").id);
+const NODE_ID_ID = Node.property("id").id;
+const NODE_ID_KEY = String(Node.property("id").id);
 
 const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
 const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
@@ -419,6 +423,45 @@ function evaluateAggregation(options: {
 }
 
 /**
+ * Check if condition is id = value or id IN values and return the value(s).
+ */
+function extractIdCondition(condition: Condition): { isIdQuery: boolean; nodeIds: string[] } {
+  if (
+    (condition.type === ConditionalType.EQUALS || condition.type === ConditionalType.IN) &&
+    condition.left != null &&
+    condition.left.type === ExpressionType.ATTRIBUTE &&
+    condition.left.attribute != null &&
+    condition.left.attribute.type === PropertyReferenceType.BUILTIN &&
+    condition.left.attribute.id === NODE_ID_ID &&
+    condition.right != null &&
+    condition.right.type === ExpressionType.LITERAL
+  ) {
+    if (!condition.right.literal) {
+      throw new Error(`no literal for ${condition.right.repr()}`);
+    }
+
+    if (condition.right.literal.type.cardinality === TypeCardinality.SCALAR) {
+      if (condition.right.literal.type.scalarType === ScalarType.PRIMITIVE) {
+        return { isIdQuery: true, nodeIds: [condition.right.literal.unpack()] };
+      } else {
+        return { isIdQuery: true, nodeIds: [condition.right.literal.unpack().id] };
+      }
+    } else if (condition.right.literal.type.cardinality === TypeCardinality.LIST) {
+      if (condition.right.literal.type.scalarType === ScalarType.PRIMITIVE) {
+        return { isIdQuery: true, nodeIds: condition.right.literal.unpack() };
+      } else {
+        return {
+          isIdQuery: true,
+          nodeIds: condition.right.literal.unpack().map((ptr: any) => ptr.id),
+        };
+      }
+    }
+  }
+
+  return { isIdQuery: false, nodeIds: [] };
+}
+
+/**
  * Execute a node Query.
  */
 function queryNode(options: {
@@ -476,10 +519,21 @@ function queryNode(options: {
   // filter
   let filteredRows: MemoryRow[] = [];
   if (where != null) {
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
-    for (const row of snapshotRows) {
-      if (evaluateCondition({ context, condition: where, row })) {
-        filteredRows.push(row);
+    const { isIdQuery, nodeIds } = extractIdCondition(where);
+    if (isIdQuery) {
+      for (const nodeId of nodeIds) {
+        const nodeKey = table.getNodeKey({ id: nodeId, snapshotId });
+        const row = table.rows.get(nodeKey);
+        if (row != null && evaluateCondition({ context, condition: where, row })) {
+          filteredRows.push(row);
+        }
+      }
+    } else {
+      const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+      for (const row of snapshotRows) {
+        if (evaluateCondition({ context, condition: where, row })) {
+          filteredRows.push(row);
+        }
       }
     }
   } else {
@@ -578,11 +632,22 @@ function queryGroupedNode(options: {
   // filter
   let filteredRows: MemoryRow[] = [];
   if (where != null) {
-    // filter rows based on where condition
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
-    for (const row of snapshotRows) {
-      if (evaluateCondition({ context, condition: where, row })) {
-        filteredRows.push(row);
+    const { isIdQuery, nodeIds } = extractIdCondition(where);
+    if (isIdQuery) {
+      for (const nodeId of nodeIds) {
+        const nodeKey = table.getNodeKey({ id: nodeId, snapshotId });
+        const row = table.rows.get(nodeKey);
+        if (row != null && evaluateCondition({ context, condition: where, row })) {
+          filteredRows.push(row);
+        }
+      }
+    } else {
+      // filter rows based on where condition
+      const snapshotRows = table.rowsBySnapshot.get(snapshotId)?.values() || [];
+      for (const row of snapshotRows) {
+        if (evaluateCondition({ context, condition: where, row })) {
+          filteredRows.push(row);
+        }
       }
     }
   } else {

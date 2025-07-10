@@ -104,7 +104,7 @@ export const Canvas: React.FC = () => {
     });
     session.append(mouseEvent);
     session.commit().then(() => {
-      eventQuery.value = Event.search({});
+      // eventQuery.value = Event.search({});
     });
   };
 
@@ -117,7 +117,7 @@ export const Canvas: React.FC = () => {
       session.flush();
       session.commit().then(() => {
         lineQuery.value = LineShape.search({});
-        eventQuery.value = Event.search({});
+        // eventQuery.value = Event.search({});
       });
       currentLine.value = null;
       lastMousePosition.value = null;
