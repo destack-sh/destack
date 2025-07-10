@@ -1,4 +1,5 @@
 import { ReactiveSession } from "@destack-web/language";
+import { createStore, Provider } from "jotai";
 import { ACTIVE_SESSION, Canvas, MemoryStore, Region, Space, SpaceStatus, StoreKey } from "destack";
 import React from "react";
 import CanvasView from "./Canvas";
@@ -6,7 +7,8 @@ import CanvasView from "./Canvas";
 const store = new MemoryStore({
   types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
 });
-const session = new ReactiveSession({ store });
+const atomStore = createStore();
+const session = new ReactiveSession({ store, atomStore });
 ACTIVE_SESSION.set(session);
 
 const space = new Space({
@@ -22,9 +24,11 @@ await session.commit();
 
 const Destack: React.FC = () => {
   return (
-    <div>
-      <CanvasView canvasPtr={canvas.toRef()} />
-    </div>
+    <Provider store={atomStore}>
+      <div>
+        <CanvasView canvasPtr={canvas.toRef()} />
+      </div>
+    </Provider>
   );
 };
 

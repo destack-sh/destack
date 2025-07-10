@@ -45,7 +45,7 @@ export class Session {
     clientNonce?: string | null;
     subject?: (Node & IsSubject) | null;
     store?: EventStore | EntityStore | null;
-    supergraphClass?: typeof Supergraph;
+    supergraphFactory?: (session: Session) => Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
     this.space = options?.space ?? null;
@@ -53,7 +53,8 @@ export class Session {
     this.clientNonce = options?.clientNonce ?? null;
     this.subject = options?.subject ?? null;
     this.store = options?.store ?? null;
-    this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
+    this.supergraph =
+      options?.supergraphFactory != null ? options.supergraphFactory(this) : new Supergraph(this);
 
     // runtime
     this.pendingEvents = [];
