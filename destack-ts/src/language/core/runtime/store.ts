@@ -5,8 +5,8 @@ import type {
   Query,
   QueryResult,
   QueryUpdate,
+  StoreKey,
 } from "@destack/language";
-import { StoreKey } from "@destack/language/core/builtin/common";
 
 /**
  * The read/write Store backing part of the Supergraph.
@@ -59,7 +59,7 @@ export interface EventStore extends Store {
  */
 export interface LiveStore extends Store {
   /**
-   * Subscribe to a Query in the Store.
+   * Subscribe to a Query in the Store. The first update is a full QueryResult.
    */
   subscribe(query: Query): AsyncIterator<QueryUpdate>;
 }

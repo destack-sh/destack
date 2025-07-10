@@ -1,7 +1,16 @@
 import { signal, Signal } from "@preact/signals-react";
-import { expandNodeTypes, Node, NodeType, PolyGraph, SingletonGraph, Supergraph } from "destack";
+import {
+  expandNodeTypes,
+  Graph,
+  Node,
+  NodeType,
+  PolyGraph,
+  SingletonGraph,
+  Supergraph,
+} from "destack";
 
-interface ReactiveGraph {
+/** A reactive Graph. */
+export interface ReactiveGraph extends Graph {
   /** Touch all Nodes reactively. */
   touchAll(): void;
 
@@ -88,20 +97,30 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   touchAll(): void {
+    console.log("touchAll");
     this._signalAll.value++;
   }
 
   subscribeAll(): void {
+    console.log("subscribeAll");
     this._signalAll.value;
   }
 
   touch(id: string): void {
+    console.log("touch", id);
+    this._signalAll.value++;
     if (this._signalById.has(id)) {
       this._signalById.get(id)!.value += 1;
+    }
+    const node = this.nodesById.get(id);
+    if (node?.parentPtr != null) {
+      this.touchChildren(node.parentPtr.id);
     }
   }
 
   subscribe(id: string): void {
+    console.log("subscribe", id);
+    this._signalAll.value;
     if (this.nodesById.has(id)) {
       if (!this._signalById.has(id)) {
         this._signalById.set(id, signal(0));
@@ -111,25 +130,58 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   touchChildren(id: string): void {
+    console.log("touchChildren", id);
+    this._signalAll.value++;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value += 1;
     }
   }
 
   subscribeChildren(id: string): void {
+    console.log("subscribeChildren", id);
+    this._signalAll.value;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value;
     }
   }
 
-  get size(): number {
+  override get size(): number {
     this.subscribeAll();
     return this.nodes.length;
+  }
+
+  override get nodes(): Node[] {
+    this.subscribeAll();
+    return super.nodes;
   }
 
   override get(id: string): Node | null {
     this.subscribe(id);
     return super.get(id);
+  }
+
+  override has(id: string): boolean {
+    this.subscribe(id);
+    return super.has(id);
+  }
+
+  override clear(): void {
+    this.touchAll();
+    super.clear();
+    this._signalById.clear();
+    this._signalByParent.clear();
+  }
+
+  override add(node: Node): void {
+    this.touch(node.id);
+    super.add(node);
+  }
+
+  override remove(node: Node): void {
+    this.touch(node.id);
+    super.remove(node);
+    this._signalById.delete(node.id);
+    this._signalByParent.delete(node.id);
   }
 
   override getRoots(options?: { nodeType?: NodeType }): Node[] {
@@ -159,6 +211,7 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
     while (queue.length > 0) {
       const current = queue.shift()!;
       const childrenByType = this.nodesByParent.get(current.id);
+      this.subscribeChildren(current.id);
       if (!childrenByType) {
         continue;
       }
