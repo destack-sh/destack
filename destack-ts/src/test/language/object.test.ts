@@ -8,7 +8,6 @@ test("repr query", () => {
     limit: 25,
   });
   const queryRepr = query.repr();
-  console.log(queryRepr);
   expect(queryRepr).toBe(query.repr()); // cached (frozen Struct)
 });
 

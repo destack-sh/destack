@@ -1,13 +1,5 @@
 import { signal, Signal } from "@preact/signals-react";
-import {
-  expandNodeTypes,
-  Graph,
-  Node,
-  NodeType,
-  PolyGraph,
-  SingletonGraph,
-  Supergraph,
-} from "destack";
+import { Graph, Node, NodeType, PolyGraph, SingletonGraph, Supergraph } from "destack";
 
 /** A reactive Graph. */
 export interface ReactiveGraph extends Graph {
@@ -97,17 +89,14 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   touchAll(): void {
-    console.log("ReactiveGraph.touchAll");
     this._signalAll.value++;
   }
 
   subscribeAll(): void {
-    console.log("ReactiveGraph.subscribeAll");
     this._signalAll.value;
   }
 
   touch(id: string): void {
-    console.log("ReactiveGraph.touch", id);
     this._signalAll.value++;
     if (this._signalById.has(id)) {
       this._signalById.get(id)!.value += 1;
@@ -119,7 +108,6 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   subscribe(id: string): void {
-    console.log("ReactiveGraph.subscribe", id);
     this._signalAll.value;
     if (this.nodesById.has(id)) {
       if (!this._signalById.has(id)) {
@@ -130,7 +118,6 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   touchChildren(id: string): void {
-    console.log("ReactiveGraph.touchChildren", id);
     this._signalAll.value++;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value += 1;
@@ -138,21 +125,10 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   subscribeChildren(id: string): void {
-    console.log("ReactiveGraph.subscribeChildren", id);
     this._signalAll.value;
     if (this._signalByParent.has(id)) {
       this._signalByParent.get(id)!.value;
     }
-  }
-
-  override get size(): number {
-    this.subscribeAll();
-    return this.nodes.length;
-  }
-
-  override get nodes(): Node[] {
-    this.subscribeAll();
-    return super.nodes;
   }
 
   override get(id: string): Node | null {
@@ -197,40 +173,6 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
     this.subscribeChildren(options.node.id);
     return super.getChildren(options);
-  }
-
-  override getDescendants(options: { node: Node; nodeType?: NodeType }): Node[] {
-    if (this.nodesByParent.size === 0) {
-      return [];
-    }
-
-    // collect
-    const nodeTypes = expandNodeTypes(options.nodeType, { expandInheritance: true });
-    const queue: Node[] = [options.node];
-    const descendants: Node[] = [];
-    while (queue.length > 0) {
-      const current = queue.shift()!;
-      const childrenByType = this.nodesByParent.get(current.id);
-      this.subscribeChildren(current.id);
-      if (!childrenByType) {
-        continue;
-      }
-      for (const childrenOfType of childrenByType.values()) {
-        queue.push(...childrenOfType);
-      }
-      // collect level
-      if (nodeTypes === null) {
-        for (const childrenOfType of childrenByType.values()) {
-          descendants.push(...childrenOfType);
-        }
-      } else {
-        for (const nodeType of nodeTypes) {
-          descendants.push(...(childrenByType.get(nodeType) || []));
-        }
-      }
-    }
-
-    return descendants;
   }
 }
 
