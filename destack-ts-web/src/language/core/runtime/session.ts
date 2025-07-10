@@ -1,4 +1,5 @@
 import { ReactiveGraph, ReactiveSupergraph } from "@destack-web/language/core/runtime/graph";
+import { batch } from "@preact/signals-react";
 import {
   Client,
   EditEvent,
@@ -12,27 +13,23 @@ import {
   Session,
   Space,
 } from "destack";
-import { createStore } from "jotai";
 
 /** A reactive variant of Session. */
 export class ReactiveSession extends Session {
   /** Unflushed Entities. */
   readonly _dirtyEntities: Map<string, Entity>;
-  /** Global jotai store for reactivity. */
-  readonly _atomStore = createStore();
 
-  constructor(options: {
+  constructor(options?: {
     oracle?: Oracle;
     space?: Space | null;
     client?: Client | null;
     clientNonce?: string | null;
     subject?: (Node & IsSubject) | null;
     store?: EventStore | EntityStore | null;
-    atomStore: ReturnType<typeof createStore>;
   }) {
     super({
       ...options,
-      supergraphFactory: (session) => new ReactiveSupergraph(session, options.atomStore),
+      supergraphClass: ReactiveSupergraph,
     });
     this._dirtyEntities = new Map();
   }
@@ -79,12 +76,13 @@ export class ReactiveSession extends Session {
 
   override flush(): void {
     super.flush();
-    // no need for batch with jotai - updates are already batched
-    for (const node of this._dirtyEntities.values()) {
-      if ("touch" in node._graph) {
-        (node._graph as ReactiveGraph).touch(node.id);
+    batch(() => {
+      for (const node of this._dirtyEntities.values()) {
+        if ("touch" in node._graph) {
+          (node._graph as ReactiveGraph).touch(node.id);
+        }
       }
-    }
+    });
     this._dirtyEntities.clear();
   }
 

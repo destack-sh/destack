@@ -1,24 +1,45 @@
 import { renderStroke } from "@destack-web/shared/freehand/svg";
+import { Signal, signal, useComputed, useSignal, useSignalEffect } from "@preact/signals-react";
 import {
   activeSession,
   Canvas,
   Easing,
+  Event,
   LineShape,
+  Node,
   NodeReference,
   PointerMoveEvent,
+  Query,
+  QueryConnection,
   Stroke,
   StrokeType,
   Vector2f,
 } from "destack";
-import { atom } from "jotai";
-import React, { useRef, useState } from "react";
+import React, { useRef } from "react";
 
-const currentLineAtom = atom<LineShape | null>(null);
+const currentLine = signal<LineShape | null>(null);
 
 // nocheckin: reactive TS graphs & querying
 // basic reactive keys (in (Reactive)Graphs):
 //  - get: snapshot_id + node_id
 //  - get_children: snapshot_id + node_id + [node_type]
+
+function useQuery<T extends Node = Node>(
+  query: Signal<Query<T>>,
+): { connection: Signal<QueryConnection<T> | null>; nodes: Signal<readonly T[]> } {
+  const session = activeSession();
+  const connection: Signal<QueryConnection<T> | null> = useSignal(null);
+  const nodes = useComputed(() => connection.value?.toList() ?? []);
+
+  // useSignalEffect(() => {
+  //   query.value.execute().then((c) => {
+  //     connection.value = c;
+  //     console.log("query.execute", query.value.name);
+  //   });
+  // });
+
+  return { connection, nodes };
+}
 
 const strokeOptions = new Stroke({
   type: StrokeType.FREEHAND,
@@ -33,11 +54,14 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
   console.log("CanvasView.render", canvasPtr.id);
   const session = activeSession();
   const canvas = session.supergraph.getOrError(canvasPtr.id) as Canvas;
-  // const lines = useAtomValue(atom(() => canvas.getChildren(LineShape)));
-  const lines = [];
+  const lineQuery = useSignal(LineShape.search({}));
+  const eventQuery = useSignal(Event.search({}));
+  // const { nodes: lines } = useQuery(lineQuery);
+  const lines = useComputed(() => canvas.getChildren(LineShape));
+  const { nodes: events } = useQuery(eventQuery);
 
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [currentLine, setCurrentLine] = useState<LineShape | null>(null);
+  const isDrawing = useSignal(false);
+  const lastMousePosition = useSignal<Vector2f | null>(null);
 
   const svgRef = useRef<SVGSVGElement>(null);
 
@@ -54,10 +78,10 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
   // begin drawing on mouse down
   const handleMouseDown = (event: React.MouseEvent<SVGSVGElement>) => {
     const point = getMousePosition(event);
-    setIsDrawing(true);
-    const newLine = new LineShape({ name: "LineShape", points: [point] });
-    setCurrentLine(newLine);
-    canvas.addChild(newLine);
+    isDrawing.value = true;
+    lastMousePosition.value = point;
+    currentLine.value = new LineShape({ name: "LineShape", points: [point] });
+    canvas.addChild(currentLine.value);
     console.log("handleMouseDown", canvas.getChildren().length);
     session.commit();
   };
@@ -66,10 +90,10 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
   const handleMouseMove = (event: React.MouseEvent<SVGSVGElement>) => {
     const currentPoint = getMousePosition(event);
 
-    if (isDrawing && currentLine) {
-      const lastPoint = currentLine.points[currentLine.points.length - 1];
+    if (isDrawing.value && currentLine.value) {
+      const lastPoint = currentLine.value.points[currentLine.value.points.length - 1];
       if (lastPoint.x !== currentPoint.x || lastPoint.y !== currentPoint.y) {
-        currentLine.points = [...currentLine.points, currentPoint];
+        currentLine.value.points = [...currentLine.value.points, currentPoint];
       }
     }
     const mouseEvent = new PointerMoveEvent({
@@ -85,9 +109,10 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
 
   // finish drawing on mouse up
   const handleMouseUp = () => {
-    if (isDrawing && currentLine) {
-      setIsDrawing(false);
-      setCurrentLine(null);
+    if (isDrawing.value && currentLine.value) {
+      isDrawing.value = false;
+      currentLine.value = null;
+      lastMousePosition.value = null;
     }
   };
 
@@ -103,7 +128,8 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
           flexDirection: "column",
         }}
       >
-        <span>Lines: {lines.length}</span>
+        <span>Lines: {lines.value.length}</span>
+        <span>Events: {events.value.length}</span>
       </div>
 
       {/* Lines */}
@@ -123,7 +149,7 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
         onMouseLeave={handleMouseUp}
       >
         {/* render completed lines */}
-        {lines.map((line, index) => (
+        {lines.value.map((line, index) => (
           <g key={index}>
             <path
               d={renderStroke(line.points, strokeOptions, { isComplete: true })}
@@ -133,6 +159,14 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
           </g>
         ))}
       </svg>
+
+      {/* Events */}
+      <div style={{ height: "100px", overflow: "auto", background: "gray" }}>
+        {/* render events */}
+        {events.value.slice(-3).map((event, index) => (
+          <div key={index}>{event.repr()}</div>
+        ))}
+      </div>
     </div>
   );
 };
