@@ -24,7 +24,7 @@ from destack.language import (
     StoreKey,
     Tenancy,
 )
-from destack.store import MemoryEntityStore
+from destack.store import MemoryEntityStore, MemoryStore
 from destack.utils.env import get_from_env
 from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
@@ -135,8 +135,8 @@ async def postgres_session(
 
 
 @pytest.fixture
-def memory_store() -> MemoryEntityStore:
-    return MemoryEntityStore(keys=tuple(StoreKey))
+def memory_store() -> MemoryStore:
+    return MemoryStore(keys=tuple(StoreKey))
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")

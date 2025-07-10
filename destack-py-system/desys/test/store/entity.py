@@ -57,8 +57,8 @@ async def test_roundtrip_create_node(node: Node, session: Session):
     assert node.equals(node_unpacked)
 
 
-@pytest.mark.parametrize("_session", ENTITY_SESSIONS)
-async def test_create_user_with_clients(_session: Session):
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+async def test_create_user_with_clients(session: Session):
     """Create and update a User with Clients, querying along the way."""
     # create user
     user = User(
@@ -67,12 +67,12 @@ async def test_create_user_with_clients(_session: Session):
         slug="floof",
         space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
     )
-    _session.create(user)
-    await _session.commit()
+    session.create(user)
+    await session.commit()
     # update user
     user.name = "Fluff"
     user.slug = "flotothemoon"
-    await _session.commit()
+    await session.commit()
     # query user by id
     user_unpacked = await User.get(where=User.property("id").eq(user.id)).execute_one()
     assert user_unpacked.created_at == user.created_at
@@ -88,7 +88,7 @@ async def test_create_user_with_clients(_session: Session):
     client_a = Client(type=ClientType.WEB, name="Client A")
     client_b = Client(type=ClientType.WEB, name="Client B")
     user.add_children(client_a, client_b)
-    await _session.commit()
+    await session.commit()
     # query clients
     clients = await Client.search(sort=[Client.property("name").desc()]).execute_list()
     assert clients == [client_b, client_a]

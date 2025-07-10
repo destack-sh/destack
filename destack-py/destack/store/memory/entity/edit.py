@@ -23,8 +23,9 @@ from destack.language import (
     NodeType,
 )
 
-from .core import MemoryContext, VersionedNodeKey
-from .wiring import pack_node_row
+from ..core import MemoryContext
+from .core import VersionedNodeKey
+from .wiring import pack_entity_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -152,7 +153,7 @@ def _execute_edit(
     """
     from destack.language import ScalarType
 
-    table = context.get(definition)
+    table = context.get_entity_table(definition)
 
     # create/upsert
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
@@ -161,11 +162,11 @@ def _execute_edit(
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if edit_type == EditType.UPSERT or node_key not in table.rows:
-                row = pack_node_row(table, edit.value)
+                row = pack_entity_row(edit.value)
                 table.rows[node_key] = row
                 table.rows_by_snapshot[snapshot_id][node_key.id] = row
                 if row.parent_ptr is not None:
-                    parent_table = context.get(row.parent_ptr)
+                    parent_table = context.get_entity_table(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
                     parent_table.rows_by_parent[parent_key].append(row)
 
@@ -215,7 +216,7 @@ def _execute_edit(
             if row := table.rows.get(node_key):
                 # remove from old parent
                 if row.parent_ptr is not None:
-                    parent_table = context.get(row.parent_ptr)
+                    parent_table = context.get_entity_table(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
                     parent_table.rows_by_parent[parent_key].remove(row)
                 # update parent pointer
@@ -225,7 +226,7 @@ def _execute_edit(
                 )
                 # add to new parent
                 if row.parent_ptr is not None:
-                    parent_table = context.get(row.parent_ptr)
+                    parent_table = context.get_entity_table(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
                     parent_table.rows_by_parent[parent_key].append(row)
 
@@ -323,7 +324,7 @@ def _execute_edit(
 
         # delete rows
         for node_ptr in chain(nodes_ptr, cascaded_node_ptrs):
-            node_table = context.get(node_ptr)
+            node_table = context.get_entity_table(node_ptr)
             snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             row = node_table.rows.pop(node_key, None)
@@ -332,7 +333,7 @@ def _execute_edit(
                 if not node_table.rows_by_snapshot[snapshot_id]:
                     node_table.rows_by_snapshot.pop(snapshot_id, None)
                 if row.parent_ptr is not None:
-                    parent_table = context.get(row.parent_ptr)
+                    parent_table = context.get_entity_table(row.parent_ptr)
                     parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
                     parent_table.rows_by_parent[parent_key].remove(row)
 

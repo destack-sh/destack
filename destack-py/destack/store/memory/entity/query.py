@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import Any, assert_never
+from typing import assert_never
 
 import structlog
 from opentelemetry import trace
@@ -12,31 +12,33 @@ from destack.language import (
     ConditionalType,
     EdgeDirection,
     Expression,
-    ExpressionType,
-    Function,
-    FunctionType,
     JoinType,
     Node,
     NodeDefinitionReference,
     NodeReference,
     PropertyReference,
-    PropertyReferenceType,
     Query,
     QueryResult,
     QueryResultGroup,
     QueryType,
-    ScalarType,
     Select,
     Sort,
     SortType,
-    TypeCardinality,
     Value,
     to_value,
 )
 from destack.utils.uuid import UUID
 
-from .core import MemoryContext, MemoryRow, VersionedNodeKey
-from .wiring import unpack_node_row
+from ..core import MemoryContext
+from ..evaluate import (
+    _extract_id_condition,
+    evaluate_aggregation,
+    evaluate_condition,
+    evaluate_expression,
+    evaluate_sort_key,
+)
+from .core import MemoryEntityRow, VersionedNodeKey
+from .wiring import unpack_entity_row
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -51,274 +53,6 @@ NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 NODE_REFERENCE_SPACE_ID_KEY = str(NodeReference.property("space_id").id)
 NODE_REFERENCE_DEFINITION_ID_KEY = str(NodeReference.property("definition_id").id)
-
-
-def _evaluate_expression(context: MemoryContext, expression: Expression, row: MemoryRow) -> Any:
-    """Evaluate an Expression against in-memory row data."""
-    if expression.type == ExpressionType.LITERAL:
-        assert expression.literal is not None, f"no literal for {expression!r}"
-        if expression.literal.type.scalar_type == ScalarType.NODE_REFERENCE:
-            return (
-                expression.literal.value[NODE_REFERENCE_ID_KEY]
-                if expression.literal.value is not None
-                else None
-            )
-        else:
-            return expression.literal.value
-    elif expression.type == ExpressionType.ATTRIBUTE:
-        assert expression.attribute is not None, f"no attribute for {expression!r}"
-        attr = expression.attribute
-        if attr.type == PropertyReferenceType.BUILTIN:
-            prop = attr.resolve_or_error()
-            if prop.scalar_type == ScalarType.NODE_REFERENCE:
-                node_ptr_packed = row.value.get(str(prop.id))
-                return (
-                    node_ptr_packed[NODE_REFERENCE_ID_KEY] if node_ptr_packed is not None else None
-                )
-            else:
-                return row.value.get(str(prop.id))
-        else:
-            raise NotImplementedError(f"unsupported attribute type: {attr.type}")
-    elif expression.type == ExpressionType.CONDITION:
-        assert expression.condition is not None, f"no condition for {expression!r}"
-        return _evaluate_condition(context, expression.condition, row)
-    elif expression.type == ExpressionType.FUNCTION:
-        assert expression.function is not None, f"no function for {expression!r}"
-        return _evaluate_function(context, expression.function, row)
-    elif expression.type == ExpressionType.AGGREGATION:
-        # Aggregations need to be handled at a higher level with multiple rows
-        raise RuntimeError(f"aggregation cannot be evaluated on single row: {expression!r}")
-    else:
-        assert_never(expression.type)
-
-
-def _evaluate_condition(context: MemoryContext, condition: Condition, row: MemoryRow) -> bool:
-    """Evaluate a Condition against in-memory row data."""
-    # logical
-    if condition.type == ConditionalType.NOT:
-        left_val = _evaluate_expression(context, condition.left, row)
-        return not bool(left_val)
-    elif condition.type == ConditionalType.AND:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        if not left_val:
-            return False
-        right_val = _evaluate_expression(context, condition.right, row)
-        return bool(right_val)
-    elif condition.type == ConditionalType.OR:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        if left_val:
-            return True
-        right_val = _evaluate_expression(context, condition.right, row)
-        return bool(right_val)
-    # comparison
-    elif condition.type == ConditionalType.EQUALS:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        return left_val == right_val
-    elif condition.type == ConditionalType.NOT_EQUALS:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        return left_val != right_val
-    elif condition.type == ConditionalType.GREATER_THAN:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        return left_val > right_val
-    elif condition.type == ConditionalType.GREATER_THAN_OR_EQUALS:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        return left_val >= right_val
-    elif condition.type == ConditionalType.LESS_THAN:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        return left_val < right_val
-    elif condition.type == ConditionalType.LESS_THAN_OR_EQUALS:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        return left_val <= right_val
-    # string
-    elif condition.type == ConditionalType.MATCHES:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        if left_val is None or right_val is None:
-            return False
-        # Simple pattern matching (could be enhanced with regex)
-        return str(right_val) in str(left_val)
-    elif condition.type == ConditionalType.STARTS_WITH:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        if left_val is None or right_val is None:
-            return False
-        return str(left_val).startswith(str(right_val))
-    elif condition.type == ConditionalType.ENDS_WITH:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        if left_val is None or right_val is None:
-            return False
-        return str(left_val).endswith(str(right_val))
-    # collections
-    elif condition.type == ConditionalType.IN:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        if right_val is None:
-            return False
-        if isinstance(right_val, (list, tuple)):
-            return left_val in right_val
-        return left_val == right_val
-    elif condition.type == ConditionalType.NOT_IN:
-        assert condition.right is not None, f"no right for {condition!r}"
-        left_val = _evaluate_expression(context, condition.left, row)
-        right_val = _evaluate_expression(context, condition.right, row)
-        if right_val is None:
-            return True
-        if isinstance(right_val, (list, tuple)):
-            return left_val not in right_val
-        return left_val != right_val
-    # existence
-    elif condition.type == ConditionalType.EXISTS:
-        left_val = _evaluate_expression(context, condition.left, row)
-        return left_val is not None
-    elif condition.type == ConditionalType.NOT_EXISTS:
-        left_val = _evaluate_expression(context, condition.left, row)
-        return left_val is None
-    else:
-        assert_never(condition.type)
-
-
-def _evaluate_sort(
-    context: MemoryContext, sort: Sequence[Sort], rows: list[MemoryRow]
-) -> list[MemoryRow]:
-    """Sort in-memory rows based on Sort criteria."""
-    if not sort:
-        return rows
-
-    def sort_key(row: MemoryRow) -> tuple:
-        key_values: list[Any] = []
-        for s in sort:
-            val = _evaluate_expression(context, s.by, row)
-            # Handle None values by putting them at the end
-            val = (1, None) if val is None else (0, val)
-            key_values.append(val)
-        return tuple(key_values)
-
-    reverse_flags = tuple(s.type == SortType.DESCENDING for s in sort)
-    rows.sort(key=sort_key, reverse=all(reverse_flags))
-    return rows
-
-
-def _evaluate_function(context: MemoryContext, function: Function, row: MemoryRow) -> Any:
-    """Evaluate a Function against in-memory row data."""
-    left_val = _evaluate_expression(context, function.left, row)
-    if function.type == FunctionType.ADD:
-        assert function.right is not None, f"no right for {function!r}"
-        right_val = _evaluate_expression(context, function.right, row)
-        return left_val + right_val
-    elif function.type == FunctionType.SUBTRACT:
-        assert function.right is not None, f"no right for {function!r}"
-        right_val = _evaluate_expression(context, function.right, row)
-        return left_val - right_val
-    elif function.type == FunctionType.MULTIPLY:
-        assert function.right is not None, f"no right for {function!r}"
-        right_val = _evaluate_expression(context, function.right, row)
-        return left_val * right_val
-    elif function.type == FunctionType.DIVIDE:
-        assert function.right is not None, f"no right for {function!r}"
-        right_val = _evaluate_expression(context, function.right, row)
-        return left_val / right_val
-    elif function.type == FunctionType.MODULO:
-        assert function.right is not None, f"no right for {function!r}"
-        right_val = _evaluate_expression(context, function.right, row)
-        return left_val % right_val
-    elif function.type == FunctionType.POWER:
-        assert function.right is not None, f"no right for {function!r}"
-        right_val = _evaluate_expression(context, function.right, row)
-        return left_val**right_val
-    else:
-        assert_never(function.type)
-
-
-def _evaluate_aggregation(
-    context: MemoryContext, aggregation: Aggregation, rows: list[MemoryRow]
-) -> Any:
-    """Evaluate an Aggregation against in-memory rows."""
-    if aggregation.type == AggregationType.EXISTS:
-        return len(rows) > 0
-    elif aggregation.type == AggregationType.COUNT:
-        return len(rows)
-    elif aggregation.type == AggregationType.SUM:
-        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
-        total = 0
-        for row in rows:
-            val = _evaluate_expression(context, aggregation.expression, row)
-            if val is not None:
-                total += val
-        return total
-    elif aggregation.type == AggregationType.MIN:
-        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
-        min_val = None
-        for row in rows:
-            val = _evaluate_expression(context, aggregation.expression, row)
-            if val is not None and (min_val is None or val < min_val):
-                min_val = val
-        return min_val
-    elif aggregation.type == AggregationType.MAX:
-        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
-        max_val = None
-        for row in rows:
-            val = _evaluate_expression(context, aggregation.expression, row)
-            if val is not None and (max_val is None or val > max_val):
-                max_val = val
-        return max_val
-    elif aggregation.type == AggregationType.AVERAGE:
-        assert aggregation.expression is not None, f"no expression for {aggregation!r}"
-        total = 0
-        count = 0
-        for row in rows:
-            val = _evaluate_expression(context, aggregation.expression, row)
-            if val is not None:
-                total += val
-                count += 1
-        return total / count if count > 0 else None
-    else:
-        assert_never(aggregation.type)
-
-
-def _extract_id_condition(condition: Condition) -> tuple[bool, Sequence[UUID]]:
-    """Check if condition is id = value or id IN values and return the value(s)."""
-    if (
-        (condition.type == ConditionalType.EQUALS or condition.type == ConditionalType.IN)
-        and (left := condition.left) is not None
-        and left.type == ExpressionType.ATTRIBUTE
-        and (attribute := left.attribute) is not None
-        and attribute.type == PropertyReferenceType.BUILTIN
-        and (attribute.id == NODE_ID_ID)
-        and (right := condition.right) is not None
-        and right.type == ExpressionType.LITERAL
-    ):
-        assert right.literal is not None, f"no literal for {right!r}"
-        if right.literal.type.cardinality == TypeCardinality.SCALAR:
-            if right.literal.type.scalar_type == ScalarType.PRIMITIVE:
-                return True, (right.literal.unpack(),)
-            else:
-                return True, (right.literal.unpack().id,)
-        elif right.literal.type.cardinality == TypeCardinality.LIST:
-            if right.literal.type.scalar_type == ScalarType.PRIMITIVE:
-                return True, right.literal.unpack()
-            else:
-                return True, [ptr.id for ptr in right.literal.unpack()]
-
-    return False, ()
 
 
 @tracer.start_as_current_span("memory.query_node")
@@ -357,31 +91,36 @@ def _query_node(
             all_ptrs.extend(ptrs)
         return all_values, all_ptrs
 
-    table = context.get(definition)
+    table = context.get_entity_table(definition)
     snapshot_id = snapshot_path[-1] if snapshot_path else None
 
     # filter
     if where is not None:
         is_id_query, node_ids = _extract_id_condition(where)
         if is_id_query:
-            filtered_rows: list[MemoryRow] = []
+            filtered_rows: list[MemoryEntityRow] = []
             for id_val in node_ids:
                 node_key = VersionedNodeKey(id=id_val, snapshot_id=snapshot_id)
-                if (row := table.rows.get(node_key)) is not None and _evaluate_condition(
-                    context, where, row
+                if (row := table.rows.get(node_key)) is not None and evaluate_condition(
+                    row.value, where
                 ):
                     filtered_rows.append(row)
         else:
             filtered_rows = []
             for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if _evaluate_condition(context, where, row):
+                if evaluate_condition(row.value, where):
                     filtered_rows.append(row)
     else:
         filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
 
     # sort
     if sort:
-        filtered_rows = _evaluate_sort(context, sort, filtered_rows)
+
+        def sort_key(row: MemoryEntityRow) -> tuple:
+            return evaluate_sort_key(row.value, sort)
+
+        reverse_flags = any(s.type == SortType.DESCENDING for s in sort)
+        filtered_rows.sort(key=sort_key, reverse=reverse_flags)
     if offset:
         filtered_rows = filtered_rows[offset:]
     if limit:
@@ -391,7 +130,7 @@ def _query_node(
     values: list[Value] = []
     ptrs: list[NodeReference] = []
     for row in filtered_rows:
-        values.append(unpack_node_row(table, row))
+        values.append(unpack_entity_row(row))
         ptrs.append(row.ptr)
 
     return values, ptrs
@@ -411,21 +150,21 @@ def _query_scalar(
     # collect rows
     if definition.is_multi:
         definitions = context.resolve(definition)
-        filtered_rows: list[MemoryRow] = []
+        filtered_rows: list[MemoryEntityRow] = []
         for rel in definitions:
-            table = context.get(rel)
+            table = context.get_entity_table(rel)
             for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if where is None or _evaluate_condition(context, where, row):
+                if where is None or evaluate_condition(row.value, where):
                     filtered_rows.append(row)
     else:
-        table = context.get(definition)
+        table = context.get_entity_table(definition)
         filtered_rows = []
         for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-            if where is None or _evaluate_condition(context, where, row):
+            if where is None or evaluate_condition(row.value, where):
                 filtered_rows.append(row)
 
     # execute
-    scalar = _evaluate_aggregation(context, aggregation, filtered_rows)
+    scalar = evaluate_aggregation([row.value for row in filtered_rows], aggregation)
     scalar_value = to_value(scalar)
     logger.trace(
         "memory.query_scalar",
@@ -453,33 +192,33 @@ def _query_grouped_node(
     if definition.is_multi:
         raise NotImplementedError("grouped node queries not supported for multi definitions")
 
-    table = context.get(definition)
+    table = context.get_entity_table(definition)
     snapshot_id = snapshot_path[-1] if snapshot_path else None
 
     # filter
     if where is not None:
         is_id_query, node_ids = _extract_id_condition(where)
         if is_id_query:
-            filtered_rows: list[MemoryRow] = []
+            filtered_rows: list[MemoryEntityRow] = []
             for node_id in node_ids:
                 node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
-                if (row := table.rows.get(node_key)) is not None and _evaluate_condition(
-                    context, where, row
+                if (row := table.rows.get(node_key)) is not None and evaluate_condition(
+                    row.value, where
                 ):
                     filtered_rows.append(row)
         else:
             # filter rows based on where condition
             filtered_rows = []
             for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if _evaluate_condition(context, where, row):
+                if evaluate_condition(row.value, where):
                     filtered_rows.append(row)
     else:
         filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
 
     # group rows by group_by expressions
-    groups: dict[tuple, list[MemoryRow]] = {}
+    groups: dict[tuple, list[MemoryEntityRow]] = {}
     for row in filtered_rows:
-        group_key = tuple(_evaluate_expression(context, expr, row) for expr in group_by)
+        group_key = tuple(evaluate_expression(row.value, expr) for expr in group_by)
         if group_key not in groups:
             groups[group_key] = []
         groups[group_key].append(row)
@@ -488,10 +227,15 @@ def _query_grouped_node(
     results: list[tuple[Value, list[Value], list[NodeReference]]] = []
     for group_key, group_rows in groups.items():
         if having is not None and group_rows:
-            if not _evaluate_condition(context, having, group_rows[0]):
+            if not evaluate_condition(group_rows[0].value, having):
                 continue
         if sort:
-            group_rows = _evaluate_sort(context, sort, group_rows)
+
+            def sort_key(row: MemoryEntityRow) -> tuple:
+                return evaluate_sort_key(row.value, sort)
+
+            reverse_flags = any(s.type == SortType.DESCENDING for s in sort)
+            group_rows.sort(key=sort_key, reverse=reverse_flags)
         if offset:
             group_rows = group_rows[offset:]
         if limit:
@@ -500,7 +244,7 @@ def _query_grouped_node(
         values: list[Value] = []
         ptrs: list[NodeReference] = []
         for row in group_rows:
-            values.append(unpack_node_row(table, row))
+            values.append(unpack_entity_row(row))
             ptrs.append(row.ptr)
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), values, ptrs))
@@ -529,18 +273,18 @@ def _query_grouped_scalar(
     if definition.is_multi:
         raise NotImplementedError("grouped scalar queries not supported for multi definitions")
 
-    table = context.get(definition)
+    table = context.get_entity_table(definition)
 
     # filter rows based on where condition
-    filtered_nodes: list[MemoryRow] = []
+    filtered_nodes: list[MemoryEntityRow] = []
     for row in table.rows.values():
-        if where is None or _evaluate_condition(context, where, row):
+        if where is None or evaluate_condition(row.value, where):
             filtered_nodes.append(row)
 
     # group rows by group_by expressions
-    groups: dict[tuple, list[MemoryRow]] = {}
+    groups: dict[tuple, list[MemoryEntityRow]] = {}
     for row in filtered_nodes:
-        group_key = tuple(_evaluate_expression(context, expr, row) for expr in group_by)
+        group_key = tuple(evaluate_expression(row.value, expr) for expr in group_by)
         if group_key not in groups:
             groups[group_key] = []
         groups[group_key].append(row)
@@ -549,9 +293,9 @@ def _query_grouped_scalar(
     results: list[tuple[Value, Value]] = []
     for group_key, group_rows in groups.items():
         if having is not None and group_rows:
-            if not _evaluate_condition(context, having, group_rows[0]):
+            if not evaluate_condition(group_rows[0].value, having):
                 continue
-        agg_result = _evaluate_aggregation(context, aggregation, group_rows)
+        agg_result = evaluate_aggregation([row.value for row in group_rows], aggregation)
         discriminator = group_key[0] if group_key else None
         results.append((to_value(discriminator), to_value(agg_result)))
 
@@ -597,14 +341,14 @@ def _walk_node(
 
             next_node_ids: set[UUID] = set()
             for rel in definitions:
-                table = context.get(rel)
+                table = context.get_entity_table(rel)
                 for node_id in current_node_ids:
                     node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
                     if (
                         (row := table.rows.get(node_key)) is not None
                         and (parent_ptr := row.parent_ptr) is not None
                         and (parent_id := parent_ptr.id) not in nodes_by_id
-                        and (where is None or _evaluate_condition(context, where, row))
+                        and (where is None or evaluate_condition(row.value, where))
                     ):
                         source_id_by_node_id[parent_id] = source_id_by_node_id[node_id]
                         nodes_by_id[parent_id] = parent_ptr
@@ -626,13 +370,13 @@ def _walk_node(
 
             next_parent_ids: set[UUID] = set()
             for rel in definitions:
-                table = context.get(rel)
+                table = context.get_entity_table(rel)
                 for parent_id in current_parent_ids:
                     parent_key = VersionedNodeKey(id=parent_id, snapshot_id=snapshot_id)
                     if children := table.rows_by_parent.get(parent_key):
                         for row in children:
                             if (node_id := row.id) not in nodes_by_id and (
-                                where is None or _evaluate_condition(context, where, row)
+                                where is None or evaluate_condition(row.value, where)
                             ):
                                 source_id_by_node_id[node_id] = source_id_by_node_id[parent_id]
                                 nodes_by_id[node_id] = row.ptr

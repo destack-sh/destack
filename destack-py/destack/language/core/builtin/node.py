@@ -300,7 +300,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
             join=Join.of(join) if join is not None else None,
             where=where,
             subqueries=to_subqueries(subqueries),
-            limit=3,
         )
         return query  # type: ignore
 
