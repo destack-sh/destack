@@ -1,5 +1,4 @@
 import {
-  Materialization,
   NodeDefinitionReference,
   NodeDefinitionType,
   NodeReference,
@@ -7,6 +6,8 @@ import {
 } from "@destack/language";
 import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
 import { assertNever } from "@destack/utils";
+import { MemoryEntityTable } from "./entity/core";
+import { MemoryEventTable } from "./event/core";
 
 export interface VersionedNodeKey {
   id: string;
@@ -14,18 +15,24 @@ export interface VersionedNodeKey {
 }
 
 export class MemoryDatabase {
-  public tables: Map<NodeType, MemoryTable>;
+  public entityTables: Map<NodeType, MemoryEntityTable>;
+  public eventTables: Map<NodeType, MemoryEventTable>;
 
   constructor() {
-    this.tables = new Map();
+    this.entityTables = new Map();
+    this.eventTables = new Map();
   }
 
   toString(): string {
-    const numNodes = Array.from(this.tables.values()).reduce(
+    const numEntities = Array.from(this.entityTables.values()).reduce(
       (sum, table) => sum + table.rows.size,
       0,
     );
-    return `nodes=${numNodes}, tables=${this.tables.size}`;
+    const numEvents = Array.from(this.eventTables.values()).reduce(
+      (sum, table) => sum + table.rows.size,
+      0,
+    );
+    return `entities=${numEntities}, events=${numEvents}, tables=${this.entityTables.size}`;
   }
 
   repr(): string {
@@ -41,7 +48,7 @@ export class MemoryContext {
   }
 
   toString(): string {
-    return `tables=${this.database.tables.size}`;
+    return `entityTables=${this.database.entityTables.size}, eventTables=${this.database.eventTables.size}`;
   }
 
   repr(): string {
@@ -78,13 +85,22 @@ export class MemoryContext {
     }
   }
 
-  /** Get the Table for a NodeDefinition. */
-  get(definition: NodeDefinitionReference | NodeReference): MemoryTable {
+  /** Get the entity table for a NodeDefinition. */
+  getEntityTable(definition: NodeDefinitionReference | NodeReference): MemoryEntityTable {
     const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
-    if (!this.database.tables.has(nodeType)) {
-      this.database.tables.set(nodeType, new MemoryTable(this.database, nodeType));
+    if (!this.database.entityTables.has(nodeType)) {
+      this.database.entityTables.set(nodeType, new MemoryEntityTable(this.database, nodeType));
     }
-    return this.database.tables.get(nodeType)!;
+    return this.database.entityTables.get(nodeType)!;
+  }
+
+  /** Get the event table for a NodeDefinition. */
+  getEventTable(definition: NodeDefinitionReference | NodeReference): MemoryEventTable {
+    const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
+    if (!this.database.eventTables.has(nodeType)) {
+      this.database.eventTables.set(nodeType, new MemoryEventTable(this.database, nodeType));
+    }
+    return this.database.eventTables.get(nodeType)!;
   }
 
   copy(): MemoryContext {
@@ -92,70 +108,4 @@ export class MemoryContext {
   }
 }
 
-export class MemoryTable {
-  public database: MemoryDatabase;
-  public nodeType: NodeType;
-  public rows: Map<string, MemoryRow>; // key is serialized VersionedNodeKey
-  public rowsByParent: Map<string, MemoryRow[]>; // key is serialized VersionedNodeKey
-  public rowsBySnapshot: Map<string | null, Map<string, MemoryRow>>; // first key is snapshot_id, second is node_id
 
-  constructor(database: MemoryDatabase, nodeType: NodeType) {
-    this.database = database;
-    this.nodeType = nodeType;
-    this.rows = new Map();
-    this.rowsByParent = new Map();
-    this.rowsBySnapshot = new Map();
-  }
-
-  toString(): string {
-    return `nodeType=${NodeType[this.nodeType]}, rows=${this.rows.size}`;
-  }
-
-  repr(): string {
-    return `<MemoryTable ${this.toString()}>`;
-  }
-
-  /** Convert a VersionedNodeKey to a string key. */
-  getNodeKey(nodeKey: VersionedNodeKey): string {
-    return `${nodeKey.id}:${nodeKey.snapshotId || "<root>"}`;
-  }
-}
-
-export class MemoryRow {
-  public table: MemoryTable;
-  public nodeType: NodeType;
-  public id: string;
-  public snapshotId: string | null;
-  public materialization: Materialization | null;
-  public ptr: NodeReference;
-  public parentPtr: NodeReference | null;
-  public value: Record<string, any>;
-
-  constructor(
-    table: MemoryTable,
-    nodeType: NodeType,
-    id: string,
-    snapshotId: string | null,
-    materialization: Materialization | null,
-    ptr: NodeReference,
-    parentPtr: NodeReference | null,
-    value: Record<string, any>,
-  ) {
-    this.table = table;
-    this.nodeType = nodeType;
-    this.id = id;
-    this.snapshotId = snapshotId;
-    this.materialization = materialization;
-    this.ptr = ptr;
-    this.parentPtr = parentPtr;
-    this.value = value;
-  }
-
-  toString(): string {
-    return `nodeType${this.nodeType}, id=${this.id}, value=${Object.keys(this.value).length}`;
-  }
-
-  repr(): string {
-    return `<MemoryRow ${this.toString()}>`;
-  }
-}

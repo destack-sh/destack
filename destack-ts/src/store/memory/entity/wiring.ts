@@ -5,17 +5,19 @@ import {
   Materialization,
   Node,
   NodeReference,
+  NodeType,
   ScalarType,
   Type,
   TypeCardinality,
   Value,
 } from "@destack/language";
-import { MemoryRow, MemoryTable } from "@destack/store/memory/core";
+import { MemoryEntityRow } from "@destack/store/memory/entity/core";
 
+const NODE_METATYPE_KEY = String(Node.property("metatype").id);
 const NODE_ID_KEY = String(Node.property("id").id);
 const NODE_PARENT_PTR_KEY = String(Node.property("parent").id);
-const NODE_SPACE_PTR_KEY = String(IsSpatial.property("space").id);
-const NODE_DEFINITION_PTR_KEY = String(IsExtensible.property("definition").id);
+const NODE_SPACE_PTR_ID = String(IsSpatial.property("space").id);
+const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
 
 const ENTITY_SNAPSHOT_PTR_KEY = String(Entity.property("snapshot").id);
 const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
@@ -23,26 +25,27 @@ const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id)
 const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 
 /**
- * Pack a Value into a MemoryRow.
+ * Pack a Value into a MemoryEntityRow.
  */
-export function packNodeRow(table: MemoryTable, value: Value): MemoryRow {
+export function packEntityRow(value: Value): MemoryEntityRow {
   const valuePacked = value.value;
   if (!valuePacked) {
     throw new Error(`no value for ${value.repr()}`);
   }
 
+  const nodeType = Number(valuePacked[NODE_METATYPE_KEY]) as NodeType;
   const id = String(valuePacked[NODE_ID_KEY]);
   const ptr = new NodeReference({
-    type: table.nodeType,
+    type: nodeType,
     id: String(valuePacked[NODE_ID_KEY]),
     spaceId:
-      NODE_SPACE_PTR_KEY in valuePacked
-        ? String(valuePacked[NODE_SPACE_PTR_KEY][NODE_REFERENCE_ID_KEY])
-        : null,
+      NODE_SPACE_PTR_ID in valuePacked
+        ? String(valuePacked[NODE_SPACE_PTR_ID][NODE_REFERENCE_ID_KEY])
+        : undefined,
     definitionId:
-      NODE_DEFINITION_PTR_KEY in valuePacked
-        ? String(valuePacked[NODE_DEFINITION_PTR_KEY][NODE_REFERENCE_ID_KEY])
-        : null,
+      NODE_DEFINITION_PTR_ID in valuePacked
+        ? String(valuePacked[NODE_DEFINITION_PTR_ID][NODE_REFERENCE_ID_KEY])
+        : undefined,
   });
 
   let parentPtr: NodeReference | null = null;
@@ -63,28 +66,27 @@ export function packNodeRow(table: MemoryTable, value: Value): MemoryRow {
     materialization = materializationValue as Materialization;
   }
 
-  const row = new MemoryRow(
-    table,
-    table.nodeType,
+  const row = new MemoryEntityRow({
+    metatype: nodeType,
     id,
-    snapshotPtr?.id || null,
+    snapshotId: snapshotPtr?.id || null,
     materialization,
     ptr,
     parentPtr,
-    valuePacked,
-  );
+    value: valuePacked,
+  });
 
   return row;
 }
 
 /**
- * Unpack a MemoryRow to a Value.
+ * Unpack a MemoryEntityRow to a Value.
  */
-export function unpackNodeRow(table: MemoryTable, row: MemoryRow): Value {
+export function unpackEntityRow(row: MemoryEntityRow): Value {
   const typeInfo = new Type({
     cardinality: TypeCardinality.SCALAR,
     scalarType: ScalarType.NODE_VALUE,
-    nodeType: row.nodeType,
+    nodeType: row.metatype,
   });
 
   return new Value({
