@@ -1,4 +1,4 @@
-import { signal, Signal } from "@preact/signals-react";
+import { atom, createStore, PrimitiveAtom } from "jotai";
 import {
   expandNodeTypes,
   Graph,
@@ -32,30 +32,32 @@ export interface ReactiveGraph extends Graph {
 
 /** A reactive variant of SingletonGraph. */
 export class ReactiveSingletonGraph extends SingletonGraph implements ReactiveGraph {
-  readonly _signal: Signal<number>;
+  readonly _atom: PrimitiveAtom<number>;
+  readonly _store: ReturnType<typeof createStore>;
 
-  constructor(supergraph: Supergraph, node: Node) {
+  constructor(supergraph: ReactiveSupergraph, node: Node) {
     super(supergraph, node);
-    this._signal = signal(0);
+    this._store = (supergraph as ReactiveSupergraph)._store;
+    this._atom = atom(0);
   }
 
   touchAll(): void {
-    this._signal.value++;
+    this._store.set(this._atom, (prev) => prev + 1);
   }
 
   subscribeAll(): void {
-    this._signal.value;
+    this._store.get(this._atom);
   }
 
   touch(id: string): void {
     if (this.node.id == id) {
-      this._signal.value += 1;
+      this._store.set(this._atom, (prev) => prev + 1);
     }
   }
 
   subscribe(id: string): void {
     if (this.node.id == id) {
-      this._signal.value;
+      this._store.get(this._atom);
     }
   }
 
@@ -85,32 +87,34 @@ export class ReactiveSingletonGraph extends SingletonGraph implements ReactiveGr
 
 /** A reactive variant of PolyGraph. */
 export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
-  readonly _signalAll: Signal<number>;
-  readonly _signalById: Map<string, Signal<number>>;
-  readonly _signalByParent: Map<string, Signal<number>>;
+  readonly _atomAll: PrimitiveAtom<number>;
+  readonly _atomById: Map<string, PrimitiveAtom<number>>;
+  readonly _atomByParent: Map<string, PrimitiveAtom<number>>;
+  readonly _store: ReturnType<typeof createStore>;
 
-  constructor(supergraph: Supergraph) {
+  constructor(supergraph: ReactiveSupergraph) {
     super(supergraph);
-    this._signalAll = signal(0);
-    this._signalById = new Map();
-    this._signalByParent = new Map();
+    this._store = (supergraph as ReactiveSupergraph)._store;
+    this._atomAll = atom(0);
+    this._atomById = new Map();
+    this._atomByParent = new Map();
   }
 
   touchAll(): void {
-    console.log("touchAll");
-    this._signalAll.value++;
+    console.log("ReactiveGraph.touchAll");
+    this._store.set(this._atomAll, (prev) => prev + 1);
   }
 
   subscribeAll(): void {
-    console.log("subscribeAll");
-    this._signalAll.value;
+    console.log("ReactiveGraph.subscribeAll");
+    this._store.get(this._atomAll);
   }
 
   touch(id: string): void {
-    console.log("touch", id);
-    this._signalAll.value++;
-    if (this._signalById.has(id)) {
-      this._signalById.get(id)!.value += 1;
+    console.log("ReactiveGraph.touch", id);
+    this._store.set(this._atomAll, (prev) => prev + 1);
+    if (this._atomById.has(id)) {
+      this._store.set(this._atomById.get(id)!, (prev) => prev + 1);
     }
     const node = this.nodesById.get(id);
     if (node?.parentPtr != null) {
@@ -119,29 +123,29 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   }
 
   subscribe(id: string): void {
-    console.log("subscribe", id);
-    this._signalAll.value;
+    console.log("ReactiveGraph.subscribe", id);
+    this._store.get(this._atomAll);
     if (this.nodesById.has(id)) {
-      if (!this._signalById.has(id)) {
-        this._signalById.set(id, signal(0));
+      if (!this._atomById.has(id)) {
+        this._atomById.set(id, atom(0));
       }
-      this._signalById.get(id)!.value;
+      this._store.get(this._atomById.get(id)!);
     }
   }
 
   touchChildren(id: string): void {
-    console.log("touchChildren", id);
-    this._signalAll.value++;
-    if (this._signalByParent.has(id)) {
-      this._signalByParent.get(id)!.value += 1;
+    console.log("ReactiveGraph.touchChildren", id);
+    this._store.set(this._atomAll, (prev) => prev + 1);
+    if (this._atomByParent.has(id)) {
+      this._store.set(this._atomByParent.get(id)!, (prev) => prev + 1);
     }
   }
 
   subscribeChildren(id: string): void {
-    console.log("subscribeChildren", id);
-    this._signalAll.value;
-    if (this._signalByParent.has(id)) {
-      this._signalByParent.get(id)!.value;
+    console.log("ReactiveGraph.subscribeChildren", id);
+    this._store.get(this._atomAll);
+    if (this._atomByParent.has(id)) {
+      this._store.get(this._atomByParent.get(id)!);
     }
   }
 
@@ -168,8 +172,8 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   override clear(): void {
     this.touchAll();
     super.clear();
-    this._signalById.clear();
-    this._signalByParent.clear();
+    this._atomById.clear();
+    this._atomByParent.clear();
   }
 
   override add(node: Node): void {
@@ -180,8 +184,8 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
   override remove(node: Node): void {
     this.touch(node.id);
     super.remove(node);
-    this._signalById.delete(node.id);
-    this._signalByParent.delete(node.id);
+    this._atomById.delete(node.id);
+    this._atomByParent.delete(node.id);
   }
 
   override getRoots(options?: { nodeType?: NodeType }): Node[] {
@@ -236,6 +240,13 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
 
 /** A reactive variant of Supergraph. */
 export class ReactiveSupergraph extends Supergraph {
+  readonly _store: ReturnType<typeof createStore>;
+
+  constructor(session: any, store: ReturnType<typeof createStore>) {
+    super(session);
+    this._store = store;
+  }
+
   override createSingletonGraph(node: Node): ReactiveSingletonGraph {
     const newGraph = new ReactiveSingletonGraph(this, node);
     this.addGraph(newGraph);
