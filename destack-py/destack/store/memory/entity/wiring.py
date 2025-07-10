@@ -5,6 +5,7 @@ from destack.language import (
     Materialization,
     Node,
     NodeReference,
+    NodeType,
     ScalarType,
     Type,
     TypeCardinality,
@@ -12,8 +13,9 @@ from destack.language import (
 )
 from destack.utils.uuid import UUID
 
-from .core import MemoryRow, MemoryTable
+from .core import MemoryEntityRow
 
+NODE_METATYPE_KEY = str(Node.property("metatype").id)
 NODE_ID_KEY = str(Node.property("id").id)
 NODE_PARENT_PTR_KEY = str(Node.property("parent").id)
 NODE_SPACE_PTR_ID = str(IsSpatial.property("space").id)
@@ -25,13 +27,14 @@ ENTITY_MATERIALIZATION_KEY = str(Entity.property("materialization").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 
 
-def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
+def pack_entity_row(value: Value) -> MemoryEntityRow:
     """Pack a Value into a MemoryRow."""
     value_packed = value.value
     assert value_packed is not None, f"no value for {value!r}"
+    node_type = NodeType(value_packed[NODE_METATYPE_KEY])
     id = UUID(value_packed[NODE_ID_KEY])
     ptr = NodeReference(
-        type=table.node_type,
+        type=node_type,
         id=UUID(value_packed[NODE_ID_KEY]),
         space_id=UUID(value_packed[NODE_SPACE_PTR_ID][NODE_REFERENCE_ID_KEY])
         if NODE_SPACE_PTR_ID in value_packed
@@ -49,9 +52,8 @@ def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
     materialization = value_packed.get(ENTITY_MATERIALIZATION_KEY)
     if materialization is not None:
         materialization = Materialization(materialization)
-    row = MemoryRow(
-        table=table,
-        metatype=table.node_type,
+    row = MemoryEntityRow(
+        metatype=node_type,
         id=id,
         snapshot_id=snapshot_ptr.id if snapshot_ptr is not None else None,
         materialization=materialization,
@@ -62,7 +64,7 @@ def pack_node_row(table: MemoryTable, value: Value) -> MemoryRow:
     return row
 
 
-def unpack_node_row(table: MemoryTable, row: MemoryRow) -> Value:
+def unpack_entity_row(row: MemoryEntityRow) -> Value:
     """Unpack a MemoryRow to a Value."""
     type_info = Type(
         cardinality=TypeCardinality.SCALAR,
