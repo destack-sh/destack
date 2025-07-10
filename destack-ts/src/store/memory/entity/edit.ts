@@ -13,8 +13,8 @@ import {
   ScalarType,
 } from "@destack/language";
 import { MemoryContext } from "@destack/store/memory/core";
-import { walkNode } from "@destack/store/memory/query";
-import { packNodeRow } from "@destack/store/memory/wiring";
+import { walkNode } from "@destack/store/memory/entity/query";
+import { packEntityRow } from "@destack/store/memory/entity/wiring";
 import { Temporal } from "temporal-polyfill";
 
 const MAX_RECURSION_DEPTH = 100;
@@ -150,7 +150,7 @@ function executeEdit(options: {
   edits: EditEvent[];
 }): { edits: EditEvent[]; cascadedEdits: EditEvent[] } {
   const { context, definition, edits, editType } = options;
-  const table = context.get(definition);
+  const table = context.getEntityTable(definition);
 
   // create/upsert
   if (editType === EditType.CREATE || editType === EditType.UPSERT) {
@@ -161,7 +161,7 @@ function executeEdit(options: {
       const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
       const nodeKey = table.getNodeKey({ id: edit.nodePtr.id, snapshotId });
       if (editType === EditType.UPSERT || !table.rows.has(nodeKey)) {
-        const row = packNodeRow(table, edit.value);
+        const row = packEntityRow(edit.value);
         // main table
         table.rows.set(nodeKey, row);
         // rowsBySnapshot
@@ -171,7 +171,7 @@ function executeEdit(options: {
         table.rowsBySnapshot.get(snapshotId)!.set(edit.nodePtr.id, row);
         // parent-child relationships
         if (row.parentPtr) {
-          const parentTable = context.get(row.parentPtr);
+          const parentTable = context.getEntityTable(row.parentPtr);
           const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
           if (!parentTable.rowsByParent.has(parentKey)) {
             parentTable.rowsByParent.set(parentKey, []);
@@ -224,7 +224,7 @@ function executeEdit(options: {
       if (row) {
         // remove from old parent
         if (row.parentPtr) {
-          const parentTable = context.get(row.parentPtr);
+          const parentTable = context.getEntityTable(row.parentPtr);
           const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
           const children = parentTable.rowsByParent.get(parentKey);
           if (children) {
@@ -239,7 +239,7 @@ function executeEdit(options: {
         row.value[NODE_PARENT_KEY] = edit.value.value;
         // add to new parent
         if (row.parentPtr) {
-          const parentTable = context.get(row.parentPtr);
+          const parentTable = context.getEntityTable(row.parentPtr);
           const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
           if (!parentTable.rowsByParent.has(parentKey)) {
             parentTable.rowsByParent.set(parentKey, []);
@@ -346,7 +346,7 @@ function executeEdit(options: {
 
     // delete rows
     for (const nodePtr of cascadedNodePtrs) {
-      const nodeTable = context.get(nodePtr);
+      const nodeTable = context.getEntityTable(nodePtr);
       const snapshotId = nodePtr.snapshotId || null;
       const nodeKey = nodeTable.getNodeKey({ id: nodePtr.id, snapshotId });
       const row = nodeTable.rows.get(nodeKey);
@@ -364,7 +364,7 @@ function executeEdit(options: {
         }
         // remove from parent's children
         if (row.parentPtr) {
-          const parentTable = context.get(row.parentPtr);
+          const parentTable = context.getEntityTable(row.parentPtr);
           const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
           const children = parentTable.rowsByParent.get(parentKey);
           if (children) {

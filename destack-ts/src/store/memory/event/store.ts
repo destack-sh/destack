@@ -1,6 +1,6 @@
 import {
-  EditEvent,
-  EntityStore,
+  Event,
+  EventStore,
   getNodeTypesForStores,
   NodeType,
   Query,
@@ -9,11 +9,11 @@ import {
   StoreKey,
 } from "@destack/language";
 import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
-import { executeEdits } from "@destack/store/memory/entity/edit";
-import { executeQuery } from "@destack/store/memory/entity/query";
+import { executeAppend } from "@destack/store/memory/event/append";
+import { executeQuery } from "@destack/store/memory/event/query";
 
-/** An in-memory Store for Entities. */
-export class MemoryEntityStore implements EntityStore {
+/** An in-memory Store for Events. */
+export class MemoryEventStore implements EventStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
 
   public types: StoreKey[];
@@ -30,14 +30,14 @@ export class MemoryEntityStore implements EntityStore {
 
   toString(): string {
     let numNodes = 0;
-    for (const table of this.database.entityTables.values()) {
+    for (const table of this.database.eventTables.values()) {
       numNodes += table.rows.size;
     }
-    return `nodes=${numNodes}, tables=${this.database.entityTables.size}`;
+    return `nodes=${numNodes}, tables=${this.database.eventTables.size}`;
   }
 
   repr(): string {
-    return `<MemoryEntityStore ${this.toString()}>`;
+    return `<MemoryEventStore ${this.toString()}>`;
   }
 
   async query(query: Query): Promise<QueryResult> {
@@ -45,12 +45,7 @@ export class MemoryEntityStore implements EntityStore {
     return result;
   }
 
-  async commit(events: EditEvent[]): Promise<EditEvent[]> {
-    const { edits, cascadedEdits } = executeEdits({
-      context: this.context,
-      edits: events,
-    });
-    const appliedEdits = [...edits, ...cascadedEdits];
-    return appliedEdits;
+  async append(events: Event[]): Promise<Event[]> {
+    return executeAppend(this.context, events);
   }
 }

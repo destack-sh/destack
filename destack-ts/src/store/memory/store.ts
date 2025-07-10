@@ -10,116 +10,11 @@ import {
   StoreDomain,
   StoreImplementation,
   StoreKey,
-  toValue,
 } from "@destack/language";
-import { MemoryContext, MemoryDatabase, MemoryTable } from "@destack/store/memory/core";
-import { executeEdits } from "@destack/store/memory/edit";
-import { executeQuery } from "@destack/store/memory/query";
-import { packNodeRow } from "@destack/store/memory/wiring";
+import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
+import { MemoryEntityStore } from "@destack/store/memory/entity/store";
+import { MemoryEventStore } from "@destack/store/memory/event/store";
 import { assertNever } from "@destack/utils";
-
-/** An in-memory Store. */
-export class MemoryEntityStore implements EntityStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
-
-  public types: StoreKey[];
-  public nodeTypes: NodeType[];
-  public database: MemoryDatabase;
-  public context: MemoryContext;
-
-  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
-    this.types = options.types;
-    this.nodeTypes = getNodeTypesForStores(this.types);
-    this.database = options.database ?? new MemoryDatabase();
-    this.context = new MemoryContext(this.database);
-  }
-
-  toString(): string {
-    let numNodes = 0;
-    for (const table of this.database.tables.values()) {
-      numNodes += table.rows.size;
-    }
-    return `nodes=${numNodes}, tables=${this.database.tables.size}`;
-  }
-
-  repr(): string {
-    return `<MemoryStore ${this.toString()}>`;
-  }
-
-  async query(query: Query): Promise<QueryResult> {
-    const result = executeQuery({
-      context: this.context,
-      query,
-    });
-    return result;
-  }
-
-  async commit(events: EditEvent[]): Promise<EditEvent[]> {
-    const { edits, cascadedEdits } = executeEdits({
-      context: this.context,
-      edits: events,
-    });
-    const appliedEdits = [...edits, ...cascadedEdits];
-    return appliedEdits;
-  }
-}
-
-/** An in-memory Store for Events. */
-export class MemoryEventStore implements EventStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
-
-  public types: StoreKey[];
-  public nodeTypes: NodeType[];
-  public database: MemoryDatabase;
-  public context: MemoryContext;
-
-  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
-    this.types = options.types;
-    this.nodeTypes = getNodeTypesForStores(this.types);
-    this.database = options.database ?? new MemoryDatabase();
-    this.context = new MemoryContext(this.database);
-  }
-
-  toString(): string {
-    let numNodes = 0;
-    for (const table of this.database.tables.values()) {
-      numNodes += table.rows.size;
-    }
-    return `nodes=${numNodes}, tables=${this.database.tables.size}`;
-  }
-
-  repr(): string {
-    return `<MemoryEventStore ${this.toString()}>`;
-  }
-
-  async query(query: Query): Promise<QueryResult> {
-    const result = executeQuery({
-      context: this.context,
-      query,
-    });
-    return result;
-  }
-
-  async append(events: Event[]): Promise<Event[]> {
-    for (const event of events) {
-      const nodeType = event.metatype;
-      if (!this.database.tables.has(nodeType)) {
-        this.database.tables.set(nodeType, new MemoryTable(this.database, nodeType));
-      }
-      const table = this.database.tables.get(nodeType)!;
-      const eventValue = toValue(event, undefined, { nodeAsValue: true });
-      const row = packNodeRow(table, eventValue);
-      const rowKey = table.getNodeKey(row);
-      table.rows.set(rowKey, row);
-      const snapshotId = event.snapshotPtr?.id ?? null;
-      if (!table.rowsBySnapshot.has(snapshotId)) {
-        table.rowsBySnapshot.set(snapshotId, new Map());
-      }
-      table.rowsBySnapshot.get(snapshotId)!.set(rowKey, row);
-    }
-    return events;
-  }
-}
 
 /** A combined in-memory Store for Events and Entities. */
 export class MemoryStore implements EventStore, EntityStore {
@@ -144,11 +39,7 @@ export class MemoryStore implements EventStore, EntityStore {
   }
 
   toString(): string {
-    let numNodes = 0;
-    for (const table of this.database.tables.values()) {
-      numNodes += table.rows.size;
-    }
-    return `nodes=${numNodes}, tables=${this.database.tables.size}`;
+    return `entities=${this.entityStore.repr()}, events=${this.eventStore.repr()}`;
   }
 
   repr(): string {
