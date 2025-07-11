@@ -47,10 +47,16 @@ describe.each(storeImplementations)("$name", ({ createStore }) => {
   const sessionTest = test.extend<{ session: Session }>({
     session: async ({ task }, use) => {
       const store = createStore();
+      if (store instanceof IndexedDBStore) {
+        await store.open();
+      }
       const session = new Session({ store });
       await session.open();
       await use(session);
       await session.close();
+      if (store instanceof IndexedDBStore) {
+        await store.close();
+      }
     },
   });
 
