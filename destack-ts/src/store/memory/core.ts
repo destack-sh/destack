@@ -9,8 +9,9 @@ import {
   NodeDefinitionReference,
   NodeReference,
   NodeType,
+  StoreDomain,
 } from "@destack/language";
-import { getSubdefinitionsForNodeType } from "@destack/language/registry";
+import { getSubdefinitionsForNodeType, NODE_CLASS_BY_TYPE } from "@destack/language/registry";
 import { MemoryEntityTable } from "./entity/core";
 import { MemoryEventTable } from "./event/core";
 
@@ -30,11 +31,11 @@ export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
 export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
 
-export const ENTITY_SNAPSHOT_PTR_KEY = String(Entity.property("snapshot").id);
+export const ENTITY_SNAPSHOT_KEY = String(Entity.property("snapshot").id);
 export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
 
 export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
-export const EVENT_SNAPSHOT_PTR_KEY = String(Event.property("snapshot").id);
+export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
 
 /** Node.id + Node.snapshotId */
 export interface VersionedNodeKey {
@@ -50,6 +51,19 @@ export class MemoryDatabase {
   constructor() {
     this.entityTables = new Map();
     this.eventTables = new Map();
+
+    // init tables
+    for (const nodeClass of Object.values(NODE_CLASS_BY_TYPE)) {
+      if (nodeClass.__definition__.isAbstract) {
+        continue;
+      } else if (nodeClass.__definition__.storeDomain == StoreDomain.ENTITY) {
+        this.entityTables.set(nodeClass.metatype, new MemoryEntityTable(this, nodeClass.metatype));
+      } else if (nodeClass.__definition__.storeDomain == StoreDomain.EVENT) {
+        this.eventTables.set(nodeClass.metatype, new MemoryEventTable(this, nodeClass.metatype));
+      } else {
+        throw new Error(`unknown store domain for ${nodeClass.metatype}`);
+      }
+    }
   }
 
   toString(): string {
@@ -94,7 +108,7 @@ export class MemoryContext {
   getEntityTable(definition: NodeDefinitionReference | NodeReference): MemoryEntityTable {
     const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
     if (!this.database.entityTables.has(nodeType)) {
-      this.database.entityTables.set(nodeType, new MemoryEntityTable(this.database, nodeType));
+      throw new Error(`entity table for ${nodeType} not found in ${this.repr()}`);
     }
     return this.database.entityTables.get(nodeType)!;
   }
@@ -103,7 +117,7 @@ export class MemoryContext {
   getEventTable(definition: NodeDefinitionReference | NodeReference): MemoryEventTable {
     const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
     if (!this.database.eventTables.has(nodeType)) {
-      this.database.eventTables.set(nodeType, new MemoryEventTable(this.database, nodeType));
+      throw new Error(`event table for ${nodeType} not found in ${this.repr()}`);
     }
     return this.database.eventTables.get(nodeType)!;
   }

@@ -28,7 +28,7 @@ from destack.language import (
     Value,
     expand_node_traits,
 )
-from destack.language.registry import NODE_CLASS_BY_TYPE
+from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_SCALAR_BY_NODE_TYPE
 from destack.utils.code import exec_
 from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
@@ -339,9 +339,7 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
     assert node_type is not None, f"no node type for {table!r}"
     node_unpack = NODE_ROW_UNPACK[node_type]
     node_value = node_unpack(row)
-    type = Type(
-        cardinality=TypeCardinality.SCALAR, scalar_type=ScalarType.NODE_VALUE, node_type=node_type
-    )
+    type = NODE_TYPE_SCALAR_BY_NODE_TYPE[node_type]
     value = Value(type=type, value=node_value)
     node_ptr = NodeReference(type=node_type, id=UUID(node_value[NODE_ID_KEY]))
     return value, node_ptr

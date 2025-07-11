@@ -1,13 +1,6 @@
-import { ALIAS_PREFIX, IndexedDBStoreBase, NODE_ID_KEY } from "@destack-web/store/indexeddb/core";
-import {
-  EditEvent,
-  EntityStore,
-  NodeType,
-  Query,
-  QueryResult,
-  StoreImplementation,
-} from "@destack/language";
-import { IDBPDatabase, IDBPTransaction } from "idb";
+import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
+import { EditEvent, EntityStore, Query, QueryResult, StoreImplementation } from "@destack/language";
+import { IDBPTransaction } from "idb";
 
 /** An IndexedDB Store for Entities. */
 export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntityStore {
@@ -23,21 +16,6 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
     return `<IndexedDBEntityStore ${this.toString()}>`;
   }
 
-  override migrateSchema(
-    db: IDBPDatabase,
-    oldVersion: string | null,
-    newVersion: string,
-    tx: IDBPTransaction<unknown, string[], "versionchange">,
-  ): void {
-    // entity stores
-    for (const nodeType of this.nodeTypes) {
-      const storeName = getEntityStoreName(nodeType);
-      if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: ALIAS_PREFIX + NODE_ID_KEY });
-      }
-    }
-  }
-
   override async open(): Promise<void> {
     await super.open();
     if (this.db == null) {
@@ -46,9 +24,8 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
 
     // fetch initial entity count
     let entityCount = 0;
-    for (const nodeType of this.nodeTypes) {
-      const storeName = getEntityStoreName(nodeType);
-      const count = await this.db.count(storeName);
+    for (const entityTable of this.schema.entityTables.values()) {
+      const count = await this.db.count(entityTable.name);
       entityCount += count;
     }
     this.entityCount = entityCount;
@@ -71,9 +48,4 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
   ): Promise<EditEvent[]> {
     throw new Error("Not implemented");
   }
-}
-
-/** Get the object store name for an Entity type. */
-export function getEntityStoreName(nodeType: NodeType): string {
-  return `destack_${nodeType}`;
 }

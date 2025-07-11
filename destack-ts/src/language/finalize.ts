@@ -4,6 +4,7 @@ import {
   NodeDefinition,
   NodeDefinitionReference,
   NodeType,
+  ScalarType,
   STRUCT_DEFINITIONS,
   StructClass,
   StructDefinition,
@@ -12,9 +13,13 @@ import {
   TraitClass,
   TraitDefinition,
   TraitType,
+  Type,
+  TypeCardinality,
 } from "@destack/language";
 import {
   NODE_CLASS_BY_TYPE,
+  NODE_TYPE_BY_CLASS,
+  NODE_TYPE_SCALAR_BY_TYPE,
   NODE_TYPES_BY_PRIMARY_STORE_KEY,
   PARENT_TYPES_BY_NODE_TYPE,
   STRUCT_CLASS_BY_TYPE,
@@ -108,6 +113,16 @@ export function finalize(): void {
       }
     }
     PARENT_TYPES_BY_NODE_TYPE[nodeDefinition.type] = parentTypes;
+  }
+
+  // index node scalar types
+  for (const nodeType of NODE_TYPE_BY_CLASS.values()) {
+    const scalarType = new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.NODE_VALUE,
+      nodeType: nodeType,
+    });
+    NODE_TYPE_SCALAR_BY_TYPE[nodeType] = scalarType;
   }
 
   // traits

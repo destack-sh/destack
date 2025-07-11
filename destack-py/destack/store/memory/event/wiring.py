@@ -7,11 +7,9 @@ from destack.language import (
     Node,
     NodeReference,
     NodeType,
-    ScalarType,
-    Type,
-    TypeCardinality,
     Value,
 )
+from destack.language.registry import NODE_TYPE_SCALAR_BY_NODE_TYPE
 from destack.utils.uuid import UUID
 
 from .core import MemoryEventRow
@@ -61,9 +59,5 @@ def pack_event_row(value: Value) -> MemoryEventRow:
 
 def unpack_event_row(row: MemoryEventRow) -> Value:
     """Unpack a MemoryRow to a Value."""
-    type_info = Type(
-        cardinality=TypeCardinality.SCALAR,
-        scalar_type=ScalarType.NODE_VALUE,
-        node_type=row.metatype,
-    )
-    return Value(type=type_info, value=row.value)
+    type = NODE_TYPE_SCALAR_BY_NODE_TYPE[row.metatype]
+    return Value(type=type, value=row.value)
