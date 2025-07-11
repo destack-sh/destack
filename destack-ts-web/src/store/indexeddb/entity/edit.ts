@@ -1,6 +1,11 @@
-import { IndexedDBContext, MAX_RECURSION_DEPTH, NODE_PARENT_KEY } from "@destack-web/store/indexeddb/core";
-import { getEntityKey } from "@destack-web/store/indexeddb/map";
+import {
+  IndexedDBContext,
+  MAX_RECURSION_DEPTH,
+  NODE_PARENT_KEY,
+} from "@destack-web/store/indexeddb/core";
+import { walkNode } from "@destack-web/store/indexeddb/entity/query";
 import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
+import { getEntityKey } from "@destack-web/store/indexeddb/map";
 import {
   CASCADING_EDIT_TYPES,
   Condition,
@@ -16,7 +21,6 @@ import {
 } from "@destack/language";
 import { IDBPTransaction } from "idb";
 import { Temporal } from "temporal-polyfill";
-import { walkNode } from "@destack-web/store/indexeddb/entity/query";
 
 // define these constants since they're not in Indexeddb core yet
 const NODE_ARCHIVED_AT_KEY = String(IsArchivable.property("archived_at").id);
@@ -158,11 +162,11 @@ async function executeEdit(options: {
   edits: EditEvent[];
 }): Promise<{ edits: EditEvent[]; cascadedEdits: EditEvent[] }> {
   const { tx, context, definition, edits, editType } = options;
-  const table = context.getEntityTable(definition);
-  const store = tx.objectStore(table.name);
 
   // create/upsert
   if (editType === EditType.CREATE || editType === EditType.UPSERT) {
+    const table = context.getEntityTable(definition);
+    const store = tx.objectStore(table.name);
     for (const edit of edits) {
       if (!edit.value) {
         throw new Error(`no value for ${edit.repr()}`);
@@ -187,6 +191,8 @@ async function executeEdit(options: {
 
   // update
   else if (editType === EditType.UPDATE) {
+    const table = context.getEntityTable(definition);
+    const store = tx.objectStore(table.name);
     for (const edit of edits) {
       if (!edit.attribute) {
         throw new Error(`no attribute for ${edit.repr()}`);
@@ -194,26 +200,27 @@ async function executeEdit(options: {
       const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
       const nodeKey = getEntityKey(edit.nodePtr.id, snapshotId);
       const row = await store.get(nodeKey);
-
-      if (row) {
-        if (edit.operation === EditOperation.SET) {
-          if (!edit.value) {
-            throw new Error(`no value for ${edit.repr()}`);
-          }
-          row[String(edit.attribute.id)] = edit.value.value;
-        } else if (edit.operation === EditOperation.CLEAR) {
-          delete row[String(edit.attribute.id)];
-        } else {
-          throw new Error(`unsupported operation: ${edit.repr()}`);
+      if (!row) {
+        throw new Error(`node not found: ${edit.repr()}`);
+      } else if (edit.operation === EditOperation.SET) {
+        if (!edit.value) {
+          throw new Error(`no value for ${edit.repr()}`);
         }
-        await store.put(row);
+        row[String(edit.attribute.id)] = edit.value.value;
+      } else if (edit.operation === EditOperation.CLEAR) {
+        delete row[String(edit.attribute.id)];
+      } else {
+        throw new Error(`unsupported operation: ${edit.repr()}`);
       }
+      await store.put(row);
     }
     return { edits, cascadedEdits: [] };
   }
 
   // move
   else if (editType === EditType.MOVE) {
+    const table = context.getEntityTable(definition);
+    const store = tx.objectStore(table.name);
     for (const edit of edits) {
       if (!edit.value) {
         throw new Error(`no value for ${edit.repr()}`);
@@ -223,11 +230,11 @@ async function executeEdit(options: {
       const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
       const nodeKey = getEntityKey(edit.nodePtr.id, snapshotId);
       const row = await store.get(nodeKey);
-
-      if (row) {
-        row[NODE_PARENT_KEY] = edit.value.value;
-        await store.put(row);
+      if (!row) {
+        throw new Error(`node not found: ${edit.repr()}`);
       }
+      row[NODE_PARENT_KEY] = edit.value.value;
+      await store.put(row);
     }
     return { edits, cascadedEdits: [] };
   }
@@ -241,9 +248,9 @@ async function executeEdit(options: {
   ) {
     // cascade
     const nodesPtrs = edits.map((edit) => edit.nodePtr);
-    const editedAtByNodeId = new Map<string, Temporal.ZonedDateTime>();
+    const editByNodeId = new Map<string, EditEvent>();
     for (const edit of edits) {
-      editedAtByNodeId.set(edit.nodePtr.id, edit.createdAt);
+      editByNodeId.set(edit.nodePtr.id, edit);
     }
 
     let where: Condition | null = null;
@@ -251,20 +258,22 @@ async function executeEdit(options: {
       // restrict to nodes with same deleted_at/archived_at
       const rootDts = new Set<Temporal.ZonedDateTime>();
       for (const nodePtr of nodesPtrs) {
+        const table = context.getEntityTable(nodePtr);
+        const store = tx.objectStore(table.name);
         const snapshotId = nodePtr.snapshotId ? nodePtr.snapshotId : null;
         const nodeKey = getEntityKey(nodePtr.id, snapshotId);
         const row = await store.get(nodeKey);
-        if (row) {
-          if (editType === EditType.UNARCHIVE) {
-            const archivedAt = row[NODE_ARCHIVED_AT_KEY];
-            if (archivedAt) {
-              rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
-            }
-          } else if (editType === EditType.RESTORE) {
-            const deletedAt = row[NODE_DELETED_AT_KEY];
-            if (deletedAt) {
-              rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
-            }
+        if (!row) {
+          throw new Error(`node not found: ${nodePtr.repr()}`);
+        } else if (editType === EditType.UNARCHIVE) {
+          const archivedAt = row[NODE_ARCHIVED_AT_KEY];
+          if (archivedAt) {
+            rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
+          }
+        } else if (editType === EditType.RESTORE) {
+          const deletedAt = row[NODE_DELETED_AT_KEY];
+          if (deletedAt) {
+            rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
           }
         }
       }
@@ -290,24 +299,24 @@ async function executeEdit(options: {
 
     // update timestamps
     for (const nodePtr of [...nodesPtrs, ...cascadedNodePtrs]) {
-      const snapshotId = nodePtr.snapshotId ? nodePtr.snapshotId : null;
+      const table = context.getEntityTable(nodePtr);
+      const store = tx.objectStore(table.name);
+      const edit = editByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
+      const snapshotId = edit?.snapshotPtr?.id || null;
       const nodeKey = getEntityKey(nodePtr.id, snapshotId);
       const row = await store.get(nodeKey);
-
-      if (row) {
-        if (editType === EditType.ARCHIVE) {
-          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
-          row[NODE_ARCHIVED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
-        } else if (editType === EditType.UNARCHIVE) {
-          delete row[NODE_ARCHIVED_AT_KEY];
-        } else if (editType === EditType.DELETE) {
-          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
-          row[NODE_DELETED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
-        } else if (editType === EditType.RESTORE) {
-          delete row[NODE_DELETED_AT_KEY];
-        }
-        await store.put(row);
+      if (!row) {
+        throw new Error(`node not found: ${nodePtr.repr()}`);
+      } else if (editType === EditType.ARCHIVE) {
+        row[NODE_ARCHIVED_AT_KEY] = edit?.createdAt?.toString({ timeZoneName: "never" });
+      } else if (editType === EditType.UNARCHIVE) {
+        delete row[NODE_ARCHIVED_AT_KEY];
+      } else if (editType === EditType.DELETE) {
+        row[NODE_DELETED_AT_KEY] = edit?.createdAt?.toString({ timeZoneName: "never" });
+      } else if (editType === EditType.RESTORE) {
+        delete row[NODE_DELETED_AT_KEY];
       }
+      await store.put(row);
     }
 
     return { edits, cascadedEdits };
@@ -330,11 +339,11 @@ async function executeEdit(options: {
 
     // delete rows
     for (const nodePtr of [...nodesPtrs, ...cascadedNodePtrs]) {
-      const nodeTable = context.getEntityTable(nodePtr);
-      const nodeStore = tx.objectStore(nodeTable.name);
+      const table = context.getEntityTable(nodePtr);
+      const store = tx.objectStore(table.name);
       const snapshotId = nodePtr.snapshotId ? nodePtr.snapshotId : null;
       const nodeKey = getEntityKey(nodePtr.id, snapshotId);
-      await nodeStore.delete(nodeKey);
+      await store.delete(nodeKey);
     }
 
     return { edits, cascadedEdits };
