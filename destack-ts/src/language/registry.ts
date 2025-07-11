@@ -2,6 +2,7 @@ import type {
   EnumClass,
   EnumType,
   NodeClass,
+  NodeDefinitionReference,
   NodeType,
   StoreKey,
   StructClass,
@@ -47,6 +48,7 @@ export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any
 
 export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;
 
+/** Get the known NodeTypes for a set of StoreKeys. */
 export function getNodeTypesForStores(storeKeys: StoreKey[]): NodeType[] {
   const nodeTypes: NodeType[] = [];
   for (const type of storeKeys) {
@@ -57,4 +59,25 @@ export function getNodeTypesForStores(storeKeys: StoreKey[]): NodeType[] {
     }
   }
   return nodeTypes;
+}
+
+/** Get the known (inherited, concrete) subdefinitions for a NodeType (including self). */
+export function getSubdefinitionsForNodeType(nodeType: NodeType): NodeDefinitionReference[] {
+  const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
+  const nodeDefinition = nodeClass.__definition__;
+  if (nodeDefinition.inheritedBy.length === 0) {
+    return [nodeClass.__definitionReference];
+  }
+  const subdefinitions: NodeDefinitionReference[] = [];
+  if (!nodeDefinition.isAbstract) {
+    subdefinitions.push(nodeClass.__definitionReference);
+  }
+  for (const subnodeType of nodeDefinition.inheritedBy) {
+    const subnodeClass = NODE_CLASS_BY_TYPE[subnodeType];
+    const subnodeDefinition = subnodeClass.__definition__;
+    if (!subnodeDefinition.isAbstract) {
+      subdefinitions.push(subnodeClass.__definitionReference);
+    }
+  }
+  return subdefinitions;
 }

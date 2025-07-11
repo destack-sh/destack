@@ -1,16 +1,16 @@
 import {
   Entity,
   Event,
+  IsArchivable,
+  IsDeletable,
   IsExtensible,
   IsSpatial,
   Node,
   NodeDefinitionReference,
-  NodeDefinitionType,
   NodeReference,
   NodeType,
 } from "@destack/language";
-import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
-import { assertNever } from "@destack/utils";
+import { getSubdefinitionsForNodeType } from "@destack/language/registry";
 import { MemoryEntityTable } from "./entity/core";
 import { MemoryEventTable } from "./event/core";
 
@@ -20,9 +20,10 @@ export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
 export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
-export const NODE_PARENT_PTR_KEY = String(Node.property("parent").id);
 export const NODE_SPACE_PTR_ID = String(IsSpatial.property("space").id);
 export const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
+export const NODE_ARCHIVED_AT_KEY = String(IsArchivable.property("archived_at").id);
+export const NODE_DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
 
 export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
 export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
@@ -68,7 +69,7 @@ export class MemoryDatabase {
   }
 }
 
-/** A context for evaluating queries against an in-memory database. */
+/** The current context for working with an in-memory database. */
 export class MemoryContext {
   public database: MemoryDatabase;
 
@@ -86,32 +87,7 @@ export class MemoryContext {
 
   /** Expand the (separately) stored definitions for a NodeDefinition. */
   resolve(definition: NodeDefinitionReference): NodeDefinitionReference[] {
-    if (definition.type === NodeDefinitionType.BUILTIN) {
-      if (!definition.nodeType) {
-        throw new Error(`no node_type for ${definition.repr()}`);
-      }
-      const nodeClass = NODE_CLASS_BY_TYPE[definition.nodeType];
-      const nodeDefinition = nodeClass.__definition__;
-      if (nodeDefinition.inheritedBy.length === 0) {
-        return [definition];
-      }
-      const subdefinitions: NodeDefinitionReference[] = [];
-      if (!nodeDefinition.isAbstract) {
-        subdefinitions.push(definition);
-      }
-      for (const subnodeType of nodeDefinition.inheritedBy) {
-        const subnodeClass = NODE_CLASS_BY_TYPE[subnodeType];
-        const subnodeDefinition = subnodeClass.__definition__;
-        if (!subnodeDefinition.isAbstract) {
-          subdefinitions.push(NodeDefinitionReference.of(subnodeClass));
-        }
-      }
-      return subdefinitions;
-    } else if (definition.type === NodeDefinitionType.CUSTOM) {
-      throw new Error(`cannot resolve ${definition.repr()}`);
-    } else {
-      assertNever(definition.type);
-    }
+    return getSubdefinitionsForNodeType(definition.nodeType);
   }
 
   /** Get the entity table for a NodeDefinition. */

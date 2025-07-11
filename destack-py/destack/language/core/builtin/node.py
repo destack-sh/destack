@@ -41,6 +41,7 @@ if TYPE_CHECKING:
         JoinIn,
         Node,
         NodeDefinition,
+        NodeDefinitionReference,
         NodeReference,
         Query,
         QueryConnection,
@@ -147,6 +148,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __is_node__: ClassVar[bool] = True
 
     __definition__: ClassVar["NodeDefinition"]
+    __definition_reference__: ClassVar["NodeDefinitionReference"]
 
     """Whether this class is an actual Node (not a Trait)."""
     __is_node__: ClassVar[bool] = True
