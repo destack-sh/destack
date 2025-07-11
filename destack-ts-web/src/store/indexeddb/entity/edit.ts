@@ -1,9 +1,10 @@
-import { IndexedDBContext, NODE_PARENT_KEY } from "@destack-web/store/indexeddb/core";
+import { IndexedDBContext, MAX_RECURSION_DEPTH, NODE_PARENT_KEY } from "@destack-web/store/indexeddb/core";
 import { getEntityKey } from "@destack-web/store/indexeddb/map";
 import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
 import {
   CASCADING_EDIT_TYPES,
   Condition,
+  EdgeDirection,
   EditEvent,
   EditOperation,
   EditType,
@@ -15,6 +16,7 @@ import {
 } from "@destack/language";
 import { IDBPTransaction } from "idb";
 import { Temporal } from "temporal-polyfill";
+import { walkNode } from "@destack-web/store/indexeddb/entity/query";
 
 // define these constants since they're not in Indexeddb core yet
 const NODE_ARCHIVED_AT_KEY = String(IsArchivable.property("archived_at").id);
@@ -131,20 +133,17 @@ async function executeCascade(options: {
   where: Condition | null;
 }): Promise<{ cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
   const { tx, context, definition, nodePtrs, where } = options;
-  // const { cascadedNodePtrs, sourceIdByNodeId } = await walkNode({
-  //   tx,
-  //   context,
-  //   definition,
-  //   nodesPtrs: nodePtrs,
-  //   direction: EdgeDirection.CHILD,
-  //   depth: MAX_RECURSION_DEPTH,
-  //   where,
-  //   snapshotPath: [],
-  // });
-  // return { cascadedNodePtrs, sourceIdByNodeId };
-
-  // nocheckin
-  return { cascadedNodePtrs: [], sourceIdByNodeId: new Map() };
+  const { cascadedNodePtrs, sourceIdByNodeId } = await walkNode({
+    tx,
+    context,
+    definition,
+    nodesPtrs: nodePtrs,
+    direction: EdgeDirection.CHILD,
+    depth: MAX_RECURSION_DEPTH,
+    where,
+    snapshotPath: [],
+  });
+  return { cascadedNodePtrs, sourceIdByNodeId };
 }
 
 /**

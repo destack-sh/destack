@@ -55,6 +55,47 @@ NODE_REFERENCE_SPACE_ID_KEY = str(NodeReference.property("space_id").id)
 NODE_REFERENCE_DEFINITION_ID_KEY = str(NodeReference.property("definition_id").id)
 
 
+def _filter_rows(
+    context: MemoryContext,
+    definition: NodeDefinitionReference,
+    where: Condition | None,
+    snapshot_path: Sequence[UUID],
+    ignore_multi: bool = False,
+) -> list[MemoryEntityRow]:
+    """Filter rows based on definition and where condition."""
+    snapshot_id = snapshot_path[-1] if snapshot_path else None
+
+    if definition.is_multi and not ignore_multi:
+        definitions = context.resolve(definition)
+        filtered_rows: list[MemoryEntityRow] = []
+        for rel in definitions:
+            table = context.get_entity_table(rel)
+            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
+                if where is None or evaluate_condition(row.value, where):
+                    filtered_rows.append(row)
+    else:
+        table = context.get_entity_table(definition)
+        if where is not None:
+            is_id_query, node_ids = _extract_id_condition(where)
+            if is_id_query:
+                filtered_rows = []
+                for id_val in node_ids:
+                    node_key = VersionedNodeKey(id=id_val, snapshot_id=snapshot_id)
+                    if (row := table.rows.get(node_key)) is not None and evaluate_condition(
+                        row.value, where
+                    ):
+                        filtered_rows.append(row)
+            else:
+                filtered_rows = []
+                for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
+                    if evaluate_condition(row.value, where):
+                        filtered_rows.append(row)
+        else:
+            filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
+
+    return filtered_rows
+
+
 @tracer.start_as_current_span("memory.query_node")
 def _query_node(
     context: MemoryContext,
@@ -91,27 +132,14 @@ def _query_node(
             all_ptrs.extend(ptrs)
         return all_values, all_ptrs
 
-    table = context.get_entity_table(definition)
-    snapshot_id = snapshot_path[-1] if snapshot_path else None
-
     # filter
-    if where is not None:
-        is_id_query, node_ids = _extract_id_condition(where)
-        if is_id_query:
-            filtered_rows: list[MemoryEntityRow] = []
-            for id_val in node_ids:
-                node_key = VersionedNodeKey(id=id_val, snapshot_id=snapshot_id)
-                if (row := table.rows.get(node_key)) is not None and evaluate_condition(
-                    row.value, where
-                ):
-                    filtered_rows.append(row)
-        else:
-            filtered_rows = []
-            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if evaluate_condition(row.value, where):
-                    filtered_rows.append(row)
-    else:
-        filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
+    filtered_rows = _filter_rows(
+        context=context,
+        definition=definition,
+        where=where,
+        snapshot_path=snapshot_path,
+        ignore_multi=True,
+    )
 
     # sort
     if sort:
@@ -145,23 +173,13 @@ def _query_scalar(
     snapshot_path: Sequence[UUID],
 ) -> Value:
     """Execute a scalar Query."""
-    snapshot_id = snapshot_path[-1] if snapshot_path else None
-
-    # collect rows
-    if definition.is_multi:
-        definitions = context.resolve(definition)
-        filtered_rows: list[MemoryEntityRow] = []
-        for rel in definitions:
-            table = context.get_entity_table(rel)
-            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if where is None or evaluate_condition(row.value, where):
-                    filtered_rows.append(row)
-    else:
-        table = context.get_entity_table(definition)
-        filtered_rows = []
-        for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-            if where is None or evaluate_condition(row.value, where):
-                filtered_rows.append(row)
+    # filter
+    filtered_rows = _filter_rows(
+        context=context,
+        definition=definition,
+        where=where,
+        snapshot_path=snapshot_path,
+    )
 
     # execute
     scalar = evaluate_aggregation([row.value for row in filtered_rows], aggregation)
@@ -192,28 +210,13 @@ def _query_grouped_node(
     if definition.is_multi:
         raise NotImplementedError("grouped node queries not supported for multi definitions")
 
-    table = context.get_entity_table(definition)
-    snapshot_id = snapshot_path[-1] if snapshot_path else None
-
     # filter
-    if where is not None:
-        is_id_query, node_ids = _extract_id_condition(where)
-        if is_id_query:
-            filtered_rows: list[MemoryEntityRow] = []
-            for node_id in node_ids:
-                node_key = VersionedNodeKey(id=node_id, snapshot_id=snapshot_id)
-                if (row := table.rows.get(node_key)) is not None and evaluate_condition(
-                    row.value, where
-                ):
-                    filtered_rows.append(row)
-        else:
-            # filter rows based on where condition
-            filtered_rows = []
-            for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if evaluate_condition(row.value, where):
-                    filtered_rows.append(row)
-    else:
-        filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
+    filtered_rows = _filter_rows(
+        context=context,
+        definition=definition,
+        where=where,
+        snapshot_path=snapshot_path,
+    )
 
     # group rows by group_by expressions
     groups: dict[tuple, list[MemoryEntityRow]] = {}
@@ -273,17 +276,17 @@ def _query_grouped_scalar(
     if definition.is_multi:
         raise NotImplementedError("grouped scalar queries not supported for multi definitions")
 
-    table = context.get_entity_table(definition)
-
-    # filter rows based on where condition
-    filtered_nodes: list[MemoryEntityRow] = []
-    for row in table.rows.values():
-        if where is None or evaluate_condition(row.value, where):
-            filtered_nodes.append(row)
+    # filter
+    filtered_rows = _filter_rows(
+        context=context,
+        definition=definition,
+        where=where,
+        snapshot_path=snapshot_path,
+    )
 
     # group rows by group_by expressions
     groups: dict[tuple, list[MemoryEntityRow]] = {}
-    for row in filtered_nodes:
+    for row in filtered_rows:
         group_key = tuple(evaluate_expression(row.value, expr) for expr in group_by)
         if group_key not in groups:
             groups[group_key] = []
@@ -303,7 +306,7 @@ def _query_grouped_scalar(
         "memory.query_grouped_scalar",
         definition=definition,
         groups=len(results),
-        total_nodes=len(filtered_nodes),
+        total_nodes=len(filtered_rows),
         span="current",
     )
     return results

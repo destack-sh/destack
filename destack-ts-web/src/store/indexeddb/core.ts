@@ -18,6 +18,8 @@ import { IDBPDatabase, IDBPTransaction, openDB } from "idb";
 
 export const MAX_RECURSION_DEPTH = 100;
 
+export const NULL_SENTINEL = "__NULL__";
+
 export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
@@ -52,8 +54,6 @@ export const EVENT_INDEXED_KEYS = [
   EVENT_SNAPSHOT_KEY,
   EVENT_CREATED_AT_KEY,
 ];
-
-
 
 /** Base class for all IndexedDB stores. */
 export abstract class IndexedDBStoreBase {

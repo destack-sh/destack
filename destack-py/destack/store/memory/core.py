@@ -20,6 +20,9 @@ class MemoryDatabase:
     __slots__ = ("entity_tables", "event_tables")
 
     def __init__(self):
+        from .entity.core import MemoryEntityTable
+        from .event.core import MemoryEventTable
+
         self.entity_tables: dict[NodeType, MemoryEntityTable] = {}
         self.event_tables: dict[NodeType, MemoryEventTable] = {}
 

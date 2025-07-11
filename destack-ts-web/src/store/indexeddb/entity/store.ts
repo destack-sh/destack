@@ -51,12 +51,7 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
     }
     const tableNames = Array.from(this.schema.entityTables.values()).map((table) => table.name);
     const tx = options?.tx ?? this.db.transaction(tableNames, "readonly");
-    const result = await executeQuery({
-      db: this.db,
-      tx,
-      context: this.context,
-      query,
-    });
+    const result = await executeQuery({ tx, context: this.context, query });
     return result;
   }
 
