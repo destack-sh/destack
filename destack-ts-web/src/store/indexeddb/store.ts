@@ -13,6 +13,7 @@ import {
   StoreKey,
 } from "@destack/language";
 import { assertNever } from "@destack/utils";
+import { IDBPDatabase, IDBPTransaction } from "idb";
 
 /** A combined IndexedDB Store for Events and Entities. */
 export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, EntityStore {
@@ -37,9 +38,14 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
   }
 
   /** Create the database schema. */
-  migrateSchema(db: IDBDatabase): void {
-    this.entityStore.migrateSchema(db);
-    this.eventStore.migrateSchema(db);
+  migrateSchema(
+    db: IDBPDatabase,
+    oldVersion: string | null,
+    newVersion: string,
+    tx: IDBPTransaction<unknown, string[], "versionchange">,
+  ): void {
+    this.entityStore.migrateSchema(db, oldVersion, newVersion, tx);
+    this.eventStore.migrateSchema(db, oldVersion, newVersion, tx);
   }
 
   override async open(): Promise<void> {
@@ -49,6 +55,9 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
     }
     this.entityStore.db = this.db;
     this.eventStore.db = this.db;
+
+    await this.entityStore.open();
+    await this.eventStore.open();
   }
 
   toString(): string {

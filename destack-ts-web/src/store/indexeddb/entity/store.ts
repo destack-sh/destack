@@ -7,6 +7,7 @@ import {
   QueryResult,
   StoreImplementation,
 } from "@destack/language";
+import { IDBPDatabase, IDBPTransaction } from "idb";
 
 /** An IndexedDB Store for Entities. */
 export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntityStore {
@@ -22,13 +23,17 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
     return `<IndexedDBEntityStore ${this.toString()}>`;
   }
 
-  override migrateSchema(db: IDBDatabase): void {
+  override migrateSchema(
+    db: IDBPDatabase,
+    oldVersion: string | null,
+    newVersion: string,
+    tx: IDBPTransaction<unknown, string[], "versionchange">,
+  ): void {
     // entity stores
-    let entityStore: IDBObjectStore;
     for (const nodeType of this.nodeTypes) {
       const storeName = getEntityStoreName(nodeType);
       if (!db.objectStoreNames.contains(storeName)) {
-        entityStore = db.createObjectStore(storeName, { keyPath: ALIAS_PREFIX + NODE_ID_KEY });
+        db.createObjectStore(storeName, { keyPath: ALIAS_PREFIX + NODE_ID_KEY });
       }
     }
   }
@@ -43,10 +48,8 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
     let entityCount = 0;
     for (const nodeType of this.nodeTypes) {
       const storeName = getEntityStoreName(nodeType);
-      const request = this.db.transaction(storeName, "readonly").objectStore(storeName).count();
-      request.onsuccess = (event) => {
-        entityCount += (event.target as IDBRequest).result;
-      };
+      const count = await this.db.count(storeName);
+      entityCount += count;
     }
     this.entityCount = entityCount;
   }
@@ -54,7 +57,7 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
   async query(
     query: Query,
     options?: {
-      tx?: IDBTransaction;
+      tx?: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
     },
   ): Promise<QueryResult> {
     throw new Error("Not implemented");
@@ -63,7 +66,7 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
   async commit(
     events: EditEvent[],
     options?: {
-      tx?: IDBTransaction;
+      tx?: IDBPTransaction<unknown, string[], "readwrite">;
     },
   ): Promise<EditEvent[]> {
     throw new Error("Not implemented");

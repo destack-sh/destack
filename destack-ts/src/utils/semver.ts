@@ -8,3 +8,13 @@ export function semverToInt(v: string): bigint {
     return acc * base + seg;
   }, 0n);
 }
+
+/** Convert a bigint to a semantic version string. */
+export function intToSemver(v: bigint): string {
+  const parts = [];
+  for (let i = 0; i < 4; i++) {
+    parts.push(v % 1000n);
+    v /= 1000n;
+  }
+  return parts.reverse().join(".");
+}

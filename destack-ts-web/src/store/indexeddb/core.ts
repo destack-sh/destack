@@ -9,9 +9,10 @@ import {
   NodeType,
   StoreKey,
 } from "@destack/language";
+import { intToSemver } from "@destack/utils/semver";
+import { IDBPDatabase, IDBPTransaction, openDB } from "idb";
 
 export const MAX_RECURSION_DEPTH = 100;
-
 
 export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
@@ -44,13 +45,13 @@ export abstract class IndexedDBStoreBase {
 
   readonly dbIsBorrowed: boolean;
   readonly dbName: string;
-  db: IDBDatabase | null;
+  db: IDBPDatabase | null;
 
   constructor(options: {
     types: StoreKey[];
     dbIsBorrowed: boolean;
     dbName?: string;
-    db?: IDBDatabase;
+    db?: IDBPDatabase;
   }) {
     this.types = options.types;
     this.nodeTypes = getNodeTypesForStores(this.types);
@@ -60,7 +61,12 @@ export abstract class IndexedDBStoreBase {
   }
 
   /** Migrate the database schema to the latest version. */
-  abstract migrateSchema(db: IDBDatabase): void;
+  abstract migrateSchema(
+    db: IDBPDatabase,
+    oldVersion: string | null,
+    newVersion: string,
+    tx: IDBPTransaction<unknown, string[], "versionchange">,
+  ): void;
 
   /** Initialize the database connection. */
   async open(): Promise<void> {
@@ -69,21 +75,13 @@ export abstract class IndexedDBStoreBase {
         throw new Error(`${this.dbName} database is already open`);
       }
 
-      const promise = new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open(this.dbName, 1);
-        request.onerror = (event) => {
-          reject(new Error(`error opening database: ${event.target}`));
-        };
-        request.onupgradeneeded = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          this.migrateSchema(db);
-        };
-        request.onsuccess = (event) => {
-          const db = (event.target as IDBOpenDBRequest).result;
-          resolve(db);
-        };
+      this.db = await openDB(this.dbName, 1, {
+        upgrade: (db, oldVersionInt, newVersionInt, tx) => {
+          const oldVersion = oldVersionInt == null ? null : intToSemver(BigInt(oldVersionInt));
+          const newVersion = intToSemver(BigInt(newVersionInt!));
+          this.migrateSchema(db, oldVersion, newVersion, tx);
+        },
       });
-      this.db = await promise;
     } else {
       if (this.db == null) {
         throw new Error(`${this.dbName} database is not open`);

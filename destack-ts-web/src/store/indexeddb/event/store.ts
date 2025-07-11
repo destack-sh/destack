@@ -6,6 +6,7 @@ import {
   NODE_METATYPE_KEY,
 } from "@destack-web/store/indexeddb/core";
 import { Event, EventStore, Query, QueryResult, StoreImplementation } from "@destack/language";
+import { IDBPDatabase, IDBPObjectStore, IDBPTransaction } from "idb";
 
 export const DESTACK_EVENT_STORE_NAME = "destack_event";
 
@@ -23,17 +24,20 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
     return `<IndexedDBEventStore ${this.toString()}>`;
   }
 
-  override migrateSchema(db: IDBDatabase): void {
+  override migrateSchema(
+    db: IDBPDatabase,
+    oldVersion: string | null,
+    newVersion: string,
+    tx: IDBPTransaction<unknown, string[], "versionchange">,
+  ): void {
     // event store
-    let eventStore: IDBObjectStore;
+    let eventStore;
     if (!db.objectStoreNames.contains(DESTACK_EVENT_STORE_NAME)) {
       eventStore = db.createObjectStore(DESTACK_EVENT_STORE_NAME, {
         keyPath: ALIAS_PREFIX + NODE_ID_KEY,
       });
     } else {
-      eventStore = db
-        .transaction(DESTACK_EVENT_STORE_NAME, "readwrite")
-        .objectStore(DESTACK_EVENT_STORE_NAME);
+      eventStore = tx.objectStore(DESTACK_EVENT_STORE_NAME);
     }
     // index
     for (const indexedProp of [NODE_METATYPE_KEY, EVENT_CREATED_AT_KEY]) {
@@ -51,21 +55,14 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
     }
 
     // fetch initial event count
-    let eventCount = 0;
-    const request = this.db
-      .transaction(DESTACK_EVENT_STORE_NAME, "readonly")
-      .objectStore(DESTACK_EVENT_STORE_NAME)
-      .count();
-    request.onsuccess = (event) => {
-      eventCount += (event.target as IDBRequest).result;
-    };
+    const eventCount = await this.db.count(DESTACK_EVENT_STORE_NAME);
     this.eventCount = eventCount;
   }
 
   async query(
     query: Query,
     options?: {
-      tx?: IDBTransaction;
+      tx?: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
     },
   ): Promise<QueryResult> {
     throw new Error("Not implemented");
@@ -74,7 +71,7 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
   async append(
     events: Event[],
     options?: {
-      tx?: IDBTransaction;
+      tx?: IDBPTransaction<unknown, string[], "readwrite">;
     },
   ): Promise<Event[]> {
     if (this.eventCount == null) {
