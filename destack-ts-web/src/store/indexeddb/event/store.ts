@@ -1,14 +1,7 @@
-import {
-  ALIAS_PREFIX,
-  EVENT_CREATED_AT_KEY,
-  IndexedDBStoreBase,
-  NODE_ID_KEY,
-  NODE_METATYPE_KEY,
-} from "@destack-web/store/indexeddb/core";
+import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
+import { executeAppend } from "@destack-web/store/indexeddb/event/append";
 import { Event, EventStore, Query, QueryResult, StoreImplementation } from "@destack/language";
-import { IDBPDatabase, IDBPObjectStore, IDBPTransaction } from "idb";
-
-export const DESTACK_EVENT_STORE_NAME = "destack_event";
+import { IDBPTransaction } from "idb";
 
 /** An IndexedDB Store for Events. */
 export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStore {
@@ -24,30 +17,6 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
     return `<IndexedDBEventStore ${this.toString()}>`;
   }
 
-  override migrateSchema(
-    db: IDBPDatabase,
-    oldVersion: string | null,
-    newVersion: string,
-    tx: IDBPTransaction<unknown, string[], "versionchange">,
-  ): void {
-    // event store
-    let eventStore;
-    if (!db.objectStoreNames.contains(DESTACK_EVENT_STORE_NAME)) {
-      eventStore = db.createObjectStore(DESTACK_EVENT_STORE_NAME, {
-        keyPath: ALIAS_PREFIX + NODE_ID_KEY,
-      });
-    } else {
-      eventStore = tx.objectStore(DESTACK_EVENT_STORE_NAME);
-    }
-    // index
-    for (const indexedProp of [NODE_METATYPE_KEY, EVENT_CREATED_AT_KEY]) {
-      const indexName = `${DESTACK_EVENT_STORE_NAME}_${indexedProp}`;
-      if (!eventStore.indexNames.contains(indexName)) {
-        eventStore.createIndex(indexName, ALIAS_PREFIX + indexedProp);
-      }
-    }
-  }
-
   override async open(): Promise<void> {
     await super.open();
     if (this.db == null) {
@@ -55,7 +24,11 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
     }
 
     // fetch initial event count
-    const eventCount = await this.db.count(DESTACK_EVENT_STORE_NAME);
+    let eventCount = 0;
+    for (const eventTable of this.schema.eventTables.values()) {
+      const count = await this.db.count(eventTable.name);
+      eventCount += count;
+    }
     this.eventCount = eventCount;
   }
 
@@ -74,10 +47,20 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
       tx?: IDBPTransaction<unknown, string[], "readwrite">;
     },
   ): Promise<Event[]> {
-    if (this.eventCount == null) {
-      throw new Error(`event count not initialized in ${this.repr()}`);
+    if (this.eventCount == null || this.db == null) {
+      throw new Error(`store not open in ${this.repr()}`);
     }
+
+    const eventTables = Array.from(this.schema.eventTables.values());
+    const tx =
+      options?.tx ??
+      this.db.transaction(
+        eventTables.map((table) => table.name),
+        "readwrite",
+      );
+    executeAppend(tx, this.context, events);
+    await tx.done;
     this.eventCount += events.length;
-    throw new Error("Not implemented");
+    return events;
   }
 }

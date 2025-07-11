@@ -1,17 +1,20 @@
 import {
-  Entity,
-  IsExtensible,
-  IsSpatial,
   Materialization,
-  Node,
+  NODE_TYPE_SCALAR_BY_TYPE,
   NodeReference,
   NodeType,
-  ScalarType,
-  Type,
-  TypeCardinality,
   Value,
 } from "@destack/language";
-import { ENTITY_MATERIALIZATION_KEY, ENTITY_SNAPSHOT_PTR_KEY, NODE_DEFINITION_PTR_ID, NODE_ID_KEY, NODE_METATYPE_KEY, NODE_PARENT_KEY, NODE_REFERENCE_ID_KEY, NODE_SPACE_PTR_ID } from "@destack/store/memory/core";
+import {
+  ENTITY_MATERIALIZATION_KEY,
+  ENTITY_SNAPSHOT_KEY,
+  NODE_DEFINITION_PTR_ID,
+  NODE_ID_KEY,
+  NODE_METATYPE_KEY,
+  NODE_PARENT_KEY,
+  NODE_REFERENCE_ID_KEY,
+  NODE_SPACE_PTR_ID,
+} from "@destack/store/memory/core";
 import { MemoryEntityRow } from "@destack/store/memory/entity/core";
 
 /**
@@ -45,7 +48,7 @@ export function packEntityRow(value: Value): MemoryEntityRow {
   }
 
   let snapshotPtr: NodeReference | null = null;
-  const snapshotPtrValue = valuePacked[ENTITY_SNAPSHOT_PTR_KEY];
+  const snapshotPtrValue = valuePacked[ENTITY_SNAPSHOT_KEY];
   if (snapshotPtrValue !== undefined) {
     snapshotPtr = NodeReference.fromValue(snapshotPtrValue);
   }
@@ -73,14 +76,6 @@ export function packEntityRow(value: Value): MemoryEntityRow {
  * Unpack a MemoryEntityRow to a Value.
  */
 export function unpackEntityRow(row: MemoryEntityRow): Value {
-  const typeInfo = new Type({
-    cardinality: TypeCardinality.SCALAR,
-    scalarType: ScalarType.NODE_VALUE,
-    nodeType: row.metatype,
-  });
-
-  return new Value({
-    type: typeInfo,
-    value: row.value,
-  });
+  const type = NODE_TYPE_SCALAR_BY_TYPE[row.metatype];
+  return new Value({ type: type, value: row.value });
 }

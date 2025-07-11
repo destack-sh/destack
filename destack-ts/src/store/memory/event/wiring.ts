@@ -8,7 +8,7 @@ import {
 } from "@destack/language";
 import {
   EVENT_CREATED_AT_KEY,
-  EVENT_SNAPSHOT_PTR_KEY,
+  EVENT_SNAPSHOT_KEY,
   NODE_DEFINITION_PTR_ID,
   NODE_ID_KEY,
   NODE_METATYPE_KEY,
@@ -40,7 +40,7 @@ export function packEventRow(value: Value): MemoryEventRow {
   });
 
   let snapshotPtr: NodeReference | null = null;
-  const snapshotPtrValue = valuePacked[EVENT_SNAPSHOT_PTR_KEY];
+  const snapshotPtrValue = valuePacked[EVENT_SNAPSHOT_KEY];
   if (snapshotPtrValue !== undefined) {
     snapshotPtr = NodeReference.fromValue(snapshotPtrValue);
   }

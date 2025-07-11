@@ -9,7 +9,8 @@ import type {
   StructType,
   TraitClass,
   TraitType,
-} from "@destack/language/core/builtin";
+  Type,
+} from "@destack/language";
 
 // basic class/type mappings
 
@@ -41,12 +42,14 @@ export function registerEnumClass(enumType: EnumType, enumClass: EnumClass): voi
   ENUM_TYPE_BY_CLASS.set(enumClass, enumType);
 }
 
-// extra mappings
+// extra computed stuff
 
 export const NODE_TYPES_BY_PRIMARY_STORE_KEY: Record<StoreKey, NodeType[]> = {} as any;
 export const NODE_TYPES_BY_TRAIT_TYPE: Record<TraitType, NodeType[]> = {} as any;
 
 export const PARENT_TYPES_BY_NODE_TYPE: Record<NodeType, NodeType[]> = {} as any;
+
+export const NODE_TYPE_SCALAR_BY_TYPE: Record<NodeType, Type> = {} as any;
 
 /** Get the known NodeTypes for a set of StoreKeys. */
 export function getNodeTypesForStores(storeKeys: StoreKey[]): NodeType[] {

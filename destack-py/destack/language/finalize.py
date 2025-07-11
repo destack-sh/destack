@@ -25,6 +25,7 @@ from .registry import (
     NODE_CLASS_BY_TYPE,
     NODE_DEFINITION_BY_TYPE,
     NODE_DEFINITION_REFERENCE_BY_CLASS,
+    NODE_TYPE_SCALAR_BY_NODE_TYPE,
     NODE_TYPES_BY_PRIMARY_STORE_KEY,
     NODE_TYPES_BY_TRAIT_TYPE,
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
@@ -255,8 +256,11 @@ def finalize():
         ConstantDefinition,
         EnumDefinition,
         NodeDefinition,
+        ScalarType,
         StructDefinition,
         TraitDefinition,
+        Type,
+        TypeCardinality,
     )
 
     for trait_type, trait_cls in TRAIT_CLASS_BY_TYPE.items():
@@ -277,6 +281,15 @@ def finalize():
     for constant_declaration in CONSTANT_DECLARATIONS.values():
         constant_definition = ConstantDefinition.from_constant(constant_declaration)
         CONSTANT_DEFINITIONS[constant_declaration.name] = constant_definition
+
+    # index node scalar types
+    for node_type in NodeType:
+        scalar_type = Type(
+            cardinality=TypeCardinality.SCALAR,
+            scalar_type=ScalarType.NODE_VALUE,
+            node_type=node_type,
+        )
+        NODE_TYPE_SCALAR_BY_NODE_TYPE[node_type] = scalar_type
 
     # index subdefinitions
     for node_type in NodeType:

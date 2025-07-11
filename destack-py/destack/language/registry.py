@@ -23,6 +23,7 @@ if TYPE_CHECKING:
         StructDefinition,
         Trait,
         TraitDefinition,
+        Type,
     )
 
 ENUM_CLASS_BY_TYPE = _ENUM_CLASS_BY_TYPE  # re-exported to avoid circular imports
@@ -50,6 +51,7 @@ CONSTANT_DEFINITIONS: dict[str, "ConstantDefinition"] = {}
 DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 
+NODE_TYPE_SCALAR_BY_NODE_TYPE: dict[NodeType, "Type"] = {}
 SUBDEFINITIONS_BY_NODE_TYPE: dict[NodeType, tuple["NodeDefinitionReference", ...]] = {}
 
 

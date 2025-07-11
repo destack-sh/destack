@@ -1,6 +1,7 @@
 import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
 import { IndexedDBEntityStore } from "@destack-web/store/indexeddb/entity/store";
 import { IndexedDBEventStore } from "@destack-web/store/indexeddb/event/store";
+import { getIndexedDBSchema } from "@destack-web/store/indexeddb/map";
 import {
   EditEvent,
   EntityStore,
@@ -13,7 +14,6 @@ import {
   StoreKey,
 } from "@destack/language";
 import { assertNever } from "@destack/utils";
-import { IDBPDatabase, IDBPTransaction } from "idb";
 
 /** A combined IndexedDB Store for Events and Entities. */
 export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, EntityStore {
@@ -23,29 +23,26 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
   public eventStore: IndexedDBEventStore;
 
   constructor(options: { types: StoreKey[]; dbName?: string }) {
-    super({ ...options, dbIsBorrowed: false });
+    super({
+      ...options,
+      schema: getIndexedDBSchema(),
+      dbIsBorrowed: false,
+    });
 
     this.entityStore = new IndexedDBEntityStore({
       types: this.types,
+      schema: this.schema,
+      context: this.context,
       dbIsBorrowed: true,
       dbName: this.dbName,
     });
     this.eventStore = new IndexedDBEventStore({
       types: this.types,
+      schema: this.schema,
+      context: this.context,
       dbIsBorrowed: true,
       dbName: this.dbName,
     });
-  }
-
-  /** Create the database schema. */
-  migrateSchema(
-    db: IDBPDatabase,
-    oldVersion: string | null,
-    newVersion: string,
-    tx: IDBPTransaction<unknown, string[], "versionchange">,
-  ): void {
-    this.entityStore.migrateSchema(db, oldVersion, newVersion, tx);
-    this.eventStore.migrateSchema(db, oldVersion, newVersion, tx);
   }
 
   override async open(): Promise<void> {
