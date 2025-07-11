@@ -4,6 +4,13 @@ const _byteToHex: string[] = Array.from({ length: 256 }, (_, i) =>
 );
 
 /**
+ * Generate a UUIDv4.
+ */
+export function uuid4(): string {
+  return _crypto.randomUUID();
+}
+
+/**
  * Generate a UUIDv7.
  * See https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7.
  */
@@ -17,11 +24,9 @@ export function uuid7(): string {
   const rnd = new Uint8Array(10);
   _crypto.getRandomValues(rnd);
 
-  const r1 =
-    ((rnd[0] << 24) | (rnd[1] << 16) | (rnd[2] << 8) | rnd[3]) >>> 0; // 32 bits
-  const r2 =
-    ((rnd[4] << 24) | (rnd[5] << 16) | (rnd[6] << 8) | rnd[7]) >>> 0; // 32 bits
-  const r3 = (rnd[8] << 8) | rnd[9];                                  // 16 bits
+  const r1 = ((rnd[0] << 24) | (rnd[1] << 16) | (rnd[2] << 8) | rnd[3]) >>> 0; // 32 bits
+  const r2 = ((rnd[4] << 24) | (rnd[5] << 16) | (rnd[6] << 8) | rnd[7]) >>> 0; // 32 bits
+  const r3 = (rnd[8] << 8) | rnd[9]; // 16 bits
 
   const b = new Uint8Array(16);
   b[0] = hi >>> 8;

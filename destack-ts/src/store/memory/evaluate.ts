@@ -7,25 +7,13 @@ import {
   ExpressionType,
   Function,
   FunctionType,
-  Node,
-  NodeReference,
   PropertyReferenceType,
   ScalarType,
   Sort,
   TypeCardinality,
 } from "@destack/language";
+import { NODE_ID_ID, NODE_REFERENCE_ID_KEY } from "@destack/store/memory/core";
 import { assertNever } from "@destack/utils";
-
-export const MAX_RECURSION_DEPTH = 100;
-
-export const NODE_PARENT_KEY = String(Node.property("parent").id);
-export const NODE_ID_ID = Node.property("id").id;
-export const NODE_ID_KEY = String(Node.property("id").id);
-
-export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
-export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
-export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
-export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
 
 /**
  * Evaluate an Expression against value data.

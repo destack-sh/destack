@@ -1,4 +1,9 @@
 import {
+  Entity,
+  Event,
+  IsExtensible,
+  IsSpatial,
+  Node,
   NodeDefinitionReference,
   NodeDefinitionType,
   NodeReference,
@@ -9,11 +14,34 @@ import { assertNever } from "@destack/utils";
 import { MemoryEntityTable } from "./entity/core";
 import { MemoryEventTable } from "./event/core";
 
+export const MAX_RECURSION_DEPTH = 100;
+
+export const NODE_PARENT_KEY = String(Node.property("parent").id);
+export const NODE_ID_ID = Node.property("id").id;
+export const NODE_ID_KEY = String(Node.property("id").id);
+export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
+export const NODE_PARENT_PTR_KEY = String(Node.property("parent").id);
+export const NODE_SPACE_PTR_ID = String(IsSpatial.property("space").id);
+export const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
+
+export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
+export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
+export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
+export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
+
+export const ENTITY_SNAPSHOT_PTR_KEY = String(Entity.property("snapshot").id);
+export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
+
+export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
+export const EVENT_SNAPSHOT_PTR_KEY = String(Event.property("snapshot").id);
+
+/** Node.id + Node.snapshotId */
 export interface VersionedNodeKey {
   id: string;
   snapshotId: string | null;
 }
 
+/** An in-memory database for Entities and Events. */
 export class MemoryDatabase {
   public entityTables: Map<NodeType, MemoryEntityTable>;
   public eventTables: Map<NodeType, MemoryEventTable>;
@@ -40,6 +68,7 @@ export class MemoryDatabase {
   }
 }
 
+/** A context for evaluating queries against an in-memory database. */
 export class MemoryContext {
   public database: MemoryDatabase;
 
@@ -107,5 +136,3 @@ export class MemoryContext {
     return new MemoryContext(this.database);
   }
 }
-
-

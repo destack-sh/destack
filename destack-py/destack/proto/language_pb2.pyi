@@ -1265,6 +1265,7 @@ class StoreImplementationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper
     STORE_IMPLEMENTATION_UNSPECIFIED: _ClassVar[StoreImplementationProto]
     STORE_IMPLEMENTATION_MEMORY: _ClassVar[StoreImplementationProto]
     STORE_IMPLEMENTATION_POSTGRES: _ClassVar[StoreImplementationProto]
+    STORE_IMPLEMENTATION_INDEXEDDB: _ClassVar[StoreImplementationProto]
 
 class StoreKeyProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2515,6 +2516,7 @@ STORE_DOMAIN_EVENT: StoreDomainProto
 STORE_IMPLEMENTATION_UNSPECIFIED: StoreImplementationProto
 STORE_IMPLEMENTATION_MEMORY: StoreImplementationProto
 STORE_IMPLEMENTATION_POSTGRES: StoreImplementationProto
+STORE_IMPLEMENTATION_INDEXEDDB: StoreImplementationProto
 STORE_KEY_UNSPECIFIED: StoreKeyProto
 STORE_KEY_GLOBAL_ENTITY_PRIMARY: StoreKeyProto
 STORE_KEY_SPATIAL_ENTITY_PRIMARY: StoreKeyProto

@@ -33,7 +33,7 @@ export class MemoryEntityStore implements EntityStore {
     for (const table of this.database.entityTables.values()) {
       numNodes += table.rows.size;
     }
-    return `nodes=${numNodes}, tables=${this.database.entityTables.size}`;
+    return `nodes=${numNodes}`;
   }
 
   repr(): string {

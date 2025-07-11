@@ -24065,13 +24065,17 @@ export enum StoreImplementationProto {
      */
     STORE_IMPLEMENTATION_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: STORE_IMPLEMENTATION_MEMORY = 1;
+     * @generated from protobuf enum value: STORE_IMPLEMENTATION_MEMORY = 100;
      */
-    STORE_IMPLEMENTATION_MEMORY = 1,
+    STORE_IMPLEMENTATION_MEMORY = 100,
     /**
-     * @generated from protobuf enum value: STORE_IMPLEMENTATION_POSTGRES = 10;
+     * @generated from protobuf enum value: STORE_IMPLEMENTATION_POSTGRES = 200;
      */
-    STORE_IMPLEMENTATION_POSTGRES = 10
+    STORE_IMPLEMENTATION_POSTGRES = 200,
+    /**
+     * @generated from protobuf enum value: STORE_IMPLEMENTATION_INDEXEDDB = 300;
+     */
+    STORE_IMPLEMENTATION_INDEXEDDB = 300
 }
 /**
  * The role of a Store (scope + domain + tier).

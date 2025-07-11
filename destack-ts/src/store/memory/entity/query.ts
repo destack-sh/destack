@@ -6,7 +6,6 @@ import {
   EdgeDirection,
   Expression,
   JoinType,
-  Node,
   NodeDefinitionReference,
   NodeReference,
   Query,
@@ -19,7 +18,7 @@ import {
   Value,
   toValue,
 } from "@destack/language";
-import { MemoryContext } from "@destack/store/memory/core";
+import { MAX_RECURSION_DEPTH, MemoryContext, NODE_PARENT_KEY, NODE_REFERENCE_ID_KEY } from "@destack/store/memory/core";
 import { MemoryEntityRow } from "@destack/store/memory/entity/core";
 import { unpackEntityRow } from "@destack/store/memory/entity/wiring";
 import {
@@ -30,17 +29,6 @@ import {
   extractIdCondition,
 } from "@destack/store/memory/evaluate";
 import { assertNever } from "@destack/utils";
-
-const MAX_RECURSION_DEPTH = 100;
-
-const NODE_PARENT_KEY = String(Node.property("parent").id);
-const NODE_ID_ID = Node.property("id").id;
-const NODE_ID_KEY = String(Node.property("id").id);
-
-const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
-const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
-const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
-const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
 
 /**
  * Execute a node Query.
@@ -601,8 +589,8 @@ function queryClause(
       groups.push(group);
     }
     result = new QueryResult({ id: query.id, type: query.type, groups });
-  } 
-  
+  }
+
   // fallback
   else {
     assertNever(query.type);

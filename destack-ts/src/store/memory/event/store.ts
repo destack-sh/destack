@@ -33,7 +33,7 @@ export class MemoryEventStore implements EventStore {
     for (const table of this.database.eventTables.values()) {
       numNodes += table.rows.size;
     }
-    return `nodes=${numNodes}, tables=${this.database.eventTables.size}`;
+    return `nodes=${numNodes}`;
   }
 
   repr(): string {
