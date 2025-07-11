@@ -358,7 +358,10 @@ export function evaluateAggregation(options: {
 /**
  * Check if condition is id = value or id IN values and return the value(s).
  */
-export function extractIdCondition(options: { condition: Condition }): [boolean, string[]] {
+export function extractIdCondition(options: { condition: Condition }): {
+  isIdCondition: boolean;
+  nodeIds: string[];
+} {
   const { condition } = options;
   if (
     (condition.type === ConditionalType.EQUALS || condition.type === ConditionalType.IN) &&
@@ -374,20 +377,20 @@ export function extractIdCondition(options: { condition: Condition }): [boolean,
     const literal = condition.right.literal;
     if (literal.type.cardinality === TypeCardinality.SCALAR) {
       if (literal.type.scalarType === ScalarType.PRIMITIVE) {
-        return [true, [literal.unpack() as string]];
+        return { isIdCondition: true, nodeIds: [literal.unpack() as string] };
       } else {
         const value = literal.unpack();
-        return [true, [value.id]];
+        return { isIdCondition: true, nodeIds: [value.id] };
       }
     } else if (literal.type.cardinality === TypeCardinality.LIST) {
       if (literal.type.scalarType === ScalarType.PRIMITIVE) {
-        return [true, literal.unpack() as string[]];
+        return { isIdCondition: true, nodeIds: literal.unpack() as string[] };
       } else {
         const values = literal.unpack() as any[];
-        return [true, values.map((ptr) => ptr.id)];
+        return { isIdCondition: true, nodeIds: values.map((ptr) => ptr.id) };
       }
     }
   }
 
-  return [false, []];
+  return { isIdCondition: false, nodeIds: [] };
 }

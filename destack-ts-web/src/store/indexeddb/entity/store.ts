@@ -1,5 +1,6 @@
 import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
 import { executeEdits } from "@destack-web/store/indexeddb/entity/edit";
+import { executeQuery } from "@destack-web/store/indexeddb/entity/query";
 import {
   EditEvent,
   EditType,
@@ -45,7 +46,18 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
       tx?: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
     },
   ): Promise<QueryResult> {
-    throw new Error("Not implemented");
+    if (this.db == null) {
+      throw new Error(`database is not open in ${this.repr()}`);
+    }
+    const tableNames = Array.from(this.schema.entityTables.values()).map((table) => table.name);
+    const tx = options?.tx ?? this.db.transaction(tableNames, "readonly");
+    const result = await executeQuery({
+      db: this.db,
+      tx,
+      context: this.context,
+      query,
+    });
+    return result;
   }
 
   async commit(

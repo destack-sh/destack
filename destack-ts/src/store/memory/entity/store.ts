@@ -41,7 +41,7 @@ export class MemoryEntityStore implements EntityStore {
   }
 
   async query(query: Query): Promise<QueryResult> {
-    const result = executeQuery(this.context, query);
+    const result = executeQuery({ context: this.context, query });
     return result;
   }
 

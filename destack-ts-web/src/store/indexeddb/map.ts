@@ -7,8 +7,22 @@ import {
 } from "@destack-web/store/indexeddb/core";
 import { NODE_CLASS_BY_TYPE, NodeType, StoreDomain } from "destack";
 
-function getNodeStoreName(nodeType: NodeType): string {
+/** Get the IndexedDB store name for a node type. */
+export function getNodeStoreName(nodeType: NodeType): string {
   return `destack_${nodeType}`;
+}
+
+/** Get the primary key for an Entity row. */
+export function getEntityKey(nodeId: string, snapshotId: string | null): string {
+  return `${nodeId}:${snapshotId || "<root>"}`;
+}
+
+/** Get the IndexedDB index name for a table and indexed key. */
+export function getIndexName(
+  table: IndexedDBEntityTable | IndexedDBEventTable,
+  indexedKey: string,
+): string {
+  return `${table.name}_${indexedKey}`;
 }
 
 export function getIndexedDBSchema(): IndexedDBSchema {

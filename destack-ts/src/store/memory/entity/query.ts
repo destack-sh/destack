@@ -18,7 +18,12 @@ import {
   Value,
   toValue,
 } from "@destack/language";
-import { MAX_RECURSION_DEPTH, MemoryContext, NODE_PARENT_KEY, NODE_REFERENCE_ID_KEY } from "@destack/store/memory/core";
+import {
+  MAX_RECURSION_DEPTH,
+  MemoryContext,
+  NODE_PARENT_KEY,
+  NODE_REFERENCE_ID_KEY,
+} from "@destack/store/memory/core";
 import { MemoryEntityRow } from "@destack/store/memory/entity/core";
 import { unpackEntityRow } from "@destack/store/memory/entity/wiring";
 import {
@@ -29,6 +34,64 @@ import {
   extractIdCondition,
 } from "@destack/store/memory/evaluate";
 import { assertNever } from "@destack/utils";
+
+/**
+ * Filter rows based on where condition and snapshot.
+ */
+function filterRows(options: {
+  context: MemoryContext;
+  definition: NodeDefinitionReference;
+  where: Condition | null;
+  snapshotPath: readonly string[];
+  ignoreMulti?: boolean;
+}): MemoryEntityRow[] {
+  const { context, definition, where, snapshotPath, ignoreMulti = false } = options;
+  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
+
+  let filteredRows: MemoryEntityRow[];
+
+  if (definition.isMulti && !ignoreMulti) {
+    const definitions = context.resolve(definition);
+    filteredRows = [];
+    for (const def of definitions) {
+      const table = context.getEntityTable(def);
+      const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
+      for (const row of snapshotRows.values()) {
+        if (where === null || evaluateCondition({ value: row.value, condition: where })) {
+          filteredRows.push(row);
+        }
+      }
+    }
+  } else {
+    const table = context.getEntityTable(definition);
+    if (where !== null) {
+      const { isIdCondition, nodeIds } = extractIdCondition({ condition: where });
+      if (isIdCondition) {
+        filteredRows = [];
+        for (const idVal of nodeIds) {
+          const nodeKey = table.getNodeKey({ id: idVal, snapshotId });
+          const row = table.rows.get(nodeKey.toString());
+          if (row !== undefined && evaluateCondition({ value: row.value, condition: where })) {
+            filteredRows.push(row);
+          }
+        }
+      } else {
+        filteredRows = [];
+        const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
+        for (const row of snapshotRows.values()) {
+          if (evaluateCondition({ value: row.value, condition: where })) {
+            filteredRows.push(row);
+          }
+        }
+      }
+    } else {
+      const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
+      filteredRows = Array.from(snapshotRows.values());
+    }
+  }
+
+  return filteredRows;
+}
 
 /**
  * Execute a node Query.
@@ -82,35 +145,8 @@ function queryNode(options: {
     return { nodes: allValues, nodesPtrs: allPtrs };
   }
 
-  const table = context.getEntityTable(definition);
-  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
-
   // filter
-  let filteredRows: MemoryEntityRow[];
-  if (where !== null) {
-    const [isIdQuery, nodeIds] = extractIdCondition({ condition: where });
-    if (isIdQuery) {
-      filteredRows = [];
-      for (const idVal of nodeIds) {
-        const nodeKey = table.getNodeKey({ id: idVal, snapshotId });
-        const row = table.rows.get(nodeKey.toString());
-        if (row !== undefined && evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    } else {
-      filteredRows = [];
-      const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-      for (const row of snapshotRows.values()) {
-        if (evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    }
-  } else {
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    filteredRows = Array.from(snapshotRows.values());
-  }
+  let filteredRows = filterRows({ context, definition, where, snapshotPath, ignoreMulti: true });
 
   // sort
   if (sort && sort.length > 0) {
@@ -156,32 +192,9 @@ function queryScalar(options: {
   snapshotPath: readonly string[];
 }): Value {
   const { context, definition, aggregation, where, snapshotPath } = options;
-  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
 
-  // collect rows
-  let filteredRows: MemoryEntityRow[];
-  if (definition.isMulti) {
-    const definitions = context.resolve(definition);
-    filteredRows = [];
-    for (const rel of definitions) {
-      const table = context.getEntityTable(rel);
-      const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-      for (const row of snapshotRows.values()) {
-        if (where === null || evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    }
-  } else {
-    const table = context.getEntityTable(definition);
-    filteredRows = [];
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    for (const row of snapshotRows.values()) {
-      if (where === null || evaluateCondition({ value: row.value, condition: where })) {
-        filteredRows.push(row);
-      }
-    }
-  }
+  // filter
+  const filteredRows = filterRows({ context, definition, where, snapshotPath });
 
   // execute
   const scalar = evaluateAggregation({ values: filteredRows.map((row) => row.value), aggregation });
@@ -211,35 +224,8 @@ function queryGroupedNode(options: {
     throw new Error("grouped node queries not supported for multi definitions");
   }
 
-  const table = context.getEntityTable(definition);
-  const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
-
   // filter
-  let filteredRows: MemoryEntityRow[];
-  if (where !== null) {
-    const [isIdQuery, nodeIds] = extractIdCondition({ condition: where });
-    if (isIdQuery) {
-      filteredRows = [];
-      for (const nodeId of nodeIds) {
-        const nodeKey = table.getNodeKey({ id: nodeId, snapshotId });
-        const row = table.rows.get(nodeKey.toString());
-        if (row !== undefined && evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    } else {
-      filteredRows = [];
-      const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-      for (const row of snapshotRows.values()) {
-        if (evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    }
-  } else {
-    const snapshotRows = table.rowsBySnapshot.get(snapshotId) || new Map();
-    filteredRows = Array.from(snapshotRows.values());
-  }
+  const filteredRows = filterRows({ context, definition, where, snapshotPath });
 
   // group rows by group_by expressions
   const groups = new Map<string, MemoryEntityRow[]>();
@@ -269,7 +255,6 @@ function queryGroupedNode(options: {
       processedRows.sort((a, b) => {
         const aKey = evaluateSortKey({ value: a.value, sort });
         const bKey = evaluateSortKey({ value: b.value, sort });
-
         for (let i = 0; i < aKey.length; i++) {
           if (aKey[i] < bKey[i]) return reverseFlags ? 1 : -1;
           if (aKey[i] > bKey[i]) return reverseFlags ? -1 : 1;
@@ -319,15 +304,8 @@ function queryGroupedScalar(options: {
     throw new Error("grouped scalar queries not supported for multi definitions");
   }
 
-  const table = context.getEntityTable(definition);
-
   // filter rows based on where condition
-  const filteredNodes: MemoryEntityRow[] = [];
-  for (const row of table.rows.values()) {
-    if (where === null || evaluateCondition({ value: row.value, condition: where })) {
-      filteredNodes.push(row);
-    }
-  }
+  const filteredNodes = filterRows({ context, definition, where, snapshotPath });
 
   // group rows by group_by expressions
   const groups = new Map<string, MemoryEntityRow[]>();
@@ -335,7 +313,6 @@ function queryGroupedScalar(options: {
     const groupKey = groupBy
       .map((expr) => JSON.stringify(evaluateExpression({ value: row.value, expression: expr })))
       .join(":");
-
     if (!groups.has(groupKey)) {
       groups.set(groupKey, []);
     }
@@ -477,11 +454,12 @@ export function walkNode(options: {
 /**
  * Execute the specific Query "clause" (ignoring subqueries).
  */
-function queryClause(
-  context: MemoryContext,
-  query: Query,
-  where: Condition | null,
-): { result: QueryResult; nodesPtrs: NodeReference[] } {
+function queryClause(options: { context: MemoryContext; query: Query; where: Condition | null }): {
+  result: QueryResult;
+  nodesPtrs: NodeReference[];
+} {
+  const { context, query, where } = options;
+
   // combine wheres
   let combinedWhere: Condition | null;
   if (where !== null) {
@@ -602,12 +580,14 @@ function queryClause(
 /**
  * Execute a subquery to a main Query.
  */
-function executeSubquery(
-  context: MemoryContext,
-  result: QueryResult,
-  nodesPtrs: readonly NodeReference[],
-  subquery: Query,
-): QueryResult | null {
+function executeSubquery(options: {
+  context: MemoryContext;
+  result: QueryResult;
+  nodesPtrs: readonly NodeReference[];
+  subquery: Query;
+}): QueryResult | null {
+  const { context, result, nodesPtrs, subquery } = options;
+
   if (nodesPtrs.length === 0) {
     return null;
   }
@@ -655,7 +635,7 @@ function executeSubquery(
     }
 
     // execute subquery
-    const subresult = executeQuery(context, subquery, subqueryWhere);
+    const subresult = executeQuery({ context, query: subquery, where: subqueryWhere });
     return subresult;
   }
   // child join
@@ -689,7 +669,7 @@ function executeSubquery(
     }
 
     // execute subquery
-    const subresult = executeQuery(context, subquery, subqueryWhere);
+    const subresult = executeQuery({ context, query: subquery, where: subqueryWhere });
     return subresult;
   }
   // left join
@@ -703,14 +683,20 @@ function executeSubquery(
 /**
  * Execute the Query (and any subqueries).
  */
-export function executeQuery(context: MemoryContext, query: Query, where?: Condition): QueryResult {
+export function executeQuery(options: {
+  context: MemoryContext;
+  query: Query;
+  where?: Condition;
+}): QueryResult {
+  const { context, query, where } = options;
+
   // execute main query
-  const { result, nodesPtrs } = queryClause(context, query, where || null);
+  const { result, nodesPtrs } = queryClause({ context, query, where: where || null });
 
   // execute subqueries
   const subresults: QueryResult[] = [];
   for (const subquery of query.subqueries || []) {
-    const subresult = executeSubquery(context, result, nodesPtrs, subquery);
+    const subresult = executeSubquery({ context, result, nodesPtrs, subquery });
     if (subresult !== null) {
       subresults.push(subresult);
     }
