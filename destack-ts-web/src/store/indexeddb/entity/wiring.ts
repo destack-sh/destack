@@ -1,11 +1,13 @@
 import {
   ENTITY_INDEXED_KEYS,
   ENTITY_PRIMARY_KEY,
-  getEntityKey,
   INDEXED_PREFIX,
+  NODE_ID_KEY,
   NODE_METATYPE_KEY,
 } from "@destack-web/store/indexeddb/core";
+import { getEntityKey } from "@destack-web/store/indexeddb/map";
 import {
+  ENTITY_SNAPSHOT_KEY,
   NODE_REFERENCE_ID_KEY,
   NODE_TYPE_SCALAR_BY_TYPE,
   NodeReference,
@@ -20,11 +22,12 @@ import {
 export function packEntityRow(nodePtr: NodeReference, value: Value): { [key: string]: string } {
   const valuePacked = { ...value.value }; // main data (just copy)
 
-  // primary key
-  valuePacked[ENTITY_PRIMARY_KEY] = getEntityKey(nodePtr.id, nodePtr.snapshotId);
-
   // pack indexed keys
   for (const key of ENTITY_INDEXED_KEYS) {
+    if (key === ENTITY_PRIMARY_KEY) {
+      valuePacked[key] = getEntityKey(nodePtr.id, nodePtr.snapshotId);
+      continue;
+    }
     const indexedKey = INDEXED_PREFIX + key;
     let indexedValue = valuePacked[key];
     if (indexedValue !== undefined) {
@@ -46,7 +49,10 @@ export function packEntityRow(nodePtr: NodeReference, value: Value): { [key: str
 /**
  * Unpack an IndexedDB entity row into a Value.
  */
-export function unpackEntityRow(valuePacked: { [key: string]: string }): Value {
+export function unpackEntityRow(valuePacked: { [key: string]: string }): {
+  nodePtr: NodeReference;
+  value: Value;
+} {
   const metatype = Number(valuePacked[NODE_METATYPE_KEY]) as NodeType;
   const type = NODE_TYPE_SCALAR_BY_TYPE[metatype];
   const valueClean = { ...valuePacked };
@@ -58,5 +64,10 @@ export function unpackEntityRow(valuePacked: { [key: string]: string }): Value {
     }
   }
   const value = new Value({ type, value: valueClean });
-  return value;
+  const nodePtr = new NodeReference({
+    type: metatype,
+    id: valuePacked[NODE_ID_KEY],
+    snapshotId: valuePacked[INDEXED_PREFIX + ENTITY_SNAPSHOT_KEY],
+  });
+  return { nodePtr, value };
 }

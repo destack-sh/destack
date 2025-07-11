@@ -1,3 +1,4 @@
+import { getIndexName } from "@destack-web/store/indexeddb/map";
 import {
   Entity,
   Event,
@@ -40,7 +41,6 @@ export const INDEXED_PREFIX = "_";
 export const ENTITY_PRIMARY_KEY = "_0"; // composite key of [id, snapshotId]
 export const ENTITY_INDEXED_KEYS = [
   ENTITY_PRIMARY_KEY,
-  NODE_METATYPE_KEY,
   NODE_ID_KEY,
   NODE_PARENT_KEY,
   ENTITY_SNAPSHOT_KEY,
@@ -53,10 +53,7 @@ export const EVENT_INDEXED_KEYS = [
   EVENT_CREATED_AT_KEY,
 ];
 
-/** Get the primary key for an Entity row. */
-export function getEntityKey(nodeId: string, snapshotId: string | null): string {
-  return `${nodeId}:${snapshotId || "<root>"}`;
-}
+
 
 /** Base class for all IndexedDB stores. */
 export abstract class IndexedDBStoreBase {
@@ -112,7 +109,7 @@ export abstract class IndexedDBStoreBase {
       }
       // index
       for (const indexedProp of table.indexedKeys) {
-        const indexName = `${table.name}_${indexedProp}`;
+        const indexName = getIndexName(table, indexedProp);
         if (!db.objectStoreNames.contains(indexName)) {
           tableStore.createIndex(indexName, INDEXED_PREFIX + indexedProp);
         }

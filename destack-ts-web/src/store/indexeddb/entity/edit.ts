@@ -1,4 +1,5 @@
-import { getEntityKey, IndexedDBContext, NODE_PARENT_KEY } from "@destack-web/store/indexeddb/core";
+import { IndexedDBContext, NODE_PARENT_KEY } from "@destack-web/store/indexeddb/core";
+import { getEntityKey } from "@destack-web/store/indexeddb/map";
 import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
 import {
   CASCADING_EDIT_TYPES,
