@@ -127,11 +127,11 @@ function queryEventScalar(options: {
   // filter rows
   const filteredRows = filterRows({ context, definition, where });
 
-  // collect values for aggregation
-  const valuesForAgg = filteredRows.map((row) => row.value);
-
   // execute aggregation
-  const scalar = evaluateAggregation({ values: valuesForAgg, aggregation });
+  const scalar = evaluateAggregation({
+    values: filteredRows.map((row) => row.value.value),
+    aggregation,
+  });
   const scalarValue = toValue(scalar);
 
   return scalarValue;
@@ -280,10 +280,10 @@ export function executeQuery(context: MemoryContext, query: Query): QueryResult 
     const [nodes, ptrs] = queryEventNode({
       context,
       definition: query.definition,
-      where: query.where || null,
-      sort: query.sort || null,
-      limit: query.limit || null,
-      offset: query.offset || null,
+      where: query.where,
+      sort: query.sort,
+      limit: query.limit,
+      offset: query.offset,
     });
     nodesPtrs = ptrs;
     result = new QueryResult({ id: query.id, type: query.type, nodes });
@@ -298,10 +298,9 @@ export function executeQuery(context: MemoryContext, query: Query): QueryResult 
       context,
       definition: query.definition,
       aggregation: query.aggregation,
-      where: query.where || null,
+      where: query.where,
     });
     result = new QueryResult({ id: query.id, type: query.type, scalar: scalarResult });
-
     if (query.aggregation.type === AggregationType.EXISTS) {
       result.exists = scalarResult.unpack();
     } else if (query.aggregation.type === AggregationType.COUNT) {
@@ -317,12 +316,12 @@ export function executeQuery(context: MemoryContext, query: Query): QueryResult 
     const groupsValue = queryEventGroupedNode({
       context,
       definition: query.definition,
-      where: query.where || null,
-      having: query.having || null,
-      sort: query.sort || null,
+      where: query.where,
+      having: query.having,
+      sort: query.sort,
       groupBy: query.groupBy,
-      limit: query.limit || null,
-      offset: query.offset || null,
+      limit: query.limit,
+      offset: query.offset,
     });
 
     const groups: QueryResultGroup[] = [];
@@ -350,8 +349,8 @@ export function executeQuery(context: MemoryContext, query: Query): QueryResult 
       context,
       definition: query.definition,
       aggregation: query.aggregation,
-      where: query.where || null,
-      having: query.having || null,
+      where: query.where,
+      having: query.having,
       groupBy: query.groupBy,
     });
 
@@ -369,7 +368,7 @@ export function executeQuery(context: MemoryContext, query: Query): QueryResult 
     assertNever(query.type);
   }
 
-  // note: subqueries not supported for events
+  // NOTE: subqueries not supported for events
   if (query.subqueries && query.subqueries.length > 0) {
     throw new Error(`subqueries not supported for event query: ${query.repr()}`);
   }
