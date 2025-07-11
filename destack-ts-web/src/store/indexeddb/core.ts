@@ -1,15 +1,41 @@
-import { getNodeTypesForStores, Node, NodeReference, NodeType, StoreKey } from "@destack/language";
+import {
+  Entity,
+  Event,
+  getNodeTypesForStores,
+  IsExtensible,
+  IsSpatial,
+  Node,
+  NodeReference,
+  NodeType,
+  StoreKey,
+} from "@destack/language";
 
 export const MAX_RECURSION_DEPTH = 100;
+
 
 export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
+export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
+export const NODE_PARENT_PTR_KEY = String(Node.property("parent").id);
+export const NODE_SPACE_PTR_ID = String(IsSpatial.property("space").id);
+export const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
 
 export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
 export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
 export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
+
+export const ENTITY_SNAPSHOT_PTR_KEY = String(Entity.property("snapshot").id);
+export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
+export const ENTITY_CREATED_AT_KEY = String(Entity.property("created_at").id);
+export const ENTITY_ALIASED_KEYS = [NODE_METATYPE_KEY, NODE_ID_KEY, ENTITY_CREATED_AT_KEY];
+
+export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
+export const EVENT_SNAPSHOT_PTR_KEY = String(Event.property("snapshot").id);
+export const EVENT_ALIASED_KEYS = [NODE_METATYPE_KEY, NODE_ID_KEY, EVENT_CREATED_AT_KEY];
+
+export const ALIAS_PREFIX = "_";
 
 /** Base class for all IndexedDB stores. */
 export abstract class IndexedDBStoreBase {
@@ -48,13 +74,16 @@ export abstract class IndexedDBStoreBase {
         request.onerror = (event) => {
           reject(new Error(`error opening database: ${event.target}`));
         };
+        request.onupgradeneeded = (event) => {
+          const db = (event.target as IDBOpenDBRequest).result;
+          this.migrateSchema(db);
+        };
         request.onsuccess = (event) => {
           const db = (event.target as IDBOpenDBRequest).result;
           resolve(db);
         };
       });
       this.db = await promise;
-      this.migrateSchema(this.db);
     } else {
       if (this.db == null) {
         throw new Error(`${this.dbName} database is not open`);

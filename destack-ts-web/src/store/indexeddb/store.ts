@@ -1,3 +1,6 @@
+import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
+import { IndexedDBEntityStore } from "@destack-web/store/indexeddb/entity/store";
+import { IndexedDBEventStore } from "@destack-web/store/indexeddb/event/store";
 import {
   EditEvent,
   EntityStore,
@@ -10,26 +13,23 @@ import {
   StoreKey,
 } from "@destack/language";
 import { assertNever } from "@destack/utils";
-import { IndexedDBStoreBase } from "./core";
-import { IndexedDBEntityStore } from "./entity/store";
-import { IndexedDBEventStore } from "./event/store";
 
 /** A combined IndexedDB Store for Events and Entities. */
 export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, EntityStore {
   public static readonly implementation: StoreImplementation = StoreImplementation.INDEXEDDB;
 
-  public eventStore: IndexedDBEventStore;
   public entityStore: IndexedDBEntityStore;
+  public eventStore: IndexedDBEventStore;
 
   constructor(options: { types: StoreKey[]; dbName?: string }) {
     super({ ...options, dbIsBorrowed: false });
 
-    this.eventStore = new IndexedDBEventStore({
+    this.entityStore = new IndexedDBEntityStore({
       types: this.types,
       dbIsBorrowed: true,
       dbName: this.dbName,
     });
-    this.entityStore = new IndexedDBEntityStore({
+    this.eventStore = new IndexedDBEventStore({
       types: this.types,
       dbIsBorrowed: true,
       dbName: this.dbName,
@@ -38,8 +38,8 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
 
   /** Create the database schema. */
   migrateSchema(db: IDBDatabase): void {
-    this.eventStore.migrateSchema(db);
     this.entityStore.migrateSchema(db);
+    this.eventStore.migrateSchema(db);
   }
 
   override async open(): Promise<void> {
@@ -47,8 +47,8 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
     if (this.db == null) {
       throw new Error("database is not open");
     }
-    this.eventStore.db = this.db;
     this.entityStore.db = this.db;
+    this.eventStore.db = this.db;
   }
 
   toString(): string {
