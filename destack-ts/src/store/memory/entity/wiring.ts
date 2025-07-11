@@ -11,7 +11,7 @@ import {
   TypeCardinality,
   Value,
 } from "@destack/language";
-import { ENTITY_MATERIALIZATION_KEY, ENTITY_SNAPSHOT_PTR_KEY, NODE_DEFINITION_PTR_ID, NODE_ID_KEY, NODE_METATYPE_KEY, NODE_PARENT_PTR_KEY, NODE_REFERENCE_ID_KEY, NODE_SPACE_PTR_ID } from "@destack/store/memory/core";
+import { ENTITY_MATERIALIZATION_KEY, ENTITY_SNAPSHOT_PTR_KEY, NODE_DEFINITION_PTR_ID, NODE_ID_KEY, NODE_METATYPE_KEY, NODE_PARENT_KEY, NODE_REFERENCE_ID_KEY, NODE_SPACE_PTR_ID } from "@destack/store/memory/core";
 import { MemoryEntityRow } from "@destack/store/memory/entity/core";
 
 /**
@@ -39,7 +39,7 @@ export function packEntityRow(value: Value): MemoryEntityRow {
   });
 
   let parentPtr: NodeReference | null = null;
-  const parentPtrValue = valuePacked[NODE_PARENT_PTR_KEY];
+  const parentPtrValue = valuePacked[NODE_PARENT_KEY];
   if (parentPtrValue !== undefined) {
     parentPtr = NodeReference.fromValue(parentPtrValue);
   }

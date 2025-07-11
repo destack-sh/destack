@@ -2,6 +2,7 @@ import {
   NODE_DEFINITIONS,
   NodeClass,
   NodeDefinition,
+  NodeDefinitionReference,
   NodeType,
   STRUCT_DEFINITIONS,
   StructClass,
@@ -79,6 +80,8 @@ export function finalize(): void {
       );
     }
     nodeClass.__definition__ = nodeDefinition;
+    const nodeDefinitionReference = NodeDefinitionReference.of(nodeClass);
+    nodeClass.__definitionReference = nodeDefinitionReference;
 
     // properties
     _indexProperties(nodeClass, nodeDefinition);

@@ -39,6 +39,7 @@ export abstract class Node extends BuiltinObject {
   static readonly metatype: NodeType = NodeType.NODE;
   static readonly __isNode__: boolean = true;
   static readonly __definition__: NodeDefinition;
+  static readonly __definitionReference: NodeDefinitionReference;
 
   readonly id: string;
   get parent(): Node | null {
@@ -419,6 +420,7 @@ export type NodeClass<N extends Node = Node> = (NodeConstructor<N> | AbstractNod
   (BuiltinObjectClass<any, any> & {
     metatype: NodeType;
     __definition__: NodeDefinition;
+    __definitionReference: NodeDefinitionReference;
   });
 
 /** Check if a value is a Node of a specific type. */

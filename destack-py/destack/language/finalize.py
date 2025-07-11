@@ -30,9 +30,11 @@ from .registry import (
     OBJECT_DEFINITION_REFERENCE_BY_CLASS,
     STRUCT_CLASS_BY_TYPE,
     STRUCT_DEFINITION_BY_TYPE,
+    SUBDEFINITIONS_BY_NODE_TYPE,
     TRAIT_CLASS_BY_TYPE,
     TRAIT_DEFINITION_BY_TYPE,
     get_node_or_trait_cls,
+    get_subdefinitions_for_node_type,
 )
 
 if TYPE_CHECKING:
@@ -264,6 +266,7 @@ def finalize():
         node_definition = NodeDefinition.from_node(node_cls)
         NODE_DEFINITION_BY_TYPE[node_cls.metatype] = node_definition
         node_cls.__definition__ = node_definition
+        node_cls.__definition_reference__ = NODE_DEFINITION_REFERENCE_BY_CLASS[node_cls]
     for struct_cls in STRUCT_CLASS_BY_TYPE.values():
         struct_definition = StructDefinition.from_struct(struct_cls)
         STRUCT_DEFINITION_BY_TYPE[struct_cls.metatype] = struct_definition
@@ -274,6 +277,10 @@ def finalize():
     for constant_declaration in CONSTANT_DECLARATIONS.values():
         constant_definition = ConstantDefinition.from_constant(constant_declaration)
         CONSTANT_DEFINITIONS[constant_declaration.name] = constant_definition
+
+    # index subdefinitions
+    for node_type in NodeType:
+        SUBDEFINITIONS_BY_NODE_TYPE[node_type] = get_subdefinitions_for_node_type(node_type)
 
     # sanity check stuff
     if IS_DEV or IS_TEST:

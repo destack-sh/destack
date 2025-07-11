@@ -2,9 +2,11 @@ import {
   Entity,
   Event,
   getNodeTypesForStores,
+  getSubdefinitionsForNodeType,
   IsExtensible,
   IsSpatial,
   Node,
+  NodeDefinitionReference,
   NodeReference,
   NodeType,
   StoreKey,
@@ -98,5 +100,48 @@ export abstract class IndexedDBStoreBase {
       this.db.close();
       this.db = null;
     }
+  }
+}
+
+/** A table in an IndexedDB database. */
+export class IndexedDBTable {
+  store: IndexedDBStoreBase;
+  nodeType: NodeType;
+  name: string;
+
+  constructor(store: IndexedDBStoreBase, nodeType: NodeType, name: string) {
+    this.store = store;
+    this.nodeType = nodeType;
+    this.name = name;
+  }
+
+  toString(): string {
+    return `store=${this.store.dbName}, nodeType=${NodeType[this.nodeType]}, name=${this.name}`;
+  }
+
+  repr(): string {
+    return `<${this.constructor.name} ${this.toString()}>`;
+  }
+}
+
+/** The current context for working with an IndexedDB database. */
+export class IndexedDBContext {
+  store: IndexedDBStoreBase;
+
+  constructor(store: IndexedDBStoreBase) {
+    this.store = store;
+  }
+
+  toString(): string {
+    return `store=${this.store.dbName}`;
+  }
+
+  repr(): string {
+    return `<IndexedDBContext ${this.toString()}>`;
+  }
+
+  /** Expand the (separately) stored definitions for a NodeDefinition. */
+  resolve(definition: NodeDefinitionReference): NodeDefinitionReference[] {
+    return getSubdefinitionsForNodeType(definition.nodeType);
   }
 }

@@ -4,7 +4,7 @@ import { MemoryContext } from "../core";
 import { packEventRow } from "./wiring";
 
 /**
- * Append events to the hierarchical event tables.
+ * Append Events to in-memory hierarchical Event tables.
  */
 export function executeAppend(context: MemoryContext, events: Event[]): Event[] {
   for (const event of events) {

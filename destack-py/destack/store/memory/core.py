@@ -7,8 +7,7 @@ from destack.language import (
     NodeType,
 )
 from destack.language.registry import (
-    NODE_CLASS_BY_TYPE,
-    NODE_DEFINITION_REFERENCE_BY_CLASS,
+    SUBDEFINITIONS_BY_NODE_TYPE,
 )
 
 if TYPE_CHECKING:
@@ -50,17 +49,7 @@ class MemoryContext:
 
     def resolve(self, definition: NodeDefinitionReference) -> Sequence[NodeDefinitionReference]:
         """Expand the (separately) stored definitions for a NodeDefinition."""
-        node_cls = NODE_CLASS_BY_TYPE[definition.node_type]
-        if not node_cls.__inherited_by__:
-            return (definition,)
-        subdefinitions: list[NodeDefinitionReference] = []
-        if not node_cls.__is_abstract__:
-            subdefinitions.append(definition)
-        for subnode_type in node_cls.__inherited_by__:
-            subnode_cls = NODE_CLASS_BY_TYPE[subnode_type]
-            if not subnode_cls.__is_abstract__:
-                subdefinitions.append(NODE_DEFINITION_REFERENCE_BY_CLASS[subnode_cls])
-        return tuple(subdefinitions)
+        return SUBDEFINITIONS_BY_NODE_TYPE[definition.node_type]
 
     def get_entity_table(
         self, definition: NodeDefinitionReference | NodeReference

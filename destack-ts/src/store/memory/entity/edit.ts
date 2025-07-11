@@ -7,25 +7,17 @@ import {
   EditType,
   IsArchivable,
   IsDeletable,
-  Node,
   NodeDefinitionReference,
   NodeReference,
   ScalarType,
 } from "@destack/language";
-import { MemoryContext } from "@destack/store/memory/core";
+import { MAX_RECURSION_DEPTH, MemoryContext, NODE_ARCHIVED_AT_KEY, NODE_DELETED_AT_KEY, NODE_PARENT_KEY } from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/entity/query";
 import { packEntityRow } from "@destack/store/memory/entity/wiring";
 import { Temporal } from "temporal-polyfill";
 
-const MAX_RECURSION_DEPTH = 100;
-
-const NODE_PARENT_KEY = String(Node.property("parent").id);
-
-const ARCHIVED_AT_KEY = String(IsArchivable.property("archived_at").id);
-const DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
-
 /**
- * Execute the Edits.
+ * Execute the Edits in-memory.
  */
 export function executeEdits(options: { context: MemoryContext; edits: EditEvent[] }): {
   edits: EditEvent[];
@@ -275,12 +267,12 @@ function executeEdit(options: {
         const row = table.rows.get(nodeKey);
         if (row) {
           if (editType === EditType.UNARCHIVE) {
-            const archivedAt = row.value[ARCHIVED_AT_KEY];
+            const archivedAt = row.value[NODE_ARCHIVED_AT_KEY];
             if (archivedAt) {
               rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
             }
           } else if (editType === EditType.RESTORE) {
-            const deletedAt = row.value[DELETED_AT_KEY];
+            const deletedAt = row.value[NODE_DELETED_AT_KEY];
             if (deletedAt) {
               rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
             }
@@ -315,14 +307,14 @@ function executeEdit(options: {
       if (row) {
         if (editType === EditType.ARCHIVE) {
           const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
-          row.value[ARCHIVED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
+          row.value[NODE_ARCHIVED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
         } else if (editType === EditType.UNARCHIVE) {
-          delete row.value[ARCHIVED_AT_KEY];
+          delete row.value[NODE_ARCHIVED_AT_KEY];
         } else if (editType === EditType.DELETE) {
           const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
-          row.value[DELETED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
+          row.value[NODE_DELETED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
         } else if (editType === EditType.RESTORE) {
-          delete row.value[DELETED_AT_KEY];
+          delete row.value[NODE_DELETED_AT_KEY];
         }
       }
     }

@@ -50,6 +50,8 @@ CONSTANT_DEFINITIONS: dict[str, "ConstantDefinition"] = {}
 DESCENDANT_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 ANCESTOR_NODE_TYPES_BY_TYPE: dict[NodeType, tuple[NodeType, ...]] = {}
 
+SUBDEFINITIONS_BY_NODE_TYPE: dict[NodeType, tuple["NodeDefinitionReference", ...]] = {}
+
 
 def get_builtin_object_cls(
     object_type: NodeType | StructType | TraitType,
@@ -109,3 +111,17 @@ def get_node_types_for_stores(store_keys: tuple[StoreKey, ...]) -> tuple[NodeTyp
             for node_type in NODE_TYPES_BY_PRIMARY_STORE_KEY[store_key]
         }
     )
+
+
+def get_subdefinitions_for_node_type(node_type: NodeType) -> tuple["NodeDefinitionReference", ...]:
+    node_cls = NODE_CLASS_BY_TYPE[node_type]
+    if not node_cls.__inherited_by__:
+        return (node_cls.__definition_reference__,)
+    subdefinitions: list[NodeDefinitionReference] = []
+    if not node_cls.__is_abstract__:
+        subdefinitions.append(node_cls.__definition_reference__)
+    for subnode_type in node_cls.__inherited_by__:
+        subnode_cls = NODE_CLASS_BY_TYPE[subnode_type]
+        if not subnode_cls.__is_abstract__:
+            subdefinitions.append(subnode_cls.__definition_reference__)
+    return tuple(subdefinitions)
