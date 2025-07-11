@@ -830,8 +830,9 @@ class StoreTier(Enum):
 
 @builtin_enum(EnumType.STORE_IMPLEMENTATION)
 class StoreImplementation(Enum):
-    MEMORY = 1
-    POSTGRES = 10
+    MEMORY = 100
+    POSTGRES = 200
+    INDEXEDDB = 300
     # CASSANDRA, ELASTICSEARCH, REDIS, ...
 
 

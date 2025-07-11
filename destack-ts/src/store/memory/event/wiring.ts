@@ -1,8 +1,4 @@
 import {
-  Event,
-  IsExtensible,
-  IsSpatial,
-  Node,
   NodeReference,
   NodeType,
   ScalarType,
@@ -10,18 +6,16 @@ import {
   TypeCardinality,
   Value,
 } from "@destack/language";
+import {
+  EVENT_CREATED_AT_KEY,
+  EVENT_SNAPSHOT_PTR_KEY,
+  NODE_DEFINITION_PTR_ID,
+  NODE_ID_KEY,
+  NODE_METATYPE_KEY,
+  NODE_REFERENCE_ID_KEY,
+  NODE_SPACE_PTR_ID,
+} from "@destack/store/memory/core";
 import { MemoryEventRow } from "@destack/store/memory/event/core";
-
-const NODE_METATYPE_KEY = String(Node.property("metatype").id);
-const NODE_ID_KEY = String(Node.property("id").id);
-const NODE_PARENT_PTR_KEY = String(Node.property("parent").id);
-const NODE_SPACE_PTR_ID = String(IsSpatial.property("space").id);
-const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
-
-const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
-const EVENT_SNAPSHOT_PTR_KEY = String(Event.property("snapshot").id);
-
-const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 
 /**
  * Pack a Value into a MemoryEventRow.

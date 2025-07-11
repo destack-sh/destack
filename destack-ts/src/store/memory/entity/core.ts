@@ -5,6 +5,7 @@ import {
 } from "@destack/language";
 import { MemoryDatabase, VersionedNodeKey } from "../core";
 
+/** An in-memory table of Entities. */
 export class MemoryEntityTable {
   public database: MemoryDatabase;
   public nodeType: NodeType;
@@ -34,6 +35,7 @@ export class MemoryEntityTable {
   }
 }
 
+/** A row in the MemoryEntityTable. */
 export class MemoryEntityRow {
   public metatype: NodeType;
   public id: string;

@@ -996,8 +996,9 @@ registerEnumClass(EnumType.STORE_TIER, StoreTier);
  * StoreImplementation
  */
 export enum StoreImplementation {
-  MEMORY = 1,
-  POSTGRES = 10,
+  MEMORY = 100,
+  POSTGRES = 200,
+  INDEXEDDB = 300,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

@@ -35,7 +35,7 @@ class MemoryEventStore(EventStore):
 
     def __str__(self) -> str:
         num_nodes = sum(len(table.rows) for table in self.database.event_tables.values())
-        return f"nodes={num_nodes}, tables={len(self.database.event_tables)}"
+        return f"nodes={num_nodes}"
 
     def __repr__(self) -> str:
         return f"<MemoryEventStore {self!s}>"

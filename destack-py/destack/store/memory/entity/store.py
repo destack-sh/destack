@@ -35,7 +35,7 @@ class MemoryEntityStore(EntityStore):
 
     def __str__(self) -> str:
         num_nodes = sum(len(table.rows) for table in self.database.entity_tables.values())
-        return f"nodes={num_nodes}, tables={len(self.database.entity_tables)}"
+        return f"nodes={num_nodes}"
 
     def __repr__(self) -> str:
         return f"<MemoryEntityStore {self!s}>"
