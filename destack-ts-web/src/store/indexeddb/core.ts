@@ -11,6 +11,7 @@ import {
   NodeType,
   StoreKey,
 } from "@destack/language";
+import { assertNever } from "@destack/utils";
 import { intToSemver } from "@destack/utils/semver";
 import { IDBPDatabase, IDBPTransaction, openDB } from "idb";
 
@@ -31,16 +32,20 @@ export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("d
 export const ENTITY_SNAPSHOT_KEY = String(Entity.property("snapshot").id);
 export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
 export const ENTITY_CREATED_AT_KEY = String(Entity.property("created_at").id);
+
+export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
+export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
+
+export const INDEXED_PREFIX = "_";
+export const ENTITY_PRIMARY_KEY = "_0"; // composite key of [id, snapshotId]
 export const ENTITY_INDEXED_KEYS = [
+  ENTITY_PRIMARY_KEY,
   NODE_METATYPE_KEY,
   NODE_ID_KEY,
   NODE_PARENT_KEY,
   ENTITY_SNAPSHOT_KEY,
   ENTITY_CREATED_AT_KEY,
 ];
-
-export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
-export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
 export const EVENT_INDEXED_KEYS = [
   NODE_METATYPE_KEY,
   NODE_ID_KEY,
@@ -48,7 +53,10 @@ export const EVENT_INDEXED_KEYS = [
   EVENT_CREATED_AT_KEY,
 ];
 
-export const INDEXED_PREFIX = "_";
+/** Get the primary key for an Entity row. */
+export function getEntityKey(nodeId: string, snapshotId: string | null): string {
+  return `${nodeId}:${snapshotId || "<root>"}`;
+}
 
 /** Base class for all IndexedDB stores. */
 export abstract class IndexedDBStoreBase {
@@ -92,7 +100,13 @@ export abstract class IndexedDBStoreBase {
     ]) {
       let tableStore;
       if (!db.objectStoreNames.contains(table.name)) {
-        tableStore = db.createObjectStore(table.name, { keyPath: INDEXED_PREFIX + NODE_ID_KEY });
+        if (table instanceof IndexedDBEntityTable) {
+          tableStore = db.createObjectStore(table.name, { keyPath: ENTITY_PRIMARY_KEY });
+        } else if (table instanceof IndexedDBEventTable) {
+          tableStore = db.createObjectStore(table.name, { keyPath: INDEXED_PREFIX + NODE_ID_KEY });
+        } else {
+          assertNever(table);
+        }
       } else {
         tableStore = tx.objectStore(table.name);
       }
