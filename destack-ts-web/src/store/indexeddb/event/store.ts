@@ -1,5 +1,6 @@
 import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
 import { executeAppend } from "@destack-web/store/indexeddb/event/append";
+import { executeQuery } from "@destack-web/store/indexeddb/event/query";
 import { Event, EventStore, Query, QueryResult, StoreImplementation } from "@destack/language";
 import { IDBPTransaction } from "idb";
 
@@ -38,7 +39,26 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
       tx?: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
     },
   ): Promise<QueryResult> {
-    throw new Error("Not implemented");
+    if (this.db == null) {
+      throw new Error(`store not open in ${this.repr()}`);
+    }
+
+    const eventTables = Array.from(this.schema.eventTables.values());
+    const tx =
+      options?.tx ??
+      this.db.transaction(
+        eventTables.map((table) => table.name),
+        "readonly",
+      );
+    
+    const result = await executeQuery({
+      tx,
+      context: this.context,
+      query,
+    });
+    
+    await tx.done;
+    return result;
   }
 
   async append(
