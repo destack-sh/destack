@@ -11,7 +11,13 @@ import {
   NodeReference,
   ScalarType,
 } from "@destack/language";
-import { MAX_RECURSION_DEPTH, MemoryContext, NODE_ARCHIVED_AT_KEY, NODE_DELETED_AT_KEY, NODE_PARENT_KEY } from "@destack/store/memory/core";
+import {
+  MAX_RECURSION_DEPTH,
+  MemoryContext,
+  NODE_ARCHIVED_AT_KEY,
+  NODE_DELETED_AT_KEY,
+  NODE_PARENT_KEY,
+} from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/entity/query";
 import { packEntityRow } from "@destack/store/memory/entity/wiring";
 import { Temporal } from "temporal-polyfill";
@@ -184,17 +190,17 @@ function executeEdit(options: {
       }
       const nodeKey = table.getNodeKey({ id: edit.nodePtr.id, snapshotId });
       const row = table.rows.get(nodeKey);
-      if (row) {
-        if (edit.operation === EditOperation.SET) {
-          if (!edit.value) {
-            throw new Error(`no value for ${edit.repr()}`);
-          }
-          row.value[String(edit.attribute.id)] = edit.value.value;
-        } else if (edit.operation === EditOperation.CLEAR) {
-          delete row.value[String(edit.attribute.id)];
-        } else {
-          throw new Error(`unsupported operation: ${edit.repr()}`);
+      if (!row) {
+        throw new Error(`node not found: ${edit.repr()}`);
+      } else if (edit.operation === EditOperation.SET) {
+        if (!edit.value) {
+          throw new Error(`no value for ${edit.repr()}`);
         }
+        row.value[String(edit.attribute.id)] = edit.value.value;
+      } else if (edit.operation === EditOperation.CLEAR) {
+        delete row.value[String(edit.attribute.id)];
+      } else {
+        throw new Error(`unsupported operation: ${edit.repr()}`);
       }
     }
     return { edits, cascadedEdits: [] };
@@ -212,32 +218,32 @@ function executeEdit(options: {
       const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
       const nodeKey = table.getNodeKey({ id: edit.nodePtr.id, snapshotId });
       const row = table.rows.get(nodeKey);
-
-      if (row) {
-        // remove from old parent
-        if (row.parentPtr) {
-          const parentTable = context.getEntityTable(row.parentPtr);
-          const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
-          const children = parentTable.rowsByParent.get(parentKey);
-          if (children) {
-            const index = children.indexOf(row);
-            if (index >= 0) {
-              children.splice(index, 1);
-            }
+      if (!row) {
+        throw new Error(`node not found: ${edit.repr()}`);
+      }
+      // remove from old parent
+      if (row.parentPtr) {
+        const parentTable = context.getEntityTable(row.parentPtr);
+        const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
+        const children = parentTable.rowsByParent.get(parentKey);
+        if (children) {
+          const index = children.indexOf(row);
+          if (index >= 0) {
+            children.splice(index, 1);
           }
         }
-        // update parent pointer
-        row.parentPtr = NodeReference.fromValue(edit.value.value);
-        row.value[NODE_PARENT_KEY] = edit.value.value;
-        // add to new parent
-        if (row.parentPtr) {
-          const parentTable = context.getEntityTable(row.parentPtr);
-          const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
-          if (!parentTable.rowsByParent.has(parentKey)) {
-            parentTable.rowsByParent.set(parentKey, []);
-          }
-          parentTable.rowsByParent.get(parentKey)!.push(row);
+      }
+      // update parent pointer
+      row.parentPtr = NodeReference.fromValue(edit.value.value);
+      row.value[NODE_PARENT_KEY] = edit.value.value;
+      // add to new parent
+      if (row.parentPtr) {
+        const parentTable = context.getEntityTable(row.parentPtr);
+        const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
+        if (!parentTable.rowsByParent.has(parentKey)) {
+          parentTable.rowsByParent.set(parentKey, []);
         }
+        parentTable.rowsByParent.get(parentKey)!.push(row);
       }
     }
     return { edits, cascadedEdits: [] };
@@ -252,9 +258,9 @@ function executeEdit(options: {
   ) {
     // cascade
     const nodesPtrs = edits.map((edit) => edit.nodePtr);
-    const editedAtByNodeId = new Map<string, Temporal.ZonedDateTime>();
+    const editByNodeId = new Map<string, EditEvent>();
     for (const edit of edits) {
-      editedAtByNodeId.set(edit.nodePtr.id, edit.createdAt);
+      editByNodeId.set(edit.nodePtr.id, edit);
     }
 
     let where: Condition | null = null;
@@ -265,17 +271,17 @@ function executeEdit(options: {
         const snapshotId = nodePtr.snapshotId || null;
         const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
         const row = table.rows.get(nodeKey);
-        if (row) {
-          if (editType === EditType.UNARCHIVE) {
-            const archivedAt = row.value[NODE_ARCHIVED_AT_KEY];
-            if (archivedAt) {
-              rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
-            }
-          } else if (editType === EditType.RESTORE) {
-            const deletedAt = row.value[NODE_DELETED_AT_KEY];
-            if (deletedAt) {
-              rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
-            }
+        if (!row) {
+          throw new Error(`node not found: ${nodePtr.repr()}`);
+        } else if (editType === EditType.UNARCHIVE) {
+          const archivedAt = row.value[NODE_ARCHIVED_AT_KEY];
+          if (archivedAt) {
+            rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
+          }
+        } else if (editType === EditType.RESTORE) {
+          const deletedAt = row.value[NODE_DELETED_AT_KEY];
+          if (deletedAt) {
+            rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
           }
         }
       }
@@ -300,22 +306,20 @@ function executeEdit(options: {
 
     // update timestamps
     for (const nodePtr of [...nodesPtrs, ...cascadedNodePtrs]) {
-      const snapshotId = nodePtr.snapshotId || null;
+      const edit = editByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
+      const snapshotId = edit?.snapshotPtr?.id || null;
       const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
       const row = table.rows.get(nodeKey);
-
-      if (row) {
-        if (editType === EditType.ARCHIVE) {
-          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
-          row.value[NODE_ARCHIVED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
-        } else if (editType === EditType.UNARCHIVE) {
-          delete row.value[NODE_ARCHIVED_AT_KEY];
-        } else if (editType === EditType.DELETE) {
-          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
-          row.value[NODE_DELETED_AT_KEY] = editedAt?.toString({ timeZoneName: "never" });
-        } else if (editType === EditType.RESTORE) {
-          delete row.value[NODE_DELETED_AT_KEY];
-        }
+      if (!row) {
+        throw new Error(`node not found: ${nodePtr.repr()}`);
+      } else if (editType === EditType.ARCHIVE) {
+        row.value[NODE_ARCHIVED_AT_KEY] = edit?.createdAt?.toString({ timeZoneName: "never" });
+      } else if (editType === EditType.UNARCHIVE) {
+        delete row.value[NODE_ARCHIVED_AT_KEY];
+      } else if (editType === EditType.DELETE) {
+        row.value[NODE_DELETED_AT_KEY] = edit?.createdAt?.toString({ timeZoneName: "never" });
+      } else if (editType === EditType.RESTORE) {
+        delete row.value[NODE_DELETED_AT_KEY];
       }
     }
 
@@ -342,28 +346,28 @@ function executeEdit(options: {
       const snapshotId = nodePtr.snapshotId || null;
       const nodeKey = nodeTable.getNodeKey({ id: nodePtr.id, snapshotId });
       const row = nodeTable.rows.get(nodeKey);
-
-      if (row) {
-        // remove from main table
-        nodeTable.rows.delete(nodeKey);
-        // remove from rowsBySnapshot
-        const snapshotRows = nodeTable.rowsBySnapshot.get(snapshotId);
-        if (snapshotRows) {
-          snapshotRows.delete(nodePtr.id);
-          if (snapshotRows.size === 0) {
-            nodeTable.rowsBySnapshot.delete(snapshotId);
-          }
+      if (!row) {
+        throw new Error(`node not found: ${nodePtr.repr()}`);
+      }
+      // remove from main table
+      nodeTable.rows.delete(nodeKey);
+      // remove from rowsBySnapshot
+      const snapshotRows = nodeTable.rowsBySnapshot.get(snapshotId);
+      if (snapshotRows) {
+        snapshotRows.delete(nodePtr.id);
+        if (snapshotRows.size === 0) {
+          nodeTable.rowsBySnapshot.delete(snapshotId);
         }
-        // remove from parent's children
-        if (row.parentPtr) {
-          const parentTable = context.getEntityTable(row.parentPtr);
-          const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
-          const children = parentTable.rowsByParent.get(parentKey);
-          if (children) {
-            const index = children.indexOf(row);
-            if (index >= 0) {
-              children.splice(index, 1);
-            }
+      }
+      // remove from parent's children
+      if (row.parentPtr) {
+        const parentTable = context.getEntityTable(row.parentPtr);
+        const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
+        const children = parentTable.rowsByParent.get(parentKey);
+        if (children) {
+          const index = children.indexOf(row);
+          if (index >= 0) {
+            children.splice(index, 1);
           }
         }
       }

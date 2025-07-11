@@ -42,7 +42,7 @@ export function packEntityRow(nodePtr: NodeReference, value: Value): { [key: str
     }
     valuePacked[indexedKey] = indexedValue ?? NULL_SENTINEL;
   }
-  
+
   return valuePacked;
 }
 
@@ -64,10 +64,14 @@ export function unpackEntityRow(valuePacked: { [key: string]: string }): {
     }
   }
   const value = new Value({ type, value: valueClean });
+  let snapshotId: string | null = valuePacked[INDEXED_PREFIX + ENTITY_SNAPSHOT_KEY];
+  if (snapshotId === NULL_SENTINEL) {
+    snapshotId = null;
+  }
   const nodePtr = new NodeReference({
     type: metatype,
     id: valuePacked[NODE_ID_KEY],
-    snapshotId: valuePacked[INDEXED_PREFIX + ENTITY_SNAPSHOT_KEY],
+    snapshotId,
   });
   return { nodePtr, value };
 }
