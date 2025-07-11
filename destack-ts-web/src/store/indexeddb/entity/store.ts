@@ -1,5 +1,13 @@
 import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
-import { EditEvent, EntityStore, Query, QueryResult, StoreImplementation } from "@destack/language";
+import { executeEdits } from "@destack-web/store/indexeddb/entity/edit";
+import {
+  EditEvent,
+  EditType,
+  EntityStore,
+  Query,
+  QueryResult,
+  StoreImplementation,
+} from "@destack/language";
 import { IDBPTransaction } from "idb";
 
 /** An IndexedDB Store for Entities. */
@@ -46,6 +54,52 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
       tx?: IDBPTransaction<unknown, string[], "readwrite">;
     },
   ): Promise<EditEvent[]> {
-    throw new Error("Not implemented");
+    if (this.db == null) {
+      throw new Error(`database is not open in ${this.repr()}`);
+    } else if (events.length === 0) {
+      return [];
+    }
+
+    let tx: IDBPTransaction<unknown, string[], "readwrite">;
+    let shouldCommit = false;
+
+    if (options?.tx) {
+      // use the provided transaction
+      tx = options.tx;
+    } else {
+      // create a new transaction with all required table names
+      const tableNames = new Set<string>();
+      for (const edit of events) {
+        const table = this.context.getEntityTable(edit.nodePtr);
+        tableNames.add(table.name);
+      }
+      tx = this.db.transaction(Array.from(tableNames), "readwrite");
+      shouldCommit = true;
+    }
+
+    const { edits, cascadedEdits } = await executeEdits({
+      tx,
+      context: this.context,
+      edits: events,
+    });
+
+    // commit the transaction if we created it
+    if (shouldCommit) {
+      await tx.done;
+    }
+
+    // update entity count
+    // NOTE :Robustness: IndexedDBEntityStore.entityCount is approximate
+    if (this.entityCount !== null) {
+      for (const edit of [...edits, ...cascadedEdits]) {
+        if (edit.type === EditType.CREATE || edit.type === EditType.UPSERT) {
+          this.entityCount++;
+        } else if (edit.type === EditType.ERASE) {
+          this.entityCount--;
+        }
+      }
+    }
+
+    return [...edits, ...cascadedEdits];
   }
 }

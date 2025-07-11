@@ -24,8 +24,7 @@ export function executeEdits(options: { context: MemoryContext; edits: EditEvent
   cascadedEdits: EditEvent[];
 } {
   const { context, edits } = options;
-
-  if (!edits || edits.length === 0) {
+  if (edits.length === 0) {
     return { edits: [], cascadedEdits: [] };
   }
 
@@ -55,6 +54,7 @@ export function executeEdits(options: { context: MemoryContext; edits: EditEvent
     currentBatch.push(edit);
   }
 
+  // flush last batch
   if (currentBatch.length > 0) {
     const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = executeEdit({
       context,
