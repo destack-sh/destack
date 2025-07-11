@@ -27,6 +27,43 @@ import { unpackEventRow } from "@destack/store/memory/event/wiring";
 import { assertNever } from "@destack/utils";
 
 /**
+ * Filter event rows based on where condition.
+ */
+function filterRows(options: {
+  context: MemoryContext;
+  definition: NodeDefinitionReference;
+  where: Condition | null;
+}): MemoryEventRow[] {
+  const { context, definition, where } = options;
+  const table = context.getEventTable(definition);
+
+  let filteredRows: MemoryEventRow[];
+  if (where !== null) {
+    const { isIdCondition, nodeIds } = extractIdCondition({ condition: where });
+    if (isIdCondition) {
+      filteredRows = [];
+      for (const idVal of nodeIds) {
+        const row = table.rows.get(idVal);
+        if (row !== undefined && evaluateCondition({ value: row.value.value, condition: where })) {
+          filteredRows.push(row);
+        }
+      }
+    } else {
+      filteredRows = [];
+      for (const row of table.rowsSorted) {
+        if (evaluateCondition({ value: row.value.value, condition: where })) {
+          filteredRows.push(row);
+        }
+      }
+    }
+  } else {
+    filteredRows = [...table.rowsSorted];
+  }
+
+  return filteredRows;
+}
+
+/**
  * Execute a node Query for events.
  */
 function queryEventNode(options: {
@@ -38,33 +75,9 @@ function queryEventNode(options: {
   offset: number | null;
 }): [Value[], NodeReference[]] {
   const { context, definition, where, sort, limit, offset } = options;
-  const table = context.getEventTable(definition);
 
   // filter rows
-  let filteredRows: MemoryEventRow[];
-  if (where !== null) {
-    const [isIdQuery, nodeIds] = extractIdCondition({ condition: where });
-    if (isIdQuery) {
-      filteredRows = [];
-      for (const idVal of nodeIds) {
-        const row = table.rows.get(idVal);
-        if (row !== undefined && evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    } else {
-      // filter from sorted list for better performance
-      filteredRows = [];
-      for (const row of table.rowsSorted) {
-        if (evaluateCondition({ value: row.value, condition: where })) {
-          filteredRows.push(row);
-        }
-      }
-    }
-  } else {
-    // use pre-sorted list
-    filteredRows = [...table.rowsSorted];
-  }
+  let filteredRows = filterRows({ context, definition, where });
 
   // sort if needed (override default created_at sort)
   if (sort && sort.length > 0) {
@@ -110,20 +123,12 @@ function queryEventScalar(options: {
   where: Condition | null;
 }): Value {
   const { context, definition, aggregation, where } = options;
-  const table = context.getEventTable(definition);
+
+  // filter rows
+  const filteredRows = filterRows({ context, definition, where });
 
   // collect values for aggregation
-  let valuesForAgg: Array<Record<string, any>>;
-  if (where !== null) {
-    valuesForAgg = [];
-    for (const row of table.rowsSorted) {
-      if (evaluateCondition({ value: row.value, condition: where })) {
-        valuesForAgg.push(row.value);
-      }
-    }
-  } else {
-    valuesForAgg = table.rowsSorted.map((row) => row.value);
-  }
+  const valuesForAgg = filteredRows.map((row) => row.value);
 
   // execute aggregation
   const scalar = evaluateAggregation({ values: valuesForAgg, aggregation });
@@ -146,20 +151,9 @@ function queryEventGroupedNode(options: {
   offset: number | null;
 }): Array<[Value, Value[], NodeReference[]]> {
   const { context, definition, where, having, sort, groupBy, limit, offset } = options;
-  const table = context.getEventTable(definition);
 
-  // filter
-  let filteredRows: MemoryEventRow[];
-  if (where !== null) {
-    filteredRows = [];
-    for (const row of table.rowsSorted) {
-      if (evaluateCondition({ value: row.value, condition: where })) {
-        filteredRows.push(row);
-      }
-    }
-  } else {
-    filteredRows = [...table.rowsSorted];
-  }
+  // filter rows
+  const filteredRows = filterRows({ context, definition, where });
 
   // group rows by group_by expressions
   const groups = new Map<string, MemoryEventRow[]>();
@@ -178,7 +172,7 @@ function queryEventGroupedNode(options: {
   const results: Array<[Value, Value[], NodeReference[]]> = [];
   for (const [groupKey, groupRows] of groups) {
     if (having !== null && groupRows.length > 0) {
-      if (!evaluateCondition({ value: groupRows[0].value, condition: having })) {
+      if (!evaluateCondition({ value: groupRows[0].value.value, condition: having })) {
         continue;
       }
     }
@@ -236,39 +230,30 @@ function queryEventGroupedScalar(options: {
   groupBy: readonly Expression[];
 }): Array<[Value, Value]> {
   const { context, definition, aggregation, where, having, groupBy } = options;
-  const table = context.getEventTable(definition);
 
-  // filter
-  let filteredRows: MemoryEventRow[];
-  if (where !== null) {
-    filteredRows = [];
-    for (const row of table.rowsSorted) {
-      if (evaluateCondition({ value: row.value, condition: where })) {
-        filteredRows.push(row);
-      }
-    }
-  } else {
-    filteredRows = [...table.rowsSorted];
-  }
+  // filter rows
+  const filteredRows = filterRows({ context, definition, where });
 
   // group rows by group_by expressions
   const groups = new Map<string, Array<Record<string, any>>>();
   for (const row of filteredRows) {
     const groupKey = groupBy
-      .map((expr) => JSON.stringify(evaluateExpression({ value: row.value, expression: expr })))
+      .map((expr) =>
+        JSON.stringify(evaluateExpression({ value: row.value.value, expression: expr })),
+      )
       .join(":");
 
     if (!groups.has(groupKey)) {
       groups.set(groupKey, []);
     }
-    groups.get(groupKey)!.push(row.value);
+    groups.get(groupKey)!.push(row.value.value);
   }
 
   // apply having filter and aggregation to each group
   const results: Array<[Value, Value]> = [];
   for (const [groupKey, groupValues] of groups) {
     if (having !== null && groupValues.length > 0) {
-      if (!evaluateCondition({ value: groupValues[0], condition: having })) {
+      if (!evaluateCondition({ value: groupValues[0].value, condition: having })) {
         continue;
       }
     }

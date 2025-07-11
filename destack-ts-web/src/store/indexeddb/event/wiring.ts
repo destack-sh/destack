@@ -3,6 +3,7 @@ import {
   INDEXED_PREFIX,
   NODE_METATYPE_KEY,
   NODE_REFERENCE_ID_KEY,
+  NULL_SENTINEL,
 } from "@destack-web/store/indexeddb/core";
 import { NODE_TYPE_SCALAR_BY_TYPE, NodeType, StructType, Value } from "destack";
 
@@ -15,18 +16,16 @@ export function packEventRow(value: Value): { [key: string]: string } {
   for (const key of EVENT_INDEXED_KEYS) {
     const indexedKey = INDEXED_PREFIX + key;
     let indexedValue = valuePacked[key];
-    if (indexedValue !== undefined) {
-      // flatten ptr props into their id
-      if (typeof indexedValue == "object") {
-        if (indexedValue[NODE_METATYPE_KEY] != StructType.NODE_REFERENCE) {
-          throw new Error(
-            `unexpected non-ptr prop: ${key} in ${value.repr()}: ${JSON.stringify(indexedValue)}`,
-          );
-        }
-        indexedValue = indexedValue[NODE_REFERENCE_ID_KEY];
+    // flatten ptr props into their id
+    if (indexedValue !== undefined && typeof indexedValue == "object") {
+      if (indexedValue[NODE_METATYPE_KEY] != StructType.NODE_REFERENCE) {
+        throw new Error(
+          `unexpected non-ptr prop: ${key} in ${value.repr()}: ${JSON.stringify(indexedValue)}`,
+        );
       }
-      valuePacked[indexedKey] = indexedValue;
+      indexedValue = indexedValue[NODE_REFERENCE_ID_KEY];
     }
+    valuePacked[indexedKey] = indexedValue ?? NULL_SENTINEL;
   }
   return valuePacked;
 }

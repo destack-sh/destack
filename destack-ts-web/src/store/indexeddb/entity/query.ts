@@ -1,9 +1,9 @@
 import {
   ENTITY_SNAPSHOT_KEY,
-  INDEXED_PREFIX,
   IndexedDBContext,
   NODE_PARENT_KEY,
   NODE_REFERENCE_ID_KEY,
+  NULL_SENTINEL,
 } from "@destack-web/store/indexeddb/core";
 import { unpackEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
 import { getEntityKey, getIndexName } from "@destack-web/store/indexeddb/map";
@@ -45,7 +45,6 @@ type _IndexedDBEntityRow = {
  * Filter rows based on conditions and snapshot.
  */
 async function filterRows(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -53,7 +52,7 @@ async function filterRows(options: {
   snapshotPath: readonly string[];
   ignoreMulti?: boolean;
 }): Promise<_IndexedDBEntityRow[]> {
-  const { db, tx, context, definition, where, snapshotPath, ignoreMulti = false } = options;
+  const { tx, context, definition, where, snapshotPath, ignoreMulti = false } = options;
   const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
 
   let filteredRows: _IndexedDBEntityRow[] = [];
@@ -65,9 +64,7 @@ async function filterRows(options: {
       const table = context.getEntityTable(def);
       const store = tx.objectStore(table.name);
       const index = store.index(getIndexName(table, ENTITY_SNAPSHOT_KEY));
-      const range = snapshotId != null ? IDBKeyRange.only(snapshotId) : null;
-
-      for await (const cursor of index.iterate(range)) {
+      for await (const cursor of index.iterate(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL))) {
         const row = cursor.value;
         const { nodePtr, value } = unpackEntityRow(row);
         if (where === null || evaluateCondition({ value: value.value, condition: where })) {
@@ -82,7 +79,9 @@ async function filterRows(options: {
       const { isIdCondition, nodeIds } = extractIdCondition({ condition: where });
       if (isIdCondition) {
         const keys = nodeIds.map((idVal) => getEntityKey(idVal, snapshotId));
-        const rows = await Promise.all(keys.map((key) => tx.objectStore(table.name).get(key)));
+        const rows = (
+          await Promise.all(keys.map((key) => tx.objectStore(table.name).get(key)))
+        ).filter((row) => row != null);
         for (const row of rows) {
           const { nodePtr, value } = unpackEntityRow(row);
           if (evaluateCondition({ value: value.value, condition: where })) {
@@ -93,8 +92,7 @@ async function filterRows(options: {
         // need to scan all rows for this snapshot
         const store = tx.objectStore(table.name);
         const index = store.index(getIndexName(table, ENTITY_SNAPSHOT_KEY));
-        const range = snapshotId != null ? IDBKeyRange.only(snapshotId) : null;
-        for await (const cursor of index.iterate(range)) {
+        for await (const cursor of index.iterate(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL))) {
           const row = cursor.value;
           const { nodePtr, value } = unpackEntityRow(row);
           if (evaluateCondition({ value: value.value, condition: where })) {
@@ -106,8 +104,7 @@ async function filterRows(options: {
       // get all rows for this snapshot
       const store = tx.objectStore(table.name);
       const index = store.index(getIndexName(table, ENTITY_SNAPSHOT_KEY));
-      const range = snapshotId != null ? IDBKeyRange.only(snapshotId) : null;
-      for await (const cursor of index.iterate(range)) {
+      for await (const cursor of index.iterate(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL))) {
         const row = cursor.value;
         const { nodePtr, value } = unpackEntityRow(row);
         filteredRows.push({ nodePtr, value });
@@ -122,7 +119,6 @@ async function filterRows(options: {
  * Execute a node Query.
  */
 async function queryNode(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -135,7 +131,6 @@ async function queryNode(options: {
   ignoreMulti?: boolean;
 }): Promise<{ nodes: Value[]; nodesPtrs: NodeReference[] }> {
   const {
-    db,
     tx,
     context,
     definition,
@@ -158,7 +153,6 @@ async function queryNode(options: {
     const allPtrs: NodeReference[] = [];
     for (const rel of definitions) {
       const { nodes, nodesPtrs } = await queryNode({
-        db,
         tx,
         context,
         definition: rel,
@@ -177,7 +171,7 @@ async function queryNode(options: {
   }
 
   // filter
-  const filteredRows = await filterRows({ db, tx, context, definition, where, snapshotPath });
+  const filteredRows = await filterRows({ tx, context, definition, where, snapshotPath });
 
   // sort
   if (sort && sort.length > 0) {
@@ -217,7 +211,6 @@ async function queryNode(options: {
  * Execute a scalar Query.
  */
 async function queryScalar(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -225,10 +218,10 @@ async function queryScalar(options: {
   where: Condition | null;
   snapshotPath: readonly string[];
 }): Promise<Value> {
-  const { db, tx, context, definition, aggregation, where, snapshotPath } = options;
+  const { tx, context, definition, aggregation, where, snapshotPath } = options;
 
   // filter
-  const filteredRows = await filterRows({ db, tx, context, definition, where, snapshotPath });
+  const filteredRows = await filterRows({ tx, context, definition, where, snapshotPath });
 
   // execute
   const scalar = evaluateAggregation({
@@ -243,7 +236,6 @@ async function queryScalar(options: {
  * Execute a grouped node Query.
  */
 async function queryGroupedNode(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -257,7 +249,6 @@ async function queryGroupedNode(options: {
   snapshotPath: readonly string[];
 }): Promise<Array<{ discriminator: Value; nodes: Value[]; nodesPtrs: NodeReference[] }>> {
   const {
-    db,
     tx,
     context,
     definition,
@@ -276,7 +267,7 @@ async function queryGroupedNode(options: {
   }
 
   // filter
-  const filteredRows = await filterRows({ db, tx, context, definition, where, snapshotPath });
+  const filteredRows = await filterRows({ tx, context, definition, where, snapshotPath });
 
   // group rows by group_by expressions
   const groups = new Map<string, _IndexedDBEntityRow[]>();
@@ -343,7 +334,6 @@ async function queryGroupedNode(options: {
  * Execute a grouped scalar Query.
  */
 async function queryGroupedScalar(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -353,7 +343,7 @@ async function queryGroupedScalar(options: {
   groupBy: readonly Expression[];
   snapshotPath: readonly string[];
 }): Promise<Array<[Value, Value]>> {
-  const { db, tx, context, definition, aggregation, where, having, groupBy, snapshotPath } =
+  const { tx, context, definition, aggregation, where, having, groupBy, snapshotPath } =
     options;
 
   if (definition.isMulti) {
@@ -361,7 +351,7 @@ async function queryGroupedScalar(options: {
   }
 
   // filter rows based on where condition
-  const filteredNodes = await filterRows({ db, tx, context, definition, where, snapshotPath });
+  const filteredNodes = await filterRows({ tx, context, definition, where, snapshotPath });
 
   // group rows by group_by expressions
   const groups = new Map<string, _IndexedDBEntityRow[]>();
@@ -402,8 +392,7 @@ async function queryGroupedScalar(options: {
 /**
  * Walk nodes in a specific direction with optional recursion.
  */
-async function walkNode(options: {
-  db: IDBPDatabase;
+export async function walkNode(options: {
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -413,7 +402,7 @@ async function walkNode(options: {
   where: Condition | null;
   snapshotPath: readonly string[];
 }): Promise<{ cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
-  const { db, tx, context, definition, nodesPtrs, direction, depth, where, snapshotPath } = options;
+  const { tx, context, definition, nodesPtrs, direction, depth, where, snapshotPath } = options;
 
   const nodesById = new Map<string, NodeReference>();
   const sourceIdByNodeId = new Map<string, string>();
@@ -523,13 +512,12 @@ async function walkNode(options: {
  * Execute the specific Query "clause" (ignoring subqueries).
  */
 async function queryClause(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   query: Query;
   where: Condition | null;
 }): Promise<{ result: QueryResult; nodesPtrs: NodeReference[] }> {
-  const { db, tx, context, query, where } = options;
+  const { tx, context, query, where } = options;
 
   // combine wheres
   let combinedWhere: Condition | null;
@@ -545,7 +533,6 @@ async function queryClause(options: {
   // node
   if (query.type === QueryType.NODE) {
     const { nodes, nodesPtrs: ptrs } = await queryNode({
-      db,
       tx,
       context,
       definition: query.definition,
@@ -566,7 +553,6 @@ async function queryClause(options: {
       throw new Error(`no aggregation for scalar query: ${query.repr()}`);
     }
     const scalarResult = await queryScalar({
-      db,
       tx,
       context,
       definition: query.definition,
@@ -589,7 +575,6 @@ async function queryClause(options: {
       throw new Error(`no group_by for grouped node query: ${query.repr()}`);
     }
     const groupsValue = await queryGroupedNode({
-      db,
       tx,
       context,
       definition: query.definition,
@@ -625,7 +610,6 @@ async function queryClause(options: {
       throw new Error(`no group_by for grouped scalar query: ${query.repr()}`);
     }
     const groupsValue = await queryGroupedScalar({
-      db,
       tx,
       context,
       definition: query.definition,
@@ -660,14 +644,13 @@ async function queryClause(options: {
  * Execute a subquery to a main Query.
  */
 async function executeSubquery(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   result: QueryResult;
   nodesPtrs: readonly NodeReference[];
   subquery: Query;
 }): Promise<QueryResult | null> {
-  const { db, tx, context, result, nodesPtrs, subquery } = options;
+  const { tx, context, result, nodesPtrs, subquery } = options;
 
   if (nodesPtrs.length === 0) {
     return null;
@@ -699,7 +682,6 @@ async function executeSubquery(options: {
     let subqueryWhere: Condition;
     if (subquery.join.recursive) {
       const { cascadedNodePtrs: expandedNodesPtrs } = await walkNode({
-        db,
         tx,
         context,
         definition: subquery.definition,
@@ -719,7 +701,6 @@ async function executeSubquery(options: {
 
     // execute subquery
     const subresult = await executeQuery({
-      db,
       tx,
       context,
       query: subquery,
@@ -737,7 +718,6 @@ async function executeSubquery(options: {
     let subqueryWhere: Condition;
     if (subquery.join.recursive) {
       const { cascadedNodePtrs: expandedNodesPtrs } = await walkNode({
-        db,
         tx,
         context,
         definition: subquery.definition,
@@ -761,7 +741,6 @@ async function executeSubquery(options: {
 
     // execute subquery
     const subresult = await executeQuery({
-      db,
       tx,
       context,
       query: subquery,
@@ -781,21 +760,20 @@ async function executeSubquery(options: {
  * Execute the Query (and any subqueries).
  */
 export async function executeQuery(options: {
-  db: IDBPDatabase;
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   query: Query;
   where?: Condition;
 }): Promise<QueryResult> {
-  const { db, tx, context, query, where } = options;
+  const { tx, context, query, where } = options;
 
   // execute main query
-  const { result, nodesPtrs } = await queryClause({ db, tx, context, query, where: where || null });
+  const { result, nodesPtrs } = await queryClause({ tx, context, query, where: where || null });
 
   // execute subqueries
   const subresults: QueryResult[] = [];
   for (const subquery of query.subqueries || []) {
-    const subresult = await executeSubquery({ db, tx, context, result, nodesPtrs, subquery });
+    const subresult = await executeSubquery({ tx, context, result, nodesPtrs, subquery });
     if (subresult !== null) {
       subresults.push(subresult);
     }
