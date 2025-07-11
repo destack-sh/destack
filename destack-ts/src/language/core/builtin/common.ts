@@ -726,17 +726,16 @@ export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.TIME]: Temporal.PlainTime,
   [PrimitiveType.DURATION]: Temporal.Duration,
 } as const;
-export const PRIMITIVE_TYPE_BY_JS_TYPE: Map<Function, PrimitiveType> = new Map([
-  [Boolean, PrimitiveType.BOOLEAN],
-  [Number, PrimitiveType.FLOAT64], // default for Number
-  [String, PrimitiveType.STRING],
-  [Uint8Array, PrimitiveType.BYTES],
-  [Temporal.ZonedDateTime, PrimitiveType.DATETIME],
-  [Temporal.PlainDate, PrimitiveType.DATE],
-  [Temporal.PlainTime, PrimitiveType.TIME],
-  [Temporal.Duration, PrimitiveType.DURATION],
+export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Map([
+  ["Boolean", PrimitiveType.BOOLEAN],
+  ["Number", PrimitiveType.FLOAT64], // default for Number
+  ["String", PrimitiveType.STRING],
+  ["Uint8Array", PrimitiveType.BYTES],
+  ["ZonedDateTime", PrimitiveType.DATETIME],
+  ["PlainDate", PrimitiveType.DATE],
+  ["PlainTime", PrimitiveType.TIME],
+  ["Duration", PrimitiveType.DURATION],
 ] as any);
-export const PRIMITIVE_JS_TYPES: Set<Function> = new Set(Object.values(JS_TYPE_BY_PRIMITIVE_TYPE));
 
 /* ==== DESTACK_GENERATED_START:ENUM:66 ==== */
 /**

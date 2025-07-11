@@ -1,8 +1,7 @@
 import {
   EnumType,
   NodeType,
-  PRIMITIVE_JS_TYPES,
-  PRIMITIVE_TYPE_BY_JS_TYPE,
+  PRIMITIVE_TYPE_BY_JS_TYPE_NAME,
   PrimitiveType,
   ScalarType,
   StructType,
@@ -76,13 +75,13 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
       structType: valueOrType.metatype,
     });
   } else if (
-    PRIMITIVE_JS_TYPES.has(valueOrType.constructor) &&
+    PRIMITIVE_TYPE_BY_JS_TYPE_NAME.has(valueOrType.constructor.name) &&
     valueOrType.constructor !== Object
   ) {
     return new Type({
       cardinality: TypeCardinality.SCALAR,
       scalarType: ScalarType.PRIMITIVE,
-      primitiveType: PRIMITIVE_TYPE_BY_JS_TYPE.get(valueOrType.constructor) || null,
+      primitiveType: PRIMITIVE_TYPE_BY_JS_TYPE_NAME.get(valueOrType.constructor.name) || null,
     });
   }
 
