@@ -41,7 +41,7 @@ export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
 
 // NOTE: IndexedDB doesn't allow numeric keys
 //  (so even simple keys like id and created_at are prefixed)
-export const ENTITY_PRIMARY_KEY = "__pk__"; // composite key of [id, snapshotId]
+export const ENTITY_PRIMARY_KEY = "_0"; // composite key of [id, snapshotId]
 export const ENTITY_KEYS_TO_INDEX: string[] = [
   ENTITY_PRIMARY_KEY,
   NODE_PARENT_KEY,

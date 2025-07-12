@@ -115,26 +115,34 @@ async def test_create_user_with_clients(session: Session):
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 async def test_create_folders_recursive(session: Session):
     """Create a Folder with recursive sub-Folders, mutate it, querying along the way."""
+
+    NUM_FOLDERS_PER_SUBTREE = 4
+
     # create
     root_folder = Folder(name="Folder", type=FolderType.HOME)
     session.create(root_folder)
-    subtree_folder_count = 4 * (1 + 4 * (1 + 4))
+    subtree_folder_count = NUM_FOLDERS_PER_SUBTREE * (
+        1 + NUM_FOLDERS_PER_SUBTREE * (1 + NUM_FOLDERS_PER_SUBTREE)
+    )
     for a in ("a", "b", "c", "d"):
         # create folder
         folder = Folder(name=f"Folder {a}")
         root_folder.add_child(folder)
         # create folder tree
-        for i in range(4):
+        for i in range(NUM_FOLDERS_PER_SUBTREE):
             sub_folder = Folder(name=f"Folder {a}/{i}")
             folder.add_child(sub_folder)
-            for j in range(4):
+            for j in range(NUM_FOLDERS_PER_SUBTREE):
                 inner_folder = Folder(name=f"Folder {a}/{i}/{j}")
                 sub_folder.add_child(inner_folder)
-                for k in range(4):
+                for k in range(NUM_FOLDERS_PER_SUBTREE):
                     inner_inner_folder = Folder(name=f"Folder {a}/{i}/{j}/{k}")
                     inner_folder.add_child(inner_inner_folder)
         await session.commit()
-    assert await Folder.count(where=Folder.property("parent").eq(root_folder)).execute_count() == 4
+    assert (
+        await Folder.count(where=Folder.property("parent").eq(root_folder)).execute_count()
+        == NUM_FOLDERS_PER_SUBTREE
+    )
 
     # query
     for folder in root_folder.get_children(Folder):
@@ -142,7 +150,7 @@ async def test_create_folders_recursive(session: Session):
         root_folder_count = await Folder.count(
             where=Folder.property("parent").eq(folder)
         ).execute_count()
-        assert root_folder_count == 4
+        assert root_folder_count == NUM_FOLDERS_PER_SUBTREE
 
         # query folder down (parent, recursive)
         connection = await Folder.get(
