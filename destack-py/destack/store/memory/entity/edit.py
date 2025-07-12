@@ -186,7 +186,7 @@ def _execute_edit(
             assert prop is not None, f"no prop for {edit!r}"
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if not (row := table.rows.get(node_key)):
-                raise LookupError(f"node not found {edit.node_ptr!r}")
+                raise LookupError(f"node not found for {edit!r}: {edit.node_ptr!r}")
             elif edit.operation == EditOperation.SET:
                 assert edit.value is not None, f"no value for {edit!r}"
                 row.value[str(prop.id)] = edit.value.value
@@ -215,7 +215,7 @@ def _execute_edit(
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if not (row := table.rows.get(node_key)):
-                raise LookupError(f"node not found {edit.node_ptr!r}")
+                raise LookupError(f"node not found for {edit!r}: {edit.node_ptr!r}")
             # remove from old parent
             if row.parent_ptr is not None:
                 parent_table = context.get_entity_table(row.parent_ptr)
@@ -255,7 +255,9 @@ def _execute_edit(
                 snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
                 node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
                 if not (row := table.rows.get(node_key)):
-                    raise LookupError(f"node not found {node_ptr!r}")
+                    raise LookupError(
+                        f"node not found for {edit_by_node_id[node_ptr.id]!r}: {node_ptr!r}"
+                    )
                 elif edit_type == EditType.UNARCHIVE:
                     if archived_at := row.value.get(ARCHIVED_AT_KEY):
                         root_dts.add(datetime.fromisoformat(archived_at).astimezone(UTC))
@@ -287,7 +289,7 @@ def _execute_edit(
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             if not (row := table.rows.get(node_key)):
-                raise LookupError(f"node not found {node_ptr!r}")
+                raise LookupError(f"node not found for {edit!r}: {node_ptr!r}")
             elif edit_type == EditType.ARCHIVE:
                 row.value[ARCHIVED_AT_KEY] = edit.created_at.astimezone(UTC).isoformat()
             elif edit_type == EditType.UNARCHIVE:
@@ -329,7 +331,7 @@ def _execute_edit(
             node_table = context.get_entity_table(node_ptr)
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             if not (row := node_table.rows.pop(node_key, None)):
-                raise LookupError(f"node not found {node_ptr!r}")
+                raise LookupError(f"node not found for {edit!r}: {node_ptr!r}")
             node_table.rows_by_snapshot[snapshot_id].pop(node_key.id, None)
             if not node_table.rows_by_snapshot[snapshot_id]:
                 node_table.rows_by_snapshot.pop(snapshot_id, None)

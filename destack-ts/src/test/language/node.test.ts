@@ -15,7 +15,7 @@ sessionTest("node space ptr", async ({ session }) => {
   const space = new Space({
     name: "MySpace",
     slug: "my-space",
-    status: SpaceStatus.RUNNING,
+    status: SpaceStatus.ACTIVE,
     region: Region.ZURICH,
   });
   session.create(space);

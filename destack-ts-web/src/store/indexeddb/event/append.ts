@@ -13,12 +13,15 @@ export function executeAppend(options: {
 }): Event[] {
   const { tx, context, events } = options;
   for (const event of events) {
-    const eventPtr = event.toRef();
-    const eventTable = context.getEventTable(eventPtr);
-    const eventType = NODE_TYPE_SCALAR_BY_TYPE[eventPtr.type];
-    const eventValue = new Value({ type: eventType, value: event.toValue() });
-    const eventRow = packEventRow(eventValue);
-    tx.objectStore(eventTable.name).put(eventRow);
+    const nodePtr = event.toRef();
+    const table = context.getEventTable(nodePtr);
+    const store = tx.objectStore(table.name);
+    const eventValue = new Value({
+      type: NODE_TYPE_SCALAR_BY_TYPE[nodePtr.type],
+      value: event.toValue(),
+    });
+    const row = packEventRow(eventValue);
+    store.put(row);
   }
   return events;
 }

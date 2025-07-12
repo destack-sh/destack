@@ -156,8 +156,9 @@ class SpaceService(ServiceBase, SpaceBase):
         raise NotImplementedError
         # changes = [Change.from_proto(change) for change in request.changes]
         # approved_changes: list[Change] = []
+        # nocheckin: access control (approve/reject/amend Queries & Changes, :RejectedEvents)
         # for _ in changes:
-        #     pass  # nocheckin: access control (approve/reject/amend Queries & Changes)
+        #     pass
         # results = await self.store.commit(approved_changes)
         # return CommitResponse(results=[result.to_proto() for result in results])
 
