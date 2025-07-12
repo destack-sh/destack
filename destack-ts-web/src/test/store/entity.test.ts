@@ -23,40 +23,49 @@ import {
   uuid4,
   View,
 } from "destack";
+import { IDBFactory } from "fake-indexeddb";
 import "fake-indexeddb/auto";
+
 import { describe, expect, test } from "vitest";
 
 const storeImplementations = [
   {
     name: "MemoryStore",
-    createStore: () =>
-      new MemoryStore({
+    createStore: async () => {
+      const store = new MemoryStore({
         types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
-      }),
+      });
+      return store;
+    },
+    tearDown: async (store: MemoryStore) => {},
   },
   {
     name: "IndexedDBStore",
-    createStore: () =>
-      new IndexedDBStore({
+    createStore: async () => {
+      // reset fake indexeddb
+      globalThis.indexedDB = new IDBFactory();
+
+      const store = new IndexedDBStore({
         types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
-      }),
+      });
+      await store.open();
+      return store;
+    },
+    tearDown: async (store: IndexedDBStore) => {
+      await store.close();
+    },
   },
 ];
 
-describe.each(storeImplementations)("$name", ({ createStore }) => {
+describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   const sessionTest = test.extend<{ session: Session }>({
     session: async ({ task }, use) => {
-      const store = createStore();
-      if (store instanceof IndexedDBStore) {
-        await store.open();
-      }
+      const store = await createStore();
       const session = new Session({ store });
       await session.open();
       await use(session);
       await session.close();
-      if (store instanceof IndexedDBStore) {
-        await store.close();
-      }
+      await tearDown(store as any);
     },
   });
 
@@ -153,23 +162,26 @@ describe.each(storeImplementations)("$name", ({ createStore }) => {
     expect(await Star.count({ where: Star.property("parent").eq(folder) }).executeCount()).toBe(20);
   });
 
+  const NUM_FOLDERS_PER_LEVEL = 4;
+
   sessionTest("create folders recursive", async ({ session }) => {
     // create
     const rootFolder = new Folder({ name: "Folder", type: FolderType.HOME });
     session.create(rootFolder);
-    const subtreeFolderCount = 4 * (1 + 4 * (1 + 4));
-    for (const a of ["a", "b", "c", "d"]) {
+    const subtreeFolderCount =
+      NUM_FOLDERS_PER_LEVEL * (1 + NUM_FOLDERS_PER_LEVEL * (1 + NUM_FOLDERS_PER_LEVEL));
+    for (const a of Array.from({ length: NUM_FOLDERS_PER_LEVEL }, (_, i) => `a${i}`)) {
       // create folder
       const folder = new Folder({ name: `Folder ${a}` });
       rootFolder.addChild(folder);
       // create folder tree
-      for (let i = 0; i < 4; i++) {
+      for (let i = 0; i < NUM_FOLDERS_PER_LEVEL; i++) {
         const subFolder = new Folder({ name: `Folder ${a}/${i}` });
         folder.addChild(subFolder);
-        for (let j = 0; j < 4; j++) {
+        for (let j = 0; j < NUM_FOLDERS_PER_LEVEL; j++) {
           const innerFolder = new Folder({ name: `Folder ${a}/${i}/${j}` });
           subFolder.addChild(innerFolder);
-          for (let k = 0; k < 4; k++) {
+          for (let k = 0; k < NUM_FOLDERS_PER_LEVEL; k++) {
             const innerInnerFolder = new Folder({ name: `Folder ${a}/${i}/${j}/${k}` });
             innerFolder.addChild(innerInnerFolder);
           }
@@ -179,7 +191,7 @@ describe.each(storeImplementations)("$name", ({ createStore }) => {
     }
     expect(
       await Folder.count({ where: Folder.property("parent").eq(rootFolder) }).executeCount(),
-    ).toBe(4);
+    ).toBe(NUM_FOLDERS_PER_LEVEL);
 
     // query
     for (const folder of rootFolder.getChildren(Folder)) {
@@ -187,7 +199,7 @@ describe.each(storeImplementations)("$name", ({ createStore }) => {
       const rootFolderCount = await Folder.count({
         where: Folder.property("parent").eq(folder),
       }).executeCount();
-      expect(rootFolderCount).toBe(4);
+      expect(rootFolderCount).toBe(NUM_FOLDERS_PER_LEVEL);
 
       // query folder down (parent, recursive)
       const connection = await Folder.get({
