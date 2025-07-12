@@ -1,11 +1,4 @@
-import {
-  NodeReference,
-  NodeType,
-  ScalarType,
-  Type,
-  TypeCardinality,
-  Value,
-} from "@destack/language";
+import { NODE_TYPE_SCALAR_BY_TYPE, NodeReference, NodeType, Value } from "@destack/language";
 import {
   EVENT_CREATED_AT_KEY,
   EVENT_SNAPSHOT_KEY,
@@ -46,7 +39,6 @@ export function packEventRow(value: Value): MemoryEventRow {
   }
 
   const createdAt = new Date(valuePacked[EVENT_CREATED_AT_KEY]);
-
   const row = new MemoryEventRow({
     metatype: nodeType,
     id,
@@ -63,14 +55,6 @@ export function packEventRow(value: Value): MemoryEventRow {
  * Unpack a MemoryEventRow to a Value.
  */
 export function unpackEventRow(row: MemoryEventRow): Value {
-  const typeInfo = new Type({
-    cardinality: TypeCardinality.SCALAR,
-    scalarType: ScalarType.NODE_VALUE,
-    nodeType: row.metatype,
-  });
-
-  return new Value({
-    type: typeInfo,
-    value: row.value,
-  });
+  const type = NODE_TYPE_SCALAR_BY_TYPE[row.metatype];
+  return new Value({ type, value: row.value });
 }

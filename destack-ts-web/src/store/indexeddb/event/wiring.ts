@@ -1,6 +1,6 @@
 import {
-  EVENT_INDEXED_KEYS,
-  INDEXED_PREFIX,
+  EVENT_KEYS_TO_INDEX,
+  EVENT_KEYS_TO_INDEX_PREFIXED,
   NODE_METATYPE_KEY,
   NODE_REFERENCE_ID_KEY,
   NULL_SENTINEL,
@@ -13,8 +13,8 @@ import { NODE_TYPE_SCALAR_BY_TYPE, NodeType, StructType, Value } from "destack";
 export function packEventRow(value: Value): { [key: string]: string } {
   const valuePacked = { ...value.value };
   // pack indexed keys
-  for (const key of EVENT_INDEXED_KEYS) {
-    const indexedKey = INDEXED_PREFIX + key;
+  for (const key of EVENT_KEYS_TO_INDEX) {
+    const indexedKey = EVENT_KEYS_TO_INDEX_PREFIXED[key];
     let indexedValue = valuePacked[key];
     // flatten ptr props into their id
     if (indexedValue !== undefined && typeof indexedValue == "object") {
@@ -36,14 +36,16 @@ export function packEventRow(value: Value): { [key: string]: string } {
 export function unpackEventRow(valuePacked: { [key: string]: string }): Value {
   const metatype = Number(valuePacked[NODE_METATYPE_KEY]) as NodeType;
   const type = NODE_TYPE_SCALAR_BY_TYPE[metatype];
+  
+  // clean indexed keys (they're just internal)
   const valueClean = { ...valuePacked };
-  // clean indexed keys (they're mirrors)
-  for (const key of EVENT_INDEXED_KEYS) {
-    const indexedKey = INDEXED_PREFIX + key;
+  for (const key of EVENT_KEYS_TO_INDEX) {
+    const indexedKey = EVENT_KEYS_TO_INDEX_PREFIXED[key];
     if (valueClean[indexedKey] !== undefined) {
       delete valueClean[indexedKey];
     }
   }
+  
   const value = new Value({ type, value: valueClean });
   return value;
 }

@@ -1,6 +1,6 @@
 import {
-  ENTITY_INDEXED_KEYS,
-  EVENT_INDEXED_KEYS,
+  ENTITY_KEYS_TO_INDEX,
+  EVENT_KEYS_TO_INDEX,
   IndexedDBEntityTable,
   IndexedDBEventTable,
   IndexedDBSchema,
@@ -35,7 +35,7 @@ export function getIndexedDBSchema(): IndexedDBSchema {
       const entityTable = new IndexedDBEntityTable({
         nodeType: nodeType.metatype,
         name: getNodeStoreName(nodeType.metatype),
-        indexedKeys: ENTITY_INDEXED_KEYS,
+        indexedKeys: ENTITY_KEYS_TO_INDEX,
       });
       entityTables.set(nodeType.metatype, entityTable);
     }
@@ -45,7 +45,7 @@ export function getIndexedDBSchema(): IndexedDBSchema {
   const eventTable = new IndexedDBEventTable({
     nodeType: NodeType.EVENT,
     name: getNodeStoreName(NodeType.EVENT),
-    indexedKeys: EVENT_INDEXED_KEYS,
+    indexedKeys: EVENT_KEYS_TO_INDEX,
   });
   const eventTables = new Map<NodeType, IndexedDBEventTable>();
   eventTables.set(NodeType.EVENT, eventTable);

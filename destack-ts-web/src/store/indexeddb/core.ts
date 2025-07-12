@@ -39,21 +39,34 @@ export const ENTITY_CREATED_AT_KEY = String(Entity.property("created_at").id);
 export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
 export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
 
-export const INDEXED_PREFIX = "_";
-export const ENTITY_PRIMARY_KEY = "_0"; // composite key of [id, snapshotId]
-export const ENTITY_INDEXED_KEYS = [
+// NOTE: IndexedDB doesn't allow numeric keys
+//  (so even simple keys like id and created_at are prefixed)
+export const ENTITY_PRIMARY_KEY = "__pk__"; // composite key of [id, snapshotId]
+export const ENTITY_KEYS_TO_INDEX: string[] = [
   ENTITY_PRIMARY_KEY,
-  NODE_ID_KEY,
   NODE_PARENT_KEY,
   ENTITY_SNAPSHOT_KEY,
-  ENTITY_CREATED_AT_KEY,
 ];
-export const EVENT_INDEXED_KEYS = [
-  NODE_METATYPE_KEY,
+export const ENTITY_KEYS_TO_INDEX_PREFIXED: Record<string, string> = ENTITY_KEYS_TO_INDEX.reduce(
+  (acc, key) => {
+    acc[key] = key.startsWith("_") ? key : "_" + key;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
+export const EVENT_KEYS_TO_INDEX: string[] = [
+  NODE_METATYPE_KEY, // events may be shared across tables
   NODE_ID_KEY,
-  EVENT_SNAPSHOT_KEY,
   EVENT_CREATED_AT_KEY,
+  EVENT_SNAPSHOT_KEY,
 ];
+export const EVENT_KEYS_TO_INDEX_PREFIXED: Record<string, string> = EVENT_KEYS_TO_INDEX.reduce(
+  (acc, key) => {
+    acc[key] = key.startsWith("_") ? key : "_" + key;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
 
 /** Base class for all IndexedDB stores. */
 export abstract class IndexedDBStoreBase {
@@ -98,9 +111,13 @@ export abstract class IndexedDBStoreBase {
       let tableStore;
       if (!db.objectStoreNames.contains(table.name)) {
         if (table instanceof IndexedDBEntityTable) {
-          tableStore = db.createObjectStore(table.name, { keyPath: ENTITY_PRIMARY_KEY });
+          tableStore = db.createObjectStore(table.name, {
+            keyPath: ENTITY_KEYS_TO_INDEX_PREFIXED[ENTITY_PRIMARY_KEY],
+          });
         } else if (table instanceof IndexedDBEventTable) {
-          tableStore = db.createObjectStore(table.name, { keyPath: INDEXED_PREFIX + NODE_ID_KEY });
+          tableStore = db.createObjectStore(table.name, {
+            keyPath: EVENT_KEYS_TO_INDEX_PREFIXED[NODE_ID_KEY],
+          });
         } else {
           assertNever(table);
         }
@@ -111,7 +128,13 @@ export abstract class IndexedDBStoreBase {
       for (const indexedProp of table.indexedKeys) {
         const indexName = getIndexName(table, indexedProp);
         if (!db.objectStoreNames.contains(indexName)) {
-          tableStore.createIndex(indexName, INDEXED_PREFIX + indexedProp);
+          if (table instanceof IndexedDBEntityTable) {
+            tableStore.createIndex(indexName, ENTITY_KEYS_TO_INDEX_PREFIXED[indexedProp]);
+          } else if (table instanceof IndexedDBEventTable) {
+            tableStore.createIndex(indexName, EVENT_KEYS_TO_INDEX_PREFIXED[indexedProp]);
+          } else {
+            assertNever(table);
+          }
         }
       }
     }
@@ -153,6 +176,7 @@ export abstract class IndexedDBStoreBase {
 export class IndexedDBSchema {
   readonly entityTables: Readonly<Map<NodeType, IndexedDBEntityTable>>;
   readonly eventTables: Readonly<Map<NodeType, IndexedDBEventTable>>;
+  readonly tableNames: readonly string[];
 
   constructor(options: {
     entityTables: Map<NodeType, IndexedDBEntityTable>;
@@ -160,6 +184,10 @@ export class IndexedDBSchema {
   }) {
     this.entityTables = options.entityTables;
     this.eventTables = options.eventTables;
+    this.tableNames = [
+      ...this.entityTables.values().map((table) => table.name),
+      ...this.eventTables.values().map((table) => table.name),
+    ];
   }
 
   toString(): string {

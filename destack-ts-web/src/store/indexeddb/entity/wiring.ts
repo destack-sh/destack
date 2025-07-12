@@ -1,7 +1,7 @@
 import {
-  ENTITY_INDEXED_KEYS,
+  ENTITY_KEYS_TO_INDEX,
+  ENTITY_KEYS_TO_INDEX_PREFIXED,
   ENTITY_PRIMARY_KEY,
-  INDEXED_PREFIX,
   NODE_ID_KEY,
   NODE_METATYPE_KEY,
   NULL_SENTINEL,
@@ -24,12 +24,12 @@ export function packEntityRow(nodePtr: NodeReference, value: Value): { [key: str
   const valuePacked = { ...value.value }; // main data (just copy)
 
   // pack indexed keys
-  for (const key of ENTITY_INDEXED_KEYS) {
+  for (const key of ENTITY_KEYS_TO_INDEX) {
     if (key === ENTITY_PRIMARY_KEY) {
       valuePacked[key] = getEntityKey(nodePtr.id, nodePtr.snapshotId);
       continue;
     }
-    const indexedKey = INDEXED_PREFIX + key;
+    const indexedKey = ENTITY_KEYS_TO_INDEX_PREFIXED[key];
     let indexedValue = valuePacked[key];
     // flatten ptr props into their id
     if (indexedValue !== undefined && typeof indexedValue == "object") {
@@ -55,23 +55,21 @@ export function unpackEntityRow(valuePacked: { [key: string]: string }): {
 } {
   const metatype = Number(valuePacked[NODE_METATYPE_KEY]) as NodeType;
   const type = NODE_TYPE_SCALAR_BY_TYPE[metatype];
+
+  // clean indexed keys (they're just internal)
   const valueClean = { ...valuePacked };
-  // clean indexed keys (they're mirrors)
-  for (const key of ENTITY_INDEXED_KEYS) {
-    const indexedKey = INDEXED_PREFIX + key;
+  for (const key of ENTITY_KEYS_TO_INDEX) {
+    const indexedKey = ENTITY_KEYS_TO_INDEX_PREFIXED[key];
     if (valueClean[indexedKey] !== undefined) {
       delete valueClean[indexedKey];
     }
   }
+
   const value = new Value({ type, value: valueClean });
-  let snapshotId: string | null = valuePacked[INDEXED_PREFIX + ENTITY_SNAPSHOT_KEY];
+  let snapshotId: string | null = valuePacked[ENTITY_KEYS_TO_INDEX_PREFIXED[ENTITY_SNAPSHOT_KEY]];
   if (snapshotId === NULL_SENTINEL) {
     snapshotId = null;
   }
-  const nodePtr = new NodeReference({
-    type: metatype,
-    id: valuePacked[NODE_ID_KEY],
-    snapshotId,
-  });
+  const nodePtr = new NodeReference({ type: metatype, id: valuePacked[NODE_ID_KEY], snapshotId });
   return { nodePtr, value };
 }
