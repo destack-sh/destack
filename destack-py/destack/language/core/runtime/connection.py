@@ -1,4 +1,3 @@
-import asyncio
 from collections.abc import Mapping, Sequence
 from typing import TYPE_CHECKING, Any, Optional, cast
 
@@ -170,7 +169,6 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
     __slots__ = (
         "graph",
-        "lock",
         "nodes",
         "query",
         "result",
@@ -190,7 +188,6 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
         self.store: Store = store
         self.session: Session = session
-        self.lock = asyncio.Lock()
         self.graph: Graph = session.supergraph.create_polygraph()
 
     def __repr__(self) -> str:
@@ -198,9 +195,8 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
     async def execute(self) -> None:
         """Execute the Query."""
-        async with self.lock:
-            self.result = await self.store.query(self.query)
-            self._add_result(self.result, self.query)
+        self.result = await self.store.query(self.query)
+        self._add_result(self.result, self.query)
 
     def close(self) -> None:
         """Close the QueryConnection."""

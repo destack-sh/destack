@@ -46,7 +46,7 @@ class EntityStore(Store, abc.ABC):
 
 class EventStore(Store, abc.ABC):
     """
-    A Store for Events (technically a superset of EntityStore).
+    A Store for Events.
     """
 
     @abc.abstractmethod

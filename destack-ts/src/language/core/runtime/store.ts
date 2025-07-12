@@ -45,7 +45,7 @@ export interface EntityStore extends Store {
 }
 
 /**
- * A Store for Events (technically a supserset of EntityStore).
+ * A Store for Events.
  */
 export interface EventStore extends Store {
   /**
