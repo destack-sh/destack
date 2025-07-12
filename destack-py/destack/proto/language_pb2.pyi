@@ -307,7 +307,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_STORE_SCOPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_STORE_DOMAIN: _ClassVar[EnumTypeProto]
     ENUM_TYPE_STORE_TIER: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_STORE_IMPLEMENTATION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_PLATFORM_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RUNTIME_LANGUAGE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_OPERATING_SYSTEM: _ClassVar[EnumTypeProto]
@@ -1260,13 +1259,6 @@ class StoreDomainProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STORE_DOMAIN_ENTITY: _ClassVar[StoreDomainProto]
     STORE_DOMAIN_EVENT: _ClassVar[StoreDomainProto]
 
-class StoreImplementationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
-    __slots__ = ()
-    STORE_IMPLEMENTATION_UNSPECIFIED: _ClassVar[StoreImplementationProto]
-    STORE_IMPLEMENTATION_MEMORY: _ClassVar[StoreImplementationProto]
-    STORE_IMPLEMENTATION_POSTGRES: _ClassVar[StoreImplementationProto]
-    STORE_IMPLEMENTATION_INDEXEDDB: _ClassVar[StoreImplementationProto]
-
 class StoreKeyProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     STORE_KEY_UNSPECIFIED: _ClassVar[StoreKeyProto]
@@ -1762,7 +1754,6 @@ ENUM_TYPE_STORE_KEY: EnumTypeProto
 ENUM_TYPE_STORE_SCOPE: EnumTypeProto
 ENUM_TYPE_STORE_DOMAIN: EnumTypeProto
 ENUM_TYPE_STORE_TIER: EnumTypeProto
-ENUM_TYPE_STORE_IMPLEMENTATION: EnumTypeProto
 ENUM_TYPE_PLATFORM_TYPE: EnumTypeProto
 ENUM_TYPE_RUNTIME_LANGUAGE: EnumTypeProto
 ENUM_TYPE_OPERATING_SYSTEM: EnumTypeProto
@@ -2513,10 +2504,6 @@ SPRING_TYPE_PHYSICS: SpringTypeProto
 STORE_DOMAIN_UNSPECIFIED: StoreDomainProto
 STORE_DOMAIN_ENTITY: StoreDomainProto
 STORE_DOMAIN_EVENT: StoreDomainProto
-STORE_IMPLEMENTATION_UNSPECIFIED: StoreImplementationProto
-STORE_IMPLEMENTATION_MEMORY: StoreImplementationProto
-STORE_IMPLEMENTATION_POSTGRES: StoreImplementationProto
-STORE_IMPLEMENTATION_INDEXEDDB: StoreImplementationProto
 STORE_KEY_UNSPECIFIED: StoreKeyProto
 STORE_KEY_GLOBAL_ENTITY_PRIMARY: StoreKeyProto
 STORE_KEY_SPATIAL_ENTITY_PRIMARY: StoreKeyProto

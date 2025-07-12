@@ -1,13 +1,11 @@
 import { IndexedDBStoreBase } from "@destack-web/store/indexeddb/core";
 import { executeAppend } from "@destack-web/store/indexeddb/event/append";
 import { executeQuery } from "@destack-web/store/indexeddb/event/query";
-import { Event, EventStore, Query, QueryResult, StoreImplementation } from "@destack/language";
+import { Event, EventStore, Query, QueryResult } from "@destack/language";
 import { IDBPTransaction } from "idb";
 
 /** An IndexedDB Store for Events. */
 export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.INDEXEDDB;
-
   private eventCount: number | null = null;
 
   toString(): string {

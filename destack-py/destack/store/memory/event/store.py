@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import ClassVar, override
+from typing import override
 
 import opentelemetry.trace as trace
 import structlog
@@ -9,7 +9,6 @@ from destack.language import (
     EventStore,
     Query,
     QueryResult,
-    StoreImplementation,
     StoreKey,
 )
 from destack.language.registry import get_node_types_for_stores
@@ -24,8 +23,6 @@ logger = structlog.get_logger(__name__)
 
 class MemoryEventStore(EventStore):
     """An in-memory Store for Events."""
-
-    implementation: ClassVar[StoreImplementation | None] = StoreImplementation.MEMORY
 
     def __init__(self, keys: tuple[StoreKey, ...], database: MemoryDatabase | None = None):
         self.keys = keys

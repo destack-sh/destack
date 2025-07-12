@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator, Sequence
-from typing import ClassVar, override
+from typing import override
 
 from destack.grpc import pack_rpc_headers
 from destack.grpc.network import unary_stream_rpc
@@ -10,15 +10,12 @@ from destack.language import (
     Query,
     QueryResult,
     QueryUpdate,
-    StoreImplementation,
 )
 from destack.proto import AppendRequest, QueryRequest, RpcMetadata, SpaceClient, SubscribeRequest
 
 
 class GrpcStore(EventStore, LiveStore):
-    """A Store that fetches data from a remote source via gRPC."""
-
-    implementation: ClassVar[StoreImplementation | None] = StoreImplementation.POSTGRES
+    """A Store that wraps a remote source via gRPC."""
 
     def __init__(self, space_client: SpaceClient, metadata: RpcMetadata):
         self.client = space_client

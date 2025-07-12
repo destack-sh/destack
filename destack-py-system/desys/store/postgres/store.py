@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from typing import ClassVar, override
+from typing import override
 
 import structlog
 from opentelemetry import trace
@@ -11,7 +11,6 @@ from destack.language import (
     EntityStore,
     Query,
     QueryResult,
-    StoreImplementation,
     StoreKey,
 )
 from destack.language.registry import get_node_types_for_stores
@@ -29,8 +28,6 @@ class PostgresEntityStore(EntityStore):
     """
     A Store backed by a Postgres Database.
     """
-
-    implementation: ClassVar[StoreImplementation | None] = StoreImplementation.POSTGRES
 
     __slots__ = ("context", "database")
 

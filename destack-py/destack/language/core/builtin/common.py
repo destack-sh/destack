@@ -32,7 +32,6 @@ class EnumType(Enum):
     STORE_SCOPE = 21
     STORE_DOMAIN = 22
     STORE_TIER = 23
-    STORE_IMPLEMENTATION = 25
     PLATFORM_TYPE = 30
     RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
@@ -826,14 +825,6 @@ class StoreTier(Enum):
     # PRIMARY_FAST, PRIMARY_RELATIONAL, ...
     # SEARCH = 20
     # AGGREGATE = 30
-
-
-@builtin_enum(EnumType.STORE_IMPLEMENTATION)
-class StoreImplementation(Enum):
-    MEMORY = 100
-    POSTGRES = 200
-    INDEXEDDB = 300
-    # CASSANDRA, ELASTICSEARCH, REDIS, ...
 
 
 @builtin_enum(EnumType.RUNTIME_LANGUAGE)
