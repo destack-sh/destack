@@ -20659,10 +20659,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_STORE_TIER = 23,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STORE_IMPLEMENTATION = 25;
-     */
-    ENUM_TYPE_STORE_IMPLEMENTATION = 25,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_PLATFORM_TYPE = 30;
      */
     ENUM_TYPE_PLATFORM_TYPE = 30,
@@ -24055,27 +24051,6 @@ export enum StoreDomainProto {
      * @generated from protobuf enum value: STORE_DOMAIN_EVENT = 500;
      */
     STORE_DOMAIN_EVENT = 500
-}
-/**
- * @generated from protobuf enum symbol.destack.StoreImplementationProto
- */
-export enum StoreImplementationProto {
-    /**
-     * @generated from protobuf enum value: STORE_IMPLEMENTATION_UNSPECIFIED = 0;
-     */
-    STORE_IMPLEMENTATION_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: STORE_IMPLEMENTATION_MEMORY = 100;
-     */
-    STORE_IMPLEMENTATION_MEMORY = 100,
-    /**
-     * @generated from protobuf enum value: STORE_IMPLEMENTATION_POSTGRES = 200;
-     */
-    STORE_IMPLEMENTATION_POSTGRES = 200,
-    /**
-     * @generated from protobuf enum value: STORE_IMPLEMENTATION_INDEXEDDB = 300;
-     */
-    STORE_IMPLEMENTATION_INDEXEDDB = 300
 }
 /**
  * The role of a Store (scope + domain + tier).

@@ -7,14 +7,11 @@ import {
   EntityStore,
   Query,
   QueryResult,
-  StoreImplementation,
 } from "@destack/language";
 import { IDBPTransaction } from "idb";
 
 /** An IndexedDB Store for Entities. */
 export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntityStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.INDEXEDDB;
-
   private entityCount: number | null = null;
 
   toString(): string {

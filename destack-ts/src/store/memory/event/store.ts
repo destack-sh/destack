@@ -5,7 +5,6 @@ import {
   NodeType,
   Query,
   QueryResult,
-  StoreImplementation,
   StoreKey,
 } from "@destack/language";
 import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
@@ -14,8 +13,6 @@ import { executeQuery } from "@destack/store/memory/event/query";
 
 /** An in-memory Store for Events. */
 export class MemoryEventStore implements EventStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
-
   public types: StoreKey[];
   public nodeTypes: NodeType[];
   public database: MemoryDatabase;

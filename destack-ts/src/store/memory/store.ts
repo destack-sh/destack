@@ -8,7 +8,6 @@ import {
   Query,
   QueryResult,
   StoreDomain,
-  StoreImplementation,
   StoreKey,
 } from "@destack/language";
 import { MemoryContext, MemoryDatabase } from "@destack/store/memory/core";
@@ -18,8 +17,6 @@ import { assertNever } from "@destack/utils";
 
 /** A combined in-memory Store for Events and Entities. */
 export class MemoryStore implements EventStore, EntityStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.MEMORY;
-
   public types: StoreKey[];
   public nodeTypes: NodeType[];
   public database: MemoryDatabase;

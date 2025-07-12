@@ -11,14 +11,11 @@ import {
   Query,
   QueryResult,
   StoreDomain,
-  StoreImplementation,
   StoreKey,
 } from "destack";
 
 /** A combined IndexedDB Store for Events and Entities. */
 export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, EntityStore {
-  public static readonly implementation: StoreImplementation = StoreImplementation.INDEXEDDB;
-
   public entityStore: IndexedDBEntityStore;
   public eventStore: IndexedDBEventStore;
 

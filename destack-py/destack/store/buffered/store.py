@@ -1,5 +1,5 @@
 from collections.abc import AsyncGenerator, Sequence
-from typing import ClassVar, override
+from typing import override
 
 from destack.language import (
     EditEvent,
@@ -10,7 +10,6 @@ from destack.language import (
     QueryResult,
     QueryUpdate,
     Store,
-    StoreImplementation,
     StoreKey,
 )
 from destack.store.memory import MemoryStore
@@ -23,8 +22,6 @@ class BufferedStore(EventStore, LiveStore):
     Route Queries and commits to underlying Stores, buffer certain Events in memory.
     Does not support atomic Events across Stores (yet).
     """
-
-    implementation: ClassVar[StoreImplementation | None] = None  # no single implementation
 
     def __init__(self, *stores: Store):
         self.stores: tuple[Store, ...] = stores

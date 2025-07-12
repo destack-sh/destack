@@ -66,7 +66,6 @@ import type {
   RuntimeLanguage,
   ScalarType,
   StoreDomain,
-  StoreImplementation,
   StoreKey,
   StoreScope,
   StoreTier,
@@ -770,7 +769,6 @@ export type EnumTypeMapping = {
   [EnumType.STORE_SCOPE]: StoreScope;
   [EnumType.STORE_DOMAIN]: StoreDomain;
   [EnumType.STORE_TIER]: StoreTier;
-  [EnumType.STORE_IMPLEMENTATION]: StoreImplementation;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;
   [EnumType.PLATFORM_TYPE]: PlatformType;
   [EnumType.OPERATING_SYSTEM]: OperatingSystem;

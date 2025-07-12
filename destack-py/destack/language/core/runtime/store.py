@@ -1,6 +1,6 @@
 import abc
 from collections.abc import AsyncGenerator, Sequence
-from typing import TYPE_CHECKING, ClassVar, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -10,7 +10,6 @@ if TYPE_CHECKING:
         Query,
         QueryResult,
         QueryUpdate,
-        StoreImplementation,
         StoreKey,
     )
 
@@ -21,7 +20,6 @@ class Store(abc.ABC):
     Some Stores only support a subset of Entities/Events (according to their StoreKeys).
     """
 
-    implementation: ClassVar[Optional["StoreImplementation"]]
     keys: tuple["StoreKey", ...]
     node_types: tuple["NodeType", ...]
 
@@ -33,7 +31,7 @@ class Store(abc.ABC):
         ...
 
 
-class EntityStore(Store):
+class EntityStore(Store, abc.ABC):
     """
     A Store for Entities.
     """
@@ -46,7 +44,7 @@ class EntityStore(Store):
         ...
 
 
-class EventStore(Store):
+class EventStore(Store, abc.ABC):
     """
     A Store for Events (technically a superset of EntityStore).
     """
@@ -59,7 +57,7 @@ class EventStore(Store):
         ...
 
 
-class LiveStore(Store):
+class LiveStore(Store, abc.ABC):
     """
     An EventStore that supports Query subscriptions.
     """

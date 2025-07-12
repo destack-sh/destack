@@ -21,7 +21,6 @@ export enum EnumType {
   STORE_SCOPE = 21,
   STORE_DOMAIN = 22,
   STORE_TIER = 23,
-  STORE_IMPLEMENTATION = 25,
   PLATFORM_TYPE = 30,
   RUNTIME_LANGUAGE = 31,
   OPERATING_SYSTEM = 40,
@@ -989,19 +988,3 @@ export enum StoreTier {
 }
 registerEnumClass(EnumType.STORE_TIER, StoreTier);
 /* ==== DESTACK_GENERATED_END:ENUM:23 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:25 ==== */
-/**
- * StoreImplementation
- */
-export enum StoreImplementation {
-  MEMORY = 100,
-  POSTGRES = 200,
-  INDEXEDDB = 300,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STORE_IMPLEMENTATION, StoreImplementation);
-/* ==== DESTACK_GENERATED_END:ENUM:25 ==== */
