@@ -415,6 +415,7 @@ export async function walkNode(options: {
     let currentDepth = 0;
     let currentNodeIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
     for (const ptr of nodesPtrs) {
+      nodesById.set(ptr.id, ptr);
       sourceIdByNodeId.set(ptr.id, ptr.id);
     }
 

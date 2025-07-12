@@ -262,12 +262,12 @@ async def test_create_layer_with_heterogeneous_views(session: Session):
         where=TextView.property("id").eq(view_leaves[0].id),
         Parents=View.search(
             join=Join.of(JoinType.PARENT, recursive=True),
-            Layer=Layer.search(
+            Layers=Layer.search(
                 join=Join.of(JoinType.PARENT),
             ),
         ),
     ).execute()
-    layer_unpacked = layer_tree.graph.get_roots(View)
+    layer_unpacked = layer_tree.graph.get_roots(Layer)
     assert len(layer_unpacked) == 1
     assert layer_unpacked[0].equals(layer)
 

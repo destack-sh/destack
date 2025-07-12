@@ -326,9 +326,7 @@ def _walk_node(
 
     definitions = context.resolve(definition)
     snapshot_id = snapshot_path[-1] if snapshot_path else None
-    nodes_by_id: dict[UUID, NodeReference] = (
-        {ptr.id: ptr for ptr in nodes_ptr} if direction == EdgeDirection.PARENT else {}
-    )
+    nodes_by_id: dict[UUID, NodeReference] = {}
     source_id_by_node_id: dict[UUID, UUID] = {}
 
     # parent walk
@@ -337,6 +335,7 @@ def _walk_node(
         current_depth = 0
         current_node_ids: set[UUID] = {ptr.id for ptr in nodes_ptr}
         for ptr in nodes_ptr:
+            nodes_by_id[ptr.id] = ptr
             source_id_by_node_id[ptr.id] = ptr.id
         while current_depth < depth:
             if not current_node_ids:
