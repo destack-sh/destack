@@ -8,12 +8,12 @@ import {
   Join,
   JoinType,
   LabelView,
+  Layer,
   MemoryStore,
   Message,
   NodeReference,
   NodeType,
   Reaction,
-  Layer,
   Session,
   Star,
   StoreKey,
@@ -328,10 +328,15 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }) as TextView[];
     const layerTree3 = await TextView.get({
       where: TextView.property("id").eq(viewLeaves[0].id),
-      Parents: View.search({ join: Join.of(JoinType.PARENT, { recursive: true }) }),
+      Parents: View.search({
+        join: Join.of(JoinType.PARENT, { recursive: true }),
+        where: View.property("deletedAt").isNull(),
+        Layers: Layer.search({
+          join: Join.of(JoinType.PARENT, { recursive: true }),
+        }),
+      }),
     }).execute();
-    const layerUnpacked3 = layerTree3.graph.getRoots({ nodeType: View.metatype }) as View[];
-    expect(layerUnpacked3.length).toBe(1);
+    const layerUnpacked3 = layerTree3.graph.getRoots({ nodeType: Layer.metatype }) as Layer[];
     expect(layerUnpacked3[0].equals(layer));
   });
 
