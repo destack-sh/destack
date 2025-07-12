@@ -3,6 +3,7 @@ import { IndexedDBEntityStore } from "@destack-web/store/indexeddb/entity/store"
 import { IndexedDBEventStore } from "@destack-web/store/indexeddb/event/store";
 import { getIndexedDBSchema } from "@destack-web/store/indexeddb/map";
 import {
+  assertNever,
   EditEvent,
   EntityStore,
   Event,
@@ -12,8 +13,7 @@ import {
   StoreDomain,
   StoreImplementation,
   StoreKey,
-} from "@destack/language";
-import { assertNever } from "@destack/utils";
+} from "destack";
 
 /** A combined IndexedDB Store for Events and Entities. */
 export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, EntityStore {

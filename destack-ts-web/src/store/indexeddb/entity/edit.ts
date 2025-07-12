@@ -205,7 +205,7 @@ async function executeEdit(options: {
       const nodeKey = getEntityKey(edit.nodePtr.id, snapshotId);
       const row = await store.get(nodeKey);
       if (!row) {
-        throw new Error(`node not found: ${edit.repr()}`);
+        throw new Error(`node not found for ${edit.repr()}: ${edit.nodePtr.repr()}`);
       } else if (edit.operation === EditOperation.SET) {
         if (!edit.value) {
           throw new Error(`no value for ${edit.repr()}`);
@@ -235,7 +235,7 @@ async function executeEdit(options: {
       const nodeKey = getEntityKey(edit.nodePtr.id, snapshotId);
       const row = await store.get(nodeKey);
       if (!row) {
-        throw new Error(`node not found: ${edit.repr()}`);
+        throw new Error(`node not found for ${edit.repr()}: ${edit.nodePtr.repr()}`);
       }
       row[NODE_PARENT_KEY] = edit.value.value;
       await store.put(row);
@@ -264,14 +264,18 @@ async function executeEdit(options: {
       const editPromises: Promise<any>[] = [];
 
       for (const nodePtr of nodesPtrs) {
+        const edit = editByNodeId.get(nodePtr.id);
+        if (!edit) {
+          throw new Error(`edit not found for ${nodePtr.repr()}`);
+        }
         const table = context.getEntityTable(nodePtr);
         const store = tx.objectStore(table.name);
-        const snapshotId = nodePtr.snapshotId ? nodePtr.snapshotId : null;
+        const snapshotId = edit.snapshotPtr?.id || null;
         const nodeKey = getEntityKey(nodePtr.id, snapshotId);
         editPromises.push(
           store.get(nodeKey).then((row) => {
             if (!row) {
-              throw new Error(`node not found: ${nodePtr.repr()}`);
+              throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
             } else if (editType === EditType.UNARCHIVE) {
               const archivedAt = row[NODE_ARCHIVED_AT_KEY];
               if (archivedAt) {
@@ -314,12 +318,15 @@ async function executeEdit(options: {
       const table = context.getEntityTable(nodePtr);
       const store = tx.objectStore(table.name);
       const edit = editByNodeId.get(sourceIdByNodeId.get(nodePtr.id) || nodePtr.id);
+      if (!edit) {
+        throw new Error(`edit not found for ${nodePtr.repr()}`);
+      }
       const snapshotId = edit?.snapshotPtr?.id || null;
       const nodeKey = getEntityKey(nodePtr.id, snapshotId);
       editPromises.push(
         store.get(nodeKey).then((row) => {
           if (!row) {
-            throw new Error(`node not found: ${nodePtr.repr()}`);
+            throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
           } else if (editType === EditType.ARCHIVE) {
             row[NODE_ARCHIVED_AT_KEY] = edit!.createdAt.toString({ timeZoneName: "never" });
           } else if (editType === EditType.UNARCHIVE) {
