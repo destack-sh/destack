@@ -67,21 +67,17 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
       return [];
     }
 
+    // get transaction
     let tx: IDBPTransaction<unknown, string[], "readwrite">;
-    let shouldCommit = false;
-
     if (options?.tx) {
-      // use the provided transaction
       tx = options.tx;
     } else {
-      // create a new transaction with all required table names
       const tableNames = new Set<string>();
       for (const edit of events) {
         const table = this.context.getEntityTable(edit.nodePtr);
         tableNames.add(table.name);
       }
       tx = this.db.transaction(Array.from(tableNames), "readwrite");
-      shouldCommit = true;
     }
 
     const { edits, cascadedEdits } = await executeEdits({
@@ -91,7 +87,7 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
     });
 
     // commit the transaction if we created it
-    if (shouldCommit) {
+    if (options?.tx == null) {
       await tx.done;
     }
 

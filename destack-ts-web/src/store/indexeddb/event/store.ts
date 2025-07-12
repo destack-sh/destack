@@ -50,13 +50,13 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
         eventTables.map((table) => table.name),
         "readonly",
       );
-    
+
     const result = await executeQuery({
       tx,
       context: this.context,
       query,
     });
-    
+
     await tx.done;
     return result;
   }
@@ -71,16 +71,27 @@ export class IndexedDBEventStore extends IndexedDBStoreBase implements EventStor
       throw new Error(`store not open in ${this.repr()}`);
     }
 
-    const eventTables = Array.from(this.schema.eventTables.values());
-    const tx =
-      options?.tx ??
-      this.db.transaction(
+    // get transaction
+    let tx: IDBPTransaction<unknown, string[], "readwrite">;
+    if (options?.tx) {
+      tx = options.tx;
+    } else {
+      const eventTables = Array.from(this.schema.eventTables.values());
+      tx = this.db.transaction(
         eventTables.map((table) => table.name),
         "readwrite",
       );
-    executeAppend(tx, this.context, events);
-    await tx.done;
+    }
+    await executeAppend({ tx, context: this.context, events });
+
+    // commit the transaction if we created it
+    if (options?.tx == null) {
+      await tx.done;
+    }
+
+    // update event count
     this.eventCount += events.length;
+
     return events;
   }
 }

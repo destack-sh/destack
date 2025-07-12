@@ -77,5 +77,5 @@ export function packEntityRow(value: Value): MemoryEntityRow {
  */
 export function unpackEntityRow(row: MemoryEntityRow): Value {
   const type = NODE_TYPE_SCALAR_BY_TYPE[row.metatype];
-  return new Value({ type: type, value: row.value });
+  return new Value({ type, value: row.value });
 }

@@ -1,11 +1,13 @@
 import { ReactiveSession, SessionProvider } from "@destack-web/language";
-import { ACTIVE_SESSION, Canvas, MemoryStore, Region, Space, SpaceStatus, StoreKey } from "destack";
+import { IndexedDBStore } from "@destack-web/store";
+import { ACTIVE_SESSION, Canvas, Region, Space, SpaceStatus, StoreKey } from "destack";
 import React from "react";
 import CanvasView from "./Canvas";
 
-const store = new MemoryStore({
+const store = new IndexedDBStore({
   types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
 });
+await store.open();
 const session = new ReactiveSession({ store });
 ACTIVE_SESSION.set(session);
 

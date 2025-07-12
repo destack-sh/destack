@@ -81,9 +81,14 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
   }
 
   async append(events: Event[]): Promise<Event[]> {
-    await this.eventStore.append(events);
+    if (this.db == null) {
+      throw new Error(`database is not open in ${this.repr()}`);
+    }
+    const tx = this.db.transaction(this.schema.tableNames, "readwrite");
+    await this.eventStore.append(events, { tx });
     const editEvents = events.filter((event) => event instanceof EditEvent);
-    await this.entityStore.commit(editEvents);
+    await this.entityStore.commit(editEvents, { tx });
+    await tx.done;
     return events;
   }
 }

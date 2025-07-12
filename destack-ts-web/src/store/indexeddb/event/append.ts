@@ -6,11 +6,12 @@ import { IDBPTransaction } from "idb";
 /**
  * Append Events in IndexedDB.
  */
-export function executeAppend(
-  tx: IDBPTransaction<unknown, string[], "readwrite">,
-  context: IndexedDBContext,
-  events: Event[],
-): Event[] {
+export function executeAppend(options: {
+  tx: IDBPTransaction<unknown, string[], "readwrite">;
+  context: IndexedDBContext;
+  events: Event[];
+}): Event[] {
+  const { tx, context, events } = options;
   for (const event of events) {
     const eventPtr = event.toRef();
     const eventTable = context.getEventTable(eventPtr);
