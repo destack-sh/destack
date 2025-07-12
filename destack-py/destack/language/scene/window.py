@@ -36,7 +36,7 @@ class Window(
     Entity,
 ):
     """
-    A Window for someone to interact with a Space via Scenes.
+    A Window for someone to interact with Destack (in a Space).
     """
 
     type: WindowType = builtin_property(100, is_repr=True)

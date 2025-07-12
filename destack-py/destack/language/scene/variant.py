@@ -16,7 +16,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Layer, Scene
+    from destack.language import Icon, Layer, Scene, View
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -46,7 +46,7 @@ class Variant(
 ):
     """A Variant is an alternative presentation of a visual."""
 
-    parent: Union["Scene", "Layer", None] = builtin_property_parent()
+    parent: Union["Scene", "Layer", "View", None] = builtin_property_parent()
     type: VariantType = builtin_property(100)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

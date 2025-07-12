@@ -279,6 +279,18 @@ class IsFollowable(Trait):
 
 
 #
+# View
+#
+
+
+@builtin_trait(TraitType.VIEWABLE)
+class IsViewable(Trait):
+    """A Node that can be presented visually."""
+
+    pass
+
+
+#
 # Logic
 #
 

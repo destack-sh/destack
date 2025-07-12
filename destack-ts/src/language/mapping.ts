@@ -40,7 +40,6 @@ import type {
 } from "@destack/language/access/sanction";
 import type { AnnotationShape } from "@destack/language/canvas/annotation";
 import type { Arrow, ArrowHeadType, ArrowShape } from "@destack/language/canvas/arrow";
-import type { Canvas, CanvasType } from "@destack/language/canvas/canvas";
 import type { Line, LineShape } from "@destack/language/canvas/line";
 import type { Shape } from "@destack/language/canvas/shape";
 import type { Node, Struct } from "@destack/language/core";
@@ -127,6 +126,7 @@ import type {
   IsStarable,
   IsSubject,
   IsTaggable,
+  IsViewable,
 } from "@destack/language/core/builtin/trait";
 import type {
   ActionDefinition,
@@ -452,12 +452,7 @@ import type { NumberInputView } from "@destack/language/view/number";
 import type { SliderInputView } from "@destack/language/view/slider";
 import type { SplitView } from "@destack/language/view/split";
 import type { TextView } from "@destack/language/view/text";
-import type {
-  View,
-  ViewEnteredEvent,
-  ViewEvent,
-  ViewExitedEvent,
-} from "@destack/language/view/view";
+import type { View, ViewEvent } from "@destack/language/view/view";
 
 export type NodeTypeMapping = {
   [NodeType.NODE]: Node;
@@ -506,8 +501,6 @@ export type NodeTypeMapping = {
   [NodeType.SANCTION_EXPIRED_EVENT]: SanctionExpiredEvent;
   [NodeType.SANCTION]: Sanction;
   [NodeType.VIEW_EVENT]: ViewEvent;
-  [NodeType.VIEW_ENTERED_EVENT]: ViewEnteredEvent;
-  [NodeType.VIEW_EXITED_EVENT]: ViewExitedEvent;
   [NodeType.VIEW]: View;
   [NodeType.CONTAINER_VIEW]: ContainerView;
   [NodeType.CONTENT_VIEW]: ContentView;
@@ -522,7 +515,6 @@ export type NodeTypeMapping = {
   [NodeType.SHAPE]: Shape;
   [NodeType.ANNOTATION_SHAPE]: AnnotationShape;
   [NodeType.ARROW_SHAPE]: ArrowShape;
-  [NodeType.CANVAS]: Canvas;
   [NodeType.LINE_SHAPE]: LineShape;
   [NodeType.FILE]: File;
   [NodeType.ENVIRONMENT]: Environment;
@@ -668,6 +660,7 @@ export type TraitTypeMapping = {
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
   [TraitType.FOLLOWABLE]: IsFollowable;
+  [TraitType.VIEWABLE]: IsViewable;
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
@@ -825,7 +818,6 @@ export type EnumTypeMapping = {
   [EnumType.PERMISSION_TYPE]: PermissionType;
   [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
-  [EnumType.CANVAS_TYPE]: CanvasType;
   [EnumType.FILE_SOURCE]: FileSource;
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
   [EnumType.FILE_TYPE]: FileType;

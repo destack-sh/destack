@@ -18,8 +18,7 @@ import type {
 import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Layer, Scene, Window } from "@destack/language/scene";
-import type { Folder } from "@destack/language/space";
+import type { Layer } from "@destack/language/scene";
 import type { Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view/container";
 import { InputView } from "@destack/language/view/input";
@@ -38,16 +37,10 @@ export class SliderInputView extends InputView {
   /**
    * View.parent
    */
-  get parent(): Window | Scene | Layer | ContainerView | Folder | null {
+  get parent(): Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | Window
-        | Scene
-        | Layer
-        | ContainerView
-        | Folder
-        | null;
+      return this._supergraph.get(nodePtr.id) as Layer | ContainerView | null;
     }
     return null;
   }
@@ -454,7 +447,7 @@ export class SliderInputView extends InputView {
 
   constructor(options: {
     id?: string;
-    parent?: Window | Scene | Layer | ContainerView | Folder | NodeReference | null;
+    parent?: Layer | ContainerView | NodeReference | null;
     space?: Space | NodeReference | null;
     definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
@@ -729,6 +722,15 @@ export class SliderInputView extends InputView {
     if (!(this.spacePtr?.id === other.spacePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (
+      (this.baseType == null) !== (other.baseType == null) ||
+      (this.baseType != null && !this.baseType.equals(other.baseType))
+    ) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -739,15 +741,6 @@ export class SliderInputView extends InputView {
       return false;
     }
     if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (
-      (this.baseType == null) !== (other.baseType == null) ||
-      (this.baseType != null && !this.baseType.equals(other.baseType))
-    ) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -816,6 +809,16 @@ export class SliderInputView extends InputView {
     if (this.spacePtr !== null) {
       h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this.definitionPtr !== null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    if (this.baseType !== null) {
+      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    }
+    if (this.deletedAt !== null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -835,16 +838,6 @@ export class SliderInputView extends InputView {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.definitionPtr !== null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
-    if (this.baseType !== null) {
-      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
-    }
-    if (this.deletedAt !== null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
@@ -1071,6 +1064,27 @@ export class SliderInputView extends InputView {
       spacePtrValue != undefined
         ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const baseTypeValue = objectValue["7"];
+    const unpackedBaseType =
+      baseTypeValue != undefined
+        ? _NodeDefinitionReference.fromValue(
+            baseTypeValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const deletedAtValue = objectValue["25"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1100,27 +1114,6 @@ export class SliderInputView extends InputView {
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const baseTypeValue = objectValue["7"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? _NodeDefinitionReference.fromValue(
-            baseTypeValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
-        : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
@@ -1156,6 +1149,10 @@ export class SliderInputView extends InputView {
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
       space: unpackedSpacePtr,
+      orderKey: objectValue["27"],
+      definition: unpackedDefinitionPtr,
+      baseType: unpackedBaseType,
+      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1165,10 +1162,6 @@ export class SliderInputView extends InputView {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      orderKey: objectValue["27"],
-      definition: unpackedDefinitionPtr,
-      baseType: unpackedBaseType,
-      deletedAt: unpackedDeletedAt,
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
@@ -1363,6 +1356,29 @@ export class SliderInputView extends InputView {
               _connection,
             )
           : null,
+      orderKey: objectProto.orderKey,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      baseType:
+        objectProto.baseType != undefined
+          ? _NodeDefinitionReference.fromProto(
+              objectProto.baseType!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1426,29 +1442,6 @@ export class SliderInputView extends InputView {
               _connection,
             )
           : null,
-      orderKey: objectProto.orderKey,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.baseType!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:

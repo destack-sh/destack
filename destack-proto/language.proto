@@ -44,12 +44,6 @@ enum BorderTypeProto {
   BORDER_TYPE_DOUBLE = 13;
 }
 
-// Built-in canvas types.
-enum CanvasTypeProto {
-  CANVAS_TYPE_UNSPECIFIED = 0;
-  CANVAS_TYPE_SHAPE = 1;
-}
-
 enum CascadeActionProto {
   CASCADE_ACTION_UNSPECIFIED = 0;
   CASCADE_ACTION_RESTRICT = 1;
@@ -375,7 +369,6 @@ enum EnumTypeProto {
   ENUM_TYPE_LAYER_TYPE = 500200;
   ENUM_TYPE_VARIANT_TYPE = 500300;
   ENUM_TYPE_VARIANT_STATE_TYPE = 500301;
-  ENUM_TYPE_CANVAS_TYPE = 540000;
   ENUM_TYPE_ARROW_HEAD_TYPE = 540300;
   ENUM_TYPE_MODE_TYPE = 560000;
   ENUM_TYPE_TOOL_TYPE = 560001;
@@ -912,8 +905,6 @@ enum NodeTypeProto {
   NODE_TYPE_VARIANT = 500300;
   NODE_TYPE_VIEW = 520000;
   NODE_TYPE_VIEW_EVENT = 520001;
-  NODE_TYPE_VIEW_ENTERED_EVENT = 520002;
-  NODE_TYPE_VIEW_EXITED_EVENT = 520003;
   NODE_TYPE_CONTAINER_VIEW = 520100;
   NODE_TYPE_FRAME_VIEW = 520200;
   NODE_TYPE_LABEL_VIEW = 520300;
@@ -924,7 +915,6 @@ enum NodeTypeProto {
   NODE_TYPE_NUMBER_INPUT_VIEW = 530100;
   NODE_TYPE_SLIDER_INPUT_VIEW = 530200;
   NODE_TYPE_INTERNAL_VIEW = 535000;
-  NODE_TYPE_CANVAS = 540000;
   NODE_TYPE_SHAPE = 540100;
   NODE_TYPE_LINE_SHAPE = 540200;
   NODE_TYPE_ARROW_SHAPE = 540300;
@@ -1509,6 +1499,7 @@ enum TraitTypeProto {
   TRAIT_TYPE_STARABLE = 220030;
   TRAIT_TYPE_REACTABLE = 220032;
   TRAIT_TYPE_FOLLOWABLE = 220034;
+  TRAIT_TYPE_VIEWABLE = 540000;
 }
 
 // Built-in transition types.
@@ -1842,57 +1833,6 @@ message BuiltinDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-}
-
-// A Canvas is a container for only Shapes (other than that it's just a ContainerView).
-message CanvasProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  optional NodeReferenceProto instance_root_ptr = 14;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  map<string, ValueProto> custom_values = 26;
-  string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
-  CanvasTypeProto type = 100;
-  string name = 101;
-  optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
 }
 
 // A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle).
@@ -3853,8 +3793,6 @@ message LayerProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
@@ -3865,39 +3803,14 @@ message LayerProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
-  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
-  optional NodeReferenceProto script_ptr = 70;
   LayerTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
-  optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
   optional bool is_visible = 140;
   optional double opacity = 141;
   optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
 }
 
 message LengthProto {
@@ -5302,14 +5215,12 @@ message SanctionRevokedEventProto {
   NodeReferenceProto target_ptr = 110;
 }
 
-// A Scene is a container for a specific interaction point.
+// A Scene is a container for an interaction point.
 message SceneProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
@@ -5320,37 +5231,10 @@ message SceneProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
-  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
-  optional NodeReferenceProto script_ptr = 70;
   string name = 101;
-  optional PositionProto position = 110;
-  optional DimensionProto width = 111;
-  optional DimensionProto height = 112;
-  optional DimensionProto min_width = 113;
-  optional DimensionProto min_height = 114;
-  optional DimensionProto max_width = 115;
-  optional DimensionProto max_height = 116;
-  optional LayoutProto layout = 120;
-  optional DirectionProto direction = 121;
-  optional DistributeProto distribute = 122;
-  optional AlignProto align = 123;
-  optional Axis2Proto gap = 124;
-  optional InsetsProto padding = 125;
-  optional GridProto grid = 126;
-  optional GridSpanProto grid_span = 127;
-  optional double aspect_ratio = 128;
-  optional bool is_wrap = 129;
-  optional bool is_visible = 140;
-  optional double opacity = 141;
-  optional FillProto fill = 142;
-  optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
-  optional double scale = 145;
-  optional ShadowProto shadow = 146;
-  optional BorderProto border = 147;
-  optional CornersProto radius = 148;
+  optional IconProto icon = 102;
   optional NodeReferenceProto root_view_ptr = 200;
 }
 
@@ -6492,38 +6376,8 @@ message ViewProto {
   optional DimensionProto max_height = 116;
 }
 
-// A View was entered.
-message ViewEnteredEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
 // A Event regarding a View.
 message ViewEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  optional NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
-// A View was exited.
-message ViewExitedEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -6560,7 +6414,7 @@ message WheelEventProto {
   Vector2fProto delta = 140;
 }
 
-// A Window for someone to interact with a Space via Scenes.
+// A Window for someone to interact with Destack (in a Space).
 message WindowProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6618,8 +6472,6 @@ message SomeNodeProto {
     SanctionRevokedEventProto sanction_revoked_event = 60404;
     SanctionExpiredEventProto sanction_expired_event = 60405;
     SanctionProto sanction = 60400;
-    ViewEnteredEventProto view_entered_event = 520002;
-    ViewExitedEventProto view_exited_event = 520003;
     FrameViewProto frame_view = 520200;
     InternalViewProto internal_view = 535000;
     LabelViewProto label_view = 520300;
@@ -6629,7 +6481,6 @@ message SomeNodeProto {
     TextViewProto text_view = 525100;
     AnnotationShapeProto annotation_shape = 540400;
     ArrowShapeProto arrow_shape = 540300;
-    CanvasProto canvas = 540000;
     LineShapeProto line_shape = 540200;
     FileProto file = 80000;
     EnvironmentProto environment = 160000;
@@ -6771,7 +6622,6 @@ message SomeEntityProto {
     TextViewProto text_view = 525100;
     AnnotationShapeProto annotation_shape = 540400;
     ArrowShapeProto arrow_shape = 540300;
-    CanvasProto canvas = 540000;
     LineShapeProto line_shape = 540200;
     FileProto file = 80000;
     EnvironmentProto environment = 160000;
@@ -6845,8 +6695,6 @@ message SomeEventProto {
     SanctionGrantedEventProto sanction_granted_event = 60403;
     SanctionRevokedEventProto sanction_revoked_event = 60404;
     SanctionExpiredEventProto sanction_expired_event = 60405;
-    ViewEnteredEventProto view_entered_event = 520002;
-    ViewExitedEventProto view_exited_event = 520003;
     LogEventProto log_event = 170301;
     RunStartedEventProto run_started_event = 170002;
     RunPauseRequestedEventProto run_pause_requested_event = 170003;

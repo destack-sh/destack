@@ -125,6 +125,7 @@ from .trait import (
     IsStarable,
     IsSubject,
     IsTaggable,
+    IsViewable,
     Trait,
     builtin_trait,
 )
@@ -198,6 +199,7 @@ __all__ = [
     "IsStarable",
     "IsSubject",
     "IsTaggable",
+    "IsViewable",
     "Materialization",
     "Node",
     "NodeDefinitionReference",

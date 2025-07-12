@@ -14,8 +14,7 @@ import type {
 import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Layer, Scene, Window } from "@destack/language/scene";
-import type { Folder } from "@destack/language/space";
+import type { Layer } from "@destack/language/scene";
 import type { Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view/container";
 import { View } from "@destack/language/view/view";
@@ -31,7 +30,7 @@ export abstract class ContentView extends View {
   /**
    * View.parent
    */
-  abstract get parent(): Window | Scene | Layer | ContainerView | Folder | null;
+  abstract get parent(): Layer | ContainerView | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

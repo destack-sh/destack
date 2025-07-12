@@ -492,3 +492,22 @@ class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
 export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
 registerTraitClass(TraitType.SUBJECT, IsSubject);
 /* ==== DESTACK_GENERATED_END:TRAIT:60004 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:540000 ==== */
+/**
+ * A Node that can be presented visually.
+ */
+export interface IsViewable {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that can be presented visually.
+ */
+class IsViewable$Type extends TraitClass<IsViewable, TraitType.VIEWABLE> {}
+
+export const IsViewable = new IsViewable$Type(TraitType.VIEWABLE);
+registerTraitClass(TraitType.VIEWABLE, IsViewable);
+/* ==== DESTACK_GENERATED_END:TRAIT:540000 ==== */

@@ -133,7 +133,6 @@ class EnumType(Enum):
     # view [520_000-540_000]
 
     # canvas [540_000-560_000]
-    CANVAS_TYPE = 540_000
     ARROW_HEAD_TYPE = 540_300
 
     # interaction [560_000-580_000]
@@ -400,6 +399,7 @@ class TraitType(Enum):
     # ...
 
     # canvas [540_000-560_000]
+    VIEWABLE = 540_000, "Viewable", "Can be presented visually", "fas fa-presentation"
     # ...
 
     # interaction [560_000-580_000]
@@ -649,8 +649,6 @@ class NodeType(Enum):
     # container views
     VIEW = 520_000, "View", "View in a Scene", "fas fa-eye"
     VIEW_EVENT = 520_001, "View Event", None, "fas fa-eye"
-    VIEW_ENTERED_EVENT = 520_002, "View Entered Event", None, "fas fa-eye"
-    VIEW_EXITED_EVENT = 520_003, "View Exited Event", None, "fas fa-eye"
     CONTAINER_VIEW = 520_100, "Container View", None, "fas fa-table"
     FRAME_VIEW = 520_200, "Frame View", "Fixed Container", "fas fa-frame"
     LABEL_VIEW = 520_300, "Label View", "Label Container", "fas fa-font-case"
@@ -675,7 +673,6 @@ class NodeType(Enum):
     # WIZARD_VIEW, ...
 
     # canvas [540_000-560_000]
-    CANVAS = 540_000, "Canvas", None, "fas fa-canvas"
     SHAPE = 540_100, "Shape", None, "fas fa-shapes"
     LINE_SHAPE = 540_200, "Line Shape", None, "fas fa-line"
     ARROW_SHAPE = 540_300, "Arrow Shape", None, "fas fa-arrow-right"
