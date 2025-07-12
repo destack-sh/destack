@@ -74,8 +74,7 @@ export class ReactiveSession extends Session {
     this._dirtyEntities.set(node.id, node);
   }
 
-  override flush(): void {
-    super.flush();
+  override _onFlush(): void {
     batch(() => {
       for (const node of this._dirtyEntities.values()) {
         if ("touch" in node._graph) {
@@ -86,8 +85,8 @@ export class ReactiveSession extends Session {
     this._dirtyEntities.clear();
   }
 
-  override async stage(): Promise<void> {
-    await super.stage();
+  override async flush(): Promise<void> {
+    await super.flush();
   }
 
   override async commit(): Promise<Event[]> {

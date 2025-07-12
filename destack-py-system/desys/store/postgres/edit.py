@@ -195,9 +195,9 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
         # gather all db-columns possibly touched in this batch
         all_updated_columns: set[str] = set()
         for edit in edits:
-            assert edit.attribute is not None, f"no prop_ptr for {edit!r}"
+            assert edit.attribute is not None, f"no attribute for {edit!r}"
             prop = edit.attribute.resolve()
-            assert prop is not None, f"no prop for {edit!r}"
+            assert prop is not None, f"no attribute for {edit!r}"
             update: dict[str, Any] = {}
             pack_column_wide(prop, None, table, prop.name, update)
             all_updated_columns.update(update.keys())
@@ -225,9 +225,9 @@ WHERE id = ${param_i}
         # prepare parameters row-by-row
         values_packed: list[Sequence[Any]] = []
         for edit in edits:
-            assert edit.attribute is not None, f"no prop_ptr for {edit!r}"
+            assert edit.attribute is not None, f"no attribute for {edit!r}"
             prop = edit.attribute.resolve()
-            assert prop is not None, f"no prop for {edit!r}"
+            assert prop is not None, f"no attribute for {edit!r}"
             if edit.operation == EditOperation.SET:
                 assert edit.value is not None, f"no value for {edit!r}"
                 value_packed = edit.value.value

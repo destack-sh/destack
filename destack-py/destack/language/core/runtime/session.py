@@ -208,14 +208,15 @@ class Session:
         edit = EditEvent(type=EditType.RESTORE, node=node)
         self.pending_events.append(edit)
 
-    def flush(self):
-        """Turn pending updates into Edits, and Edits into Changes."""
-        pass  # ?
+    def _on_flush(self):
+        """Stage pending Edits without committing them."""
+        pass  # nothing to do yet
 
-    async def stage(self):
-        """Stage pending Edits. Also stages pending Changes in the Store if possible."""
+    async def flush(self):
+        """Stage pending Edits without committing them."""
         assert self.closed_at is None, f"{self!r} is closed"
-        self.flush()
+        # TODO :Incomplete: optimistic :SessionStaging
+        self._on_flush()
 
     async def commit(self) -> Sequence[Event]:
         """
@@ -223,7 +224,7 @@ class Session:
         """
         assert self.closed_at is None, f"{self!r} is closed"
         assert self.store is not None, f"{self!r} has no Store"
-        self.flush()
+        self._on_flush()
         events = list(self.pending_events)
         self.pending_events = []
 

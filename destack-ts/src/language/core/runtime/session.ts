@@ -241,20 +241,17 @@ export class Session {
     this.pendingEvents.push(edit);
   }
 
-  /** Flush pending Edits and Changes. */
-  flush(): void {
-    if (this.closedAt) {
-      throw new Error(`${this.repr()} is closed`);
-    }
-    // nothing to do?
+  _onFlush(): void {
+    // nothing to do
   }
 
   /** Stage pending Edits and Changes. */
-  async stage(): Promise<void> {
+  async flush(): Promise<void> {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
     }
-    this.flush();
+    // TODO :Incomplete: optimistic :SessionStaging
+    this._onFlush();
   }
 
   /** Commit all Events. */
@@ -264,7 +261,7 @@ export class Session {
     } else if (this.store == null) {
       throw new Error(`${this.repr()} has no Store`);
     }
-    this.flush();
+    this._onFlush();
     const events = this.pendingEvents;
     this.pendingEvents = [];
 

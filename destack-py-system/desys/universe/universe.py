@@ -151,14 +151,12 @@ class UniverseService(ServiceBase, UniverseBase):
         user.password_hash = hash_password(request.password, user.password_salt)
         session.create(user)
         session.create(space)
-        await session.stage()
 
         # create Client
         client = Client.from_proto(request.client)
         client._is_new = True
         client.access_token = generate_access_token(ACCESS_TOKEN_LENGTH)
         user.add_child(client)
-        await session.stage()
         assert user.slug, f"{user!r} has no slug"
         space.handle = user.handle = Handle(slug=user.slug)
         space.add_child(user.handle)
@@ -183,13 +181,11 @@ class UniverseService(ServiceBase, UniverseBase):
             ),
             PostgresEntityStore(database=spatial_database, keys=(StoreKey.SPATIAL_ENTITY_PRIMARY,)),
         )
-        await session.stage()
 
         # create main Folders
         home_folder = Folder(parent=space, type=FolderType.HOME, name="Home", slug="home")
         space.add_child(home_folder)
         space.home_folder = home_folder
-        await session.stage()
 
         # done
         space.status = SpaceStatus.ACTIVE
