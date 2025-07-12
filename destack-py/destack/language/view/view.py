@@ -8,6 +8,7 @@ from destack.language.core import (
     IsOrdered,
     IsSpatial,
     IsTaggable,
+    IsViewable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -18,12 +19,9 @@ if TYPE_CHECKING:
     from destack.language import (
         ContainerView,
         Dimension,
-        Folder,
         Layer,
         Position,
-        Scene,
         View,
-        Window,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -34,20 +32,6 @@ class ViewEvent(Event["View"]):
     """A Event regarding a View."""
 
     node: "View" = builtin_property(101)
-
-
-@builtin_node(NodeType.VIEW_ENTERED_EVENT, frozen=True)
-class ViewEnteredEvent(ViewEvent):
-    """A View was entered."""
-
-    pass
-
-
-@builtin_node(NodeType.VIEW_EXITED_EVENT, frozen=True)
-class ViewExitedEvent(ViewEvent):
-    """A View was exited."""
-
-    pass
 
 
 @builtin_node(
@@ -64,18 +48,17 @@ class ViewExitedEvent(ViewEvent):
     ),
 )
 class View(
+    IsViewable,
     IsSpatial,
-    Entity,
     IsOrdered,
     IsTaggable,
     IsExtensible,
     IsDeletable,
+    Entity,
 ):
     """A View is a graphical interface."""
 
-    parent: Union["Window", "Scene", "Layer", "ContainerView", "Folder", None] = (
-        builtin_property_parent()
-    )
+    parent: Union["Layer", "ContainerView", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
 
     # sizing

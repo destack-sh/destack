@@ -51,7 +51,7 @@ registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
 
 /* ==== DESTACK_GENERATED_START:NODE:500000 ==== */
 /**
- * A Window for someone to interact with a Space via Scenes.
+ * A Window for someone to interact with Destack (in a Space).
  */
 export class Window extends Entity implements IsSpatial, IsOwnable, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.WINDOW;

@@ -13,7 +13,7 @@ import {
   NodeReference,
   NodeType,
   Reaction,
-  Scene,
+  Layer,
   Session,
   Star,
   StoreKey,
@@ -274,14 +274,14 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }
   });
 
-  sessionTest("create scene with heterogeneous views", async ({ session }) => {
-    // create scene
-    const scene = new Scene({ name: "Scene" });
-    session.create(scene);
+  sessionTest("create layer with heterogeneous views", async ({ session }) => {
+    // create layer
+    const layer = new Layer({ name: "Layer" });
+    session.create(layer);
     await session.commit();
 
     const rootView = new FrameView({ name: "Container" });
-    scene.addChild(rootView);
+    layer.addChild(rootView);
 
     // create views
     for (let i = 0; i < 4; i++) {
@@ -304,35 +304,35 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     await session.commit();
 
     // query view (child, non-recursive)
-    const sceneTree = await FrameView.get({
+    const layerTree = await FrameView.get({
       where: FrameView.property("id").eq(rootView.id),
       Views: View.search({ join: Join.of(JoinType.CHILD) }),
     }).execute();
-    const sceneUnpacked = sceneTree.toOne();
-    const viewTreeUnpacked = sceneUnpacked.getDescendants(View);
+    const layerUnpacked = layerTree.toOne();
+    const viewTreeUnpacked = layerUnpacked.getDescendants(View);
     expect(viewTreeUnpacked.length).toBe(8);
 
     // query view (child, recursive)
-    const sceneTree2 = await FrameView.get({
+    const layerTree2 = await FrameView.get({
       where: FrameView.property("id").eq(rootView.id),
       Views: View.search({ join: Join.of(JoinType.CHILD, { recursive: true }) }),
     }).execute();
-    const sceneUnpacked2 = sceneTree2.toOne();
-    const viewTreeUnpacked2 = sceneUnpacked2.getDescendants(View);
+    const layerUnpacked2 = layerTree2.toOne();
+    const viewTreeUnpacked2 = layerUnpacked2.getDescendants(View);
     expect(viewTreeUnpacked2.length).toBe(4 + 4 * (1 + 4 * (1 + 4)));
 
     // query view (parent, recursive)
-    const viewLeaves = scene._graph.getLeaves({
+    const viewLeaves = layer._graph.getLeaves({
       nodeType: TextView.metatype,
-      node: scene,
+      node: layer,
     }) as TextView[];
-    const sceneTree3 = await TextView.get({
+    const layerTree3 = await TextView.get({
       where: TextView.property("id").eq(viewLeaves[0].id),
       Parents: View.search({ join: Join.of(JoinType.PARENT, { recursive: true }) }),
     }).execute();
-    const sceneUnpacked3 = sceneTree3.graph.getRoots({ nodeType: View.metatype }) as View[];
-    expect(sceneUnpacked3.length).toBe(1);
-    expect(sceneUnpacked3[0].equals(scene));
+    const layerUnpacked3 = layerTree3.graph.getRoots({ nodeType: View.metatype }) as View[];
+    expect(layerUnpacked3.length).toBe(1);
+    expect(layerUnpacked3[0].equals(layer));
   });
 
   sessionTest("create reaction groups", async ({ session }) => {
@@ -404,14 +404,14 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   });
 
   sessionTest("move views", async ({ session }) => {
-    const scene = new Scene({ name: "Scene" });
-    session.create(scene);
+    const layer = new Layer({ name: "Layer" });
+    session.create(layer);
     await session.commit();
 
     // create views
     const rootView = new FrameView({ name: "Root" });
     const frameViews: FrameView[] = [];
-    scene.addChild(rootView);
+    layer.addChild(rootView);
     for (let i = 0; i < 4; i++) {
       const frameView = new FrameView({ name: `View ${i}` });
       frameViews.push(frameView);
@@ -432,8 +432,8 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
 
     // reattach views
     for (const frameView of frameViews) {
-      scene.addChild(frameView);
-      expect(frameView.parentPtr).toEqual(scene.toRef());
+      layer.addChild(frameView);
+      expect(frameView.parentPtr).toEqual(layer.toRef());
     }
     await session.commit();
 
@@ -448,14 +448,14 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }
     await session.commit();
 
-    // move all views to be directly parented by scene
+    // move all views to be directly parented by layer
     for (const view of [...frameViews, ...labelViews]) {
-      view.moveTo(scene);
-      expect(view.parentPtr).toEqual(scene.toRef());
+      view.moveTo(layer);
+      expect(view.parentPtr).toEqual(layer.toRef());
     }
     await session.commit();
 
-    const sceneChildren = scene.getChildren(View);
-    expect(sceneChildren).toHaveLength(1 + 4 * (4 + 1));
+    const layerChildren = layer.getChildren(View);
+    expect(layerChildren).toHaveLength(1 + 4 * (4 + 1));
   });
 });

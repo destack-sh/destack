@@ -931,203 +931,6 @@ export interface BuiltinDefinitionProto {
     description?: string;
 }
 /**
- * A Canvas is a container for only Shapes (other than that it's just a ContainerView).
- *
- * @generated from protobuf message symbol.destack.CanvasProto
- */
-export interface CanvasProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
-     */
-    definitionPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeDefinitionReferenceProto base_type = 7
-     */
-    baseType?: NodeDefinitionReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
-     */
-    materialization: MaterializationProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto predecessor_ptr = 12
-     */
-    predecessorPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto template_ptr = 13
-     */
-    templatePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto instance_root_ptr = 14
-     */
-    instanceRootPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
-     */
-    createdByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 22
-     */
-    updatedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
-     */
-    updatedByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
-     */
-    deletedAt?: Timestamp;
-    /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
-     */
-    customValues: {
-        [key: string]: ValueProto;
-    };
-    /**
-     * @generated from protobuf field: string order_key = 27
-     */
-    orderKey: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 70
-     */
-    scriptPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.CanvasTypeProto type = 100
-     */
-    type: CanvasTypeProto;
-    /**
-     * @generated from protobuf field: string name = 101
-     */
-    name: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.PositionProto position = 110
-     */
-    position?: PositionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto width = 111
-     */
-    width?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto height = 112
-     */
-    height?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto min_width = 113
-     */
-    minWidth?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto min_height = 114
-     */
-    minHeight?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto max_width = 115
-     */
-    maxWidth?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto max_height = 116
-     */
-    maxHeight?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.LayoutProto layout = 120
-     */
-    layout?: LayoutProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DirectionProto direction = 121
-     */
-    direction?: DirectionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DistributeProto distribute = 122
-     */
-    distribute?: DistributeProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.AlignProto align = 123
-     */
-    align?: AlignProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Axis2Proto gap = 124
-     */
-    gap?: Axis2Proto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.InsetsProto padding = 125
-     */
-    padding?: InsetsProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.GridProto grid = 126
-     */
-    grid?: GridProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.GridSpanProto grid_span = 127
-     */
-    gridSpan?: GridSpanProto;
-    /**
-     * @generated from protobuf field: optional double aspect_ratio = 128
-     */
-    aspectRatio?: number;
-    /**
-     * @generated from protobuf field: optional bool is_wrap = 129
-     */
-    isWrap?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_visible = 140
-     */
-    isVisible?: boolean;
-    /**
-     * @generated from protobuf field: optional double opacity = 141
-     */
-    opacity?: number;
-    /**
-     * @generated from protobuf field: optional symbol.destack.FillProto fill = 142
-     */
-    fill?: FillProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Axis3Proto rotation = 143
-     */
-    rotation?: Axis3Proto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
-     */
-    skew?: Vector2fProto;
-    /**
-     * @generated from protobuf field: optional double scale = 145
-     */
-    scale?: number;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ShadowProto shadow = 146
-     */
-    shadow?: ShadowProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.BorderProto border = 147
-     */
-    border?: BorderProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.CornersProto radius = 148
-     */
-    radius?: CornersProto;
-}
-/**
  * A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle).
  *
  * @generated from protobuf message symbol.destack.ClickEventProto
@@ -8111,14 +7914,6 @@ export interface LayerProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
-     */
-    definitionPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeDefinitionReferenceProto base_type = 7
-     */
-    baseType?: NodeDefinitionReferenceProto;
-    /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
@@ -8159,12 +7954,6 @@ export interface LayerProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
-     */
-    customValues: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 27
      */
     orderKey: string;
@@ -8172,10 +7961,6 @@ export interface LayerProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 28
      */
     ownedByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 70
-     */
-    scriptPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.LayerTypeProto type = 100
      */
@@ -8189,74 +7974,6 @@ export interface LayerProto {
      */
     icon?: IconProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.PositionProto position = 110
-     */
-    position?: PositionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto width = 111
-     */
-    width?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto height = 112
-     */
-    height?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto min_width = 113
-     */
-    minWidth?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto min_height = 114
-     */
-    minHeight?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto max_width = 115
-     */
-    maxWidth?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto max_height = 116
-     */
-    maxHeight?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.LayoutProto layout = 120
-     */
-    layout?: LayoutProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DirectionProto direction = 121
-     */
-    direction?: DirectionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DistributeProto distribute = 122
-     */
-    distribute?: DistributeProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.AlignProto align = 123
-     */
-    align?: AlignProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Axis2Proto gap = 124
-     */
-    gap?: Axis2Proto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.InsetsProto padding = 125
-     */
-    padding?: InsetsProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.GridProto grid = 126
-     */
-    grid?: GridProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.GridSpanProto grid_span = 127
-     */
-    gridSpan?: GridSpanProto;
-    /**
-     * @generated from protobuf field: optional double aspect_ratio = 128
-     */
-    aspectRatio?: number;
-    /**
-     * @generated from protobuf field: optional bool is_wrap = 129
-     */
-    isWrap?: boolean;
-    /**
      * @generated from protobuf field: optional bool is_visible = 140
      */
     isVisible?: boolean;
@@ -8268,30 +7985,6 @@ export interface LayerProto {
      * @generated from protobuf field: optional symbol.destack.FillProto fill = 142
      */
     fill?: FillProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Axis3Proto rotation = 143
-     */
-    rotation?: Axis3Proto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
-     */
-    skew?: Vector2fProto;
-    /**
-     * @generated from protobuf field: optional double scale = 145
-     */
-    scale?: number;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ShadowProto shadow = 146
-     */
-    shadow?: ShadowProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.BorderProto border = 147
-     */
-    border?: BorderProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.CornersProto radius = 148
-     */
-    radius?: CornersProto;
 }
 /**
  * @generated from protobuf message symbol.destack.LengthProto
@@ -13236,7 +12929,7 @@ export interface SanctionRevokedEventProto {
     targetPtr?: NodeReferenceProto;
 }
 /**
- * A Scene is a container for a specific interaction point.
+ * A Scene is a container for an interaction point.
  *
  * @generated from protobuf message symbol.destack.SceneProto
  */
@@ -13257,14 +12950,6 @@ export interface SceneProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
-     */
-    definitionPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeDefinitionReferenceProto base_type = 7
-     */
-    baseType?: NodeDefinitionReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
@@ -13306,12 +12991,6 @@ export interface SceneProto {
      */
     deletedAt?: Timestamp;
     /**
-     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
-     */
-    customValues: {
-        [key: string]: ValueProto;
-    };
-    /**
      * @generated from protobuf field: string order_key = 27
      */
     orderKey: string;
@@ -13320,117 +12999,13 @@ export interface SceneProto {
      */
     ownedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 70
-     */
-    scriptPtr?: NodeReferenceProto;
-    /**
      * @generated from protobuf field: string name = 101
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.PositionProto position = 110
+     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
-    position?: PositionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto width = 111
-     */
-    width?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto height = 112
-     */
-    height?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto min_width = 113
-     */
-    minWidth?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto min_height = 114
-     */
-    minHeight?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto max_width = 115
-     */
-    maxWidth?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DimensionProto max_height = 116
-     */
-    maxHeight?: DimensionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.LayoutProto layout = 120
-     */
-    layout?: LayoutProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DirectionProto direction = 121
-     */
-    direction?: DirectionProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.DistributeProto distribute = 122
-     */
-    distribute?: DistributeProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.AlignProto align = 123
-     */
-    align?: AlignProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Axis2Proto gap = 124
-     */
-    gap?: Axis2Proto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.InsetsProto padding = 125
-     */
-    padding?: InsetsProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.GridProto grid = 126
-     */
-    grid?: GridProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.GridSpanProto grid_span = 127
-     */
-    gridSpan?: GridSpanProto;
-    /**
-     * @generated from protobuf field: optional double aspect_ratio = 128
-     */
-    aspectRatio?: number;
-    /**
-     * @generated from protobuf field: optional bool is_wrap = 129
-     */
-    isWrap?: boolean;
-    /**
-     * @generated from protobuf field: optional bool is_visible = 140
-     */
-    isVisible?: boolean;
-    /**
-     * @generated from protobuf field: optional double opacity = 141
-     */
-    opacity?: number;
-    /**
-     * @generated from protobuf field: optional symbol.destack.FillProto fill = 142
-     */
-    fill?: FillProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Axis3Proto rotation = 143
-     */
-    rotation?: Axis3Proto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
-     */
-    skew?: Vector2fProto;
-    /**
-     * @generated from protobuf field: optional double scale = 145
-     */
-    scale?: number;
-    /**
-     * @generated from protobuf field: optional symbol.destack.ShadowProto shadow = 146
-     */
-    shadow?: ShadowProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.BorderProto border = 147
-     */
-    border?: BorderProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.CornersProto radius = 148
-     */
-    radius?: CornersProto;
+    icon?: IconProto;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto root_view_ptr = 200
      */
@@ -17457,113 +17032,11 @@ export interface ViewProto {
     maxHeight?: DimensionProto;
 }
 /**
- * A View was entered.
- *
- * @generated from protobuf message symbol.destack.ViewEnteredEventProto
- */
-export interface ViewEnteredEventProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
-     */
-    createdByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
-     */
-    clientPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional string client_nonce = 23
-     */
-    clientNonce?: string;
-    /**
-     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
-     */
-    status: EventStatusProto;
-    /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
-     */
-    nodePtr?: NodeReferenceProto;
-}
-/**
  * A Event regarding a View.
  *
  * @generated from protobuf message symbol.destack.ViewEventProto
  */
 export interface ViewEventProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
-     */
-    snapshotPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
-     */
-    createdAt?: Timestamp;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 21
-     */
-    createdByPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto client_ptr = 22
-     */
-    clientPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: optional string client_nonce = 23
-     */
-    clientNonce?: string;
-    /**
-     * @generated from protobuf field: symbol.destack.EventStatusProto status = 30
-     */
-    status: EventStatusProto;
-    /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto node_ptr = 101
-     */
-    nodePtr?: NodeReferenceProto;
-}
-/**
- * A View was exited.
- *
- * @generated from protobuf message symbol.destack.ViewExitedEventProto
- */
-export interface ViewExitedEventProto {
     /**
      * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
      */
@@ -17693,7 +17166,7 @@ export interface WheelEventProto {
     delta?: Vector2fProto;
 }
 /**
- * A Window for someone to interact with a Space via Scenes.
+ * A Window for someone to interact with Destack (in a Space).
  *
  * @generated from protobuf message symbol.destack.WindowProto
  */
@@ -17983,18 +17456,6 @@ export interface SomeNodeProto {
          */
         sanction: SanctionProto;
     } | {
-        oneofKind: "viewEnteredEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.ViewEnteredEventProto view_entered_event = 520002
-         */
-        viewEnteredEvent: ViewEnteredEventProto;
-    } | {
-        oneofKind: "viewExitedEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.ViewExitedEventProto view_exited_event = 520003
-         */
-        viewExitedEvent: ViewExitedEventProto;
-    } | {
         oneofKind: "frameView";
         /**
          * @generated from protobuf field: symbol.destack.FrameViewProto frame_view = 520200
@@ -18048,12 +17509,6 @@ export interface SomeNodeProto {
          * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 540300
          */
         arrowShape: ArrowShapeProto;
-    } | {
-        oneofKind: "canvas";
-        /**
-         * @generated from protobuf field: symbol.destack.CanvasProto canvas = 540000
-         */
-        canvas: CanvasProto;
     } | {
         oneofKind: "lineShape";
         /**
@@ -18882,12 +18337,6 @@ export interface SomeEntityProto {
          */
         arrowShape: ArrowShapeProto;
     } | {
-        oneofKind: "canvas";
-        /**
-         * @generated from protobuf field: symbol.destack.CanvasProto canvas = 540000
-         */
-        canvas: CanvasProto;
-    } | {
         oneofKind: "lineShape";
         /**
          * @generated from protobuf field: symbol.destack.LineShapeProto line_shape = 540200
@@ -19306,18 +18755,6 @@ export interface SomeEventProto {
          * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 60405
          */
         sanctionExpiredEvent: SanctionExpiredEventProto;
-    } | {
-        oneofKind: "viewEnteredEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.ViewEnteredEventProto view_entered_event = 520002
-         */
-        viewEnteredEvent: ViewEnteredEventProto;
-    } | {
-        oneofKind: "viewExitedEvent";
-        /**
-         * @generated from protobuf field: symbol.destack.ViewExitedEventProto view_exited_event = 520003
-         */
-        viewExitedEvent: ViewExitedEventProto;
     } | {
         oneofKind: "logEvent";
         /**
@@ -19783,21 +19220,6 @@ export enum BorderTypeProto {
      * @generated from protobuf enum value: BORDER_TYPE_DOUBLE = 13;
      */
     BORDER_TYPE_DOUBLE = 13
-}
-/**
- * Built-in canvas types.
- *
- * @generated from protobuf enum symbol.destack.CanvasTypeProto
- */
-export enum CanvasTypeProto {
-    /**
-     * @generated from protobuf enum value: CANVAS_TYPE_UNSPECIFIED = 0;
-     */
-    CANVAS_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: CANVAS_TYPE_SHAPE = 1;
-     */
-    CANVAS_TYPE_SHAPE = 1
 }
 /**
  * @generated from protobuf enum symbol.destack.CascadeActionProto
@@ -20926,10 +20348,6 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_VARIANT_STATE_TYPE = 500301;
      */
     ENUM_TYPE_VARIANT_STATE_TYPE = 500301,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_CANVAS_TYPE = 540000;
-     */
-    ENUM_TYPE_CANVAS_TYPE = 540000,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_ARROW_HEAD_TYPE = 540300;
      */
@@ -22835,14 +22253,6 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_VIEW_EVENT = 520001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW_ENTERED_EVENT = 520002;
-     */
-    NODE_TYPE_VIEW_ENTERED_EVENT = 520002,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW_EXITED_EVENT = 520003;
-     */
-    NODE_TYPE_VIEW_EXITED_EVENT = 520003,
-    /**
      * @generated from protobuf enum value: NODE_TYPE_CONTAINER_VIEW = 520100;
      */
     NODE_TYPE_CONTAINER_VIEW = 520100,
@@ -22882,10 +22292,6 @@ export enum NodeTypeProto {
      * @generated from protobuf enum value: NODE_TYPE_INTERNAL_VIEW = 535000;
      */
     NODE_TYPE_INTERNAL_VIEW = 535000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_CANVAS = 540000;
-     */
-    NODE_TYPE_CANVAS = 540000,
     /**
      * @generated from protobuf enum value: NODE_TYPE_SHAPE = 540100;
      */
@@ -24807,7 +24213,11 @@ export enum TraitTypeProto {
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_FOLLOWABLE = 220034;
      */
-    TRAIT_TYPE_FOLLOWABLE = 220034
+    TRAIT_TYPE_FOLLOWABLE = 220034,
+    /**
+     * @generated from protobuf enum value: TRAIT_TYPE_VIEWABLE = 540000;
+     */
+    TRAIT_TYPE_VIEWABLE = 540000
 }
 /**
  * Built-in transition types.
@@ -27129,401 +26539,6 @@ class BuiltinDefinitionProto$Type extends MessageType<BuiltinDefinitionProto> {
  * @generated MessageType for protobuf message symbol.destack.BuiltinDefinitionProto
  */
 export const BuiltinDefinitionProto = new BuiltinDefinitionProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class CanvasProto$Type extends MessageType<CanvasProto> {
-    constructor() {
-        super("symbol.destack.CanvasProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
-            { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 13, name: "template_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 14, name: "instance_root_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
-            { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
-            { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 70, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.CanvasTypeProto", CanvasTypeProto] },
-            { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "position", kind: "message", T: () => PositionProto },
-            { no: 111, name: "width", kind: "message", T: () => DimensionProto },
-            { no: 112, name: "height", kind: "message", T: () => DimensionProto },
-            { no: 113, name: "min_width", kind: "message", T: () => DimensionProto },
-            { no: 114, name: "min_height", kind: "message", T: () => DimensionProto },
-            { no: 115, name: "max_width", kind: "message", T: () => DimensionProto },
-            { no: 116, name: "max_height", kind: "message", T: () => DimensionProto },
-            { no: 120, name: "layout", kind: "enum", opt: true, T: () => ["symbol.destack.LayoutProto", LayoutProto] },
-            { no: 121, name: "direction", kind: "enum", opt: true, T: () => ["symbol.destack.DirectionProto", DirectionProto] },
-            { no: 122, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.destack.DistributeProto", DistributeProto] },
-            { no: 123, name: "align", kind: "enum", opt: true, T: () => ["symbol.destack.AlignProto", AlignProto] },
-            { no: 124, name: "gap", kind: "message", T: () => Axis2Proto },
-            { no: 125, name: "padding", kind: "message", T: () => InsetsProto },
-            { no: 126, name: "grid", kind: "message", T: () => GridProto },
-            { no: 127, name: "grid_span", kind: "message", T: () => GridSpanProto },
-            { no: 128, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 129, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 140, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 142, name: "fill", kind: "message", T: () => FillProto },
-            { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
-            { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
-            { no: 147, name: "border", kind: "message", T: () => BorderProto },
-            { no: 148, name: "radius", kind: "message", T: () => CornersProto }
-        ]);
-    }
-    create(value?: PartialMessage<CanvasProto>): CanvasProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.materialization = 0;
-        message.customValues = {};
-        message.orderKey = "";
-        message.type = 0;
-        message.name = "";
-        if (value !== undefined)
-            reflectionMergePartial<CanvasProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: CanvasProto): CanvasProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
-                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbol.destack.NodeDefinitionReferenceProto base_type */ 7:
-                    message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
-                    break;
-                case /* symbol.destack.MaterializationProto materialization */ 10:
-                    message.materialization = reader.int32();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto predecessor_ptr */ 12:
-                    message.predecessorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.predecessorPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto template_ptr */ 13:
-                    message.templatePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.templatePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto instance_root_ptr */ 14:
-                    message.instanceRootPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.instanceRootPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 20:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
-                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* google.protobuf.Timestamp updated_at */ 22:
-                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
-                    message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
-                    break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
-                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
-                    break;
-                case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
-                    this.binaryReadMap26(message.customValues, reader, options);
-                    break;
-                case /* string order_key */ 27:
-                    message.orderKey = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 70:
-                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
-                    break;
-                case /* symbol.destack.CanvasTypeProto type */ 100:
-                    message.type = reader.int32();
-                    break;
-                case /* string name */ 101:
-                    message.name = reader.string();
-                    break;
-                case /* optional symbol.destack.PositionProto position */ 110:
-                    message.position = PositionProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
-                    break;
-                case /* optional symbol.destack.DimensionProto width */ 111:
-                    message.width = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.width);
-                    break;
-                case /* optional symbol.destack.DimensionProto height */ 112:
-                    message.height = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.height);
-                    break;
-                case /* optional symbol.destack.DimensionProto min_width */ 113:
-                    message.minWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
-                    break;
-                case /* optional symbol.destack.DimensionProto min_height */ 114:
-                    message.minHeight = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
-                    break;
-                case /* optional symbol.destack.DimensionProto max_width */ 115:
-                    message.maxWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
-                    break;
-                case /* optional symbol.destack.DimensionProto max_height */ 116:
-                    message.maxHeight = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
-                    break;
-                case /* optional symbol.destack.LayoutProto layout */ 120:
-                    message.layout = reader.int32();
-                    break;
-                case /* optional symbol.destack.DirectionProto direction */ 121:
-                    message.direction = reader.int32();
-                    break;
-                case /* optional symbol.destack.DistributeProto distribute */ 122:
-                    message.distribute = reader.int32();
-                    break;
-                case /* optional symbol.destack.AlignProto align */ 123:
-                    message.align = reader.int32();
-                    break;
-                case /* optional symbol.destack.Axis2Proto gap */ 124:
-                    message.gap = Axis2Proto.internalBinaryRead(reader, reader.uint32(), options, message.gap);
-                    break;
-                case /* optional symbol.destack.InsetsProto padding */ 125:
-                    message.padding = InsetsProto.internalBinaryRead(reader, reader.uint32(), options, message.padding);
-                    break;
-                case /* optional symbol.destack.GridProto grid */ 126:
-                    message.grid = GridProto.internalBinaryRead(reader, reader.uint32(), options, message.grid);
-                    break;
-                case /* optional symbol.destack.GridSpanProto grid_span */ 127:
-                    message.gridSpan = GridSpanProto.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
-                    break;
-                case /* optional double aspect_ratio */ 128:
-                    message.aspectRatio = reader.double();
-                    break;
-                case /* optional bool is_wrap */ 129:
-                    message.isWrap = reader.bool();
-                    break;
-                case /* optional bool is_visible */ 140:
-                    message.isVisible = reader.bool();
-                    break;
-                case /* optional double opacity */ 141:
-                    message.opacity = reader.double();
-                    break;
-                case /* optional symbol.destack.FillProto fill */ 142:
-                    message.fill = FillProto.internalBinaryRead(reader, reader.uint32(), options, message.fill);
-                    break;
-                case /* optional symbol.destack.Axis3Proto rotation */ 143:
-                    message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
-                    break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
-                    break;
-                case /* optional double scale */ 145:
-                    message.scale = reader.double();
-                    break;
-                case /* optional symbol.destack.ShadowProto shadow */ 146:
-                    message.shadow = ShadowProto.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
-                    break;
-                case /* optional symbol.destack.BorderProto border */ 147:
-                    message.border = BorderProto.internalBinaryRead(reader, reader.uint32(), options, message.border);
-                    break;
-                case /* optional symbol.destack.CornersProto radius */ 148:
-                    message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    private binaryReadMap26(map: CanvasProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof CanvasProto["customValues"] | undefined, val: CanvasProto["customValues"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.CanvasProto.custom_values");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
-    internalBinaryWrite(message: CanvasProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
-        if (message.definitionPtr)
-            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeDefinitionReferenceProto base_type = 7; */
-        if (message.baseType)
-            NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MaterializationProto materialization = 10; */
-        if (message.materialization !== 0)
-            writer.tag(10, WireType.Varint).int32(message.materialization);
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto predecessor_ptr = 12; */
-        if (message.predecessorPtr)
-            NodeReferenceProto.internalBinaryWrite(message.predecessorPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto template_ptr = 13; */
-        if (message.templatePtr)
-            NodeReferenceProto.internalBinaryWrite(message.templatePtr, writer.tag(13, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto instance_root_ptr = 14; */
-        if (message.instanceRootPtr)
-            NodeReferenceProto.internalBinaryWrite(message.instanceRootPtr, writer.tag(14, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 20; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
-        if (message.createdByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp updated_at = 22; */
-        if (message.updatedAt)
-            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
-        if (message.updatedByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
-        if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> custom_values = 26; */
-        for (let k of globalThis.Object.keys(message.customValues)) {
-            writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
-            writer.join().join();
-        }
-        /* string order_key = 27; */
-        if (message.orderKey !== "")
-            writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
-        /* optional symbol.destack.NodeReferenceProto script_ptr = 70; */
-        if (message.scriptPtr)
-            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CanvasTypeProto type = 100; */
-        if (message.type !== 0)
-            writer.tag(100, WireType.Varint).int32(message.type);
-        /* string name = 101; */
-        if (message.name !== "")
-            writer.tag(101, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.PositionProto position = 110; */
-        if (message.position)
-            PositionProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto width = 111; */
-        if (message.width)
-            DimensionProto.internalBinaryWrite(message.width, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto height = 112; */
-        if (message.height)
-            DimensionProto.internalBinaryWrite(message.height, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto min_width = 113; */
-        if (message.minWidth)
-            DimensionProto.internalBinaryWrite(message.minWidth, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto min_height = 114; */
-        if (message.minHeight)
-            DimensionProto.internalBinaryWrite(message.minHeight, writer.tag(114, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto max_width = 115; */
-        if (message.maxWidth)
-            DimensionProto.internalBinaryWrite(message.maxWidth, writer.tag(115, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto max_height = 116; */
-        if (message.maxHeight)
-            DimensionProto.internalBinaryWrite(message.maxHeight, writer.tag(116, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.LayoutProto layout = 120; */
-        if (message.layout !== undefined)
-            writer.tag(120, WireType.Varint).int32(message.layout);
-        /* optional symbol.destack.DirectionProto direction = 121; */
-        if (message.direction !== undefined)
-            writer.tag(121, WireType.Varint).int32(message.direction);
-        /* optional symbol.destack.DistributeProto distribute = 122; */
-        if (message.distribute !== undefined)
-            writer.tag(122, WireType.Varint).int32(message.distribute);
-        /* optional symbol.destack.AlignProto align = 123; */
-        if (message.align !== undefined)
-            writer.tag(123, WireType.Varint).int32(message.align);
-        /* optional symbol.destack.Axis2Proto gap = 124; */
-        if (message.gap)
-            Axis2Proto.internalBinaryWrite(message.gap, writer.tag(124, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.InsetsProto padding = 125; */
-        if (message.padding)
-            InsetsProto.internalBinaryWrite(message.padding, writer.tag(125, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.GridProto grid = 126; */
-        if (message.grid)
-            GridProto.internalBinaryWrite(message.grid, writer.tag(126, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.GridSpanProto grid_span = 127; */
-        if (message.gridSpan)
-            GridSpanProto.internalBinaryWrite(message.gridSpan, writer.tag(127, WireType.LengthDelimited).fork(), options).join();
-        /* optional double aspect_ratio = 128; */
-        if (message.aspectRatio !== undefined)
-            writer.tag(128, WireType.Bit64).double(message.aspectRatio);
-        /* optional bool is_wrap = 129; */
-        if (message.isWrap !== undefined)
-            writer.tag(129, WireType.Varint).bool(message.isWrap);
-        /* optional bool is_visible = 140; */
-        if (message.isVisible !== undefined)
-            writer.tag(140, WireType.Varint).bool(message.isVisible);
-        /* optional double opacity = 141; */
-        if (message.opacity !== undefined)
-            writer.tag(141, WireType.Bit64).double(message.opacity);
-        /* optional symbol.destack.FillProto fill = 142; */
-        if (message.fill)
-            FillProto.internalBinaryWrite(message.fill, writer.tag(142, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Axis3Proto rotation = 143; */
-        if (message.rotation)
-            Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
-        if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
-        /* optional double scale = 145; */
-        if (message.scale !== undefined)
-            writer.tag(145, WireType.Bit64).double(message.scale);
-        /* optional symbol.destack.ShadowProto shadow = 146; */
-        if (message.shadow)
-            ShadowProto.internalBinaryWrite(message.shadow, writer.tag(146, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.BorderProto border = 147; */
-        if (message.border)
-            BorderProto.internalBinaryWrite(message.border, writer.tag(147, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.CornersProto radius = 148; */
-        if (message.radius)
-            CornersProto.internalBinaryWrite(message.radius, writer.tag(148, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.CanvasProto
- */
-export const CanvasProto = new CanvasProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class ClickEventProto$Type extends MessageType<ClickEventProto> {
     constructor() {
@@ -43252,8 +42267,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -43264,39 +42277,14 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 70, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.LayerTypeProto", LayerTypeProto] },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 110, name: "position", kind: "message", T: () => PositionProto },
-            { no: 111, name: "width", kind: "message", T: () => DimensionProto },
-            { no: 112, name: "height", kind: "message", T: () => DimensionProto },
-            { no: 113, name: "min_width", kind: "message", T: () => DimensionProto },
-            { no: 114, name: "min_height", kind: "message", T: () => DimensionProto },
-            { no: 115, name: "max_width", kind: "message", T: () => DimensionProto },
-            { no: 116, name: "max_height", kind: "message", T: () => DimensionProto },
-            { no: 120, name: "layout", kind: "enum", opt: true, T: () => ["symbol.destack.LayoutProto", LayoutProto] },
-            { no: 121, name: "direction", kind: "enum", opt: true, T: () => ["symbol.destack.DirectionProto", DirectionProto] },
-            { no: 122, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.destack.DistributeProto", DistributeProto] },
-            { no: 123, name: "align", kind: "enum", opt: true, T: () => ["symbol.destack.AlignProto", AlignProto] },
-            { no: 124, name: "gap", kind: "message", T: () => Axis2Proto },
-            { no: 125, name: "padding", kind: "message", T: () => InsetsProto },
-            { no: 126, name: "grid", kind: "message", T: () => GridProto },
-            { no: 127, name: "grid_span", kind: "message", T: () => GridSpanProto },
-            { no: 128, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 129, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 140, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 142, name: "fill", kind: "message", T: () => FillProto },
-            { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
-            { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
-            { no: 147, name: "border", kind: "message", T: () => BorderProto },
-            { no: 148, name: "radius", kind: "message", T: () => CornersProto }
+            { no: 142, name: "fill", kind: "message", T: () => FillProto }
         ]);
     }
     create(value?: PartialMessage<LayerProto>): LayerProto {
@@ -43304,7 +42292,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         message.metatype = 0;
         message.id = "";
         message.materialization = 0;
-        message.customValues = {};
         message.orderKey = "";
         message.type = 0;
         message.name = "";
@@ -43328,12 +42315,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
-                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbol.destack.NodeDefinitionReferenceProto base_type */ 7:
-                    message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -43365,17 +42346,11 @@ class LayerProto$Type extends MessageType<LayerProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 25:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
-                    this.binaryReadMap26(message.customValues, reader, options);
-                    break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 70:
-                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* symbol.destack.LayerTypeProto type */ 100:
                     message.type = reader.int32();
@@ -43386,57 +42361,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
                 case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
-                case /* optional symbol.destack.PositionProto position */ 110:
-                    message.position = PositionProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
-                    break;
-                case /* optional symbol.destack.DimensionProto width */ 111:
-                    message.width = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.width);
-                    break;
-                case /* optional symbol.destack.DimensionProto height */ 112:
-                    message.height = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.height);
-                    break;
-                case /* optional symbol.destack.DimensionProto min_width */ 113:
-                    message.minWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
-                    break;
-                case /* optional symbol.destack.DimensionProto min_height */ 114:
-                    message.minHeight = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
-                    break;
-                case /* optional symbol.destack.DimensionProto max_width */ 115:
-                    message.maxWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
-                    break;
-                case /* optional symbol.destack.DimensionProto max_height */ 116:
-                    message.maxHeight = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
-                    break;
-                case /* optional symbol.destack.LayoutProto layout */ 120:
-                    message.layout = reader.int32();
-                    break;
-                case /* optional symbol.destack.DirectionProto direction */ 121:
-                    message.direction = reader.int32();
-                    break;
-                case /* optional symbol.destack.DistributeProto distribute */ 122:
-                    message.distribute = reader.int32();
-                    break;
-                case /* optional symbol.destack.AlignProto align */ 123:
-                    message.align = reader.int32();
-                    break;
-                case /* optional symbol.destack.Axis2Proto gap */ 124:
-                    message.gap = Axis2Proto.internalBinaryRead(reader, reader.uint32(), options, message.gap);
-                    break;
-                case /* optional symbol.destack.InsetsProto padding */ 125:
-                    message.padding = InsetsProto.internalBinaryRead(reader, reader.uint32(), options, message.padding);
-                    break;
-                case /* optional symbol.destack.GridProto grid */ 126:
-                    message.grid = GridProto.internalBinaryRead(reader, reader.uint32(), options, message.grid);
-                    break;
-                case /* optional symbol.destack.GridSpanProto grid_span */ 127:
-                    message.gridSpan = GridSpanProto.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
-                    break;
-                case /* optional double aspect_ratio */ 128:
-                    message.aspectRatio = reader.double();
-                    break;
-                case /* optional bool is_wrap */ 129:
-                    message.isWrap = reader.bool();
-                    break;
                 case /* optional bool is_visible */ 140:
                     message.isVisible = reader.bool();
                     break;
@@ -43445,24 +42369,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
                     break;
                 case /* optional symbol.destack.FillProto fill */ 142:
                     message.fill = FillProto.internalBinaryRead(reader, reader.uint32(), options, message.fill);
-                    break;
-                case /* optional symbol.destack.Axis3Proto rotation */ 143:
-                    message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
-                    break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
-                    break;
-                case /* optional double scale */ 145:
-                    message.scale = reader.double();
-                    break;
-                case /* optional symbol.destack.ShadowProto shadow */ 146:
-                    message.shadow = ShadowProto.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
-                    break;
-                case /* optional symbol.destack.BorderProto border */ 147:
-                    message.border = BorderProto.internalBinaryRead(reader, reader.uint32(), options, message.border);
-                    break;
-                case /* optional symbol.destack.CornersProto radius */ 148:
-                    message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -43474,22 +42380,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
             }
         }
         return message;
-    }
-    private binaryReadMap26(map: LayerProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof LayerProto["customValues"] | undefined, val: LayerProto["customValues"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.LayerProto.custom_values");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: LayerProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -43504,12 +42394,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
-        if (message.definitionPtr)
-            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeDefinitionReferenceProto base_type = 7; */
-        if (message.baseType)
-            NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -43540,22 +42424,12 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional google.protobuf.Timestamp deleted_at = 25; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> custom_values = 26; */
-        for (let k of globalThis.Object.keys(message.customValues)) {
-            writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto script_ptr = 70; */
-        if (message.scriptPtr)
-            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.LayerTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
@@ -43565,57 +42439,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
             IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.PositionProto position = 110; */
-        if (message.position)
-            PositionProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto width = 111; */
-        if (message.width)
-            DimensionProto.internalBinaryWrite(message.width, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto height = 112; */
-        if (message.height)
-            DimensionProto.internalBinaryWrite(message.height, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto min_width = 113; */
-        if (message.minWidth)
-            DimensionProto.internalBinaryWrite(message.minWidth, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto min_height = 114; */
-        if (message.minHeight)
-            DimensionProto.internalBinaryWrite(message.minHeight, writer.tag(114, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto max_width = 115; */
-        if (message.maxWidth)
-            DimensionProto.internalBinaryWrite(message.maxWidth, writer.tag(115, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto max_height = 116; */
-        if (message.maxHeight)
-            DimensionProto.internalBinaryWrite(message.maxHeight, writer.tag(116, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.LayoutProto layout = 120; */
-        if (message.layout !== undefined)
-            writer.tag(120, WireType.Varint).int32(message.layout);
-        /* optional symbol.destack.DirectionProto direction = 121; */
-        if (message.direction !== undefined)
-            writer.tag(121, WireType.Varint).int32(message.direction);
-        /* optional symbol.destack.DistributeProto distribute = 122; */
-        if (message.distribute !== undefined)
-            writer.tag(122, WireType.Varint).int32(message.distribute);
-        /* optional symbol.destack.AlignProto align = 123; */
-        if (message.align !== undefined)
-            writer.tag(123, WireType.Varint).int32(message.align);
-        /* optional symbol.destack.Axis2Proto gap = 124; */
-        if (message.gap)
-            Axis2Proto.internalBinaryWrite(message.gap, writer.tag(124, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.InsetsProto padding = 125; */
-        if (message.padding)
-            InsetsProto.internalBinaryWrite(message.padding, writer.tag(125, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.GridProto grid = 126; */
-        if (message.grid)
-            GridProto.internalBinaryWrite(message.grid, writer.tag(126, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.GridSpanProto grid_span = 127; */
-        if (message.gridSpan)
-            GridSpanProto.internalBinaryWrite(message.gridSpan, writer.tag(127, WireType.LengthDelimited).fork(), options).join();
-        /* optional double aspect_ratio = 128; */
-        if (message.aspectRatio !== undefined)
-            writer.tag(128, WireType.Bit64).double(message.aspectRatio);
-        /* optional bool is_wrap = 129; */
-        if (message.isWrap !== undefined)
-            writer.tag(129, WireType.Varint).bool(message.isWrap);
         /* optional bool is_visible = 140; */
         if (message.isVisible !== undefined)
             writer.tag(140, WireType.Varint).bool(message.isVisible);
@@ -43625,24 +42448,6 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional symbol.destack.FillProto fill = 142; */
         if (message.fill)
             FillProto.internalBinaryWrite(message.fill, writer.tag(142, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Axis3Proto rotation = 143; */
-        if (message.rotation)
-            Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
-        if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
-        /* optional double scale = 145; */
-        if (message.scale !== undefined)
-            writer.tag(145, WireType.Bit64).double(message.scale);
-        /* optional symbol.destack.ShadowProto shadow = 146; */
-        if (message.shadow)
-            ShadowProto.internalBinaryWrite(message.shadow, writer.tag(146, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.BorderProto border = 147; */
-        if (message.border)
-            BorderProto.internalBinaryWrite(message.border, writer.tag(147, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.CornersProto radius = 148; */
-        if (message.radius)
-            CornersProto.internalBinaryWrite(message.radius, writer.tag(148, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -55148,8 +53953,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 7, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "predecessor_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -55160,37 +53963,10 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
-            { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 70, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 110, name: "position", kind: "message", T: () => PositionProto },
-            { no: 111, name: "width", kind: "message", T: () => DimensionProto },
-            { no: 112, name: "height", kind: "message", T: () => DimensionProto },
-            { no: 113, name: "min_width", kind: "message", T: () => DimensionProto },
-            { no: 114, name: "min_height", kind: "message", T: () => DimensionProto },
-            { no: 115, name: "max_width", kind: "message", T: () => DimensionProto },
-            { no: 116, name: "max_height", kind: "message", T: () => DimensionProto },
-            { no: 120, name: "layout", kind: "enum", opt: true, T: () => ["symbol.destack.LayoutProto", LayoutProto] },
-            { no: 121, name: "direction", kind: "enum", opt: true, T: () => ["symbol.destack.DirectionProto", DirectionProto] },
-            { no: 122, name: "distribute", kind: "enum", opt: true, T: () => ["symbol.destack.DistributeProto", DistributeProto] },
-            { no: 123, name: "align", kind: "enum", opt: true, T: () => ["symbol.destack.AlignProto", AlignProto] },
-            { no: 124, name: "gap", kind: "message", T: () => Axis2Proto },
-            { no: 125, name: "padding", kind: "message", T: () => InsetsProto },
-            { no: 126, name: "grid", kind: "message", T: () => GridProto },
-            { no: 127, name: "grid_span", kind: "message", T: () => GridSpanProto },
-            { no: 128, name: "aspect_ratio", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 129, name: "is_wrap", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 140, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
-            { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 142, name: "fill", kind: "message", T: () => FillProto },
-            { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
-            { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
-            { no: 147, name: "border", kind: "message", T: () => BorderProto },
-            { no: 148, name: "radius", kind: "message", T: () => CornersProto },
+            { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 200, name: "root_view_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -55199,7 +53975,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
         message.metatype = 0;
         message.id = "";
         message.materialization = 0;
-        message.customValues = {};
         message.orderKey = "";
         message.name = "";
         if (value !== undefined)
@@ -55222,12 +53997,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
-                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
-                    break;
-                case /* optional symbol.destack.NodeDefinitionReferenceProto base_type */ 7:
-                    message.baseType = NodeDefinitionReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.baseType);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -55259,98 +54028,17 @@ class SceneProto$Type extends MessageType<SceneProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 25:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
-                case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
-                    this.binaryReadMap26(message.customValues, reader, options);
-                    break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
-                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 70:
-                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
-                    break;
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.destack.PositionProto position */ 110:
-                    message.position = PositionProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
-                    break;
-                case /* optional symbol.destack.DimensionProto width */ 111:
-                    message.width = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.width);
-                    break;
-                case /* optional symbol.destack.DimensionProto height */ 112:
-                    message.height = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.height);
-                    break;
-                case /* optional symbol.destack.DimensionProto min_width */ 113:
-                    message.minWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.minWidth);
-                    break;
-                case /* optional symbol.destack.DimensionProto min_height */ 114:
-                    message.minHeight = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.minHeight);
-                    break;
-                case /* optional symbol.destack.DimensionProto max_width */ 115:
-                    message.maxWidth = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.maxWidth);
-                    break;
-                case /* optional symbol.destack.DimensionProto max_height */ 116:
-                    message.maxHeight = DimensionProto.internalBinaryRead(reader, reader.uint32(), options, message.maxHeight);
-                    break;
-                case /* optional symbol.destack.LayoutProto layout */ 120:
-                    message.layout = reader.int32();
-                    break;
-                case /* optional symbol.destack.DirectionProto direction */ 121:
-                    message.direction = reader.int32();
-                    break;
-                case /* optional symbol.destack.DistributeProto distribute */ 122:
-                    message.distribute = reader.int32();
-                    break;
-                case /* optional symbol.destack.AlignProto align */ 123:
-                    message.align = reader.int32();
-                    break;
-                case /* optional symbol.destack.Axis2Proto gap */ 124:
-                    message.gap = Axis2Proto.internalBinaryRead(reader, reader.uint32(), options, message.gap);
-                    break;
-                case /* optional symbol.destack.InsetsProto padding */ 125:
-                    message.padding = InsetsProto.internalBinaryRead(reader, reader.uint32(), options, message.padding);
-                    break;
-                case /* optional symbol.destack.GridProto grid */ 126:
-                    message.grid = GridProto.internalBinaryRead(reader, reader.uint32(), options, message.grid);
-                    break;
-                case /* optional symbol.destack.GridSpanProto grid_span */ 127:
-                    message.gridSpan = GridSpanProto.internalBinaryRead(reader, reader.uint32(), options, message.gridSpan);
-                    break;
-                case /* optional double aspect_ratio */ 128:
-                    message.aspectRatio = reader.double();
-                    break;
-                case /* optional bool is_wrap */ 129:
-                    message.isWrap = reader.bool();
-                    break;
-                case /* optional bool is_visible */ 140:
-                    message.isVisible = reader.bool();
-                    break;
-                case /* optional double opacity */ 141:
-                    message.opacity = reader.double();
-                    break;
-                case /* optional symbol.destack.FillProto fill */ 142:
-                    message.fill = FillProto.internalBinaryRead(reader, reader.uint32(), options, message.fill);
-                    break;
-                case /* optional symbol.destack.Axis3Proto rotation */ 143:
-                    message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
-                    break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
-                    break;
-                case /* optional double scale */ 145:
-                    message.scale = reader.double();
-                    break;
-                case /* optional symbol.destack.ShadowProto shadow */ 146:
-                    message.shadow = ShadowProto.internalBinaryRead(reader, reader.uint32(), options, message.shadow);
-                    break;
-                case /* optional symbol.destack.BorderProto border */ 147:
-                    message.border = BorderProto.internalBinaryRead(reader, reader.uint32(), options, message.border);
-                    break;
-                case /* optional symbol.destack.CornersProto radius */ 148:
-                    message.radius = CornersProto.internalBinaryRead(reader, reader.uint32(), options, message.radius);
+                case /* optional symbol.destack.IconProto icon */ 102:
+                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto root_view_ptr */ 200:
                     message.rootViewPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.rootViewPtr);
@@ -55366,22 +54054,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
         }
         return message;
     }
-    private binaryReadMap26(map: SceneProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
-        let len = reader.uint32(), end = reader.pos + len, key: keyof SceneProto["customValues"] | undefined, val: SceneProto["customValues"][any] | undefined;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case 1:
-                    key = reader.string();
-                    break;
-                case 2:
-                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
-                    break;
-                default: throw new globalThis.Error("unknown map entry field for symbol.destack.SceneProto.custom_values");
-            }
-        }
-        map[key ?? ""] = val ?? ValueProto.create();
-    }
     internalBinaryWrite(message: SceneProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -55395,12 +54067,6 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
-        if (message.definitionPtr)
-            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeDefinitionReferenceProto base_type = 7; */
-        if (message.baseType)
-            NodeDefinitionReferenceProto.internalBinaryWrite(message.baseType, writer.tag(7, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -55431,103 +54097,18 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* optional google.protobuf.Timestamp deleted_at = 25; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
-        /* map<string, symbol.destack.ValueProto> custom_values = 26; */
-        for (let k of globalThis.Object.keys(message.customValues)) {
-            writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
-            writer.tag(2, WireType.LengthDelimited).fork();
-            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
-            writer.join().join();
-        }
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto script_ptr = 70; */
-        if (message.scriptPtr)
-            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(70, WireType.LengthDelimited).fork(), options).join();
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.PositionProto position = 110; */
-        if (message.position)
-            PositionProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto width = 111; */
-        if (message.width)
-            DimensionProto.internalBinaryWrite(message.width, writer.tag(111, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto height = 112; */
-        if (message.height)
-            DimensionProto.internalBinaryWrite(message.height, writer.tag(112, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto min_width = 113; */
-        if (message.minWidth)
-            DimensionProto.internalBinaryWrite(message.minWidth, writer.tag(113, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto min_height = 114; */
-        if (message.minHeight)
-            DimensionProto.internalBinaryWrite(message.minHeight, writer.tag(114, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto max_width = 115; */
-        if (message.maxWidth)
-            DimensionProto.internalBinaryWrite(message.maxWidth, writer.tag(115, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.DimensionProto max_height = 116; */
-        if (message.maxHeight)
-            DimensionProto.internalBinaryWrite(message.maxHeight, writer.tag(116, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.LayoutProto layout = 120; */
-        if (message.layout !== undefined)
-            writer.tag(120, WireType.Varint).int32(message.layout);
-        /* optional symbol.destack.DirectionProto direction = 121; */
-        if (message.direction !== undefined)
-            writer.tag(121, WireType.Varint).int32(message.direction);
-        /* optional symbol.destack.DistributeProto distribute = 122; */
-        if (message.distribute !== undefined)
-            writer.tag(122, WireType.Varint).int32(message.distribute);
-        /* optional symbol.destack.AlignProto align = 123; */
-        if (message.align !== undefined)
-            writer.tag(123, WireType.Varint).int32(message.align);
-        /* optional symbol.destack.Axis2Proto gap = 124; */
-        if (message.gap)
-            Axis2Proto.internalBinaryWrite(message.gap, writer.tag(124, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.InsetsProto padding = 125; */
-        if (message.padding)
-            InsetsProto.internalBinaryWrite(message.padding, writer.tag(125, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.GridProto grid = 126; */
-        if (message.grid)
-            GridProto.internalBinaryWrite(message.grid, writer.tag(126, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.GridSpanProto grid_span = 127; */
-        if (message.gridSpan)
-            GridSpanProto.internalBinaryWrite(message.gridSpan, writer.tag(127, WireType.LengthDelimited).fork(), options).join();
-        /* optional double aspect_ratio = 128; */
-        if (message.aspectRatio !== undefined)
-            writer.tag(128, WireType.Bit64).double(message.aspectRatio);
-        /* optional bool is_wrap = 129; */
-        if (message.isWrap !== undefined)
-            writer.tag(129, WireType.Varint).bool(message.isWrap);
-        /* optional bool is_visible = 140; */
-        if (message.isVisible !== undefined)
-            writer.tag(140, WireType.Varint).bool(message.isVisible);
-        /* optional double opacity = 141; */
-        if (message.opacity !== undefined)
-            writer.tag(141, WireType.Bit64).double(message.opacity);
-        /* optional symbol.destack.FillProto fill = 142; */
-        if (message.fill)
-            FillProto.internalBinaryWrite(message.fill, writer.tag(142, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Axis3Proto rotation = 143; */
-        if (message.rotation)
-            Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
-        if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
-        /* optional double scale = 145; */
-        if (message.scale !== undefined)
-            writer.tag(145, WireType.Bit64).double(message.scale);
-        /* optional symbol.destack.ShadowProto shadow = 146; */
-        if (message.shadow)
-            ShadowProto.internalBinaryWrite(message.shadow, writer.tag(146, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.BorderProto border = 147; */
-        if (message.border)
-            BorderProto.internalBinaryWrite(message.border, writer.tag(147, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.CornersProto radius = 148; */
-        if (message.radius)
-            CornersProto.internalBinaryWrite(message.radius, writer.tag(148, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.IconProto icon = 102; */
+        if (message.icon)
+            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto root_view_ptr = 200; */
         if (message.rootViewPtr)
             NodeReferenceProto.internalBinaryWrite(message.rootViewPtr, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
@@ -65053,125 +63634,6 @@ class ViewProto$Type extends MessageType<ViewProto> {
  */
 export const ViewProto = new ViewProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class ViewEnteredEventProto$Type extends MessageType<ViewEnteredEventProto> {
-    constructor() {
-        super("symbol.destack.ViewEnteredEventProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
-            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
-        ]);
-    }
-    create(value?: PartialMessage<ViewEnteredEventProto>): ViewEnteredEventProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.status = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ViewEnteredEventProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ViewEnteredEventProto): ViewEnteredEventProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 20:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
-                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
-                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* optional string client_nonce */ 23:
-                    message.clientNonce = reader.string();
-                    break;
-                case /* symbol.destack.EventStatusProto status */ 30:
-                    message.status = reader.int32();
-                    break;
-                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
-                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ViewEnteredEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 20; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
-        if (message.createdByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
-        if (message.clientPtr)
-            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* optional string client_nonce = 23; */
-        if (message.clientNonce !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
-        /* symbol.destack.EventStatusProto status = 30; */
-        if (message.status !== 0)
-            writer.tag(30, WireType.Varint).int32(message.status);
-        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
-        if (message.nodePtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.ViewEnteredEventProto
- */
-export const ViewEnteredEventProto = new ViewEnteredEventProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class ViewEventProto$Type extends MessageType<ViewEventProto> {
     constructor() {
         super("symbol.destack.ViewEventProto", [
@@ -65290,125 +63752,6 @@ class ViewEventProto$Type extends MessageType<ViewEventProto> {
  * @generated MessageType for protobuf message symbol.destack.ViewEventProto
  */
 export const ViewEventProto = new ViewEventProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
-class ViewExitedEventProto$Type extends MessageType<ViewExitedEventProto> {
-    constructor() {
-        super("symbol.destack.ViewExitedEventProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
-            { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 22, name: "client_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
-            { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto }
-        ]);
-    }
-    create(value?: PartialMessage<ViewExitedEventProto>): ViewExitedEventProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        message.status = 0;
-        if (value !== undefined)
-            reflectionMergePartial<ViewExitedEventProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: ViewExitedEventProto): ViewExitedEventProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
-                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
-                    break;
-                case /* google.protobuf.Timestamp created_at */ 20:
-                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 21:
-                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto client_ptr */ 22:
-                    message.clientPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.clientPtr);
-                    break;
-                case /* optional string client_nonce */ 23:
-                    message.clientNonce = reader.string();
-                    break;
-                case /* symbol.destack.EventStatusProto status */ 30:
-                    message.status = reader.int32();
-                    break;
-                case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
-                    message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: ViewExitedEventProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
-        if (message.snapshotPtr)
-            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
-        /* google.protobuf.Timestamp created_at = 20; */
-        if (message.createdAt)
-            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 21; */
-        if (message.createdByPtr)
-            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(21, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto client_ptr = 22; */
-        if (message.clientPtr)
-            NodeReferenceProto.internalBinaryWrite(message.clientPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
-        /* optional string client_nonce = 23; */
-        if (message.clientNonce !== undefined)
-            writer.tag(23, WireType.LengthDelimited).string(message.clientNonce);
-        /* symbol.destack.EventStatusProto status = 30; */
-        if (message.status !== 0)
-            writer.tag(30, WireType.Varint).int32(message.status);
-        /* symbol.destack.NodeReferenceProto node_ptr = 101; */
-        if (message.nodePtr)
-            NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.ViewExitedEventProto
- */
-export const ViewExitedEventProto = new ViewExitedEventProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class WheelEventProto$Type extends MessageType<WheelEventProto> {
     constructor() {
@@ -65798,8 +64141,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 60404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
             { no: 60405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
             { no: 60400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
-            { no: 520002, name: "view_entered_event", kind: "message", oneof: "node", T: () => ViewEnteredEventProto },
-            { no: 520003, name: "view_exited_event", kind: "message", oneof: "node", T: () => ViewExitedEventProto },
             { no: 520200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
             { no: 535000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
             { no: 520300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
@@ -65809,7 +64150,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 525100, name: "text_view", kind: "message", oneof: "node", T: () => TextViewProto },
             { no: 540400, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
             { no: 540300, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
-            { no: 540000, name: "canvas", kind: "message", oneof: "node", T: () => CanvasProto },
             { no: 540200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
             { no: 80000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 160000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
@@ -66138,18 +64478,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
                     };
                     break;
-                case /* symbol.destack.ViewEnteredEventProto view_entered_event */ 520002:
-                    message.node = {
-                        oneofKind: "viewEnteredEvent",
-                        viewEnteredEvent: ViewEnteredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).viewEnteredEvent)
-                    };
-                    break;
-                case /* symbol.destack.ViewExitedEventProto view_exited_event */ 520003:
-                    message.node = {
-                        oneofKind: "viewExitedEvent",
-                        viewExitedEvent: ViewExitedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).viewExitedEvent)
-                    };
-                    break;
                 case /* symbol.destack.FrameViewProto frame_view */ 520200:
                     message.node = {
                         oneofKind: "frameView",
@@ -66202,12 +64530,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
-                    };
-                    break;
-                case /* symbol.destack.CanvasProto canvas */ 540000:
-                    message.node = {
-                        oneofKind: "canvas",
-                        canvas: CanvasProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).canvas)
                     };
                     break;
                 case /* symbol.destack.LineShapeProto line_shape */ 540200:
@@ -67203,12 +65525,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.VariantProto variant = 500300; */
         if (message.node.oneofKind === "variant")
             VariantProto.internalBinaryWrite(message.node.variant, writer.tag(500300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ViewEnteredEventProto view_entered_event = 520002; */
-        if (message.node.oneofKind === "viewEnteredEvent")
-            ViewEnteredEventProto.internalBinaryWrite(message.node.viewEnteredEvent, writer.tag(520002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ViewExitedEventProto view_exited_event = 520003; */
-        if (message.node.oneofKind === "viewExitedEvent")
-            ViewExitedEventProto.internalBinaryWrite(message.node.viewExitedEvent, writer.tag(520003, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.FrameViewProto frame_view = 520200; */
         if (message.node.oneofKind === "frameView")
             FrameViewProto.internalBinaryWrite(message.node.frameView, writer.tag(520200, WireType.LengthDelimited).fork(), options).join();
@@ -67230,9 +65546,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.InternalViewProto internal_view = 535000; */
         if (message.node.oneofKind === "internalView")
             InternalViewProto.internalBinaryWrite(message.node.internalView, writer.tag(535000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CanvasProto canvas = 540000; */
-        if (message.node.oneofKind === "canvas")
-            CanvasProto.internalBinaryWrite(message.node.canvas, writer.tag(540000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.LineShapeProto line_shape = 540200; */
         if (message.node.oneofKind === "lineShape")
             LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(540200, WireType.LengthDelimited).fork(), options).join();
@@ -67390,7 +65703,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 525100, name: "text_view", kind: "message", oneof: "node", T: () => TextViewProto },
             { no: 540400, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
             { no: 540300, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
-            { no: 540000, name: "canvas", kind: "message", oneof: "node", T: () => CanvasProto },
             { no: 540200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
             { no: 80000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
             { no: 160000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
@@ -67610,12 +65922,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
-                    };
-                    break;
-                case /* symbol.destack.CanvasProto canvas */ 540000:
-                    message.node = {
-                        oneofKind: "canvas",
-                        canvas: CanvasProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).canvas)
                     };
                     break;
                 case /* symbol.destack.LineShapeProto line_shape */ 540200:
@@ -68125,9 +66431,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.InternalViewProto internal_view = 535000; */
         if (message.node.oneofKind === "internalView")
             InternalViewProto.internalBinaryWrite(message.node.internalView, writer.tag(535000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CanvasProto canvas = 540000; */
-        if (message.node.oneofKind === "canvas")
-            CanvasProto.internalBinaryWrite(message.node.canvas, writer.tag(540000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.LineShapeProto line_shape = 540200; */
         if (message.node.oneofKind === "lineShape")
             LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(540200, WireType.LengthDelimited).fork(), options).join();
@@ -68201,8 +66504,6 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
             { no: 60403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
             { no: 60404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
             { no: 60405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
-            { no: 520002, name: "view_entered_event", kind: "message", oneof: "node", T: () => ViewEnteredEventProto },
-            { no: 520003, name: "view_exited_event", kind: "message", oneof: "node", T: () => ViewExitedEventProto },
             { no: 170301, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
             { no: 170002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
             { no: 170003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
@@ -68376,18 +66677,6 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                     message.node = {
                         oneofKind: "sanctionExpiredEvent",
                         sanctionExpiredEvent: SanctionExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionExpiredEvent)
-                    };
-                    break;
-                case /* symbol.destack.ViewEnteredEventProto view_entered_event */ 520002:
-                    message.node = {
-                        oneofKind: "viewEnteredEvent",
-                        viewEnteredEvent: ViewEnteredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).viewEnteredEvent)
-                    };
-                    break;
-                case /* symbol.destack.ViewExitedEventProto view_exited_event */ 520003:
-                    message.node = {
-                        oneofKind: "viewExitedEvent",
-                        viewExitedEvent: ViewExitedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).viewExitedEvent)
                     };
                     break;
                 case /* symbol.destack.LogEventProto log_event */ 170301:
@@ -68909,12 +67198,6 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.NotificationExpiredEventProto notification_expired_event = 220506; */
         if (message.node.oneofKind === "notificationExpiredEvent")
             NotificationExpiredEventProto.internalBinaryWrite(message.node.notificationExpiredEvent, writer.tag(220506, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ViewEnteredEventProto view_entered_event = 520002; */
-        if (message.node.oneofKind === "viewEnteredEvent")
-            ViewEnteredEventProto.internalBinaryWrite(message.node.viewEnteredEvent, writer.tag(520002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ViewExitedEventProto view_exited_event = 520003; */
-        if (message.node.oneofKind === "viewExitedEvent")
-            ViewExitedEventProto.internalBinaryWrite(message.node.viewExitedEvent, writer.tag(520003, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.PointerDownEventProto pointer_down_event = 560101; */
         if (message.node.oneofKind === "pointerDownEvent")
             PointerDownEventProto.internalBinaryWrite(message.node.pointerDownEvent, writer.tag(560101, WireType.LengthDelimited).fork(), options).join();
@@ -69008,7 +67291,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewEnteredEventProto | ViewExitedEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | CanvasProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
+export type AnyNodeProto = NodeProto | EntityProto | CustomEntityDefinitionProto | CustomTraitDefinitionProto | RecordProto | ResourceProto | SnapshotProto | EventProto | CustomEventDefinitionProto | SignalProto | EditEventProto | CustomEnumDefinitionProto | CustomOptionProto | CustomOptionGroupProto | CustomPropertyProto | CustomPropertyGroupProto | CustomStructDefinitionProto | AgentProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyboardEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | ThreadCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | VariantProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | MessageProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | ThreadProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | FriendshipProto | FriendshipInviteEventProto | FriendshipInviteSentEventProto | FriendshipInviteRescindedEventProto | FriendshipInviteAcceptedEventProto | FriendshipInviteRejectedEventProto | FriendshipInviteProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
 export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | CustomStructProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

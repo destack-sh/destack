@@ -15,12 +15,12 @@ from destack.language import (
     Join,
     JoinType,
     LabelView,
+    Layer,
     Message,
     Node,
     NodeReference,
     NodeType,
     Reaction,
-    Scene,
     Session,
     Snapshot,
     Star,
@@ -215,16 +215,16 @@ async def test_create_folders_recursive(session: Session):
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_create_scene_with_heterogeneous_views(session: Session):
-    """Create a Scene with heterogeneous Views, mutate it, querying along the way."""
-    # create scene
-    scene = Scene(name="Scene")
-    session.create(scene)
+async def test_create_layer_with_heterogeneous_views(session: Session):
+    """Create a Layer with heterogeneous Views, mutate it, querying along the way."""
+    # create layer
+    layer = Layer(name="Layer")
+    session.create(layer)
     await session.commit()
 
     # create views
     root_view = FrameView(name="Container")
-    scene.add_child(root_view)
+    layer.add_child(root_view)
     for i in range(4):
         frame_view = FrameView(name=f"View {i}")
         root_view.add_child(frame_view)
@@ -239,32 +239,37 @@ async def test_create_scene_with_heterogeneous_views(session: Session):
     await session.commit()
 
     # query view (child, non-recursive)
-    scene_tree = await FrameView.get(
+    layer_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
         Views=View.search(join=Join.of(JoinType.CHILD)),
     ).execute()
-    scene_unpacked = scene_tree.to_one()
-    view_tree_unpacked = scene_unpacked.get_descendants(View)
+    layer_unpacked = layer_tree.to_one()
+    view_tree_unpacked = layer_unpacked.get_descendants(View)
     assert len(view_tree_unpacked) == 8
 
     # query view (child, recursive)
-    scene_tree = await FrameView.get(
+    layer_tree = await FrameView.get(
         where=FrameView.property("id").eq(root_view.id),
         Views=View.search(join=Join.of(JoinType.CHILD, recursive=True)),
     ).execute()
-    scene_unpacked = scene_tree.to_one()
-    view_tree_unpacked = scene_unpacked.get_descendants(View)
+    layer_unpacked = layer_tree.to_one()
+    view_tree_unpacked = layer_unpacked.get_descendants(View)
     assert len(view_tree_unpacked) == 4 + 4 * (1 + 4 * (1 + 4))
 
     # query view (parent, recursive)
-    view_leaves = scene._graph.get_leaves(TextView, scene)
-    scene_tree = await TextView.get(
+    view_leaves = layer._graph.get_leaves(TextView, layer)
+    layer_tree = await TextView.get(
         where=TextView.property("id").eq(view_leaves[0].id),
-        Parents=View.search(join=Join.of(JoinType.PARENT, recursive=True)),
+        Parents=View.search(
+            join=Join.of(JoinType.PARENT, recursive=True),
+            Layer=Layer.search(
+                join=Join.of(JoinType.PARENT),
+            ),
+        ),
     ).execute()
-    scene_unpacked = scene_tree.graph.get_roots(View)
-    assert len(scene_unpacked) == 1
-    assert scene_unpacked[0].equals(scene)
+    layer_unpacked = layer_tree.graph.get_roots(View)
+    assert len(layer_unpacked) == 1
+    assert layer_unpacked[0].equals(layer)
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
@@ -380,14 +385,14 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
 @pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
 async def test_move_views(session: Session):
     """Move Views around."""
-    scene = Scene(name="Scene")
-    session.create(scene)
+    layer = Layer(name="Layer")
+    session.create(layer)
     await session.commit()
 
     # create views
     root_view = FrameView(name="Root")
     frame_views: list[FrameView] = []
-    scene.add_child(root_view)
+    layer.add_child(root_view)
     for i in range(4):
         frame_view = FrameView(name=f"View {i}")
         frame_views.append(frame_view)
@@ -405,8 +410,8 @@ async def test_move_views(session: Session):
 
     # reattach views
     for frame_view in frame_views:
-        scene.add_child(frame_view)
-        assert frame_view.parent_ptr == scene.to_ref()
+        layer.add_child(frame_view)
+        assert frame_view.parent_ptr == layer.to_ref()
     await session.commit()
 
     # detach all the leaf label views
@@ -418,14 +423,14 @@ async def test_move_views(session: Session):
             assert label_view.parent_ptr is None
     await session.commit()
 
-    # move all views to be directly parented by scene
+    # move all views to be directly parented by layer
     for view in chain(frame_views, label_views):
-        view.move_to(scene)
-        assert view.parent_ptr == scene.to_ref()
+        view.move_to(layer)
+        assert view.parent_ptr == layer.to_ref()
     await session.commit()
 
-    scene_children = scene.get_children(View)
-    assert len(scene_children) == 1 + 4 * (4 + 1)
+    layer_children = layer.get_children(View)
+    assert len(layer_children) == 1 + 4 * (4 + 1)
 
 
 # @pytest.mark.parametrize("session", ENTITY_SESSIONS)

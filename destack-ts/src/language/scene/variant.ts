@@ -31,6 +31,7 @@ import {
 import type { Layer } from "@destack/language/scene/layer";
 import type { Scene } from "@destack/language/scene/scene";
 import type { Space } from "@destack/language/universe";
+import type { View } from "@destack/language/view";
 import { MaterializationProto, VariantProto, VariantTypeProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
@@ -77,10 +78,10 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
   /**
    * Variant.parent
    */
-  get parent(): Scene | Layer | null {
+  get parent(): Scene | Layer | View | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Scene | Layer | null;
+      return this._supergraph.get(nodePtr.id) as Scene | Layer | View | null;
     }
     return null;
   }
@@ -334,7 +335,7 @@ export class Variant extends Entity implements IsSpatial, IsOwnable, IsDeletable
 
   constructor(options: {
     id?: string;
-    parent?: Scene | Layer | NodeReference | null;
+    parent?: Scene | Layer | View | NodeReference | null;
     space?: Space | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;

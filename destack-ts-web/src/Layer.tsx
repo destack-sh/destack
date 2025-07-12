@@ -3,9 +3,8 @@ import { renderStroke } from "@destack-web/shared/freehand/svg";
 import { Signal, useComputed, useSignal } from "@preact/signals-react";
 import {
   activeSession,
-  Canvas,
   Easing,
-  Event,
+  Layer,
   LineShape,
   Node,
   NodeReference,
@@ -49,11 +48,11 @@ const strokeOptions = new Stroke({
   easing: Easing.LINEAR,
 });
 
-export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }) => {
+export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) => {
   const session = useSession();
   const supergraph = useSupergraph();
-  const canvas = supergraph.getOrError(canvasPtr.id) as Canvas;
-  const lines = canvas.getDescendants(LineShape);
+  const layer = supergraph.getOrError(layerPtr.id) as Layer;
+  const lines = layer.getDescendants(LineShape);
 
   const [currentLine, setCurrentLine] = useState<LineShape | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -77,7 +76,7 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
     setLastMousePosition(point);
     const line = new LineShape({ name: "LineShape", points: [point] });
     setCurrentLine(line);
-    canvas.addChild(line);
+    layer.addChild(line);
     session.commit();
   };
 
@@ -165,4 +164,4 @@ export const CanvasView: React.FC<{ canvasPtr: NodeReference }> = ({ canvasPtr }
   );
 };
 
-export default CanvasView;
+export default LayerView;
