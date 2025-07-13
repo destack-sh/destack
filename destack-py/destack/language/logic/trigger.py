@@ -46,6 +46,7 @@ class Trigger(IsSpatial, Entity):
     event: Optional[NodeDefinitionReference] = builtin_property(110)
     where: Optional["Condition"] = builtin_property(111)
     # sampling?
+    # is_passive? (only trigger if containing View? is active, no backfill)
 
     # what
     target: Union["Action", "Service", None] = builtin_property(120)

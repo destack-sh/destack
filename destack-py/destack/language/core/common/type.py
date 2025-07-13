@@ -125,6 +125,8 @@ type Json = Any
 class Type(StructFrozen):
     """A Type in the type system."""
 
+    # name: str | None = 101?
+
     # scalar
     cardinality: TypeCardinality = builtin_property(
         110, default=TypeCardinality.SCALAR, is_repr=True

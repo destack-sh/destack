@@ -64,6 +64,7 @@ class CustomProperty(
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     group: "CustomPropertyGroup | None" = builtin_property(105)
+    # key?
 
     # scalar
     cardinality: TypeCardinality = builtin_property(
