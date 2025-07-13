@@ -18,8 +18,6 @@ from destack.language import (
     Layer,
     Message,
     Node,
-    NodeReference,
-    NodeType,
     Reaction,
     Session,
     Snapshot,
@@ -31,7 +29,6 @@ from destack.language import (
 )
 from destack.test.fixtures import NODES
 from destack.test.strategies import examples, nodes
-from destack.utils.uuid import uuid4
 
 ENTITY_SESSIONS = (
     lf("memory_session"),
@@ -61,12 +58,7 @@ async def test_roundtrip_create_node(node: Node, session: Session):
 async def test_create_user_with_clients(session: Session):
     """Create and update a User with Clients, querying along the way."""
     # create user
-    user = User(
-        status=UserStatus.ACTIVE,
-        name="Floof",
-        slug="floof",
-        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
-    )
+    user = User(status=UserStatus.ACTIVE, name="Floof", slug="floof")
     session.create(user)
     await session.commit()
     # update user
@@ -276,14 +268,7 @@ async def test_create_layer_with_heterogeneous_views(session: Session):
 async def test_create_star(session: Session):
     """Create Stars and query them."""
 
-    users = [
-        User(
-            name=f"User{i}",
-            slug=f"user{i}",
-            space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
-        )
-        for i in range(20)
-    ]
+    users = [User(name=f"User{i}", slug=f"user{i}") for i in range(20)]
     for user in users:
         session.create(user)
     await session.commit()
@@ -304,14 +289,7 @@ async def test_create_star(session: Session):
 async def test_create_reaction_groups(session: Session):
     """Create Reactions and query them."""
 
-    users = [
-        User(
-            name=f"User{i}",
-            slug=f"user{i}",
-            space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
-        )
-        for i in range(10)
-    ]
+    users = [User(name=f"User{i}", slug=f"user{i}") for i in range(10)]
     for user in users:
         session.create(user)
     await session.commit()
@@ -363,7 +341,7 @@ async def test_create_reaction_groups(session: Session):
 async def test_benchmark_create_reactions(session: Session, async_benchmark: AsyncBenchmarkFixture):
     """Benchmark creating reactions without parent."""
 
-    user = User(name="User", slug="user", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()))
+    user = User(name="User", slug="user")
     session.create(user)
     await session.commit()
 
@@ -440,9 +418,7 @@ async def test_edit_partial_node_in_snapshot(session: Session):
 
     # TODO :Incomplete!: support Entity branching & variants
 
-    user = User(
-        name="Alice", slug="alice", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4())
-    )
+    user = User(name="Alice", slug="alice")
     session.create(user)
     await session.commit()
 
@@ -483,9 +459,7 @@ async def test_edit_partial_node_in_snapshot(session: Session):
 async def test_edit_partial_graph_in_snapshot(session: Session):
     """Create a Snapshot and query it."""
 
-    user = User(
-        name="Alice", slug="alice", space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4())
-    )
+    user = User(name="Alice", slug="alice")
     session.create(user)
     await session.commit()
 

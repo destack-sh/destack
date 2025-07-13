@@ -36,7 +36,13 @@ def test_node_inheritance(session: Session):
 
 def test_node_space_ptr(session: Session):
     """Add Nodes that are Spatial and check that they have the same space_ptr."""
-    space = Space(name="MySpace", slug="my-space", status=SpaceStatus.ACTIVE, region=REGION)
+    space = Space(
+        name="MySpace",
+        slug="my-space",
+        status=SpaceStatus.ACTIVE,
+        region=REGION,
+    )
+    session.space_ptr = space.to_ref()
     session.create(space)
     folder = Folder(name="MyFolder")
     space.add_child(folder)

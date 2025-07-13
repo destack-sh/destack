@@ -507,6 +507,17 @@ if (_{ts_name_in} === null) {{
 if (_{ts_name_in} === null) {{
     _{ts_name_in} = this.toRef();
 }}""")
+            elif prop.default_factory == ValueFactory.SPACE:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    if (this._session === null) {{
+        throw new Error(`{cls.__name__} has no session`);
+    }}
+    if (this._session.spacePtr === null) {{
+        throw new Error(`{cls.__name__} has no space`);
+    }}
+    _{ts_name_in} = this._session.spacePtr;
+}}""")
             else:
                 raise ValueError(
                     f"unsupported default factory for {prop!r}: {prop.default_factory!r}"
@@ -1031,7 +1042,6 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.id,
-    snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,
   }});
@@ -1066,20 +1076,6 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
-    elif TraitType.SPATIAL in cls.__traits__:
-        ref_impl = f"""\
-__toRef__(): NodeReference {{
-  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-  return new _NodeReference({{
-    type: NodeType.{node_type.name},
-    id: this.id,
-    spaceId: this.spacePtr?.id ?? null,
-    snapshotId: this.snapshotPtr?.id ?? null,
-    _session: this._session,
-    _supergraph: this._supergraph,
-  }});
-}}
-"""
     else:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
@@ -1087,6 +1083,7 @@ __toRef__(): NodeReference {{
   return new _NodeReference({{
     type: NodeType.{node_type.name},
     id: this.id,
+    spaceId: this.spacePtr?.id ?? null,
     snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,

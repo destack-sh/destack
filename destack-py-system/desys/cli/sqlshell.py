@@ -28,11 +28,9 @@ async def sqlshell(
 ):  # type: ignore
     """Open a psql shell to either the global or a Space-local database."""
     from destack.language import StoreKey
-    from desys.sharding import DATABASE_PROVIDER, get_global_database_from_env
+    from desys.sharding import DATABASE_PROVIDER
 
-    if store_key == StoreKey.GLOBAL_ENTITY_PRIMARY:
-        database = get_global_database_from_env()
-    elif store_key == StoreKey.SPATIAL_ENTITY_PRIMARY:
+    if store_key == StoreKey.ENTITY_PRIMARY:
         assert galaxy_name is not None, "galaxy_name is required for main store_key"
         assert external_id is not None, "external_id is required for main store_key"
         database = await DATABASE_PROVIDER.resolve_or_error(region, galaxy_name, external_id)

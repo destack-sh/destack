@@ -4,9 +4,8 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    IsGlobal,
     IsJoinable,
-    IsOwner,
+    IsSubject,
     NodeReference,
     NodeType,
     RoleType,
@@ -16,7 +15,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Handle, Space
+    from destack.language import Handle
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,7 +27,7 @@ class OrganizationStatus(Enum):
 
 
 @builtin_node(NodeType.ORGANIZATION, root_type=None)
-class Organization(IsGlobal, IsOwner, IsJoinable, Entity):
+class Organization(IsSubject, IsJoinable, Entity):
     """
     An Organization with Users and Teams.
     """
@@ -37,8 +36,6 @@ class Organization(IsGlobal, IsOwner, IsJoinable, Entity):
     status: OrganizationStatus = builtin_property(
         102, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING
     )
-    space: "Space" = builtin_property(110, can_write=RoleType.SYSTEM)
     handle: Optional["Handle"] = builtin_property(111, can_write=RoleType.SYSTEM)
     if TYPE_CHECKING:
-        space_ptr: NodeReference = builtin_property()
         handle_ptr: Optional[NodeReference] = None

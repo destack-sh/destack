@@ -7,7 +7,6 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    IsSpatial,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -29,7 +28,6 @@ class WindowType(Enum):
 
 @builtin_node(NodeType.WINDOW)
 class Window(
-    IsSpatial,
     IsOwnable,
     IsOrdered,
     IsDeletable,

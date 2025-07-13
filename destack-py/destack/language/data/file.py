@@ -20,8 +20,6 @@ from PIL import Image
 from destack.language.core import (
     Enum,
     EnumType,
-    IsGlobal,
-    IsSpatial,
     NodeType,
     PrimitiveType,
     Resource,
@@ -455,7 +453,7 @@ MIME_TYPE_BY_FORMAT: dict[FileFormat, str] = {v: k for k, v in FILE_FORMAT_BY_MI
 
 
 @builtin_node(NodeType.FILE)
-class File(IsSpatial, IsGlobal, Resource):
+class File(Resource):
     """
     A File stored somewhere.
     """

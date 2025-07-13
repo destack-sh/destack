@@ -74,26 +74,18 @@ class NodeDefinition(BuiltinDefinition):
     properties: list["PropertyDefinition"] = builtin_property(105)
     groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
-    is_global: bool = builtin_property(
-        110,
-        is_repr=True,
-        description="Whether this Node is global.",
-    )
-    is_spatial: bool = builtin_property(
-        111, is_repr=True, description="Whether this Node is per Space."
-    )
     is_abstract: bool = builtin_property(
-        112,
+        110,
         is_repr=True,
         description="Whether this Node cannot be instantiated directly.",
     )
     is_extensible: bool = builtin_property(
-        113,
+        111,
         is_repr=True,
         description="Whether this Node can be extended by custom Nodes.",
     )
     is_frozen: bool = builtin_property(
-        114,
+        112,
         is_repr=True,
         description="Whether this Node cannot be modified.",
     )
@@ -158,8 +150,6 @@ class NodeDefinition(BuiltinDefinition):
             properties=[
                 prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
             ],
-            is_global=TraitType.GLOBAL in node_cls.__traits__,
-            is_spatial=TraitType.SPATIAL in node_cls.__traits__,
             is_abstract=node_cls.__is_abstract__,
             is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
             is_frozen=node_cls.__is_frozen__,
@@ -351,7 +341,6 @@ class PropertyDefinition(BuiltinDefinition):
     # relationship
     node_is_extensible: bool = builtin_property(140)
     node_is_heterogenous: bool = builtin_property(141)
-    node_is_spatial: bool = builtin_property(142)
     edge_type: EdgeType | None = builtin_property(144)
     cascade: CascadeAction | None = builtin_property(145)
 
@@ -400,7 +389,6 @@ class PropertyDefinition(BuiltinDefinition):
             # node
             node_is_extensible=prop.node_is_extensible,
             node_is_heterogenous=prop.node_is_heterogenous,
-            node_is_spatial=prop.node_is_spatial,
             edge_type=prop.edge_type,
             cascade=prop.cascade,
             # flags

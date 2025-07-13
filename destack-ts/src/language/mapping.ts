@@ -66,7 +66,6 @@ import type {
   ScalarType,
   StoreDomain,
   StoreKey,
-  StoreScope,
   StoreTier,
   StructType,
   Tenancy,
@@ -111,18 +110,15 @@ import type {
   IsDeletable,
   IsExtensible,
   IsFollowable,
-  IsGlobal,
   IsIrreversible,
   IsJoinable,
   IsOrdered,
   IsOwnable,
   IsOwned,
-  IsOwner,
   IsReactable,
   IsRunnable,
   IsScriptable,
   IsSourceable,
-  IsSpatial,
   IsStarable,
   IsSubject,
   IsTaggable,
@@ -648,14 +644,11 @@ export type NodeTypeMapping = {
 };
 
 export type TraitTypeMapping = {
-  [TraitType.GLOBAL]: IsGlobal;
-  [TraitType.SPATIAL]: IsSpatial;
   [TraitType.ORDERED]: IsOrdered;
   [TraitType.OWNABLE]: IsOwnable;
   [TraitType.OWNED]: IsOwned;
   [TraitType.JOINABLE]: IsJoinable;
   [TraitType.SUBJECT]: IsSubject;
-  [TraitType.OWNER]: IsOwner;
   [TraitType.TAGGABLE]: IsTaggable;
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
@@ -759,7 +752,6 @@ export type EnumTypeMapping = {
   [EnumType.UNIVERSE_CATEGORY]: UniverseCategory;
   [EnumType.PROPERTY_TYPE]: PropertyType;
   [EnumType.STORE_KEY]: StoreKey;
-  [EnumType.STORE_SCOPE]: StoreScope;
   [EnumType.STORE_DOMAIN]: StoreDomain;
   [EnumType.STORE_TIER]: StoreTier;
   [EnumType.RUNTIME_LANGUAGE]: RuntimeLanguage;

@@ -9,7 +9,6 @@ from destack.language.core import (
     IsDeletable,
     IsOwnable,
     IsReactable,
-    IsSpatial,
     IsTaggable,
     Node,
     NodeType,
@@ -31,7 +30,6 @@ logger = structlog.get_logger(__name__)
 
 @builtin_node(NodeType.MESSAGE)
 class Message(
-    IsSpatial,
     IsOwnable,
     IsDeletable,
     IsTaggable,

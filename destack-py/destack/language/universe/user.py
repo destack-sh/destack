@@ -7,8 +7,6 @@ from destack.language.core import (
     EnumType,
     IsCustomizable,
     IsFollowable,
-    IsGlobal,
-    IsOwner,
     IsSubject,
     NodeType,
     RoleType,
@@ -19,7 +17,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Handle, NodeReference, Space
+    from destack.language import Cursor, Handle, NodeReference
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,10 +30,8 @@ class UserStatus(Enum):
 
 @builtin_node(NodeType.USER, root_type=None)
 class User(
-    IsGlobal,
-    IsOwner,
-    IsFollowable,
     IsSubject,
+    IsFollowable,
     IsCustomizable,
     Entity,
 ):
@@ -52,7 +48,6 @@ class User(
     # last_active_at, seen_at, ...
     is_staff: bool = builtin_property(112, default=False, can_write=RoleType.SYSTEM)
 
-    space: "Space" = builtin_property(120, can_write=RoleType.SYSTEM, node_space_from="self")
     handle: Optional["Handle"] = builtin_property(
         121, can_write=RoleType.SYSTEM, node_space_from="self"
     )
@@ -60,7 +55,6 @@ class User(
         122, can_write=RoleType.SYSTEM, node_space_from="self"
     )
     if TYPE_CHECKING:
-        space_ptr: NodeReference = builtin_property()
         handle_ptr: Optional[NodeReference] = None
         cursor_ptr: Optional[NodeReference] = None
 

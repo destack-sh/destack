@@ -14,10 +14,8 @@ import type {
   IsDeletable,
   IsExtensible,
   IsOwnable,
-  IsOwner,
   IsScriptable,
   IsSourceable,
-  IsSpatial,
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
@@ -64,6 +62,12 @@ export abstract class Entity extends Node {
   declare readonly parentPtr: NodeReference | null;
 
   /**
+   * The Space this Node is in.
+   */
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
+
+  /**
    * Entity.materialization
    */
   declare readonly materialization: Materialization;
@@ -85,12 +89,6 @@ export abstract class Entity extends Node {
    */
   abstract get template(): Entity | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -193,14 +191,8 @@ export abstract class Entity extends Node {
         );
       }
 
-      if (
-        hasTrait(this, TraitType.SPATIAL) &&
-        hasTrait(parent, TraitType.SPATIAL) &&
-        (this as unknown as Node & IsSpatial).spacePtr !== null &&
-        (parent as unknown as Node & IsSpatial).spacePtr !== null &&
-        (this as unknown as Node & IsSpatial).spacePtr!.id !==
-          (parent as unknown as Node & IsSpatial).spacePtr!.id
-      ) {
+      // check space
+      if (this.spacePtr!.id !== parent.spacePtr!.id) {
         throw new Error(`cannot move ${this.repr()} to ${parent.repr()} (different Space)`);
       }
 
@@ -243,29 +235,6 @@ export abstract class Entity extends Node {
       for (const node of nodes) {
         node._graph = newGraph;
         newGraph.add(node);
-      }
-    }
-
-    // assign space
-    if (hasTrait(this, TraitType.SPATIAL)) {
-      let spacePtr: NodeReference | null = null;
-      if (
-        parent !== null &&
-        hasTrait(parent, TraitType.SPATIAL) &&
-        (parent as unknown as Node & IsSpatial).spacePtr !== null
-      ) {
-        spacePtr = (parent as unknown as Node & IsSpatial).spacePtr;
-      } else if (parent !== null && parent.metatype === NodeType.SPACE) {
-        spacePtr = parent.toRef();
-      }
-
-      if (spacePtr) {
-        for (const node of nodes) {
-          if (hasTrait(node, TraitType.SPATIAL)) {
-            // @ts-expect-error(readonly)
-            (node as unknown as Node & IsSpatial).spacePtr = spacePtr;
-          }
-        }
       }
     }
 
@@ -383,14 +352,7 @@ registerNodeClass(NodeType.ENTITY, Entity);
  */
 export class CustomEntityDefinition
   extends Entity
-  implements
-    IsSpatial,
-    IsCustomizable,
-    IsTaggable,
-    IsOwnable,
-    IsDeletable,
-    IsScriptable,
-    IsSourceable
+  implements IsCustomizable, IsTaggable, IsOwnable, IsDeletable, IsScriptable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
 
@@ -416,7 +378,7 @@ export class CustomEntityDefinition
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -458,18 +420,6 @@ export class CustomEntityDefinition
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -534,14 +484,14 @@ export class CustomEntityDefinition
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsOwner) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsSubject) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -716,12 +666,11 @@ export class CustomEntityDefinition
   constructor(options: {
     id?: string;
     parent?: Folder | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomEntityDefinition | NodeReference | null;
     template?: CustomEntityDefinition | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -729,7 +678,7 @@ export class CustomEntityDefinition
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
-    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsSubject) | NodeReference | null;
     baseType: NodeDefinitionReference;
     baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
@@ -774,6 +723,18 @@ export class CustomEntityDefinition
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomEntityDefinition has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomEntityDefinition has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomEntityDefinition.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -798,11 +759,6 @@ export class CustomEntityDefinition
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -924,9 +880,6 @@ export class CustomEntityDefinition
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -956,7 +909,7 @@ export class CustomEntityDefinition
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -981,9 +934,6 @@ export class CustomEntityDefinition
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -1012,9 +962,6 @@ export class CustomEntityDefinition
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1025,6 +972,7 @@ export class CustomEntityDefinition
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1084,9 +1032,7 @@ export class CustomEntityDefinition
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1096,9 +1042,6 @@ export class CustomEntityDefinition
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1183,11 +1126,6 @@ export class CustomEntityDefinition
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
@@ -1235,11 +1173,6 @@ export class CustomEntityDefinition
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1264,7 +1197,6 @@ export class CustomEntityDefinition
       prototype: unpackedPrototypePtr,
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       customValues: unpackedCustomValues,
       ownedBy: unpackedOwnedByPtr,
       deletedAt: unpackedDeletedAt,
@@ -1274,13 +1206,13 @@ export class CustomEntityDefinition
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1313,9 +1245,7 @@ export class CustomEntityDefinition
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1325,9 +1255,6 @@ export class CustomEntityDefinition
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1440,16 +1367,6 @@ export class CustomEntityDefinition
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       customValues: unpackedCustomValues,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -1514,16 +1431,6 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1548,6 +1455,13 @@ export class CustomEntityDefinition
           : null,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1589,7 +1503,7 @@ registerNodeClass(NodeType.CUSTOM_ENTITY_DEFINITION, CustomEntityDefinition);
  */
 export class CustomTraitDefinition
   extends Entity
-  implements IsSpatial, IsSourceable, IsDeletable, IsScriptable, IsCustomizable
+  implements IsSourceable, IsDeletable, IsScriptable, IsCustomizable
 {
   static metatype: NodeType = NodeType.CUSTOM_TRAIT_DEFINITION;
 
@@ -1615,7 +1529,7 @@ export class CustomTraitDefinition
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -1657,18 +1571,6 @@ export class CustomTraitDefinition
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -1855,12 +1757,11 @@ export class CustomTraitDefinition
   constructor(options: {
     id?: string;
     parent?: Folder | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomTraitDefinition | NodeReference | null;
     template?: CustomTraitDefinition | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1911,6 +1812,18 @@ export class CustomTraitDefinition
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomTraitDefinition has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomTraitDefinition has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomTraitDefinition.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -1935,11 +1848,6 @@ export class CustomTraitDefinition
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -2048,9 +1956,6 @@ export class CustomTraitDefinition
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -2077,7 +1982,7 @@ export class CustomTraitDefinition
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2101,9 +2006,6 @@ export class CustomTraitDefinition
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
@@ -2129,9 +2031,6 @@ export class CustomTraitDefinition
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2140,8 +2039,9 @@ export class CustomTraitDefinition
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2198,9 +2098,7 @@ export class CustomTraitDefinition
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -2210,9 +2108,6 @@ export class CustomTraitDefinition
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -2299,11 +2194,6 @@ export class CustomTraitDefinition
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -2346,11 +2236,6 @@ export class CustomTraitDefinition
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2368,7 +2253,6 @@ export class CustomTraitDefinition
       isAbstract: objectValue["45"],
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       source: unpackedSourcePtr,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
@@ -2377,13 +2261,13 @@ export class CustomTraitDefinition
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2416,9 +2300,7 @@ export class CustomTraitDefinition
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -2428,9 +2310,6 @@ export class CustomTraitDefinition
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2532,16 +2411,6 @@ export class CustomTraitDefinition
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -2596,16 +2465,6 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2628,8 +2487,15 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2674,7 +2540,7 @@ registerNodeClass(NodeType.CUSTOM_TRAIT_DEFINITION, CustomTraitDefinition);
  */
 export abstract class Record
   extends Entity
-  implements IsSpatial, IsExtensible, IsArchivable, IsDeletable, IsOwnable
+  implements IsExtensible, IsArchivable, IsDeletable, IsOwnable
 {
   static metatype: NodeType = NodeType.RECORD;
 
@@ -2688,7 +2554,7 @@ export abstract class Record
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The CustomEntityDefinition this Record is an instance of.
@@ -2723,12 +2589,6 @@ export abstract class Record
    */
   abstract get template(): Record | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -2774,8 +2634,8 @@ export abstract class Record
   /**
    * IsOwnable.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsOwner) | null;
-  abstract set ownedBy(value: (Entity & IsOwner) | null);
+  abstract get ownedBy(): (Entity & IsSubject) | null;
+  abstract set ownedBy(value: (Entity & IsSubject) | null);
   /**
    * IsOwnable.ownedBy
    */
@@ -2815,6 +2675,12 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly parentPtr: NodeReference | null;
 
   /**
+   * The Space this Node is in.
+   */
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
+
+  /**
    * The definitionthis CustomEntity is an instance of.
    */
   abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
@@ -2847,12 +2713,6 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
    */
   abstract get template(): Resource | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -2922,7 +2782,7 @@ registerNodeClass(NodeType.RESOURCE, Resource);
  * A Snapshot is a point in Space time.
  * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
  */
-export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivable, IsDeletable {
+export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
 
   /**
@@ -2947,7 +2807,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -2989,18 +2849,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -3049,14 +2897,14 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsOwner) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsSubject) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -3116,19 +2964,18 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
   constructor(options: {
     id?: string;
     parent?: Space | Snapshot | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference;
     predecessor?: Snapshot | NodeReference | null;
     template?: Snapshot | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsSubject) | NodeReference | null;
     type?: SnapshotType;
     name: string;
     status?: SnapshotStatus;
@@ -3168,6 +3015,18 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`Snapshot has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`Snapshot has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`Snapshot.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -3198,11 +3057,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -3283,16 +3137,13 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -3311,9 +3162,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     if (this._ownedByPtr !== null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
@@ -3326,9 +3174,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -3338,6 +3183,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3397,9 +3243,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     objectValue["11"] = object.snapshotPtr.toValue();
     if (object.predecessorPtr != null) {
@@ -3407,9 +3251,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -3452,11 +3293,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -3476,11 +3312,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     const unpackedTemplatePtr =
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -3505,18 +3336,17 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       type: Number(objectValue["100"]),
       name: objectValue["101"],
       status: Number(objectValue["110"]),
-      space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3543,9 +3373,7 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.predecessorPtr != null) {
@@ -3553,9 +3381,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3619,16 +3444,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
       type: Number(objectProto.type) as SnapshotType,
       name: objectProto.name,
       status: Number(objectProto.status) as SnapshotStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3648,16 +3463,6 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
         objectProto.templatePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3687,6 +3492,13 @@ export class Snapshot extends Entity implements IsSpatial, IsOwnable, IsArchivab
             )
           : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

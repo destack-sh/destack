@@ -367,7 +367,6 @@ class PropertyDeclaration(TypeDeclaration):
     node_space_from: Literal["self"] | None = None
     node_is_extensible: bool = False
     node_is_heterogenous: bool = False
-    node_is_spatial: bool = False
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
@@ -543,10 +542,6 @@ class PropertyDeclaration(TypeDeclaration):
             self.node_is_heterogenous = len(node_types) > 1
             self.node_is_extensible = any(
                 TraitType.EXTENSIBLE in NODE_CLASS_BY_TYPE[node_type].__traits__
-                for node_type in node_types
-            )
-            self.node_is_spatial = self.node_space_from is None and any(
-                TraitType.SPATIAL in NODE_CLASS_BY_TYPE[node_type].__traits__
                 for node_type in node_types
             )
 

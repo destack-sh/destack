@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsDeletable,
     IsOwnable,
-    IsSpatial,
     NodeType,
     builtin_node,
     builtin_property,
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.BRANCH)
 class Branch(
-    IsSpatial,
     IsOwnable,
     IsDeletable,
     Entity,

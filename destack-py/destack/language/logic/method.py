@@ -8,7 +8,6 @@ from destack.language.core import (
     IsDeletable,
     IsScriptable,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
     NodeType,
     builtin_enum,
@@ -35,7 +34,6 @@ class MethodCardinality(Enum):
 
 @builtin_node(NodeType.METHOD)
 class Method(
-    IsSpatial,
     IsTaggable,
     IsSourceable,
     IsCustomizable,

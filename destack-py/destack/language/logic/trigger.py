@@ -5,7 +5,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     Event,
-    IsSpatial,
     NodeDefinitionReference,
     NodeType,
     Value,
@@ -36,7 +35,7 @@ class TriggerType(Enum):
 @builtin_node(
     NodeType.TRIGGER,
 )
-class Trigger(IsSpatial, Entity):
+class Trigger(Entity):
     """A Trigger is a dynamic event to run something."""
 
     name: str = builtin_property(101, is_repr=True)

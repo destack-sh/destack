@@ -5,10 +5,8 @@ from destack.language.core import (
     Event,
     IndexIn,
     IsDeletable,
-    IsGlobal,
     IsOwned,
     IsReactable,
-    IsSpatial,
     NodeType,
     builtin_node,
     builtin_property,
@@ -26,8 +24,6 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
 )
 class Reaction(
-    IsGlobal,
-    IsSpatial,
     IsReactable,
     IsDeletable,
     IsOwned,

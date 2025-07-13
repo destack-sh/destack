@@ -147,16 +147,6 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly groups: readonly PropertyGroupDefinition[];
 
   /**
-   * Whether this Node is global.
-   */
-  readonly isGlobal: boolean;
-
-  /**
-   * Whether this Node is per Space.
-   */
-  readonly isSpatial: boolean;
-
-  /**
    * Whether this Node cannot be instantiated directly.
    */
   readonly isAbstract: boolean;
@@ -254,8 +244,6 @@ export class NodeDefinition extends BuiltinDefinition {
     description?: string | null;
     properties?: readonly PropertyDefinition[];
     groups?: readonly PropertyGroupDefinition[];
-    isGlobal: boolean;
-    isSpatial: boolean;
     isAbstract: boolean;
     isExtensible: boolean;
     isFrozen: boolean;
@@ -318,16 +306,6 @@ export class NodeDefinition extends BuiltinDefinition {
       _groups = [];
     }
     this.groups = _groups;
-    let _isGlobal = options.isGlobal;
-    if (_isGlobal === null) {
-      throw new Error(`NodeDefinition.isGlobal is required`);
-    }
-    this.isGlobal = _isGlobal;
-    let _isSpatial = options.isSpatial;
-    if (_isSpatial === null) {
-      throw new Error(`NodeDefinition.isSpatial is required`);
-    }
-    this.isSpatial = _isSpatial;
     let _isAbstract = options.isAbstract;
     if (_isAbstract === null) {
       throw new Error(`NodeDefinition.isAbstract is required`);
@@ -443,12 +421,6 @@ export class NodeDefinition extends BuiltinDefinition {
       if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
-    }
-    if (!(this.isGlobal === other.isGlobal)) {
-      return false;
-    }
-    if (!(this.isSpatial === other.isSpatial)) {
-      return false;
     }
     if (!(this.isAbstract === other.isAbstract)) {
       return false;
@@ -586,8 +558,6 @@ export class NodeDefinition extends BuiltinDefinition {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeType[this.type]}`);
-      propertyReprs.push(`isGlobal=${this.isGlobal}`);
-      propertyReprs.push(`isSpatial=${this.isSpatial}`);
       propertyReprs.push(`isAbstract=${this.isAbstract}`);
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`isFrozen=${this.isFrozen}`);
@@ -620,8 +590,6 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    h = (h * 31 + hashBool(this.isGlobal)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isSpatial)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
@@ -746,11 +714,9 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectValue["106"] = packedGroups;
     }
-    objectValue["110"] = object.isGlobal;
-    objectValue["111"] = object.isSpatial;
-    objectValue["112"] = object.isAbstract;
-    objectValue["113"] = object.isExtensible;
-    objectValue["114"] = object.isFrozen;
+    objectValue["110"] = object.isAbstract;
+    objectValue["111"] = object.isExtensible;
+    objectValue["112"] = object.isFrozen;
     if (object.baseType != null) {
       objectValue["120"] = object.baseType;
     }
@@ -966,11 +932,9 @@ export class NodeDefinition extends BuiltinDefinition {
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
       groups: unpackedGroups,
-      isGlobal: objectValue["110"],
-      isSpatial: objectValue["111"],
-      isAbstract: objectValue["112"],
-      isExtensible: objectValue["113"],
-      isFrozen: objectValue["114"],
+      isAbstract: objectValue["110"],
+      isExtensible: objectValue["111"],
+      isFrozen: objectValue["112"],
       baseType: unpackedBaseType,
       extendedBy: unpackedExtendedBy,
       inherits: unpackedInherits,
@@ -1038,8 +1002,6 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectProto.groups = packedGroups;
     }
-    objectProto.isGlobal = object.isGlobal;
-    objectProto.isSpatial = object.isSpatial;
     objectProto.isAbstract = object.isAbstract;
     objectProto.isExtensible = object.isExtensible;
     objectProto.isFrozen = object.isFrozen;
@@ -1245,8 +1207,6 @@ export class NodeDefinition extends BuiltinDefinition {
       type: Number(objectProto.type) as NodeType,
       properties: unpackedProperties,
       groups: unpackedGroups,
-      isGlobal: objectProto.isGlobal,
-      isSpatial: objectProto.isSpatial,
       isAbstract: objectProto.isAbstract,
       isExtensible: objectProto.isExtensible,
       isFrozen: objectProto.isFrozen,
@@ -3106,11 +3066,6 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly nodeIsHeterogenous: boolean;
 
   /**
-   * PropertyDefinition.nodeIsSpatial
-   */
-  readonly nodeIsSpatial: boolean;
-
-  /**
    * PropertyDefinition.edgeType
    */
   readonly edgeType: EdgeType | null;
@@ -3189,7 +3144,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     nodeConstraint?: NodeConstraint | null;
     nodeIsExtensible: boolean;
     nodeIsHeterogenous: boolean;
-    nodeIsSpatial: boolean;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isRequired: boolean;
@@ -3292,11 +3246,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.nodeIsHeterogenous is required`);
     }
     this.nodeIsHeterogenous = _nodeIsHeterogenous;
-    let _nodeIsSpatial = options.nodeIsSpatial;
-    if (_nodeIsSpatial === null) {
-      throw new Error(`PropertyDefinition.nodeIsSpatial is required`);
-    }
-    this.nodeIsSpatial = _nodeIsSpatial;
     let _edgeType = options.edgeType ?? null;
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -3436,9 +3385,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       return false;
     }
     if (!(this.nodeIsHeterogenous === other.nodeIsHeterogenous)) {
-      return false;
-    }
-    if (!(this.nodeIsSpatial === other.nodeIsSpatial)) {
       return false;
     }
     if (!(this.edgeType === other.edgeType)) {
@@ -3581,7 +3527,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     }
     h = (h * 31 + hashBool(this.nodeIsExtensible)) & 0xffffffff;
     h = (h * 31 + hashBool(this.nodeIsHeterogenous)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.nodeIsSpatial)) & 0xffffffff;
     if (this.edgeType !== null) {
       h = (h * 31 + this.edgeType) & 0xffffffff;
     }
@@ -3677,7 +3622,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     }
     objectValue["140"] = object.nodeIsExtensible;
     objectValue["141"] = object.nodeIsHeterogenous;
-    objectValue["142"] = object.nodeIsSpatial;
     if (object.edgeType != null) {
       objectValue["144"] = object.edgeType;
     }
@@ -3825,7 +3769,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       nodeConstraint: unpackedNodeConstraint,
       nodeIsExtensible: objectValue["140"],
       nodeIsHeterogenous: objectValue["141"],
-      nodeIsSpatial: objectValue["142"],
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
       isRequired: objectValue["150"],
@@ -3923,7 +3866,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     }
     objectProto.nodeIsExtensible = object.nodeIsExtensible;
     objectProto.nodeIsHeterogenous = object.nodeIsHeterogenous;
-    objectProto.nodeIsSpatial = object.nodeIsSpatial;
     if (object.edgeType != null) {
       objectProto.edgeType = Number(object.edgeType) as EdgeTypeProto;
     }
@@ -4050,7 +3992,6 @@ export class PropertyDefinition extends BuiltinDefinition {
           : null,
       nodeIsExtensible: objectProto.nodeIsExtensible,
       nodeIsHeterogenous: objectProto.nodeIsHeterogenous,
-      nodeIsSpatial: objectProto.nodeIsSpatial,
       edgeType:
         objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade:

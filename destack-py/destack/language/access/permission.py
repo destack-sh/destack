@@ -6,7 +6,6 @@ from destack.language.core import (
     EnumType,
     IsDeletable,
     IsJoinable,
-    IsSpatial,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -29,7 +28,6 @@ class PermissionType(Enum):
 
 @builtin_node(NodeType.PERMISSION)
 class Permission(
-    IsSpatial,
     IsDeletable,
     Entity,
 ):

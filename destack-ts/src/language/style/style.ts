@@ -1,7 +1,6 @@
 import type {
   IsDeletable,
   IsOrdered,
-  IsSpatial,
   IsSubject,
   IsTaggable,
   Materialization,
@@ -21,10 +20,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Style is a style definition.
  */
-export abstract class Style
-  extends Entity
-  implements IsSpatial, IsOrdered, IsTaggable, IsDeletable
-{
+export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsDeletable {
   static metatype: NodeType = NodeType.STYLE;
 
   /**
@@ -37,7 +33,7 @@ export abstract class Style
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -61,12 +57,6 @@ export abstract class Style
    */
   abstract get template(): Style | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

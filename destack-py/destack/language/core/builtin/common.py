@@ -29,7 +29,6 @@ class EnumType(Enum):
     PROPERTY_REFERENCE_TYPE = 13
     MATERIALIZATION = 14
     STORE_KEY = 20
-    STORE_SCOPE = 21
     STORE_DOMAIN = 22
     STORE_TIER = 23
     PLATFORM_TYPE = 30
@@ -325,9 +324,6 @@ class StructType(Enum):
 @builtin_enum(EnumType.TRAIT_TYPE)
 class TraitType(Enum):
     # meta [1-20_000]
-    # where
-    GLOBAL = 1, "Global", "Is global", "fas fa-globe"
-    SPATIAL = 2, "Spatial", "Is in a Space", "fas fa-solar-system"
     # LOCAL?
     # storage
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
@@ -355,7 +351,6 @@ class TraitType(Enum):
     # access [60_000-80_000]
     OWNABLE = 60_000, "Ownable", "Is ownable", "fas fa-user"
     OWNED = 60_001, "Owned", "Is owned", "fas fa-user"
-    OWNER = 60_002, "Owner", "Is an Owner", "fas fa-user"
     JOINABLE = 60_003, "Joinable", "Is joinable", "fas fa-users"
     SUBJECT = 60_004, "Subject", "Is a Subject", "fas fa-user"
 
@@ -597,7 +592,7 @@ class NodeType(Enum):
     HISTOGRAM_METRIC = 180_200, "Histogram Metric", None, "fas fa-gauge"
     HISTOGRAM_MEASUREMENT_EVENT = 180_201, "Histogram Measurement", None, "fas fa-gauge"
     # INCIDENT, ESCALATION, ...
-    # VISIT, RECORDING/REPLAY,
+    # VISIT/SESSION, RECORDING/REPLAY,
 
     # optimization [200_000-220_000]
     # SURVEY, ...
@@ -791,19 +786,10 @@ class PropertyType(Enum):
 class StoreKey(Enum):
     """The role of a Store (scope + domain + tier)."""
 
-    GLOBAL_ENTITY_PRIMARY = 1110
-    SPATIAL_ENTITY_PRIMARY = 1120
-    # SPATIAL_ENTITY_SEARCH, SPATIAL_ENTITY_BACKUP, ...
-    SPATIAL_EVENT_PRIMARY = 2110
-    # SPATIAL_EVENT_SEARCH, SPATIAL_EVENT_AGGREGATE, ...
-
-
-@builtin_enum(EnumType.STORE_SCOPE)
-class StoreScope(Enum):
-    """The scope of a Store."""
-
-    GLOBAL = 1000
-    SPATIAL = 2000
+    ENTITY_PRIMARY = 1110
+    # ENTITY_SEARCH, ENTITY_BACKUP, ...
+    EVENT_PRIMARY = 2110
+    # EVENT_SEARCH, EVENT_AGGREGATE, ...
 
 
 @builtin_enum(EnumType.STORE_DOMAIN)
@@ -1176,6 +1162,7 @@ class ValueFactory(Enum):
     NOW = 2
     REGION = 3
     SELF = 4
+    SPACE = 5
 
 
 @builtin_enum(EnumType.ROLE_TYPE)

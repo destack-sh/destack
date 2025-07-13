@@ -7,7 +7,6 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    IsSpatial,
     IsTaggable,
     IsViewable,
     NodeType,
@@ -40,7 +39,6 @@ class LayerType(Enum):
 
 @builtin_node(NodeType.LAYER)
 class Layer(
-    IsSpatial,
     IsViewable,
     IsOwnable,
     IsOrdered,

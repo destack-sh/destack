@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    IsSpatial,
     NodeType,
     Region,
     Resource,
@@ -60,7 +59,7 @@ class DatabaseInfo(StructFrozen):
 
 
 @builtin_node(NodeType.DATABASE)
-class Database(IsSpatial, Resource):
+class Database(Resource):
     """A primary storage Database of some flavor."""
 
     parent: Optional["Space"] = builtin_property_parent()

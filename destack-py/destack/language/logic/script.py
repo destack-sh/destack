@@ -6,7 +6,6 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsScriptable,
-    IsSpatial,
     NodeType,
     builtin_node,
     builtin_property,
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.SCRIPT)
 class Script(
-    IsSpatial,
     IsOrdered,
     IsDeletable,
     IsCustomizable,

@@ -5,7 +5,7 @@ import React from "react";
 import LayerView from "./Layer";
 
 const store = new IndexedDBStore({
-  types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
+  types: [StoreKey.ENTITY_PRIMARY],
 });
 await store.open();
 const session = new ReactiveSession({ store });

@@ -37,7 +37,7 @@ export abstract class ContentView extends View {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The definitionthis CustomEntity is an instance of.
@@ -72,12 +72,6 @@ export abstract class ContentView extends View {
    */
   abstract get template(): ContentView | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

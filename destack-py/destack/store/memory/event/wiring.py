@@ -3,7 +3,6 @@ from datetime import datetime
 from destack.language import (
     Event,
     IsExtensible,
-    IsSpatial,
     Node,
     NodeReference,
     NodeType,
@@ -17,7 +16,7 @@ from .core import MemoryEventRow
 NODE_METATYPE_KEY = str(Node.property("metatype").id)
 NODE_ID_KEY = str(Node.property("id").id)
 NODE_PARENT_PTR_KEY = str(Node.property("parent").id)
-NODE_SPACE_PTR_ID = str(IsSpatial.property("space").id)
+NODE_SPACE_PTR_ID = str(Node.property("space").id)
 NODE_DEFINITION_PTR_ID = str(IsExtensible.property("definition").id)
 
 EVENT_CREATED_AT_KEY = str(Event.property("created_at").id)

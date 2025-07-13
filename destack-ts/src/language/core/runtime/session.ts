@@ -2,14 +2,11 @@ import {
   EntityStore,
   EventStatus,
   EventStore,
-  type Client,
+  NodeReference,
   type Entity,
   type Event,
-  type IsSubject,
-  type Node,
   type PropertyDefinition,
   type QueryConnection,
-  type Space,
 } from "@destack/language";
 import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
@@ -25,10 +22,10 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Session {
   oracle: Oracle;
-  space: Space | null;
-  client: Client | null;
+  spacePtr: NodeReference | null;
+  clientPtr: NodeReference | null;
   clientNonce: string | null;
-  subject: (Node & IsSubject) | null;
+  subjectPtr: NodeReference | null;
   store: EventStore | EntityStore | null;
   supergraph: Supergraph;
 
@@ -40,18 +37,18 @@ export class Session {
 
   constructor(options?: {
     oracle?: Oracle;
-    space?: Space | null;
-    client?: Client | null;
+    spacePtr?: NodeReference | null;
+    clientPtr?: NodeReference | null;
     clientNonce?: string | null;
-    subject?: (Node & IsSubject) | null;
+    subjectPtr?: NodeReference | null;
     store?: EventStore | EntityStore | null;
     supergraphClass?: typeof Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
-    this.space = options?.space ?? null;
-    this.client = options?.client ?? null;
+    this.spacePtr = options?.spacePtr ?? null;
+    this.clientPtr = options?.clientPtr ?? null;
     this.clientNonce = options?.clientNonce ?? null;
-    this.subject = options?.subject ?? null;
+    this.subjectPtr = options?.subjectPtr ?? null;
     this.store = options?.store ?? null;
     this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
 
@@ -64,11 +61,11 @@ export class Session {
 
   repr(): string {
     const contentParts: string[] = [];
-    if (this.space) {
-      contentParts.push(`space=${this.space.slug}`);
+    if (this.spacePtr) {
+      contentParts.push(`space=${this.spacePtr.id}`);
     }
-    if (this.subject) {
-      contentParts.push(`subject=${this.subject.repr()}`);
+    if (this.subjectPtr) {
+      contentParts.push(`subject=${this.subjectPtr.id}`);
     }
     if (this.store) {
       contentParts.push(`store=${this.store.repr()}`);
@@ -112,11 +109,14 @@ export class Session {
   create(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
     const edit = new EditEvent({
       type: EditType.CREATE,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
+      space: this.spacePtr,
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -126,11 +126,14 @@ export class Session {
   upsert(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
     const edit = new EditEvent({
       type: EditType.UPSERT,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
+      space: this.spacePtr,
     });
     this.pendingEvents.push(edit);
     node._isNew = false;
@@ -140,6 +143,8 @@ export class Session {
   update(node: Entity, edit: EditEvent): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
     this.pendingEvents.push(edit);
   }
@@ -148,6 +153,8 @@ export class Session {
   updateSetProperty(node: Entity, prop: PropertyDefinition, newValue: any): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
     const propName = toCasing(prop.name, Casing.CAMEL);
     const nodePtr = node.toRef();
@@ -184,6 +191,7 @@ export class Session {
       value: newValue,
       reverseOperation: undoOperation,
       reverseValue: oldValue,
+      space: this.spacePtr,
     });
     this.update(node, edit);
   }
@@ -192,8 +200,15 @@ export class Session {
   move(node: Entity, parent: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
-    const edit = new EditEvent({ type: EditType.MOVE, node, value: toValue(parent) });
+    const edit = new EditEvent({
+      type: EditType.MOVE,
+      node,
+      value: toValue(parent),
+      space: this.spacePtr,
+    });
     this.pendingEvents.push(edit);
   }
 
@@ -201,11 +216,14 @@ export class Session {
   archive(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
     const edit = new EditEvent({
       type: EditType.ARCHIVE,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
+      space: this.spacePtr,
     });
     this.pendingEvents.push(edit);
   }
@@ -214,8 +232,14 @@ export class Session {
   unarchive(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
-    const edit = new EditEvent({ type: EditType.UNARCHIVE, node });
+    const edit = new EditEvent({
+      type: EditType.UNARCHIVE,
+      node,
+      space: this.spacePtr,
+    });
     this.pendingEvents.push(edit);
   }
 
@@ -223,11 +247,14 @@ export class Session {
   delete(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
     const edit = new EditEvent({
       type: EditType.DELETE,
       node,
       value: toValue(node, null, { nodeAsValue: true }),
+      space: this.spacePtr,
     });
     this.pendingEvents.push(edit);
   }
@@ -236,8 +263,14 @@ export class Session {
   restore(node: Entity): void {
     if (this.closedAt) {
       throw new Error(`${this.repr()} is closed`);
+    } else if (this.spacePtr == null) {
+      throw new Error(`${this.repr()} has no Space`);
     }
-    const edit = new EditEvent({ type: EditType.RESTORE, node });
+    const edit = new EditEvent({
+      type: EditType.RESTORE,
+      node,
+      space: this.spacePtr,
+    });
     this.pendingEvents.push(edit);
   }
 

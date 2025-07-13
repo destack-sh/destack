@@ -33,7 +33,7 @@ const storeImplementations = [
     name: "MemoryStore",
     createStore: async () => {
       const store = new MemoryStore({
-        types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
+        types: [StoreKey.ENTITY_PRIMARY],
       });
       return store;
     },
@@ -46,7 +46,7 @@ const storeImplementations = [
       globalThis.indexedDB = new IDBFactory();
 
       const store = new IndexedDBStore({
-        types: [StoreKey.GLOBAL_ENTITY_PRIMARY, StoreKey.SPATIAL_ENTITY_PRIMARY],
+        types: [StoreKey.ENTITY_PRIMARY],
       });
       await store.open();
       return store;
@@ -61,7 +61,10 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   const sessionTest = test.extend<{ session: Session }>({
     session: async ({ task }, use) => {
       const store = await createStore();
-      const session = new Session({ store });
+      const session = new Session({
+        store,
+        spacePtr: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
+      });
       await session.open();
       await use(session);
       await session.close();
@@ -75,7 +78,6 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       status: UserStatus.ACTIVE,
       name: "Floof",
       slug: "floof",
-      space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
     });
     session.create(user);
     await session.commit();

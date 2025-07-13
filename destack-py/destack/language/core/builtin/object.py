@@ -283,6 +283,13 @@ if {arg_name} is None:
                 method_body_lines.append(f"""\
 if {self_name} is None:
     {self_name} = self.to_ref()""")
+            elif prop.default_factory == ValueFactory.SPACE:
+                assert is_node, f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    assert self._session is not None, "no session for {cls.__name__}"
+    assert self._session.space_ptr is not None, f"no space for {cls.__name__} in {{self._session!r}}"
+    {self_name} = self._session.space_ptr""")
             else:
                 assert_never(prop.default_factory)
 
@@ -483,7 +490,6 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=self.id,
-        snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
 """
     elif node_type == NodeType.SNAPSHOT:
@@ -507,22 +513,13 @@ def __to_ref__(self) -> "NodeReference":
         snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
 """
-    elif TraitType.SPATIAL in cls.__traits__:
-        ref_impl = f"""\
-def __to_ref__(self) -> "NodeReference":
-    return NodeReference(
-        type=NodeType.{node_type.name},
-        id=self.id,
-        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
-        snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
-    )
-"""
     else:
         ref_impl = f"""\
 def __to_ref__(self) -> "NodeReference":
     return NodeReference(
         type=NodeType.{node_type.name},
         id=self.id,
+        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
         snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
 """

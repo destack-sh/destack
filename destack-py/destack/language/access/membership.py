@@ -4,10 +4,8 @@ from destack.language.core import (
     Entity,
     Event,
     IsDeletable,
-    IsGlobal,
     IsJoinable,
     IsOwnable,
-    IsSpatial,
     IsSubject,
     NodeType,
     builtin_node,
@@ -50,8 +48,6 @@ class MembershipLeftEvent(MembershipEvent):
     event_types=(NodeType.MEMBERSHIP_EVENT,),
 )
 class Membership(
-    IsGlobal,
-    IsSpatial,
     IsOwnable,
     IsDeletable,
     Entity,

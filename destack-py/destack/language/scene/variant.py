@@ -6,7 +6,6 @@ from destack.language.core import (
     EnumType,
     IsDeletable,
     IsOwnable,
-    IsSpatial,
     Length,
     NodeType,
     builtin_enum,
@@ -39,7 +38,6 @@ class VariantStateType(Enum):
 
 @builtin_node(NodeType.VARIANT)
 class Variant(
-    IsSpatial,
     IsOwnable,
     IsDeletable,
     Entity,

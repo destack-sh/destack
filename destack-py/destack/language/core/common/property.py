@@ -8,7 +8,6 @@ from ..builtin import (
     IsArchivable,
     IsDeletable,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
     NodeType,
     PropertyType,
@@ -48,7 +47,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_PROPERTY)
 class CustomProperty(
-    IsSpatial,
     IsTaggable,
     IsArchivable,
     IsDeletable,
@@ -160,7 +158,6 @@ class CustomProperty(
 
 @builtin_node(NodeType.CUSTOM_PROPERTY_GROUP)
 class CustomPropertyGroup(
-    IsSpatial,
     IsArchivable,
     IsDeletable,
     IsSourceable,

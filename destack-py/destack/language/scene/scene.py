@@ -6,7 +6,6 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    IsSpatial,
     IsTaggable,
     IsViewable,
     NodeType,
@@ -32,7 +31,6 @@ class SceneEvent(Event["Scene"]):
 
 @builtin_node(NodeType.SCENE, event_types=())
 class Scene(
-    IsSpatial,
     IsViewable,
     IsOwnable,
     IsOrdered,

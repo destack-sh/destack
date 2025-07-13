@@ -1,7 +1,6 @@
 from destack.language import (
     Entity,
     IsExtensible,
-    IsSpatial,
     Materialization,
     Node,
     NodeReference,
@@ -16,7 +15,7 @@ from .core import MemoryEntityRow
 NODE_METATYPE_KEY = str(Node.property("metatype").id)
 NODE_ID_KEY = str(Node.property("id").id)
 NODE_PARENT_PTR_KEY = str(Node.property("parent").id)
-NODE_SPACE_PTR_ID = str(IsSpatial.property("space").id)
+NODE_SPACE_PTR_ID = str(Node.property("space").id)
 NODE_DEFINITION_PTR_ID = str(IsExtensible.property("definition").id)
 
 ENTITY_SNAPSHOT_PTR_KEY = str(Entity.property("snapshot").id)

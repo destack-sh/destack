@@ -5,9 +5,7 @@ from destack.language.core import (
     Event,
     IndexIn,
     IsDeletable,
-    IsGlobal,
     IsOwned,
-    IsSpatial,
     NodeType,
     builtin_node,
     builtin_property,
@@ -25,8 +23,6 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
 )
 class Star(
-    IsGlobal,
-    IsSpatial,
     IsDeletable,
     IsOwned,
     Entity,

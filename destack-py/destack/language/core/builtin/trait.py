@@ -37,20 +37,13 @@ if TYPE_CHECKING:
         NodeDefinitionReference,
         NodeReference,
         Script,
-        Space,
         Value,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-TRAIT_PREFIXES = ("Is", "Has", "Like")
-# traits you must have at least one of
-AT_LEAST_ONE_TRAITS = ((TraitType.GLOBAL, TraitType.SPATIAL),)
-# traits you can have at most one of
-AT_MOST_ONE_TRAITS = ()
-# traits where every descendant must have the trait
-INFECTIOUS_TRAITS = (TraitType.DELETABLE,)
+TRAIT_PREFIXES = ("Is",)
 
 # traits where all matching nodes are ordered together
 INTER_ORDER_TYPES = (NodeType.VIEW, NodeType.STYLE)
@@ -146,32 +139,6 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
 
 
-#
-# Where
-#
-
-
-@builtin_trait(TraitType.GLOBAL)
-class IsGlobal(Trait):
-    """A Node that is global."""
-
-    pass
-
-
-@builtin_trait(TraitType.SPATIAL)
-class IsSpatial(Trait):
-    """A Node in a Space."""
-
-    space: "Space | None" = builtin_property(
-        5,
-        is_managed=True,
-        is_readonly=True,
-        description="The Space this Node is in.",
-    )
-    if TYPE_CHECKING:
-        space_ptr: Optional[NodeReference] = None
-
-
 @builtin_trait(TraitType.ORDERED, is_extensible=True)
 class IsOrdered(Trait):
     """A Node that can be ordered."""
@@ -194,7 +161,7 @@ class IsOrdered(Trait):
 class IsOwnable(Trait):
     """A Node that can be owned by another Node."""
 
-    owned_by: Optional["IsOwner"] = builtin_property(28, is_repr=True)
+    owned_by: Optional["IsSubject"] = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
 
@@ -203,7 +170,7 @@ class IsOwnable(Trait):
 class IsOwned(IsOwnable):
     """A Node that must be owned by another Node."""
 
-    owned_by: "IsOwner" = builtin_property(28, is_repr=True)
+    owned_by: "IsSubject" = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: NodeReference = UNSET
 
@@ -218,13 +185,6 @@ class IsJoinable(Trait):
 @builtin_trait(TraitType.SUBJECT)
 class IsSubject(Trait):
     """A Node that can be a Subject."""
-
-    pass
-
-
-@builtin_trait(TraitType.OWNER)
-class IsOwner(Trait):
-    """A Node that can be an Owner."""
 
     pass
 

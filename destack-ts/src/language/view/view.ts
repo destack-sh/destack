@@ -6,7 +6,6 @@ import type {
   IsDeletable,
   IsExtensible,
   IsOrdered,
-  IsSpatial,
   IsSubject,
   IsTaggable,
   IsViewable,
@@ -42,7 +41,7 @@ export abstract class ViewEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -96,7 +95,7 @@ registerNodeClass(NodeType.VIEW_EVENT, ViewEvent);
  */
 export abstract class View
   extends Entity
-  implements IsViewable, IsSpatial, IsOrdered, IsTaggable, IsExtensible, IsDeletable
+  implements IsViewable, IsOrdered, IsTaggable, IsExtensible, IsDeletable
 {
   static metatype: NodeType = NodeType.VIEW;
 
@@ -110,7 +109,7 @@ export abstract class View
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The definitionthis CustomEntity is an instance of.
@@ -145,12 +144,6 @@ export abstract class View
    */
   abstract get template(): View | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
