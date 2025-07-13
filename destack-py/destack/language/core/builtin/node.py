@@ -19,7 +19,7 @@ from destack.utils.uuid import UUID
 
 from .common import NodeType, RoleType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
-from .object import BuiltinObject, _process_object_cls
+from .object import BuiltinObject, ValueFactory, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -47,6 +47,7 @@ if TYPE_CHECKING:
         QueryConnection,
         Session,
         Sort,
+        Space,
         Supergraph,
     )
 
@@ -200,11 +201,18 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # Node.metatype: 1
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
     parent: Optional["Entity"] = builtin_property_parent()
-    # Spatial.space: 5
+    space: "Space" = builtin_property(
+        5,
+        is_managed=True,
+        is_readonly=True,
+        default_factory=ValueFactory.SPACE,
+        description="The Space this Node is in.",
+    )
     # IsExtensible.definition: 6
     # IsExtensible.base_type: 7
     # Entity.[*]: 10-20
     if TYPE_CHECKING:
+        space_ptr: NodeReference = UNSET
         parent_ptr: Optional[NodeReference] = None
 
     """The current Session this Node is in."""

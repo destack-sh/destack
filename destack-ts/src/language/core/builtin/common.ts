@@ -18,7 +18,6 @@ export enum EnumType {
   PROPERTY_REFERENCE_TYPE = 13,
   MATERIALIZATION = 14,
   STORE_KEY = 20,
-  STORE_SCOPE = 21,
   STORE_DOMAIN = 22,
   STORE_TIER = 23,
   PLATFORM_TYPE = 30,
@@ -228,8 +227,6 @@ registerEnumClass(EnumType.STRUCT_TYPE, StructType);
  * TraitType
  */
 export enum TraitType {
-  GLOBAL = 1,
-  SPATIAL = 2,
   ORDERED = 100,
   ARCHIVABLE = 101,
   DELETABLE = 102,
@@ -239,7 +236,6 @@ export enum TraitType {
   TAGGABLE = 40000,
   OWNABLE = 60000,
   OWNED = 60001,
-  OWNER = 60002,
   JOINABLE = 60003,
   SUBJECT = 60004,
   RUNNABLE = 100001,
@@ -460,21 +456,6 @@ export enum NodeType {
 registerEnumClass(EnumType.NODE_TYPE, NodeType);
 /* ==== DESTACK_GENERATED_END:ENUM:2 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:21 ==== */
-/**
- * StoreScope
- */
-export enum StoreScope {
-  GLOBAL = 1000,
-  SPATIAL = 2000,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STORE_SCOPE, StoreScope);
-/* ==== DESTACK_GENERATED_END:ENUM:21 ==== */
-
 /* ==== DESTACK_GENERATED_START:ENUM:22 ==== */
 /**
  * StoreDomain
@@ -675,6 +656,7 @@ export enum ValueFactory {
   NOW = 2,
   REGION = 3,
   SELF = 4,
+  SPACE = 5,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -961,9 +943,8 @@ registerEnumClass(EnumType.TENANCY, Tenancy);
  * StoreKey
  */
 export enum StoreKey {
-  GLOBAL_ENTITY_PRIMARY = 1110,
-  SPATIAL_ENTITY_PRIMARY = 1120,
-  SPATIAL_EVENT_PRIMARY = 2110,
+  ENTITY_PRIMARY = 1110,
+  EVENT_PRIMARY = 2110,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

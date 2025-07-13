@@ -3,8 +3,6 @@ import type {
   Graph,
   IsCustomizable,
   IsFollowable,
-  IsGlobal,
-  IsOwner,
   IsSubject,
   NodeClass,
   NodeReference,
@@ -54,10 +52,7 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
 /**
  * A User is a human using Destack.
  */
-export class User
-  extends Entity
-  implements IsGlobal, IsOwner, IsFollowable, IsSubject, IsCustomizable
-{
+export class User extends Entity implements IsSubject, IsFollowable, IsCustomizable {
   static metatype: NodeType = NodeType.USER;
 
   /**
@@ -71,6 +66,18 @@ export class User
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -112,18 +119,6 @@ export class User
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -256,29 +251,6 @@ export class User
   _isStaff: boolean;
 
   /**
-   * User.space
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  /**
-   * User.space
-   */
-  get spacePtr(): NodeReference {
-    return this._spacePtr;
-  }
-  set spacePtr(value: NodeReference) {
-    const prop = (this.constructor as NodeClass).__properties__["space"];
-    this._session.updateSetProperty(this, prop, value);
-    this._spacePtr = value;
-  }
-  _spacePtr: NodeReference;
-
-  /**
    * User.handle
    */
   get handle(): Handle | null {
@@ -375,11 +347,11 @@ export class User
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: User | NodeReference | null;
     template?: User | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -390,7 +362,6 @@ export class User
     status?: UserStatus;
     lastLoggedInAt?: Temporal.ZonedDateTime | null;
     isStaff?: boolean;
-    space: Space | NodeReference;
     handle?: Handle | NodeReference | null;
     cursor?: Cursor | NodeReference | null;
     email?: string | null;
@@ -428,6 +399,23 @@ export class User
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`User has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`User has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`User.space is required`);
+    }
+    this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 32 /* Materialization.FULL */;
@@ -451,11 +439,6 @@ export class User
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
       _customValues = {};
@@ -489,14 +472,6 @@ export class User
       throw new Error(`User.isStaff is required`);
     }
     this._isStaff = _isStaff;
-    let _space = options.space;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    if (_space === null) {
-      throw new Error(`User.space is required`);
-    }
-    this._spacePtr = _space;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
       _handle = (_handle as Node).toRef();
@@ -561,9 +536,6 @@ export class User
     if (!(this._isStaff === other._isStaff)) {
       return false;
     }
-    if (!(this._spacePtr.id === other._spacePtr.id)) {
-      return false;
-    }
     if (!(this._handlePtr?.id === other._handlePtr?.id)) {
       return false;
     }
@@ -593,7 +565,7 @@ export class User
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -611,7 +583,6 @@ export class User
         0xffffffff;
     }
     h = (h * 31 + hashBool(this._isStaff)) & 0xffffffff;
-    h = (h * 31 + hashString(this._spacePtr.id)) & 0xffffffff;
     if (this._handlePtr !== null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
@@ -645,9 +616,6 @@ export class User
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -657,6 +625,7 @@ export class User
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -670,6 +639,7 @@ export class User
     return new _NodeReference({
       type: NodeType.USER,
       id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -703,6 +673,7 @@ export class User
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -712,9 +683,6 @@ export class User
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -738,7 +706,6 @@ export class User
       objectValue["111"] = object._lastLoggedInAt.toString({ timeZoneName: "never" });
     }
     objectValue["112"] = object._isStaff;
-    objectValue["120"] = object._spacePtr.toValue();
     if (object._handlePtr != null) {
       objectValue["121"] = object._handlePtr.toValue();
     }
@@ -821,11 +788,6 @@ export class User
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -842,13 +804,6 @@ export class User
       status: Number(objectValue["110"]),
       lastLoggedInAt: unpackedLastLoggedInAt,
       isStaff: objectValue["112"],
-      space: _NodeReference.fromValue(
-        objectValue["120"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       handle: unpackedHandlePtr,
       cursor: unpackedCursorPtr,
       email: unpackedEmail,
@@ -860,12 +815,12 @@ export class User
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -892,6 +847,7 @@ export class User
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -901,9 +857,6 @@ export class User
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -926,7 +879,6 @@ export class User
       objectProto.lastLoggedInAt = packProtoTimestamp(object._lastLoggedInAt);
     }
     objectProto.isStaff = object._isStaff;
-    objectProto.spacePtr = object._spacePtr.toProto();
     if (object._handlePtr != null) {
       objectProto.handlePtr = object._handlePtr.toProto();
     }
@@ -972,13 +924,6 @@ export class User
           ? unpackProtoTimestamp(objectProto.lastLoggedInAt!)
           : null,
       isStaff: objectProto.isStaff,
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       handle:
         objectProto.handlePtr != undefined
           ? _NodeReference.fromProto(
@@ -1044,16 +989,6 @@ export class User
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1077,6 +1012,13 @@ export class User
             )
           : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

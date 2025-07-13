@@ -4,7 +4,6 @@ import type {
   IsCustomizable,
   IsIrreversible,
   IsRunnable,
-  IsSpatial,
   IsSubject,
   Materialization,
   NodeReference,
@@ -82,7 +81,7 @@ export abstract class RunEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -165,7 +164,7 @@ export class RunStartedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -245,7 +244,7 @@ export class RunStartedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -289,6 +288,18 @@ export class RunStartedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunStartedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunStartedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunStartedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -366,7 +377,7 @@ export class RunStartedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -396,10 +407,8 @@ export class RunStartedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -456,9 +465,7 @@ export class RunStartedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -515,11 +522,6 @@ export class RunStartedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunStartedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -536,8 +538,8 @@ export class RunStartedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -564,9 +566,7 @@ export class RunStartedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -657,17 +657,14 @@ export class RunStartedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -726,7 +723,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -806,7 +803,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -850,6 +847,18 @@ export class RunPauseRequestedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunPauseRequestedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunPauseRequestedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunPauseRequestedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -927,7 +936,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -957,10 +966,8 @@ export class RunPauseRequestedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1017,9 +1024,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1076,11 +1081,6 @@ export class RunPauseRequestedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunPauseRequestedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -1097,8 +1097,8 @@ export class RunPauseRequestedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1131,9 +1131,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1224,17 +1222,14 @@ export class RunPauseRequestedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1299,7 +1294,7 @@ export class RunPausedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1379,7 +1374,7 @@ export class RunPausedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -1423,6 +1418,18 @@ export class RunPausedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunPausedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunPausedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunPausedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -1500,7 +1507,7 @@ export class RunPausedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1530,10 +1537,8 @@ export class RunPausedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1590,9 +1595,7 @@ export class RunPausedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1649,11 +1652,6 @@ export class RunPausedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunPausedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -1670,8 +1668,8 @@ export class RunPausedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1698,9 +1696,7 @@ export class RunPausedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1791,17 +1787,14 @@ export class RunPausedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1860,7 +1853,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1940,7 +1933,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -1984,6 +1977,18 @@ export class RunResumeRequestedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunResumeRequestedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunResumeRequestedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunResumeRequestedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -2061,7 +2066,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2091,10 +2096,8 @@ export class RunResumeRequestedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2151,9 +2154,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2210,11 +2211,6 @@ export class RunResumeRequestedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunResumeRequestedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -2231,8 +2227,8 @@ export class RunResumeRequestedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2265,9 +2261,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2358,17 +2352,14 @@ export class RunResumeRequestedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2433,7 +2424,7 @@ export class RunResumedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2513,7 +2504,7 @@ export class RunResumedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -2557,6 +2548,18 @@ export class RunResumedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunResumedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunResumedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunResumedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -2634,7 +2637,7 @@ export class RunResumedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2664,10 +2667,8 @@ export class RunResumedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2724,9 +2725,7 @@ export class RunResumedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2783,11 +2782,6 @@ export class RunResumedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunResumedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -2804,8 +2798,8 @@ export class RunResumedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2832,9 +2826,7 @@ export class RunResumedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2925,17 +2917,14 @@ export class RunResumedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2994,7 +2983,7 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3074,7 +3063,7 @@ export class RunStopRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -3118,6 +3107,18 @@ export class RunStopRequestedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunStopRequestedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunStopRequestedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunStopRequestedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -3195,7 +3196,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -3225,10 +3226,8 @@ export class RunStopRequestedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3285,9 +3284,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3344,11 +3341,6 @@ export class RunStopRequestedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunStopRequestedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -3365,8 +3357,8 @@ export class RunStopRequestedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3399,9 +3391,7 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -3492,17 +3482,14 @@ export class RunStopRequestedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -3567,7 +3554,7 @@ export class RunFailedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3647,7 +3634,7 @@ export class RunFailedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -3691,6 +3678,18 @@ export class RunFailedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunFailedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunFailedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunFailedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -3768,7 +3767,7 @@ export class RunFailedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -3798,10 +3797,8 @@ export class RunFailedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3858,9 +3855,7 @@ export class RunFailedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3917,11 +3912,6 @@ export class RunFailedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunFailedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -3938,8 +3928,8 @@ export class RunFailedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3966,9 +3956,7 @@ export class RunFailedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4059,17 +4047,14 @@ export class RunFailedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -4128,7 +4113,7 @@ export class RunCompletedEvent extends RunEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -4208,7 +4193,7 @@ export class RunCompletedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -4252,6 +4237,18 @@ export class RunCompletedEvent extends RunEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RunCompletedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RunCompletedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RunCompletedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -4329,7 +4326,7 @@ export class RunCompletedEvent extends RunEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -4359,10 +4356,8 @@ export class RunCompletedEvent extends RunEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -4419,9 +4414,7 @@ export class RunCompletedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -4478,11 +4471,6 @@ export class RunCompletedEvent extends RunEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RunCompletedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -4499,8 +4487,8 @@ export class RunCompletedEvent extends RunEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -4533,9 +4521,7 @@ export class RunCompletedEvent extends RunEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4626,17 +4612,14 @@ export class RunCompletedEvent extends RunEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -4676,7 +4659,7 @@ registerNodeClass(NodeType.RUN_COMPLETED_EVENT, RunCompletedEvent);
 /**
  * Run of a Runnable.
  */
-export abstract class Run extends Entity implements IsSpatial, IsCustomizable, IsIrreversible {
+export abstract class Run extends Entity implements IsCustomizable, IsIrreversible {
   static metatype: NodeType = NodeType.RUN;
 
   /**
@@ -4689,7 +4672,7 @@ export abstract class Run extends Entity implements IsSpatial, IsCustomizable, I
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -4713,12 +4696,6 @@ export abstract class Run extends Entity implements IsSpatial, IsCustomizable, I
    */
   abstract get template(): Run | null;
   declare readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  abstract get instanceRoot(): Entity | null;
-  declare readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

@@ -99,6 +99,7 @@ export function finalize(): void {
       NODE_TYPES_BY_PRIMARY_STORE_KEY[storeKey].push(nodeDefinition.type);
     }
   }
+
   // index node parent types
   for (const nodeDefinition of NODE_DEFINITIONS) {
     const parentTypes: NodeType[] = [];

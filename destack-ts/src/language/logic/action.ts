@@ -34,12 +34,11 @@ export class Action extends Method implements IsRunnable {
   constructor(options: {
     id?: string;
     parent?: (Entity & IsScriptable) | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Action | NodeReference | null;
     template?: Action | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -87,9 +86,6 @@ export class Action extends Method implements IsRunnable {
     if (!(this._cardinality === other._cardinality)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -113,7 +109,7 @@ export class Action extends Method implements IsRunnable {
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -134,9 +130,6 @@ export class Action extends Method implements IsRunnable {
     }
     h = (h * 31 + this._cardinality) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -158,9 +151,6 @@ export class Action extends Method implements IsRunnable {
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -170,6 +160,7 @@ export class Action extends Method implements IsRunnable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -226,9 +217,7 @@ export class Action extends Method implements IsRunnable {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -238,9 +227,6 @@ export class Action extends Method implements IsRunnable {
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -301,11 +287,6 @@ export class Action extends Method implements IsRunnable {
       textValue != undefined
         ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -343,11 +324,6 @@ export class Action extends Method implements IsRunnable {
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -365,7 +341,6 @@ export class Action extends Method implements IsRunnable {
       text: unpackedText,
       cardinality: Number(objectValue["110"]),
       id: String(objectValue["2"]),
-      space: unpackedSpacePtr,
       source: unpackedSourcePtr,
       customValues: unpackedCustomValues,
       deletedAt: unpackedDeletedAt,
@@ -373,12 +348,12 @@ export class Action extends Method implements IsRunnable {
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -405,9 +380,7 @@ export class Action extends Method implements IsRunnable {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -417,9 +390,6 @@ export class Action extends Method implements IsRunnable {
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -495,16 +465,6 @@ export class Action extends Method implements IsRunnable {
           : null,
       cardinality: Number(objectProto.cardinality) as MethodCardinality,
       id: String(objectProto.id),
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -549,16 +509,6 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -582,6 +532,13 @@ export class Action extends Method implements IsRunnable {
             )
           : null,
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

@@ -15,8 +15,21 @@ from destack.test.conftest import _setup_test_env
 _setup_test_env()
 
 
-from destack.language import ACTIVE_SESSION, Session, StoreKey
+from destack.language import (
+    ACTIVE_SESSION,
+    NODE_TYPES,
+    STRUCT_TYPES,
+    WORLD_ORACLE,
+    BuiltinObject,
+    NodeReference,
+    NodeType,
+    Session,
+    StoreKey,
+    StructType,
+)
 from destack.store import MemoryStore
+from destack.test.conftest import _setup_test_env
+from destack.utils.uuid import uuid4
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -24,7 +37,10 @@ tracer = trace.get_tracer(__name__)
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(store=MemoryStore(keys=tuple(StoreKey)))
+    session = Session(
+        store=MemoryStore(keys=tuple(StoreKey)),
+        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
+    )
     await session.open()
     yield session
     await session.close()
@@ -33,7 +49,10 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(store=MemoryStore(keys=tuple(StoreKey)))
+    session = Session(
+        store=MemoryStore(keys=tuple(StoreKey)),
+        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
+    )
     await session.open()
     yield session
     await session.close()
@@ -45,21 +64,6 @@ def raises_grpc_error(*statuses: grpclib.const.Status):
         yield
     if statuses:
         assert exc_info.value.status in statuses, f"expected {statuses}, got {exc_info!r}"
-
-
-from destack.language import (
-    NODE_TYPES,
-    STRUCT_TYPES,
-    WORLD_ORACLE,
-    BuiltinObject,
-    NodeType,
-    Session,
-    StructType,
-)
-from destack.test.conftest import _setup_test_env
-
-logger = structlog.get_logger(__name__)
-tracer = trace.get_tracer(__name__)
 
 
 SHARED_SESSION = Session(oracle=WORLD_ORACLE)

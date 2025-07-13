@@ -10,7 +10,6 @@ import type { PropertyDefinition, TraitDefinition } from "@destack/language/core
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import { registerTraitClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
 
 /** Internal base class for Trait companion objects.*/
@@ -122,47 +121,6 @@ class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
 export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
 registerTraitClass(TraitType.ORDERED, IsOrdered);
 /* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:1 ==== */
-/**
- * A Node that is global.
- */
-export interface IsGlobal {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that is global.
- */
-class IsGlobal$Type extends TraitClass<IsGlobal, TraitType.GLOBAL> {}
-
-export const IsGlobal = new IsGlobal$Type(TraitType.GLOBAL);
-registerTraitClass(TraitType.GLOBAL, IsGlobal);
-/* ==== DESTACK_GENERATED_END:TRAIT:1 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:2 ==== */
-/**
- * A Node in a Space.
- */
-export interface IsSpatial {
-  get space(): Space | null;
-  readonly spacePtr: NodeReference | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node in a Space.
- */
-class IsSpatial$Type extends TraitClass<IsSpatial, TraitType.SPATIAL> {}
-
-export const IsSpatial = new IsSpatial$Type(TraitType.SPATIAL);
-registerTraitClass(TraitType.SPATIAL, IsSpatial);
-/* ==== DESTACK_GENERATED_END:TRAIT:2 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:110 ==== */
 /**
@@ -387,8 +345,8 @@ registerTraitClass(TraitType.RUNNABLE, IsRunnable);
  * A Node that can be owned by another Node.
  */
 export interface IsOwnable {
-  get ownedBy(): (Entity & IsOwner) | null;
-  set ownedBy(value: (Entity & IsOwner) | null);
+  get ownedBy(): (Entity & IsSubject) | null;
+  set ownedBy(value: (Entity & IsSubject) | null);
   /**
    * IsOwnable.ownedBy
    */
@@ -408,25 +366,6 @@ class IsOwnable$Type extends TraitClass<IsOwnable, TraitType.OWNABLE> {}
 export const IsOwnable = new IsOwnable$Type(TraitType.OWNABLE);
 registerTraitClass(TraitType.OWNABLE, IsOwnable);
 /* ==== DESTACK_GENERATED_END:TRAIT:60000 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:60002 ==== */
-/**
- * A Node that can be an Owner.
- */
-export interface IsOwner {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that can be an Owner.
- */
-class IsOwner$Type extends TraitClass<IsOwner, TraitType.OWNER> {}
-
-export const IsOwner = new IsOwner$Type(TraitType.OWNER);
-registerTraitClass(TraitType.OWNER, IsOwner);
-/* ==== DESTACK_GENERATED_END:TRAIT:60002 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60003 ==== */
 /**
@@ -452,8 +391,8 @@ registerTraitClass(TraitType.JOINABLE, IsJoinable);
  * A Node that must be owned by another Node.
  */
 export interface IsOwned extends IsOwnable {
-  get ownedBy(): (Entity & IsOwner) | null;
-  set ownedBy(value: Entity & IsOwner);
+  get ownedBy(): (Entity & IsSubject) | null;
+  set ownedBy(value: Entity & IsSubject);
   /**
    * IsOwned.ownedBy
    */

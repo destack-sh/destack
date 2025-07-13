@@ -7,10 +7,8 @@ import type {
   IsDeletable,
   IsExtensible,
   IsOwnable,
-  IsOwner,
   IsRunnable,
   IsSourceable,
-  IsSpatial,
   IsSubject,
   IsTaggable,
   NodeClass,
@@ -38,15 +36,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Service
   extends Entity
-  implements
-    IsSpatial,
-    IsDeletable,
-    IsOwnable,
-    IsTaggable,
-    IsExtensible,
-    IsSourceable,
-    IsSubject,
-    IsRunnable
+  implements IsDeletable, IsOwnable, IsTaggable, IsExtensible, IsSourceable, IsSubject, IsRunnable
 {
   static metatype: NodeType = NodeType.SERVICE;
 
@@ -72,7 +62,7 @@ export class Service
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The definitionthis CustomEntity is an instance of.
@@ -134,18 +124,6 @@ export class Service
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -210,14 +188,14 @@ export class Service
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsOwner) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsSubject) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -314,14 +292,13 @@ export class Service
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
     baseType?: NodeDefinitionReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Service | NodeReference | null;
     template?: Service | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -329,7 +306,7 @@ export class Service
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
-    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsSubject) | NodeReference | null;
     source?: Script | NodeReference | null;
     script?: Script | NodeReference | null;
     name: string;
@@ -370,6 +347,18 @@ export class Service
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`Service has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`Service has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`Service.space is required`);
+    }
     this.spacePtr = _space;
     let _definition = options.definition ?? null;
     if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
@@ -401,11 +390,6 @@ export class Service
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -485,9 +469,6 @@ export class Service
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -512,9 +493,6 @@ export class Service
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
-      return false;
-    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -529,6 +507,9 @@ export class Service
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     return true;
   }
 
@@ -538,9 +519,6 @@ export class Service
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -569,9 +547,6 @@ export class Service
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -591,6 +566,7 @@ export class Service
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -651,9 +627,7 @@ export class Service
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
       objectValue["6"] = object.definitionPtr.toValue();
     }
@@ -669,9 +643,6 @@ export class Service
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -726,11 +697,6 @@ export class Service
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -782,11 +748,6 @@ export class Service
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -817,7 +778,6 @@ export class Service
     return new Service({
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       deletedAt: unpackedDeletedAt,
       ownedBy: unpackedOwnedByPtr,
       definition: unpackedDefinitionPtr,
@@ -828,7 +788,6 @@ export class Service
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -837,6 +796,7 @@ export class Service
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -863,9 +823,7 @@ export class Service
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
@@ -881,9 +839,6 @@ export class Service
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -946,16 +901,6 @@ export class Service
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -1040,16 +985,6 @@ export class Service
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1085,6 +1020,13 @@ export class Service
             )
           : null,
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

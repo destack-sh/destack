@@ -1,12 +1,11 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Axis3,
   Graph,
   Icon,
   IsDeletable,
   IsOrdered,
   IsOwnable,
-  IsOwner,
-  IsSpatial,
   IsSubject,
   IsTaggable,
   IsViewable,
@@ -16,6 +15,7 @@ import type {
   Session,
   Snapshot,
   Supergraph,
+  Vector2f,
 } from "@destack/language/core";
 import {
   Entity,
@@ -59,7 +59,7 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
  */
 export class Layer
   extends Entity
-  implements IsSpatial, IsViewable, IsOwnable, IsOrdered, IsTaggable, IsDeletable
+  implements IsViewable, IsOwnable, IsOrdered, IsTaggable, IsDeletable
 {
   static metatype: NodeType = NodeType.LAYER;
 
@@ -85,7 +85,7 @@ export class Layer
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -127,18 +127,6 @@ export class Layer
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -187,14 +175,14 @@ export class Layer
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsOwner) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsSubject) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -310,28 +298,78 @@ export class Layer
   }
   _fill: Fill | null;
 
+  /**
+   * Layer.rotation
+   */
+  /**
+   * Layer.rotation
+   */
+  get rotation(): Axis3 | null {
+    return this._rotation;
+  }
+  set rotation(value: Axis3 | null) {
+    const prop = (this.constructor as NodeClass).__properties__["rotation"];
+    this._session.updateSetProperty(this, prop, value);
+    this._rotation = value;
+  }
+  _rotation: Axis3 | null;
+
+  /**
+   * Layer.skew
+   */
+  /**
+   * Layer.skew
+   */
+  get skew(): Vector2f | null {
+    return this._skew;
+  }
+  set skew(value: Vector2f | null) {
+    const prop = (this.constructor as NodeClass).__properties__["skew"];
+    this._session.updateSetProperty(this, prop, value);
+    this._skew = value;
+  }
+  _skew: Vector2f | null;
+
+  /**
+   * Layer.scale
+   */
+  /**
+   * Layer.scale
+   */
+  get scale(): number | null {
+    return this._scale;
+  }
+  set scale(value: number | null) {
+    const prop = (this.constructor as NodeClass).__properties__["scale"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scale = value;
+  }
+  _scale: number | null;
+
   constructor(options: {
     id?: string;
     parent?: Scene | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Layer | NodeReference | null;
     template?: Layer | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
-    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsSubject) | NodeReference | null;
     type?: LayerType;
     name: string;
     icon?: Icon | null;
     isVisible?: boolean | null;
     opacity?: number | null;
     fill?: Fill | null;
+    rotation?: Axis3 | null;
+    skew?: Vector2f | null;
+    scale?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -368,6 +406,18 @@ export class Layer
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`Layer has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`Layer has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`Layer.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -392,11 +442,6 @@ export class Layer
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -433,6 +478,12 @@ export class Layer
     this._opacity = _opacity;
     let _fill = options.fill ?? null;
     this._fill = _fill;
+    let _rotation = options.rotation ?? null;
+    this._rotation = _rotation;
+    let _skew = options.skew ?? null;
+    this._skew = _skew;
+    let _scale = options.scale ?? null;
+    this._scale = _scale;
 
     // identity
     if (options.id == null) {
@@ -494,7 +545,23 @@ export class Layer
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (
+      (this._rotation == null) !== (other._rotation == null) ||
+      (this._rotation != null && !this._rotation.equals(other._rotation))
+    ) {
+      return false;
+    }
+    if (
+      (this._skew == null) !== (other._skew == null) ||
+      (this._skew != null && !this._skew.equals(other._skew))
+    ) {
+      return false;
+    }
+    if (
+      (this._scale == null) !== (other._scale == null) ||
+      (this._scale != null &&
+        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
+    ) {
       return false;
     }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
@@ -509,7 +576,7 @@ export class Layer
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -535,8 +602,14 @@ export class Layer
     if (this._fill !== null) {
       h = (h * 31 + this._fill.hash()) & 0xffffffff;
     }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this._rotation !== null) {
+      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
+    }
+    if (this._skew !== null) {
+      h = (h * 31 + this._skew.hash()) & 0xffffffff;
+    }
+    if (this._scale !== null) {
+      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
     if (this._ownedByPtr !== null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
@@ -554,9 +627,6 @@ export class Layer
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -566,6 +636,7 @@ export class Layer
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -625,9 +696,7 @@ export class Layer
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -637,9 +706,6 @@ export class Layer
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -670,6 +736,15 @@ export class Layer
     if (object._fill != null) {
       objectValue["142"] = object._fill.toValue();
     }
+    if (object._rotation != null) {
+      objectValue["143"] = object._rotation.toValue();
+    }
+    if (object._skew != null) {
+      objectValue["144"] = object._skew.toValue();
+    }
+    if (object._scale != null) {
+      objectValue["145"] = object._scale;
+    }
     return objectValue;
   }
 
@@ -681,7 +756,9 @@ export class Layer
     _connection?: any | null,
   ): Layer {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -702,11 +779,18 @@ export class Layer
       fillValue != undefined
         ? _Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
+    const rotationValue = objectValue["143"];
+    const unpackedRotation =
+      rotationValue != undefined
+        ? _Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
         : null;
+    const skewValue = objectValue["144"];
+    const unpackedSkew =
+      skewValue != undefined
+        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scaleValue = objectValue["145"];
+    const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -732,11 +816,6 @@ export class Layer
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -755,7 +834,9 @@ export class Layer
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
       fill: unpackedFill,
-      space: unpackedSpacePtr,
+      rotation: unpackedRotation,
+      skew: unpackedSkew,
+      scale: unpackedScale,
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
@@ -763,12 +844,12 @@ export class Layer
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -795,9 +876,7 @@ export class Layer
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -807,9 +886,6 @@ export class Layer
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -840,6 +916,15 @@ export class Layer
     if (object._fill != null) {
       objectProto.fill = object._fill.toProto();
     }
+    if (object._rotation != null) {
+      objectProto.rotation = object._rotation.toProto();
+    }
+    if (object._skew != null) {
+      objectProto.skew = object._skew.toProto();
+    }
+    if (object._scale != null) {
+      objectProto.scale = object._scale;
+    }
     return objectProto as LayerProto;
   }
 
@@ -851,7 +936,9 @@ export class Layer
     _connection?: any | null,
   ): Layer {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     return new Layer({
       parent:
@@ -876,16 +963,15 @@ export class Layer
         objectProto.fill != undefined
           ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
+      rotation:
+        objectProto.rotation != undefined
+          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
           : null,
+      skew:
+        objectProto.skew != undefined
+          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          : null,
+      scale: objectProto.scale != undefined ? objectProto.scale : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -930,16 +1016,6 @@ export class Layer
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -963,6 +1039,13 @@ export class Layer
             )
           : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

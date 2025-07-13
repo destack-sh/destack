@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     Entity,
     Event,
-    IsGlobal,
     IsOwnable,
     IsSubject,
     NodeType,
@@ -19,7 +18,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.FRIENDSHIP, root_type=None)
-class Friendship(IsGlobal, Entity):
+class Friendship(Entity):
     """A Friendship between two Users."""
 
     user_a: "User" = builtin_property(40, can_write=RoleType.SYSTEM, is_repr=True)
@@ -66,7 +65,7 @@ class FriendshipInviteRejectedEvent(FriendshipInviteEvent):
     root_type=None,
     event_types=(NodeType.FRIENDSHIP_INVITE_EVENT,),
 )
-class FriendshipInvite(IsGlobal, IsOwnable, Entity):
+class FriendshipInvite(IsOwnable, Entity):
     """An invite to be friends with another User."""
 
     owned_by: "IsSubject" = builtin_property(28, is_repr=True)

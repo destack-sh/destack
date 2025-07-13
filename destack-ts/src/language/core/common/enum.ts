@@ -10,7 +10,6 @@ import type {
   IsCustomizable,
   IsDeletable,
   IsSourceable,
-  IsSpatial,
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
@@ -38,7 +37,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class CustomEnumDefinition
   extends Entity
-  implements IsSpatial, IsTaggable, IsDeletable, IsSourceable, IsCustomizable
+  implements IsTaggable, IsDeletable, IsSourceable, IsCustomizable
 {
   static metatype: NodeType = NodeType.CUSTOM_ENUM_DEFINITION;
 
@@ -64,7 +63,7 @@ export class CustomEnumDefinition
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -106,18 +105,6 @@ export class CustomEnumDefinition
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -226,12 +213,11 @@ export class CustomEnumDefinition
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomEnumDefinition | NodeReference | null;
     template?: CustomEnumDefinition | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -278,6 +264,18 @@ export class CustomEnumDefinition
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomEnumDefinition has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomEnumDefinition has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomEnumDefinition.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -302,11 +300,6 @@ export class CustomEnumDefinition
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -378,9 +371,6 @@ export class CustomEnumDefinition
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -404,7 +394,7 @@ export class CustomEnumDefinition
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -416,9 +406,6 @@ export class CustomEnumDefinition
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -444,9 +431,6 @@ export class CustomEnumDefinition
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -457,6 +441,7 @@ export class CustomEnumDefinition
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -513,9 +498,7 @@ export class CustomEnumDefinition
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -525,9 +508,6 @@ export class CustomEnumDefinition
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -573,11 +553,6 @@ export class CustomEnumDefinition
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -620,11 +595,6 @@ export class CustomEnumDefinition
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -638,7 +608,6 @@ export class CustomEnumDefinition
     return new CustomEnumDefinition({
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       customValues: unpackedCustomValues,
@@ -647,13 +616,13 @@ export class CustomEnumDefinition
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -686,9 +655,7 @@ export class CustomEnumDefinition
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -698,9 +665,6 @@ export class CustomEnumDefinition
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -754,16 +718,6 @@ export class CustomEnumDefinition
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -819,16 +773,6 @@ export class CustomEnumDefinition
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -853,6 +797,13 @@ export class CustomEnumDefinition
           : null,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -894,7 +845,7 @@ registerNodeClass(NodeType.CUSTOM_ENUM_DEFINITION, CustomEnumDefinition);
  */
 export class CustomOption
   extends Entity
-  implements IsSpatial, IsTaggable, IsArchivable, IsDeletable, IsSourceable
+  implements IsTaggable, IsArchivable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_OPTION;
 
@@ -920,7 +871,7 @@ export class CustomOption
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -962,18 +913,6 @@ export class CustomOption
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -1101,12 +1040,11 @@ export class CustomOption
   constructor(options: {
     id?: string;
     parent?: CustomEnumDefinition | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomOption | NodeReference | null;
     template?: CustomOption | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1154,6 +1092,18 @@ export class CustomOption
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomOption has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomOption has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomOption.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -1178,11 +1128,6 @@ export class CustomOption
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -1259,9 +1204,6 @@ export class CustomOption
     if (!(this._groupPtr?.id === other._groupPtr?.id)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -1274,7 +1216,7 @@ export class CustomOption
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1292,9 +1234,6 @@ export class CustomOption
     }
     if (this._groupPtr !== null) {
       h = (h * 31 + hashString(this._groupPtr.id)) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.archivedAt !== null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1314,9 +1253,6 @@ export class CustomOption
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1327,6 +1263,7 @@ export class CustomOption
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1383,9 +1320,7 @@ export class CustomOption
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1395,9 +1330,6 @@ export class CustomOption
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1451,11 +1383,6 @@ export class CustomOption
       groupPtrValue != undefined
         ? _NodeReference.fromValue(groupPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const archivedAtValue = objectValue["24"];
     const unpackedArchivedAt =
       archivedAtValue != undefined
@@ -1486,11 +1413,6 @@ export class CustomOption
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1506,7 +1428,6 @@ export class CustomOption
       name: objectValue["101"],
       icon: unpackedIcon,
       group: unpackedGroupPtr,
-      space: unpackedSpacePtr,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
@@ -1514,13 +1435,13 @@ export class CustomOption
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1547,9 +1468,7 @@ export class CustomOption
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1559,9 +1478,6 @@ export class CustomOption
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1626,16 +1542,6 @@ export class CustomOption
               _connection,
             )
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       archivedAt:
         objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
@@ -1681,16 +1587,6 @@ export class CustomOption
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1715,6 +1611,13 @@ export class CustomOption
           : null,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1748,10 +1651,7 @@ registerNodeClass(NodeType.CUSTOM_OPTION, CustomOption);
 /**
  * A CustomOptionGroup is a group of CustomOptions.
  */
-export class CustomOptionGroup
-  extends Entity
-  implements IsSpatial, IsArchivable, IsDeletable, IsSourceable
-{
+export class CustomOptionGroup extends Entity implements IsArchivable, IsDeletable, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_OPTION_GROUP;
 
   /**
@@ -1776,7 +1676,7 @@ export class CustomOptionGroup
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -1818,18 +1718,6 @@ export class CustomOptionGroup
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -1927,12 +1815,11 @@ export class CustomOptionGroup
   constructor(options: {
     id?: string;
     parent?: CustomEnumDefinition | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomOptionGroup | NodeReference | null;
     template?: CustomOptionGroup | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1979,6 +1866,18 @@ export class CustomOptionGroup
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomOptionGroup has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomOptionGroup has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomOptionGroup.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -2003,11 +1902,6 @@ export class CustomOptionGroup
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -2076,9 +1970,6 @@ export class CustomOptionGroup
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -2091,7 +1982,7 @@ export class CustomOptionGroup
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2106,9 +1997,6 @@ export class CustomOptionGroup
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.archivedAt !== null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -2128,9 +2016,6 @@ export class CustomOptionGroup
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2141,6 +2026,7 @@ export class CustomOptionGroup
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2197,9 +2083,7 @@ export class CustomOptionGroup
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -2209,9 +2093,6 @@ export class CustomOptionGroup
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -2257,11 +2138,6 @@ export class CustomOptionGroup
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const archivedAtValue = objectValue["24"];
     const unpackedArchivedAt =
       archivedAtValue != undefined
@@ -2292,11 +2168,6 @@ export class CustomOptionGroup
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2311,7 +2182,6 @@ export class CustomOptionGroup
       parent: unpackedParentPtr,
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
@@ -2319,13 +2189,13 @@ export class CustomOptionGroup
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2358,9 +2228,7 @@ export class CustomOptionGroup
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -2370,9 +2238,6 @@ export class CustomOptionGroup
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2424,16 +2289,6 @@ export class CustomOptionGroup
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       archivedAt:
         objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
@@ -2479,16 +2334,6 @@ export class CustomOptionGroup
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2513,6 +2358,13 @@ export class CustomOptionGroup
           : null,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

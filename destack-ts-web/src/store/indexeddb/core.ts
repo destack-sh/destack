@@ -5,7 +5,6 @@ import {
   getNodeTypesForStores,
   getSubdefinitionsForNodeType,
   IsExtensible,
-  IsSpatial,
   Node,
   NodeDefinitionReference,
   NodeReference,
@@ -24,7 +23,7 @@ export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
 export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
-export const NODE_SPACE_PTR_ID = String(IsSpatial.property("space").id);
+export const NODE_SPACE_PTR_ID = String(Node.property("space").id);
 export const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
 
 export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);

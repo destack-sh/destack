@@ -26,7 +26,6 @@ import type {
   IsCustomizable,
   IsDeletable,
   IsSourceable,
-  IsSpatial,
   IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
@@ -73,7 +72,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class CustomProperty
   extends Entity
-  implements IsSpatial, IsTaggable, IsArchivable, IsDeletable, IsSourceable
+  implements IsTaggable, IsArchivable, IsDeletable, IsSourceable
 {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
 
@@ -99,7 +98,7 @@ export class CustomProperty
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -141,18 +140,6 @@ export class CustomProperty
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -650,12 +637,11 @@ export class CustomProperty
   constructor(options: {
     id?: string;
     parent?: (Entity & IsCustomizable) | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomProperty | NodeReference | null;
     template?: CustomProperty | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -731,6 +717,18 @@ export class CustomProperty
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomProperty has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomProperty has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomProperty.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -755,11 +753,6 @@ export class CustomProperty
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -978,9 +971,6 @@ export class CustomProperty
     if (!(this._isReadonly === other._isReadonly)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -993,7 +983,7 @@ export class CustomProperty
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1069,9 +1059,6 @@ export class CustomProperty
     if (this._isReadonly !== null) {
       h = (h * 31 + hashBool(this._isReadonly)) & 0xffffffff;
     }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     if (this.archivedAt !== null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -1090,9 +1077,6 @@ export class CustomProperty
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1103,6 +1087,7 @@ export class CustomProperty
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1179,9 +1164,7 @@ export class CustomProperty
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1191,9 +1174,6 @@ export class CustomProperty
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1394,11 +1374,6 @@ export class CustomProperty
     const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
     const isReadonlyValue = objectValue["153"];
     const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const archivedAtValue = objectValue["24"];
     const unpackedArchivedAt =
       archivedAtValue != undefined
@@ -1428,11 +1403,6 @@ export class CustomProperty
     const unpackedTemplatePtr =
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1470,7 +1440,6 @@ export class CustomProperty
       isUnique: unpackedIsUnique,
       isComputed: unpackedIsComputed,
       isReadonly: unpackedIsReadonly,
-      space: unpackedSpacePtr,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
@@ -1478,13 +1447,13 @@ export class CustomProperty
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1511,9 +1480,7 @@ export class CustomProperty
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1523,9 +1490,6 @@ export class CustomProperty
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1744,16 +1708,6 @@ export class CustomProperty
       isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
       isComputed: objectProto.isComputed != undefined ? objectProto.isComputed : null,
       isReadonly: objectProto.isReadonly != undefined ? objectProto.isReadonly : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       archivedAt:
         objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
@@ -1799,16 +1753,6 @@ export class CustomProperty
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1833,6 +1777,13 @@ export class CustomProperty
           : null,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1936,10 +1887,7 @@ registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
 /**
  * A CustomPropertyGroup is a group of CustomProperties.
  */
-export class CustomPropertyGroup
-  extends Entity
-  implements IsSpatial, IsArchivable, IsDeletable, IsSourceable
-{
+export class CustomPropertyGroup extends Entity implements IsArchivable, IsDeletable, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY_GROUP;
 
   /**
@@ -1964,7 +1912,7 @@ export class CustomPropertyGroup
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -2006,18 +1954,6 @@ export class CustomPropertyGroup
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -2115,12 +2051,11 @@ export class CustomPropertyGroup
   constructor(options: {
     id?: string;
     parent?: (Entity & IsCustomizable) | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomPropertyGroup | NodeReference | null;
     template?: CustomPropertyGroup | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -2167,6 +2102,18 @@ export class CustomPropertyGroup
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomPropertyGroup has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomPropertyGroup has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomPropertyGroup.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -2191,11 +2138,6 @@ export class CustomPropertyGroup
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -2264,9 +2206,6 @@ export class CustomPropertyGroup
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -2279,7 +2218,7 @@ export class CustomPropertyGroup
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2294,9 +2233,6 @@ export class CustomPropertyGroup
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.archivedAt !== null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -2316,9 +2252,6 @@ export class CustomPropertyGroup
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -2329,6 +2262,7 @@ export class CustomPropertyGroup
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2385,9 +2319,7 @@ export class CustomPropertyGroup
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -2397,9 +2329,6 @@ export class CustomPropertyGroup
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -2445,11 +2374,6 @@ export class CustomPropertyGroup
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const archivedAtValue = objectValue["24"];
     const unpackedArchivedAt =
       archivedAtValue != undefined
@@ -2480,11 +2404,6 @@ export class CustomPropertyGroup
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2499,7 +2418,6 @@ export class CustomPropertyGroup
       parent: unpackedParentPtr,
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
@@ -2507,13 +2425,13 @@ export class CustomPropertyGroup
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2546,9 +2464,7 @@ export class CustomPropertyGroup
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -2558,9 +2474,6 @@ export class CustomPropertyGroup
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2612,16 +2525,6 @@ export class CustomPropertyGroup
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       archivedAt:
         objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
@@ -2667,16 +2570,6 @@ export class CustomPropertyGroup
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -2701,6 +2594,13 @@ export class CustomPropertyGroup
           : null,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

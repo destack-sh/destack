@@ -1,9 +1,21 @@
-import { Folder, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
+import {
+  Folder,
+  NodeReference,
+  NodeType,
+  Region,
+  Session,
+  Space,
+  SpaceStatus,
+  Tag,
+} from "@destack/language";
+import { uuid4 } from "@destack/utils";
 import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({
   session: async ({ task }, use) => {
-    const session = new Session();
+    const session = new Session({
+      spacePtr: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
+    });
     await session.open();
     await use(session);
     await session.close();
@@ -18,6 +30,7 @@ sessionTest("node space ptr", async ({ session }) => {
     status: SpaceStatus.ACTIVE,
     region: Region.ZURICH,
   });
+  session.spacePtr = space.toRef();
   session.create(space);
 
   const folder = new Folder({

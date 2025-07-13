@@ -45,7 +45,7 @@ export abstract class PointerEvent extends InputEvent {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -152,7 +152,7 @@ export class PointerDownEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -250,7 +250,7 @@ export class PointerDownEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -299,6 +299,18 @@ export class PointerDownEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerDownEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerDownEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerDownEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -414,7 +426,7 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -451,10 +463,8 @@ export class PointerDownEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -515,9 +525,7 @@ export class PointerDownEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -584,11 +592,6 @@ export class PointerDownEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerDownEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -604,8 +607,8 @@ export class PointerDownEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -638,9 +641,7 @@ export class PointerDownEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -744,17 +745,14 @@ export class PointerDownEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -819,7 +817,7 @@ export class PointerUpEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -917,7 +915,7 @@ export class PointerUpEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -966,6 +964,18 @@ export class PointerUpEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerUpEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerUpEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerUpEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -1081,7 +1091,7 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1118,10 +1128,8 @@ export class PointerUpEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1182,9 +1190,7 @@ export class PointerUpEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1251,11 +1257,6 @@ export class PointerUpEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerUpEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -1271,8 +1272,8 @@ export class PointerUpEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1299,9 +1300,7 @@ export class PointerUpEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1405,17 +1404,14 @@ export class PointerUpEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1474,7 +1470,7 @@ export class PointerMoveEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1572,7 +1568,7 @@ export class PointerMoveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -1621,6 +1617,18 @@ export class PointerMoveEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerMoveEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerMoveEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerMoveEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -1736,7 +1744,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1773,10 +1781,8 @@ export class PointerMoveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1837,9 +1843,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1906,11 +1910,6 @@ export class PointerMoveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerMoveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -1926,8 +1925,8 @@ export class PointerMoveEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1960,9 +1959,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2066,17 +2063,14 @@ export class PointerMoveEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2141,7 +2135,7 @@ export class PointerEnterEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2239,7 +2233,7 @@ export class PointerEnterEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -2288,6 +2282,18 @@ export class PointerEnterEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerEnterEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerEnterEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerEnterEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -2403,7 +2409,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2440,10 +2446,8 @@ export class PointerEnterEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2504,9 +2508,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2573,11 +2575,6 @@ export class PointerEnterEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerEnterEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -2593,8 +2590,8 @@ export class PointerEnterEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2627,9 +2624,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2733,17 +2728,14 @@ export class PointerEnterEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2808,7 +2800,7 @@ export class PointerOverEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2906,7 +2898,7 @@ export class PointerOverEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -2955,6 +2947,18 @@ export class PointerOverEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerOverEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerOverEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerOverEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -3070,7 +3074,7 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -3107,10 +3111,8 @@ export class PointerOverEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3171,9 +3173,7 @@ export class PointerOverEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3240,11 +3240,6 @@ export class PointerOverEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerOverEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -3260,8 +3255,8 @@ export class PointerOverEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3294,9 +3289,7 @@ export class PointerOverEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -3400,17 +3393,14 @@ export class PointerOverEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -3475,7 +3465,7 @@ export class PointerLeaveEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3573,7 +3563,7 @@ export class PointerLeaveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -3622,6 +3612,18 @@ export class PointerLeaveEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerLeaveEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerLeaveEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerLeaveEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -3737,7 +3739,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -3774,10 +3776,8 @@ export class PointerLeaveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3838,9 +3838,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3907,11 +3905,6 @@ export class PointerLeaveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerLeaveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -3927,8 +3920,8 @@ export class PointerLeaveEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3961,9 +3954,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4067,17 +4058,14 @@ export class PointerLeaveEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -4142,7 +4130,7 @@ export class PointerLongPressEvent extends PointerEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -4240,7 +4228,7 @@ export class PointerLongPressEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -4289,6 +4277,18 @@ export class PointerLongPressEvent extends PointerEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`PointerLongPressEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`PointerLongPressEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`PointerLongPressEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -4404,7 +4404,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -4441,10 +4441,8 @@ export class PointerLongPressEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -4505,9 +4503,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -4574,11 +4570,6 @@ export class PointerLongPressEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerLongPressEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -4594,8 +4585,8 @@ export class PointerLongPressEvent extends PointerEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -4628,9 +4619,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4734,17 +4723,14 @@ export class PointerLongPressEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

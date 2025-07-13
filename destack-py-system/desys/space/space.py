@@ -79,7 +79,7 @@ class SpaceService(ServiceBase, SpaceBase):
         self.space_id = space_id
         self.space_ptr = NodeReference(type=NodeType.SPACE, id=space_id, space_id=space_id)
         self.global_postgres_store = PostgresEntityStore(
-            database=global_database, keys=(StoreKey.GLOBAL_ENTITY_PRIMARY,)
+            database=global_database, keys=(StoreKey.ENTITY_PRIMARY,)
         )
         self.spatial_postgres_store: PostgresEntityStore | None = None
         self.store: BufferedStore | None = None
@@ -106,7 +106,7 @@ class SpaceService(ServiceBase, SpaceBase):
             ).execute_one()
             if (database := space.database) is not None:
                 self.spatial_postgres_store = PostgresEntityStore(
-                    database=database.to_info(), keys=(StoreKey.SPATIAL_ENTITY_PRIMARY,)
+                    database=database.to_info(), keys=(StoreKey.ENTITY_PRIMARY,)
                 )
                 self.store = BufferedStore(self.global_postgres_store, self.spatial_postgres_store)
             else:

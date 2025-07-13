@@ -51,16 +51,13 @@ async def apply(
     dry_run: bool = typer.Option(default=False, help="only try, don't commit"),
 ):
     from destack.language import REGION, StoreKey
-    from desys.sharding import DATABASE_PROVIDER, get_global_database_from_env
+    from desys.sharding import DATABASE_PROVIDER
     from desys.store.postgres import postgres_migrate, postgres_transaction
 
     start = time.time()
 
     # resolve databases to migrate
-    if store_key == StoreKey.GLOBAL_ENTITY_PRIMARY:
-        global_database = get_global_database_from_env()
-        databases = [global_database]
-    elif store_key == StoreKey.SPATIAL_ENTITY_PRIMARY:
+    if store_key == StoreKey.ENTITY_PRIMARY:
         assert galaxy_name, "galaxy_name is required for spatial stores"
         assert external_name, "external_name is required for spatial stores"
         spatial_database = await DATABASE_PROVIDER.resolve_or_error(

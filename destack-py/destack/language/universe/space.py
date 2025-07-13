@@ -5,10 +5,8 @@ from destack.language.core import (
     Enum,
     EnumType,
     IsFollowable,
-    IsGlobal,
     IsJoinable,
     IsOwnable,
-    IsSpatial,
     IsStarable,
     NodeType,
     Region,
@@ -35,12 +33,10 @@ class SpaceStatus(Enum):
 
 @builtin_node(NodeType.SPACE, root_type=None)
 class Space(
-    IsGlobal,
     IsFollowable,
     IsJoinable,
     IsOwnable,
     IsStarable,
-    IsSpatial,
     Entity,
 ):
     """

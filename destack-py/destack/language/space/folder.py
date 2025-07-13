@@ -10,7 +10,6 @@ from destack.language.core import (
     IsJoinable,
     IsOrdered,
     IsOwnable,
-    IsSpatial,
     IsStarable,
     IsTaggable,
     NodeType,
@@ -41,7 +40,6 @@ class FolderType(Enum):
     index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
 )
 class Folder(
-    IsSpatial,
     IsTaggable,
     IsOwnable,
     IsJoinable,

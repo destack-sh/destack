@@ -6,7 +6,6 @@ from destack.language.core import (
     IsDeletable,
     IsExtensible,
     IsOrdered,
-    IsSpatial,
     IsTaggable,
     IsViewable,
     NodeType,
@@ -49,7 +48,6 @@ class ViewEvent(Event["View"]):
 )
 class View(
     IsViewable,
-    IsSpatial,
     IsOrdered,
     IsTaggable,
     IsExtensible,

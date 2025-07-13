@@ -1,9 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
-  IsGlobal,
   IsJoinable,
-  IsOwner,
   IsSubject,
   NodeClass,
   NodeReference,
@@ -51,7 +49,7 @@ registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
 /**
  * An Organization with Users and Teams.
  */
-export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinable {
+export class Organization extends Entity implements IsSubject, IsJoinable {
   static metatype: NodeType = NodeType.ORGANIZATION;
 
   /**
@@ -65,6 +63,18 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return null;
   }
   readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -106,18 +116,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -186,29 +184,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   _status: OrganizationStatus;
 
   /**
-   * Organization.space
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  /**
-   * Organization.space
-   */
-  get spacePtr(): NodeReference {
-    return this._spacePtr;
-  }
-  set spacePtr(value: NodeReference) {
-    const prop = (this.constructor as NodeClass).__properties__["space"];
-    this._session.updateSetProperty(this, prop, value);
-    this._spacePtr = value;
-  }
-  _spacePtr: NodeReference;
-
-  /**
    * Organization.handle
    */
   get handle(): Handle | null {
@@ -234,18 +209,17 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Organization | NodeReference | null;
     template?: Organization | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     slug: string;
     status?: OrganizationStatus;
-    space: Space | NodeReference;
     handle?: Handle | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -279,6 +253,23 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       _parent = (_parent as Node).toRef();
     }
     this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`Organization has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`Organization has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`Organization.space is required`);
+    }
+    this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 32 /* Materialization.FULL */;
@@ -302,11 +293,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Organization.slug is required`);
@@ -320,14 +306,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       throw new Error(`Organization.status is required`);
     }
     this._status = _status;
-    let _space = options.space;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    if (_space === null) {
-      throw new Error(`Organization.space is required`);
-    }
-    this._spacePtr = _space;
     let _handle = options.handle ?? null;
     if (_handle != null && _handle.metatype != StructType.NODE_REFERENCE) {
       _handle = (_handle as Node).toRef();
@@ -374,9 +352,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!(this._status === other._status)) {
       return false;
     }
-    if (!(this._spacePtr.id === other._spacePtr.id)) {
-      return false;
-    }
     if (!(this._handlePtr?.id === other._handlePtr?.id)) {
       return false;
     }
@@ -389,7 +364,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -400,7 +375,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
-    h = (h * 31 + hashString(this._spacePtr.id)) & 0xffffffff;
     if (this._handlePtr !== null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
@@ -416,9 +390,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -428,6 +399,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -441,6 +413,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return new _NodeReference({
       type: NodeType.ORGANIZATION,
       id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -473,6 +446,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -482,9 +456,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -496,7 +467,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     }
     objectValue["101"] = object._slug;
     objectValue["102"] = object._status;
-    objectValue["110"] = object._spacePtr.toValue();
     if (object._handlePtr != null) {
       objectValue["111"] = object._handlePtr.toValue();
     }
@@ -536,11 +506,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -554,25 +519,18 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return new Organization({
       slug: objectValue["101"],
       status: Number(objectValue["102"]),
-      space: _NodeReference.fromValue(
-        objectValue["110"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       handle: unpackedHandlePtr,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -599,6 +557,7 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -608,9 +567,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -622,7 +578,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     }
     objectProto.slug = object._slug;
     objectProto.status = Number(object._status) as OrganizationStatusProto;
-    objectProto.spacePtr = object._spacePtr.toProto();
     if (object._handlePtr != null) {
       objectProto.handlePtr = object._handlePtr.toProto();
     }
@@ -640,13 +595,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
     return new Organization({
       slug: objectProto.slug,
       status: Number(objectProto.status) as OrganizationStatus,
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       handle:
         objectProto.handlePtr != undefined
           ? _NodeReference.fromProto(
@@ -698,16 +646,6 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -731,6 +669,13 @@ export class Organization extends Entity implements IsGlobal, IsOwner, IsJoinabl
             )
           : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

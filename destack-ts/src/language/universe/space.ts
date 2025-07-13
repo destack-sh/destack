@@ -2,11 +2,8 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsFollowable,
-  IsGlobal,
   IsJoinable,
   IsOwnable,
-  IsOwner,
-  IsSpatial,
   IsStarable,
   IsSubject,
   NodeClass,
@@ -57,10 +54,7 @@ registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
 /**
  * A Space is the home of your personal software studio.
  */
-export class Space
-  extends Entity
-  implements IsGlobal, IsFollowable, IsJoinable, IsOwnable, IsStarable, IsSpatial
-{
+export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable, IsStarable {
   static metatype: NodeType = NodeType.SPACE;
 
   /**
@@ -85,7 +79,7 @@ export class Space
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -129,18 +123,6 @@ export class Space
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
-
-  /**
    * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -177,14 +159,14 @@ export class Space
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsOwner) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsSubject) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -379,17 +361,16 @@ export class Space
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Space | NodeReference | null;
     template?: Space | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsSubject) | NodeReference | null;
     name: string;
     slug: string;
     status: SpaceStatus;
@@ -435,6 +416,12 @@ export class Space
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      _space = this.toRef();
+    }
+    if (_space === null) {
+      throw new Error(`Space.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -459,11 +446,6 @@ export class Space
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -544,6 +526,9 @@ export class Space
     if (!(this.metatype === other.metatype)) {
       return false;
     }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (!(this._name === other._name)) {
       return false;
     }
@@ -574,9 +559,6 @@ export class Space
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -586,15 +568,13 @@ export class Space
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
-      return false;
-    }
     return true;
   }
 
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
@@ -617,9 +597,6 @@ export class Space
     if (this._ownedByPtr !== null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -631,9 +608,6 @@ export class Space
     }
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
-    }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
@@ -658,7 +632,6 @@ export class Space
       type: NodeType.SPACE,
       id: this.id,
       spaceId: this.id,
-      snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -694,9 +667,7 @@ export class Space
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -706,9 +677,6 @@ export class Space
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -778,11 +746,6 @@ export class Space
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -803,11 +766,6 @@ export class Space
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -819,6 +777,7 @@ export class Space
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Space({
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       name: objectValue["101"],
       slug: objectValue["102"],
       status: Number(objectValue["110"]),
@@ -829,13 +788,11 @@ export class Space
       galaxyName: unpackedGalaxyName,
       database: unpackedDatabasePtr,
       ownedBy: unpackedOwnedByPtr,
-      space: unpackedSpacePtr,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -867,9 +824,7 @@ export class Space
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -879,9 +834,6 @@ export class Space
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -925,6 +877,13 @@ export class Space
   ): Space {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Space({
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       name: objectProto.name,
       slug: objectProto.slug,
       status: Number(objectProto.status) as SpaceStatus,
@@ -980,16 +939,6 @@ export class Space
               _connection,
             )
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1025,16 +974,6 @@ export class Space
         objectProto.templatePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
               _session,
               _supergraph,
               _graph,

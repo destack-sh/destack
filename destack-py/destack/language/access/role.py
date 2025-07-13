@@ -4,11 +4,8 @@ from destack.language.core import (
     Entity,
     Event,
     IsDeletable,
-    IsGlobal,
     IsJoinable,
     IsOrdered,
-    IsOwner,
-    IsSpatial,
     IsSubject,
     NodeType,
     RoleType,
@@ -50,9 +47,7 @@ class RoleUnassignedEvent(RoleEvent):
     event_types=(NodeType.ROLE_EVENT,),
 )
 class Role(
-    IsGlobal,
-    IsSpatial,
-    IsOwner,
+    IsSubject,
     IsOrdered,
     IsDeletable,
     Entity,

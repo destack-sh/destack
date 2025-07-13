@@ -66,14 +66,13 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                     prop=prop,
                 )
                 columns.append(node_type_column)
-            if prop.node_is_spatial:
-                space_id_column = PostgresColumn(
-                    name=f"{prop.name}_space_id",
-                    type=PrimitiveType.UUID,
-                    is_nullable=True,
-                    prop=prop,
-                )
-                columns.append(space_id_column)
+            space_id_column = PostgresColumn(
+                name=f"{prop.name}_space_id",
+                type=PrimitiveType.UUID,
+                is_nullable=True,
+                prop=prop,
+            )
+            columns.append(space_id_column)
             if prop.node_is_extensible:
                 table_id_column = PostgresColumn(
                     name=f"{prop.name}_definition_id",

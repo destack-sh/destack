@@ -3,11 +3,8 @@ import type {
   Graph,
   Icon,
   IsDeletable,
-  IsGlobal,
   IsJoinable,
   IsOrdered,
-  IsOwner,
-  IsSpatial,
   IsSubject,
   NodeClass,
   NodeReference,
@@ -57,7 +54,7 @@ export abstract class RoleEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -140,7 +137,7 @@ export class RoleAssignedEvent extends RoleEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -220,7 +217,7 @@ export class RoleAssignedEvent extends RoleEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -264,6 +261,18 @@ export class RoleAssignedEvent extends RoleEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RoleAssignedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RoleAssignedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RoleAssignedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -344,7 +353,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -372,10 +381,8 @@ export class RoleAssignedEvent extends RoleEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -432,9 +439,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -484,11 +489,6 @@ export class RoleAssignedEvent extends RoleEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RoleAssignedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -511,8 +511,8 @@ export class RoleAssignedEvent extends RoleEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -545,9 +545,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -633,17 +631,14 @@ export class RoleAssignedEvent extends RoleEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -708,7 +703,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -788,7 +783,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -832,6 +827,18 @@ export class RoleUnassignedEvent extends RoleEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`RoleUnassignedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`RoleUnassignedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`RoleUnassignedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -912,7 +919,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -940,10 +947,8 @@ export class RoleUnassignedEvent extends RoleEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1000,9 +1005,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1052,11 +1055,6 @@ export class RoleUnassignedEvent extends RoleEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new RoleUnassignedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -1079,8 +1077,8 @@ export class RoleUnassignedEvent extends RoleEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1113,9 +1111,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1201,17 +1197,14 @@ export class RoleUnassignedEvent extends RoleEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1251,7 +1244,7 @@ registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
 /**
  * A Role for Subjects to take.
  */
-export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrdered, IsDeletable {
+export class Role extends Entity implements IsSubject, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.ROLE;
 
   /**
@@ -1276,7 +1269,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -1318,18 +1311,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -1426,12 +1407,11 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
   constructor(options: {
     id?: string;
     parent?: (Entity & IsJoinable) | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Role | NodeReference | null;
     template?: Role | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1477,6 +1457,18 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`Role has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`Role has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`Role.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -1501,11 +1493,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -1573,9 +1560,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1585,7 +1569,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1602,9 +1586,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1618,9 +1599,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -1630,6 +1608,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1687,9 +1666,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1699,9 +1676,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1742,11 +1716,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -1767,11 +1736,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1787,19 +1751,18 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
       type: Number(objectValue["100"]),
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1826,9 +1789,7 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1838,9 +1799,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1888,16 +1846,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -1932,16 +1880,6 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1965,6 +1903,13 @@ export class Role extends Entity implements IsGlobal, IsSpatial, IsOwner, IsOrde
             )
           : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

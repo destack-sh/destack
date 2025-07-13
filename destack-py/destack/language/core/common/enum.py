@@ -6,7 +6,6 @@ from ..builtin import (
     IsCustomizable,
     IsDeletable,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
 class CustomEnumDefinition(
-    IsSpatial,
     IsTaggable,
     IsDeletable,
     IsSourceable,
@@ -36,7 +34,6 @@ class CustomEnumDefinition(
 
 @builtin_node(NodeType.CUSTOM_OPTION)
 class CustomOption(
-    IsSpatial,
     IsTaggable,
     IsArchivable,
     IsDeletable,
@@ -52,7 +49,6 @@ class CustomOption(
 
 @builtin_node(NodeType.CUSTOM_OPTION_GROUP)
 class CustomOptionGroup(
-    IsSpatial,
     IsArchivable,
     IsDeletable,
     IsSourceable,

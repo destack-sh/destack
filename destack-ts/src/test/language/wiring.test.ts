@@ -16,7 +16,9 @@ import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({
   session: async ({ task }, use) => {
-    const session = new Session();
+    const session = new Session({
+      spacePtr: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
+    });
     await session.open();
     await use(session);
     await session.close();

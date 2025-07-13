@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsDeletable,
     IsOrdered,
-    IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.THEME)
 class Theme(
-    IsSpatial,
     IsOrdered,
     IsTaggable,
     IsDeletable,

@@ -57,13 +57,9 @@ def finalize():
             continue
         primary_store_keys: list[StoreKey] = []
         if NodeType.ENTITY in node_cls.__inherits__:
-            if TraitType.GLOBAL in node_cls.__traits__:
-                primary_store_keys.append(StoreKey.GLOBAL_ENTITY_PRIMARY)
-            if TraitType.SPATIAL in node_cls.__traits__:
-                primary_store_keys.append(StoreKey.SPATIAL_ENTITY_PRIMARY)
+            primary_store_keys.append(StoreKey.ENTITY_PRIMARY)
         elif NodeType.EVENT in node_cls.__inherits__:
-            if TraitType.SPATIAL in node_cls.__traits__:
-                primary_store_keys.append(StoreKey.SPATIAL_EVENT_PRIMARY)
+            primary_store_keys.append(StoreKey.EVENT_PRIMARY)
         else:
             raise ValueError(f"unexpected node type: {node_cls}")
         node_cls.__primary_store_keys__ = tuple(primary_store_keys)
@@ -128,7 +124,7 @@ def finalize():
                 to_visit.extend(reversed(inheriting_cls.__extended_by__))
         struct_cls.__inherited_by__ = tuple(inherited_by_structs)
 
-    from destack.language.core import Node, expand_node_inheritance, expand_node_traits
+    from destack.language.core import Node, expand_node_traits
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
@@ -298,7 +294,6 @@ def finalize():
     # sanity check stuff
     if IS_DEV or IS_TEST:
         from destack.language.core import Event, PropertyDeclaration
-        from destack.language.core.builtin.trait import AT_LEAST_ONE_TRAITS, INFECTIOUS_TRAITS
 
         # check we have all the declared builtin objects
         if len(StructType) != len(STRUCT_CLASS_BY_TYPE):
@@ -324,28 +319,6 @@ def finalize():
                 assert not node_cls.__event_types__, (
                     f"{node_cls.__name__} is an Event but has event types: {node_cls.__event_types__}"
                 )
-
-        # check traits
-        for node_cls in NODE_CLASS_BY_TYPE.values():
-            for traits in AT_LEAST_ONE_TRAITS:
-                if not node_cls.__is_abstract__ and not any(
-                    trait in node_cls.__traits__ for trait in traits
-                ):
-                    raise AssertionError(
-                        f"{node_cls.__name__} must have at least one of {[t.name for t in traits]} traits (has {[t.name for t in node_cls.__traits__]})"
-                    )
-
-        # check infectious traits
-        for trait_type in INFECTIOUS_TRAITS:
-            for node_type in NODE_TYPES_BY_TRAIT_TYPE[trait_type]:
-                descendant_types = DESCENDANT_NODE_TYPES_BY_TYPE[node_type]
-                descendant_types = expand_node_inheritance(descendant_types)
-                for descendant_type in descendant_types:
-                    descendant_cls = NODE_CLASS_BY_TYPE[descendant_type]
-                    if trait_type not in descendant_cls.__traits__:
-                        raise AssertionError(
-                            f"{descendant_type.name} must inherit {trait_type.name} trait from {node_type.name} (has {[t.name for t in descendant_cls.__traits__]}, parents: {[t.name for t in ANCESTOR_NODE_TYPES_BY_TYPE[descendant_type]]})"
-                        )
 
         # check parent types
         for node_cls in NODE_CLASS_BY_TYPE.values():

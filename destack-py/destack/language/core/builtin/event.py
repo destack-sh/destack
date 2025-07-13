@@ -11,7 +11,7 @@ from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
 from .property import builtin_property, builtin_property_parent
-from .trait import IsCustomizable, IsExtensible, IsSourceable, IsSpatial
+from .trait import IsCustomizable, IsExtensible, IsSourceable
 
 if TYPE_CHECKING:
     from destack.language import (
@@ -46,7 +46,7 @@ class EventStatus(Enum):
     frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
     is_abstract=True,
 )
-class Event[N: Node = Node](IsSpatial, Node):
+class Event[N: Node = Node](Node):
     """
     An Event is an immutable datum of something happening to an Entity.
     Events are proposed by Clients as pending Events, then approved or rejected by the system.
@@ -116,7 +116,6 @@ class Event[N: Node = Node](IsSpatial, Node):
 
 @builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
 class CustomEventDefinition(
-    IsSpatial,
     IsSourceable,
     IsCustomizable,
     Entity,

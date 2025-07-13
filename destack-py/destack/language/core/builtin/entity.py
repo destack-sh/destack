@@ -30,7 +30,6 @@ from .trait import (
     IsOwnable,
     IsScriptable,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
 )
 
@@ -101,19 +100,19 @@ class Entity(Node):
         is_managed=True,
         description="The template this Entity instance is based on (from the template tree).",
     )
-    instance_root: Optional["Entity"] = builtin_property(
-        14,
-        is_readonly=True,
-        is_managed=True,
-        node_space_from="self",
-        description="The (root) Entity in this Entity's instance tree (not the template tree).",
-    )
+    # instance_root: Optional["Entity"] = builtin_property(
+    #     14,
+    #     is_readonly=True,
+    #     is_managed=True,
+    #     node_space_from="self",
+    #     description="The (root) Entity in this Entity's instance tree (not the template tree).",
+    # )
     # Entity.set_properties: 15
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None
         predecessor_ptr: Optional["NodeReference"] = None
         template_ptr: Optional["NodeReference"] = None
-        instance_root_ptr: Optional["NodeReference"] = None
+        # instance_root_ptr: Optional["NodeReference"] = None
 
     # 20-40: node tracking
     created_at: datetime = builtin_property(
@@ -233,13 +232,7 @@ class Entity(Node):
                 raise ValueError(
                     f"{parent!r} cannot parent {self!r} (allowed: {self.__parent_types__})"
                 )
-            if (
-                isinstance(self, IsSpatial)
-                and isinstance(parent, IsSpatial)
-                and self.space_ptr is not None
-                and parent.space_ptr is not None
-                and self.space_ptr.id != parent.space_ptr.id
-            ):
+            if self.space_ptr.id != parent.space_ptr.id:
                 raise ValueError(f"cannot move {self!r} to {parent!r} (different Space)")
             new_graph = parent._graph
             parent_ptr = parent.to_ref()
@@ -271,19 +264,6 @@ class Entity(Node):
             for node in nodes:
                 node._graph = new_graph
                 new_graph.add(node)
-
-        # assign space
-        if isinstance(self, IsSpatial) and (
-            (isinstance(parent, IsSpatial) and (space_ptr := parent.space_ptr) is not None)
-            or (
-                parent is not None
-                and parent.metatype == NodeType.SPACE
-                and (space_ptr := parent.to_ref()) is not None
-            )
-        ):
-            for node in nodes:
-                if isinstance(node, IsSpatial):
-                    node.space_ptr = space_ptr
 
         # create new nodes
         if self._is_new and parent is not None and not parent._is_new:
@@ -431,7 +411,6 @@ class Entity(Node):
 
 @builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
 class CustomEntityDefinition(
-    IsSpatial,
     IsCustomizable,
     IsTaggable,
     IsOwnable,
@@ -464,7 +443,6 @@ class CustomEntityDefinition(
 
 @builtin_node(NodeType.CUSTOM_TRAIT_DEFINITION)
 class CustomTraitDefinition(
-    IsSpatial,
     IsSourceable,
     IsDeletable,
     IsScriptable,
@@ -486,7 +464,6 @@ class CustomTraitDefinition(
 
 @builtin_node(NodeType.RECORD, is_abstract=True)
 class Record(
-    IsSpatial,
     IsExtensible,
     IsArchivable,
     IsDeletable,
@@ -539,7 +516,6 @@ class SnapshotStatus(Enum):
 
 @builtin_node(NodeType.SNAPSHOT)
 class Snapshot(
-    IsSpatial,
     IsOwnable,
     IsArchivable,
     IsDeletable,

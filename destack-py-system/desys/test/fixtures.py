@@ -20,12 +20,15 @@ from destack.language import (
     REGION,
     DatabaseInfo,
     DatabaseType,
+    NodeReference,
+    NodeType,
     Session,
     StoreKey,
     Tenancy,
 )
 from destack.store import MemoryEntityStore, MemoryStore
 from destack.utils.env import get_from_env
+from destack.utils.uuid import uuid4
 from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
     POSTGRES_BUILTIN_TABLE_PREFIX,
@@ -127,7 +130,10 @@ def postgres_store(omni_postgres_database: DatabaseInfo) -> PostgresEntityStore:
 async def postgres_session(
     postgres_store: PostgresEntityStore,
 ) -> AsyncGenerator[Session, None]:
-    session = Session(store=postgres_store)
+    session = Session(
+        store=postgres_store,
+        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
+    )
     await session.open()
     ACTIVE_SESSION.set(session)
     yield session
@@ -141,7 +147,10 @@ def memory_store() -> MemoryStore:
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=memory_store)
+    session = Session(
+        store=memory_store,
+        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
+    )
     await session.open()
     yield session
     await session.close()
@@ -150,7 +159,10 @@ async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Sess
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session(memory_store: MemoryEntityStore):
     """Default Session is in-memory."""
-    session = Session(store=memory_store)
+    session = Session(
+        store=memory_store,
+        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
+    )
     await session.open()
     yield session
     await session.close()

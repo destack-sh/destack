@@ -9,7 +9,6 @@ from destack.language.core import (
     IsCustomizable,
     IsIrreversible,
     IsRunnable,
-    IsSpatial,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -137,7 +136,7 @@ class RunCompletedEvent(RunEvent):
     event_types=(NodeType.RUN_EVENT,),
     is_abstract=True,
 )
-class Run(IsSpatial, IsCustomizable, IsIrreversible, Entity):
+class Run(IsCustomizable, IsIrreversible, Entity):
     """
     Run of a Runnable.
     """

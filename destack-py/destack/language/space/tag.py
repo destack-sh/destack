@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsDeletable,
     IsOrdered,
-    IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.TAG)
 class Tag(
-    IsSpatial,
     IsOrdered,
     IsDeletable,
     Entity,
@@ -34,7 +32,6 @@ class Tag(
 
 @builtin_node(NodeType.TAGGING)
 class Tagging(
-    IsSpatial,
     IsTaggable,
     IsOrdered,
     IsDeletable,

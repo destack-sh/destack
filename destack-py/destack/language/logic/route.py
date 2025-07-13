@@ -5,7 +5,6 @@ from destack.language.core import (
     IsDeletable,
     IsOrdered,
     IsOwnable,
-    IsSpatial,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.ROUTE, is_abstract=True)
 class Route(
-    IsSpatial,
     IsDeletable,
     IsOrdered,
     IsOwnable,

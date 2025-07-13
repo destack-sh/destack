@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    IsGlobal,
     NodeType,
     builtin_node,
     builtin_property,
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.HANDLE)
-class Handle(IsGlobal, Entity):
+class Handle(Entity):
     """A Destack @handle."""
 
     parent: Optional["Space"] = builtin_property_parent()

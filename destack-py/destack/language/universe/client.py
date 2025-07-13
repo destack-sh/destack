@@ -5,7 +5,6 @@ from destack.language.core import (
     ClientType,
     Entity,
     IsDeletable,
-    IsGlobal,
     IsSubject,
     NodeReference,
     NodeType,
@@ -22,7 +21,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CLIENT)
 class Client(
-    IsGlobal,
     IsDeletable,
     Entity,
 ):

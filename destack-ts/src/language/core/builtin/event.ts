@@ -12,7 +12,6 @@ import type {
   IsCustomizable,
   IsExtensible,
   IsSourceable,
-  IsSpatial,
   IsSubject,
 } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
@@ -35,9 +34,9 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:NODE:3 ==== */
 /**
  * An Event is an immutable datum of something happening to an Entity.
- * Events are proposed by Clients as pending Events, then applied or refused by the system.
+ * Events are proposed by Clients as pending Events, then approved or rejected by the system.
  */
-export abstract class Event extends Node implements IsSpatial {
+export abstract class Event extends Node {
   static metatype: NodeType = NodeType.EVENT;
 
   /**
@@ -50,7 +49,7 @@ export abstract class Event extends Node implements IsSpatial {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -102,10 +101,7 @@ registerNodeClass(NodeType.EVENT, Event);
 /**
  * A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
  */
-export class CustomEventDefinition
-  extends Entity
-  implements IsSpatial, IsSourceable, IsCustomizable
-{
+export class CustomEventDefinition extends Entity implements IsSourceable, IsCustomizable {
   static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
 
   /**
@@ -130,7 +126,7 @@ export class CustomEventDefinition
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -172,18 +168,6 @@ export class CustomEventDefinition
     return null;
   }
   readonly templatePtr: NodeReference | null;
-
-  /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -335,12 +319,11 @@ export class CustomEventDefinition
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomEventDefinition | NodeReference | null;
     template?: CustomEventDefinition | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -389,6 +372,18 @@ export class CustomEventDefinition
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`CustomEventDefinition has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`CustomEventDefinition has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`CustomEventDefinition.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -413,11 +408,6 @@ export class CustomEventDefinition
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
       _customValues = {};
@@ -519,9 +509,6 @@ export class CustomEventDefinition
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -545,7 +532,7 @@ export class CustomEventDefinition
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -566,9 +553,6 @@ export class CustomEventDefinition
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon !== null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
@@ -591,9 +575,6 @@ export class CustomEventDefinition
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -602,8 +583,9 @@ export class CustomEventDefinition
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -660,9 +642,7 @@ export class CustomEventDefinition
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -672,9 +652,6 @@ export class CustomEventDefinition
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -750,11 +727,6 @@ export class CustomEventDefinition
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -792,11 +764,6 @@ export class CustomEventDefinition
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -813,7 +780,6 @@ export class CustomEventDefinition
       isAbstract: objectValue["45"],
       name: objectValue["101"],
       icon: unpackedIcon,
-      space: unpackedSpacePtr,
       source: unpackedSourcePtr,
       customValues: unpackedCustomValues,
       parent: unpackedParentPtr,
@@ -821,13 +787,13 @@ export class CustomEventDefinition
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -860,9 +826,7 @@ export class CustomEventDefinition
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -872,9 +836,6 @@ export class CustomEventDefinition
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -960,16 +921,6 @@ export class CustomEventDefinition
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -1022,16 +973,6 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1054,8 +995,15 @@ export class CustomEventDefinition
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1109,7 +1057,7 @@ export abstract class Signal extends Event implements IsExtensible {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The CustomEventDefinition this Signal is an instance of.

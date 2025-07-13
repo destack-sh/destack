@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IsSourceable,
-    IsSpatial,
     NodeType,
     builtin_node,
     builtin_property,
@@ -17,7 +16,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.METRIC, is_abstract=True)
-class Metric(IsSpatial, IsSourceable, Entity):
+class Metric(IsSourceable, Entity):
     """An Entity that represents a Metric."""
 
     name: str = builtin_property(101, is_repr=True)

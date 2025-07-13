@@ -2,8 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsOwnable,
-  IsOwner,
-  IsSpatial,
   IsSubject,
   NodeClass,
   NodeReference,
@@ -79,7 +77,7 @@ export abstract class NotificationEvent extends Event {
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference | null;
+  declare readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -156,7 +154,7 @@ export class NotificationSentEvent extends NotificationEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -224,7 +222,7 @@ export class NotificationSentEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -267,6 +265,18 @@ export class NotificationSentEvent extends NotificationEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`NotificationSentEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`NotificationSentEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`NotificationSentEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -336,7 +346,7 @@ export class NotificationSentEvent extends NotificationEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -363,10 +373,8 @@ export class NotificationSentEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -423,9 +431,7 @@ export class NotificationSentEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -474,11 +480,6 @@ export class NotificationSentEvent extends NotificationEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationSentEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -494,8 +495,8 @@ export class NotificationSentEvent extends NotificationEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -528,9 +529,7 @@ export class NotificationSentEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -608,17 +607,14 @@ export class NotificationSentEvent extends NotificationEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -683,7 +679,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -751,7 +747,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -794,6 +790,18 @@ export class NotificationRescindedEvent extends NotificationEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`NotificationRescindedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`NotificationRescindedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`NotificationRescindedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -863,7 +871,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -890,10 +898,8 @@ export class NotificationRescindedEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -950,9 +956,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1001,11 +1005,6 @@ export class NotificationRescindedEvent extends NotificationEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationRescindedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -1021,8 +1020,8 @@ export class NotificationRescindedEvent extends NotificationEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1055,9 +1054,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1135,17 +1132,14 @@ export class NotificationRescindedEvent extends NotificationEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1210,7 +1204,7 @@ export class NotificationReadEvent extends NotificationEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1278,7 +1272,7 @@ export class NotificationReadEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -1321,6 +1315,18 @@ export class NotificationReadEvent extends NotificationEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`NotificationReadEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`NotificationReadEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`NotificationReadEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -1390,7 +1396,7 @@ export class NotificationReadEvent extends NotificationEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1417,10 +1423,8 @@ export class NotificationReadEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1477,9 +1481,7 @@ export class NotificationReadEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1528,11 +1530,6 @@ export class NotificationReadEvent extends NotificationEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationReadEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -1548,8 +1545,8 @@ export class NotificationReadEvent extends NotificationEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -1582,9 +1579,7 @@ export class NotificationReadEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1662,17 +1657,14 @@ export class NotificationReadEvent extends NotificationEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -1737,7 +1729,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1805,7 +1797,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -1848,6 +1840,18 @@ export class NotificationDismissedEvent extends NotificationEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`NotificationDismissedEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`NotificationDismissedEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`NotificationDismissedEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -1917,7 +1921,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -1944,10 +1948,8 @@ export class NotificationDismissedEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2004,9 +2006,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2055,11 +2055,6 @@ export class NotificationDismissedEvent extends NotificationEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationDismissedEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -2075,8 +2070,8 @@ export class NotificationDismissedEvent extends NotificationEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2109,9 +2104,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2189,17 +2182,14 @@ export class NotificationDismissedEvent extends NotificationEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2264,7 +2254,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2332,7 +2322,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
@@ -2375,6 +2365,18 @@ export class NotificationExpiredEvent extends NotificationEvent {
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`NotificationExpiredEvent has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`NotificationExpiredEvent has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`NotificationExpiredEvent.space is required`);
     }
     this.spacePtr = _space;
     let _snapshot = options.snapshot ?? null;
@@ -2444,7 +2446,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (!(this.status === other.status)) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -2471,10 +2473,8 @@ export class NotificationExpiredEvent extends NotificationEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2531,9 +2531,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2582,11 +2580,6 @@ export class NotificationExpiredEvent extends NotificationEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new NotificationExpiredEvent({
       node: _NodeReference.fromValue(
         objectValue["101"],
@@ -2602,8 +2595,8 @@ export class NotificationExpiredEvent extends NotificationEvent {
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
-      space: unpackedSpacePtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -2636,9 +2629,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2716,17 +2707,14 @@ export class NotificationExpiredEvent extends NotificationEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,
@@ -2766,7 +2754,7 @@ registerNodeClass(NodeType.NOTIFICATION_EXPIRED_EVENT, NotificationExpiredEvent)
 /**
  * A Notification is a message about something.
  */
-export class Notification extends Entity implements IsSpatial, IsOwnable {
+export class Notification extends Entity implements IsOwnable {
   static metatype: NodeType = NodeType.NOTIFICATION;
 
   /**
@@ -2791,7 +2779,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
     return null;
   }
-  readonly spacePtr: NodeReference | null;
+  readonly spacePtr: NodeReference;
 
   /**
    * Entity.materialization
@@ -2835,18 +2823,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   readonly templatePtr: NodeReference | null;
 
   /**
-   * The (root) Entity in this Entity's instance tree (not the template tree).
-   */
-  get instanceRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instanceRootPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instanceRootPtr: NodeReference | null;
-
-  /**
    * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2883,14 +2859,14 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsOwner) | null {
+  get ownedBy(): (Entity & IsSubject) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsOwner) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsOwner) | null) {
+  set ownedBy(node: (Entity & IsSubject) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -2961,17 +2937,16 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
-    space?: Space | NodeReference | null;
+    space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Notification | NodeReference | null;
     template?: Notification | NodeReference | null;
-    instanceRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    ownedBy?: (Entity & IsOwner) | NodeReference | null;
+    ownedBy?: (Entity & IsSubject) | NodeReference | null;
     status: NotificationStatus;
     title: string;
     text?: Text | null;
@@ -3011,6 +2986,18 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
     }
+    if (_space === null) {
+      if (this._session === null) {
+        throw new Error(`Notification has no session`);
+      }
+      if (this._session.spacePtr === null) {
+        throw new Error(`Notification has no space`);
+      }
+      _space = this._session.spacePtr;
+    }
+    if (_space === null) {
+      throw new Error(`Notification.space is required`);
+    }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
@@ -3035,11 +3022,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
-    let _instanceRoot = options.instanceRoot ?? null;
-    if (_instanceRoot != null && _instanceRoot.metatype != StructType.NODE_REFERENCE) {
-      _instanceRoot = (_instanceRoot as Node).toRef();
-    }
-    this.instanceRootPtr = _instanceRoot;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -3104,9 +3086,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     ) {
       return false;
     }
-    if (!(this.spacePtr?.id === other.spacePtr?.id)) {
-      return false;
-    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -3119,7 +3098,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
-    if (!(this.instanceRootPtr?.id === other.instanceRootPtr?.id)) {
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
     return true;
@@ -3132,9 +3111,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     h = (h * 31 + hashString(this._title)) & 0xffffffff;
     if (this._text !== null) {
       h = (h * 31 + this._text.hash()) & 0xffffffff;
-    }
-    if (this.spacePtr !== null) {
-      h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     }
     if (this._ownedByPtr !== null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
@@ -3151,9 +3127,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (this.templatePtr !== null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
-    if (this.instanceRootPtr !== null) {
-      h = (h * 31 + hashString(this.instanceRootPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr !== null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -3163,6 +3136,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3225,9 +3199,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
-    if (object.spacePtr != null) {
-      objectValue["5"] = object.spacePtr.toValue();
-    }
+    objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -3237,9 +3209,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
     if (object.templatePtr != null) {
       objectValue["13"] = object.templatePtr.toValue();
-    }
-    if (object.instanceRootPtr != null) {
-      objectValue["14"] = object.instanceRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -3274,11 +3243,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       textValue != undefined
         ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
         : null;
-    const spacePtrValue = objectValue["5"];
-    const unpackedSpacePtr =
-      spacePtrValue != undefined
-        ? _NodeReference.fromValue(spacePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -3304,11 +3268,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       templatePtrValue != undefined
         ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instanceRootPtrValue = objectValue["14"];
-    const unpackedInstanceRootPtr =
-      instanceRootPtrValue != undefined
-        ? _NodeReference.fromValue(instanceRootPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3323,19 +3282,18 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       status: Number(objectValue["40"]),
       title: objectValue["50"],
       text: unpackedText,
-      space: unpackedSpacePtr,
       ownedBy: unpackedOwnedByPtr,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
       template: unpackedTemplatePtr,
-      instanceRoot: unpackedInstanceRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
@@ -3362,9 +3320,7 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
-    if (object.spacePtr != null) {
-      objectProto.spacePtr = object.spacePtr.toProto();
-    }
+    objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -3374,9 +3330,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
     }
     if (object.templatePtr != null) {
       objectProto.templatePtr = object.templatePtr.toProto();
-    }
-    if (object.instanceRootPtr != null) {
-      objectProto.instanceRootPtr = object.instanceRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3412,16 +3365,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
       text:
         objectProto.text != undefined
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
-          : null,
-      space:
-        objectProto.spacePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.spacePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
           : null,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -3474,16 +3417,6 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
               _connection,
             )
           : null,
-      instanceRoot:
-        objectProto.instanceRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instanceRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -3507,6 +3440,13 @@ export class Notification extends Entity implements IsSpatial, IsOwnable {
             )
           : null,
       id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _session,
       _graph,
       _connection,

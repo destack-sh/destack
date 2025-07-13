@@ -7,7 +7,6 @@ from destack.language.core import (
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    IsSpatial,
     IsTaggable,
     NodeType,
     builtin_enum,
@@ -30,7 +29,6 @@ class ThreadStatus(Enum):
 
 @builtin_node(NodeType.THREAD)
 class Thread(
-    IsSpatial,
     IsTaggable,
     IsDeletable,
     IsJoinable,

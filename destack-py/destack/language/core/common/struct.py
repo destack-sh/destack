@@ -7,7 +7,6 @@ from ..builtin import (
     IsCustomizable,
     IsDeletable,
     IsSourceable,
-    IsSpatial,
     IsTaggable,
     NodeType,
     StructMutable,
@@ -25,7 +24,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_STRUCT_DEFINITION)
 class CustomStructDefinition(
-    IsSpatial,
     IsTaggable,
     IsDeletable,
     IsSourceable,
