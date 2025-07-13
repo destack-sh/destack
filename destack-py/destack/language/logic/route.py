@@ -14,12 +14,12 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Folder, Scene
+    from destack.language import Folder
 
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.ROUTE)
+@builtin_node(NodeType.ROUTE, is_abstract=True)
 class Route(
     IsSpatial,
     IsDeletable,
@@ -28,13 +28,8 @@ class Route(
     IsTaggable,
     Entity,
 ):
-    """A Route is a path to a Scene."""
+    """A Route is a path to something (a Scene, a View in a Scene, an Action, etc.)."""
 
     parent: Optional["Folder"] = builtin_property_parent()
 
     name: str = builtin_property(101, description="The name of the Route.")
-
-    scene: Optional["Scene"] = builtin_property(
-        110,
-        description="The Scene to route to.",
-    )

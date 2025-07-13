@@ -13,6 +13,7 @@ from destack.language.core import (
     NodeType,
     Region,
     RoleType,
+    ValueFactory,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -45,6 +46,16 @@ class Space(
     """
     A Space is the home of your personal software studio.
     """
+
+    space: "Space" = builtin_property(
+        5,
+        is_managed=True,
+        is_readonly=True,
+        default_factory=ValueFactory.SELF,
+        description="The Space this Node is in.",
+    )
+    if TYPE_CHECKING:
+        space_ptr: Optional[NodeReference] = None
 
     name: str = builtin_property(101, is_repr=True)
     slug: str = builtin_property(102, is_repr=True)

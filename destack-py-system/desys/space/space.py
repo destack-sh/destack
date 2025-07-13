@@ -51,7 +51,7 @@ FILE_DOWNLOAD_URL_EXPIRY = get_from_env(
 
 class SpaceService(ServiceBase, SpaceBase):
     """
-    Service for a Space. There is only one active SpaceService per Space.
+    Service for a Space. There is only one active SpaceService per Space at a time.
     """
 
     kind = ServiceKind.PUBLIC  # :ServiceKind

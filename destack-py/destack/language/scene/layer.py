@@ -19,9 +19,11 @@ from destack.language.core import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        Axis3,
         Fill,
         Icon,
         Scene,
+        Vector2f,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -57,3 +59,6 @@ class Layer(
     is_visible: Optional[bool] = builtin_property(140)
     opacity: Optional[float] = builtin_property(141)
     fill: Optional["Fill"] = builtin_property(142)
+    rotation: Optional["Axis3"] = builtin_property(143)
+    skew: Optional["Vector2f"] = builtin_property(144)
+    scale: Optional[float] = builtin_property(145)

@@ -200,6 +200,7 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
     def close(self) -> None:
         """Close the QueryConnection."""
+        # nocheckin: live QueryConnections
         raise NotImplementedError
 
     async def wait_closed(self) -> None:

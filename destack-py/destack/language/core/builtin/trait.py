@@ -165,6 +165,7 @@ class IsSpatial(Trait):
     space: "Space | None" = builtin_property(
         5,
         is_managed=True,
+        is_readonly=True,
         description="The Space this Node is in.",
     )
     if TYPE_CHECKING:

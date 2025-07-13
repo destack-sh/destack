@@ -49,7 +49,7 @@ class EventStatus(Enum):
 class Event[N: Node = Node](IsSpatial, Node):
     """
     An Event is an immutable datum of something happening to an Entity.
-    Events are proposed by Clients as pending Events, then applied or refused by the system.
+    Events are proposed by Clients as pending Events, then approved or rejected by the system.
     """
 
     __store_domain__ = StoreDomain.EVENT
