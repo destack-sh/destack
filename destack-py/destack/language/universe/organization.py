@@ -12,10 +12,11 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import Handle
+    from destack.language import Handle, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -26,12 +27,13 @@ class OrganizationStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.ORGANIZATION, root_type=None)
+@builtin_node(NodeType.ORGANIZATION)
 class Organization(IsActor, IsJoinable, Entity):
     """
     An Organization with Users and Teams.
     """
 
+    parent: Optional["Space"] = builtin_property_parent()
     slug: str = builtin_property(101, is_repr=True)
     status: OrganizationStatus = builtin_property(
         102, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING

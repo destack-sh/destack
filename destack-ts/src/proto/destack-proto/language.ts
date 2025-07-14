@@ -8390,23 +8390,19 @@ export interface NodeDefinitionProto {
      */
     traits: TraitTypeProto[];
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeTypeProto root_type = 130
-     */
-    rootType?: NodeTypeProto;
-    /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto parent_types = 131
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto parent_types = 130
      */
     parentTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto child_types = 132
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto child_types = 131
      */
     childTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto ancestor_types = 133
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto ancestor_types = 132
      */
     ancestorTypes: NodeTypeProto[];
     /**
-     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto descendant_types = 134
+     * @generated from protobuf field: repeated symbol.destack.NodeTypeProto descendant_types = 133
      */
     descendantTypes: NodeTypeProto[];
     /**
@@ -42073,11 +42069,10 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 123, name: "inherited_by", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 124, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 125, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
-            { no: 130, name: "root_type", kind: "enum", opt: true, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 131, name: "parent_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 132, name: "child_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 133, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 134, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 130, name: "parent_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 131, name: "child_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 132, name: "ancestor_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 133, name: "descendant_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 140, name: "event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 150, name: "primary_store_keys", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StoreKeyProto", StoreKeyProto] },
@@ -42187,31 +42182,28 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     else
                         message.traits.push(reader.int32());
                     break;
-                case /* optional symbol.destack.NodeTypeProto root_type */ 130:
-                    message.rootType = reader.int32();
-                    break;
-                case /* repeated symbol.destack.NodeTypeProto parent_types */ 131:
+                case /* repeated symbol.destack.NodeTypeProto parent_types */ 130:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.parentTypes.push(reader.int32());
                     else
                         message.parentTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto child_types */ 132:
+                case /* repeated symbol.destack.NodeTypeProto child_types */ 131:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.childTypes.push(reader.int32());
                     else
                         message.childTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto ancestor_types */ 133:
+                case /* repeated symbol.destack.NodeTypeProto ancestor_types */ 132:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.ancestorTypes.push(reader.int32());
                     else
                         message.ancestorTypes.push(reader.int32());
                     break;
-                case /* repeated symbol.destack.NodeTypeProto descendant_types */ 134:
+                case /* repeated symbol.destack.NodeTypeProto descendant_types */ 133:
                     if (wireType === WireType.LengthDelimited)
                         for (let e = reader.int32() + reader.pos; reader.pos < e;)
                             message.descendantTypes.push(reader.int32());
@@ -42325,33 +42317,30 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                 writer.int32(message.traits[i]);
             writer.join();
         }
-        /* optional symbol.destack.NodeTypeProto root_type = 130; */
-        if (message.rootType !== undefined)
-            writer.tag(130, WireType.Varint).int32(message.rootType);
-        /* repeated symbol.destack.NodeTypeProto parent_types = 131; */
+        /* repeated symbol.destack.NodeTypeProto parent_types = 130; */
         if (message.parentTypes.length) {
-            writer.tag(131, WireType.LengthDelimited).fork();
+            writer.tag(130, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.parentTypes.length; i++)
                 writer.int32(message.parentTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto child_types = 132; */
+        /* repeated symbol.destack.NodeTypeProto child_types = 131; */
         if (message.childTypes.length) {
-            writer.tag(132, WireType.LengthDelimited).fork();
+            writer.tag(131, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.childTypes.length; i++)
                 writer.int32(message.childTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto ancestor_types = 133; */
+        /* repeated symbol.destack.NodeTypeProto ancestor_types = 132; */
         if (message.ancestorTypes.length) {
-            writer.tag(133, WireType.LengthDelimited).fork();
+            writer.tag(132, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.ancestorTypes.length; i++)
                 writer.int32(message.ancestorTypes[i]);
             writer.join();
         }
-        /* repeated symbol.destack.NodeTypeProto descendant_types = 134; */
+        /* repeated symbol.destack.NodeTypeProto descendant_types = 133; */
         if (message.descendantTypes.length) {
-            writer.tag(134, WireType.LengthDelimited).fork();
+            writer.tag(133, WireType.LengthDelimited).fork();
             for (let i = 0; i < message.descendantTypes.length; i++)
                 writer.int32(message.descendantTypes[i]);
             writer.join();

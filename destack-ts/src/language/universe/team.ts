@@ -13,12 +13,14 @@ import type {
 import {
   ACTIVE_SPACE,
   Entity,
+  Event,
   Materialization,
   Node,
   NodeType,
   StructType,
 } from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import type { Organization } from "@destack/language/universe/organization";
 import type { Space } from "@destack/language/universe/space";
 import { MaterializationProto, TeamProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -35,10 +37,10 @@ export class Team extends Entity implements IsActor, IsJoinable {
   /**
    * Team.parent
    */
-  get parent(): Entity | null {
+  get parent(): Organization | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._supergraph.get(nodePtr.id) as Organization | null;
     }
     return null;
   }
@@ -165,7 +167,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
 
   constructor(options: {
     id?: string;
-    parent?: Entity | NodeReference | null;
+    parent?: Organization | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -366,7 +368,18 @@ export class Team extends Entity implements IsActor, IsJoinable {
   }
 
   get path(): string {
-    return this.slug ?? this.name;
+    const pathParts: string[] = [];
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
+      pathParts.push(node._pathKey);
+      lastNode = node;
+      node = node.parent;
+    }
+    if (!lastNode.isRoot) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
   }
 
   repr(): string {

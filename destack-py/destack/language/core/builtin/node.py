@@ -57,8 +57,6 @@ type_ = type
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_node(
     node_type: NodeType | None,
-    root_type: NodeType | None = NodeType.SPACE,
-    # nocheckin: get rid of the root type business (all Nodes have Space as root)
     frozen: bool = False,
     index: tuple[IndexIn, ...] = (),
     event_types: tuple[NodeType, ...] = (),
@@ -67,7 +65,7 @@ def builtin_node(
     """Register a class as a concrete node for the given node type."""
 
     # default index for nodes with parents
-    if root_type:
+    if node_type != NodeType.SPACE:
         index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type) -> type:
@@ -115,7 +113,7 @@ def builtin_node(
             is_struct=False,
             is_concrete=node_type is not None,
             is_node=True,
-            is_root_node=root_type is None,
+            is_root_node=node_type == NodeType.SPACE,
             is_entity=is_entity,
             is_frozen=frozen,
             is_abstract=is_abstract,
@@ -135,14 +133,13 @@ def builtin_node(
         # parent/root
         parent_property = cls.__properties__.get("parent", None)
         cls.__parent_property__ = parent_property
-        cls.__root_type__ = root_type
 
         return cls
 
     return decorate
 
 
-@builtin_node(node_type=NodeType.NODE, root_type=None, is_abstract=True)
+@builtin_node(node_type=NodeType.NODE, is_abstract=True)
 class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """
     A Node with Properties and a persistent identity.
@@ -180,8 +177,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The domain of this Node (Entity or Event)."""
     __store_domain__: ClassVar[StoreDomain | None] = None
 
-    """The root ancestor type of this Node type (if any)."""
-    __root_type__: ClassVar[NodeType | None] = None
     """The parent type of this Node type (directly)."""
     __parent_property__: ClassVar[PropertyDeclaration | None] = None
     """The parent classes of this Node type (directly)."""
@@ -254,7 +249,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
 
     @property
     def is_root(self) -> bool:
-        return self.__root_type__ is None
+        return self.metatype == NodeType.SPACE
 
     @property
     def path(self) -> str:

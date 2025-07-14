@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.TEAM, root_type=None)
+@builtin_node(NodeType.TEAM)
 class Team(IsActor, IsJoinable, Entity):
     """
     An Team with Users and Teams.

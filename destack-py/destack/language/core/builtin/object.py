@@ -825,7 +825,7 @@ def _path_key(self) -> str:
 """
 
     # Node.path
-    if cls.__root_type__ is None:
+    if cls.metatype == NodeType.SPACE:
         path_str = """\
 path = _path_key
 """

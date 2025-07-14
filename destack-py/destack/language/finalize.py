@@ -129,7 +129,7 @@ def finalize():
     for node_cls in NODE_CLASS_BY_TYPE.values():
         if node_cls.__parent_property__ is None:
             continue
-        elif node_cls.__root_type__ is None and not node_cls.__is_abstract__:
+        elif node_cls.metatype == NodeType.SPACE:
             node_cls.__parent_types__ = ()
             node_cls.__parent_property__.node_types = ()
         else:

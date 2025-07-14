@@ -113,10 +113,6 @@ export abstract class Node extends BuiltinObject {
     return (this.constructor as typeof Node).__definition__.extendedBy;
   }
 
-  get __rootType__(): NodeType | null {
-    return (this.constructor as typeof Node).__definition__.rootType;
-  }
-
   get __parentTypes__(): readonly NodeType[] {
     return (this.constructor as typeof Node).__definition__.parentTypes;
   }
@@ -134,7 +130,7 @@ export abstract class Node extends BuiltinObject {
   }
 
   get isRoot(): boolean {
-    return (this.constructor as typeof Node).__definition__.rootType == null;
+    return this.metatype == NodeType.SPACE;
   }
 
   get _pathKey(): string {

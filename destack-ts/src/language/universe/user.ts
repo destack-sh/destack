@@ -16,6 +16,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -653,7 +654,18 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   }
 
   get path(): string {
-    return this.slug ?? this.name;
+    const pathParts: string[] = [];
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
+      pathParts.push(node._pathKey);
+      lastNode = node;
+      node = node.parent;
+    }
+    if (!lastNode.isRoot) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
   }
 
   repr(): string {

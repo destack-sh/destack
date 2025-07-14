@@ -14,10 +14,11 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
+    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import Cursor, Handle, NodeReference
+    from destack.language import Cursor, Handle, NodeReference, Space
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,7 +29,7 @@ class UserStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.USER, root_type=None)
+@builtin_node(NodeType.USER)
 class User(
     IsActor,
     IsFollowable,
@@ -37,7 +38,7 @@ class User(
 ):
     """A User is a human using Destack."""
 
-    # meta
+    parent: Optional["Space"] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
     slug: str = builtin_property(102, is_repr=True)
 

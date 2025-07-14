@@ -110,20 +110,17 @@ class NodeDefinition(BuiltinDefinition):
         description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
     )
 
-    root_type: NodeType | None = builtin_property(
-        130, description="The root ancestor type of this Node type (if any)."
-    )
     parent_types: list[NodeType] = builtin_property(
-        131, description="The parent types of this Node type (directly)."
+        130, description="The parent types of this Node type (directly)."
     )
     child_types: list[NodeType] = builtin_property(
-        132, description="The child types of this Node type (directly)."
+        131, description="The child types of this Node type (directly)."
     )
     ancestor_types: list[NodeType] = builtin_property(
-        133, description="The ancestor types of this Node type (directly and indirectly)."
+        132, description="The ancestor types of this Node type (directly and indirectly)."
     )
     descendant_types: list[NodeType] = builtin_property(
-        134, description="The descendant types of this Node type (directly and indirectly)."
+        133, description="The descendant types of this Node type (directly and indirectly)."
     )
 
     event_types: list[NodeType] = builtin_property(
@@ -159,7 +156,6 @@ class NodeDefinition(BuiltinDefinition):
             inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
             base_traits=list(node_cls.__base_traits__),
-            root_type=node_cls.__root_type__,
             parent_types=list(node_cls.__parent_types__),
             child_types=list(node_cls.__child_types__),
             ancestor_types=list(node_cls.__ancestor_types__),
