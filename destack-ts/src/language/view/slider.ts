@@ -18,6 +18,7 @@ import type {
 import {
   ACTIVE_SPACE,
   Entity,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -46,7 +47,7 @@ export class SliderInputView extends InputView {
    */
   get parent(): Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Layer | ContainerView | null;
     }
     return null;
@@ -58,7 +59,7 @@ export class SliderInputView extends InputView {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -70,7 +71,7 @@ export class SliderInputView extends InputView {
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
@@ -95,7 +96,7 @@ export class SliderInputView extends InputView {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -107,7 +108,7 @@ export class SliderInputView extends InputView {
    */
   get predecessor(): SliderInputView | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as SliderInputView | null;
     }
     return null;
@@ -119,7 +120,7 @@ export class SliderInputView extends InputView {
    */
   get template(): SliderInputView | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as SliderInputView | null;
     }
     return null;
@@ -136,7 +137,7 @@ export class SliderInputView extends InputView {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -153,7 +154,7 @@ export class SliderInputView extends InputView {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -191,7 +192,7 @@ export class SliderInputView extends InputView {
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -762,74 +763,74 @@ export class SliderInputView extends InputView {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._value !== null) {
+    if (this._value != null) {
       h = (h * 31 + hashFloat(this._value)) & 0xffffffff;
     }
-    if (this._minValue !== null) {
+    if (this._minValue != null) {
       h = (h * 31 + hashFloat(this._minValue)) & 0xffffffff;
     }
-    if (this._maxValue !== null) {
+    if (this._maxValue != null) {
       h = (h * 31 + hashFloat(this._maxValue)) & 0xffffffff;
     }
-    if (this._step !== null) {
+    if (this._step != null) {
       h = (h * 31 + hashFloat(this._step)) & 0xffffffff;
     }
-    if (this._isVisible !== null) {
+    if (this._isVisible != null) {
       h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
     }
-    if (this._opacity !== null) {
+    if (this._opacity != null) {
       h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._position !== null) {
+    if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
-    if (this._width !== null) {
+    if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
-    if (this._height !== null) {
+    if (this._height != null) {
       h = (h * 31 + this._height.hash()) & 0xffffffff;
     }
-    if (this._minWidth !== null) {
+    if (this._minWidth != null) {
       h = (h * 31 + this._minWidth.hash()) & 0xffffffff;
     }
-    if (this._minHeight !== null) {
+    if (this._minHeight != null) {
       h = (h * 31 + this._minHeight.hash()) & 0xffffffff;
     }
-    if (this._maxWidth !== null) {
+    if (this._maxWidth != null) {
       h = (h * 31 + this._maxWidth.hash()) & 0xffffffff;
     }
-    if (this._maxHeight !== null) {
+    if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -839,7 +840,7 @@ export class SliderInputView extends InputView {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -870,9 +871,9 @@ export class SliderInputView extends InputView {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;

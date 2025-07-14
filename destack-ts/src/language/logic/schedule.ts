@@ -221,7 +221,7 @@ export class Schedule extends Struct {
     if (!(this.weekStart === other.weekStart)) {
       return false;
     }
-    if (this.bySetPos.length !== other.bySetPos.length) {
+    if (this.bySetPos.length != other.bySetPos.length) {
       return false;
     }
     for (let i = 0; i < this.bySetPos.length; i++) {
@@ -229,7 +229,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byMonth.length !== other.byMonth.length) {
+    if (this.byMonth.length != other.byMonth.length) {
       return false;
     }
     for (let i = 0; i < this.byMonth.length; i++) {
@@ -237,7 +237,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byMonthDay.length !== other.byMonthDay.length) {
+    if (this.byMonthDay.length != other.byMonthDay.length) {
       return false;
     }
     for (let i = 0; i < this.byMonthDay.length; i++) {
@@ -245,7 +245,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byYearDay.length !== other.byYearDay.length) {
+    if (this.byYearDay.length != other.byYearDay.length) {
       return false;
     }
     for (let i = 0; i < this.byYearDay.length; i++) {
@@ -253,7 +253,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byEaster.length !== other.byEaster.length) {
+    if (this.byEaster.length != other.byEaster.length) {
       return false;
     }
     for (let i = 0; i < this.byEaster.length; i++) {
@@ -261,7 +261,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byWeekNo.length !== other.byWeekNo.length) {
+    if (this.byWeekNo.length != other.byWeekNo.length) {
       return false;
     }
     for (let i = 0; i < this.byWeekNo.length; i++) {
@@ -269,7 +269,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byWeekDay.length !== other.byWeekDay.length) {
+    if (this.byWeekDay.length != other.byWeekDay.length) {
       return false;
     }
     for (let i = 0; i < this.byWeekDay.length; i++) {
@@ -277,7 +277,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byHour.length !== other.byHour.length) {
+    if (this.byHour.length != other.byHour.length) {
       return false;
     }
     for (let i = 0; i < this.byHour.length; i++) {
@@ -285,7 +285,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.byMinute.length !== other.byMinute.length) {
+    if (this.byMinute.length != other.byMinute.length) {
       return false;
     }
     for (let i = 0; i < this.byMinute.length; i++) {
@@ -293,7 +293,7 @@ export class Schedule extends Struct {
         return false;
       }
     }
-    if (this.bySecond.length !== other.bySecond.length) {
+    if (this.bySecond.length != other.bySecond.length) {
       return false;
     }
     for (let i = 0; i < this.bySecond.length; i++) {
@@ -313,16 +313,16 @@ export class Schedule extends Struct {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.frequency) & 0xffffffff;
     h = (h * 31 + hashInt(this.interval)) & 0xffffffff;
-    if (this.start !== null) {
+    if (this.start != null) {
       h = (h * 31 + hashString(this.start.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.end !== null) {
+    if (this.end != null) {
       h = (h * 31 + hashString(this.end.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.count !== null) {
+    if (this.count != null) {
       h = (h * 31 + hashInt(this.count)) & 0xffffffff;
     }
-    if (this.weekStart !== null) {
+    if (this.weekStart != null) {
       h = (h * 31 + this.weekStart) & 0xffffffff;
     }
     if (this.bySetPos && this.bySetPos.length > 0) {

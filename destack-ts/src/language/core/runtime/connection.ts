@@ -1,4 +1,4 @@
-import { Node } from "@destack/language/core/builtin";
+import { Entity, Node } from "@destack/language/core/builtin";
 import {
   Query,
   QueryResult,
@@ -256,7 +256,7 @@ export class QueryConnection<T extends Node = Node> extends QueryContainer<T> {
     this.connection = this;
     this.store = options.store;
     this.session = options.session;
-    this.graph = this.session.supergraph.createPolyGraph();
+    this.graph = this.session.supergraph.createEntityGraph() as Graph<Entity>;
   }
 
   repr(): string {

@@ -188,7 +188,7 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
         self.store: Store = store
         self.session: Session = session
-        self.graph: Graph = session.supergraph.create_polygraph()
+        self.graph: Graph = session.supergraph.create_entity_graph()
 
     def __repr__(self) -> str:
         return f"<QueryConnection query={self.query!r}>"

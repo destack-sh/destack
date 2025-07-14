@@ -3,6 +3,7 @@ from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     Any,
+    ClassVar,
     Optional,
     Self,
     Union,
@@ -12,10 +13,11 @@ from typing import (
 from destack.utils.fractional import get_order_key
 
 from .common import EnumType, ResourceStatus, RoleType, StoreDomain, TraitType, ValueFactory
-from .const import ACTIVE_SNAPSHOT
+from .const import ACTIVE_SNAPSHOT, UNSET
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
 from .property import (
+    PropertyDeclaration,
     builtin_property,
     builtin_property_parent,
     builtin_property_runtime,
@@ -35,6 +37,8 @@ from .trait import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        EntityGraph,
+        EntitySingletonGraph,
         Folder,
         Icon,
         IsActor,
@@ -69,6 +73,8 @@ class Entity(Node):
     """
 
     __store_domain__ = StoreDomain.ENTITY
+
+    __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
     parent: Optional["Entity"] = builtin_property_parent()
     # 10-20: entity materialization
@@ -155,6 +161,9 @@ class Entity(Node):
         updated_by_ptr: Optional[NodeReference] = None
     # revision? epoch?
 
+    """The specific Graph this Entity is part of."""
+    _graph: "EntityGraph | EntitySingletonGraph" = builtin_property_runtime(default=None)
+
     def _do_set(self, key: str, value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""
         prop = self.__tracked_properties__.get(key)
@@ -219,7 +228,7 @@ class Entity(Node):
         If the Entity is new, it will be automatically created in this Entity's Session (for convenience).
         (The same applies to all descendants.)
         """
-        from ..runtime import SingletonGraph
+        from ..runtime import EntitySingletonGraph
 
         # prepare graph & nodes
         supergraph = self._supergraph
@@ -238,14 +247,14 @@ class Entity(Node):
             new_graph = parent._graph
             parent_ptr = parent.to_ref()
             # promote parent to polygraph if needed
-            if isinstance(new_graph, SingletonGraph):
+            if isinstance(new_graph, EntitySingletonGraph):
                 new_graph = supergraph.promote_to_polygraph(new_graph)
                 parent._graph = new_graph
         else:
             # detach from parent
             if self.parent_ptr is None:
                 return  # nothing to do
-            new_graph = supergraph.create_polygraph()
+            new_graph = supergraph.create_entity_graph()
             parent_ptr = None
         session = self._session
         nodes: tuple[Entity, ...] = (self, *self._graph.get_descendants(self))
@@ -392,6 +401,24 @@ class Entity(Node):
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""
         return self._graph.get_descendants(self, type=type)
+
+    def get_roots[N: Entity = Entity](
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> Sequence[N]:
+        """Gets the roots of this Node."""
+        return self._graph.get_roots(node_type=type)
+
+    def get_leaves[N: Entity = Entity](
+        self,
+        type: NodeType | TraitType | type[N] | None = None,
+        include_deleted: bool = False,
+        include_archived: bool = False,
+    ) -> Sequence[N]:
+        """Gets the leaves of this Node."""
+        return self._graph.get_leaves(node_type=type, node=self)
 
     def into(
         self,

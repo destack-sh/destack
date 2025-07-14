@@ -45,6 +45,7 @@ class Session:
         "actor_ptr",
         "closed_at",
         "connections",
+        "event_graph",
         "oracle",
         "pending_events",
         "runtime",
@@ -63,6 +64,7 @@ class Session:
         self.actor_ptr: NodeReference | None = actor_ptr
         self.store: EventStore | EntityStore | None = store
         self.supergraph = Supergraph(self)
+        self.event_graph = self.supergraph.create_event_graph()
 
         # runtime
         self.pending_events: list[Event] = []

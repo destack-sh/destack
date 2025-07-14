@@ -14,6 +14,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -245,7 +246,7 @@ export class Stroke extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -257,13 +258,13 @@ export class Stroke extends StructFrozen {
     h = (h * 31 + hashFloat(this.smoothing)) & 0xffffffff;
     h = (h * 31 + hashFloat(this.streamline)) & 0xffffffff;
     h = (h * 31 + this.easing) & 0xffffffff;
-    if (this.color !== null) {
+    if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
-    if (this.start !== null) {
+    if (this.start != null) {
       h = (h * 31 + this.start.hash()) & 0xffffffff;
     }
-    if (this.end !== null) {
+    if (this.end != null) {
       h = (h * 31 + this.end.hash()) & 0xffffffff;
     }
 
@@ -528,7 +529,7 @@ export class StrokeCap extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -803,7 +804,7 @@ export class StrokePoint extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1017,7 +1018,7 @@ export class StrokePath extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.points.length !== other.points.length) {
+    if (this.points.length != other.points.length) {
       return false;
     }
     for (let i = 0; i < this.points.length; i++) {
@@ -1046,7 +1047,7 @@ export class StrokePath extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1199,7 +1200,7 @@ export class StrokeStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -1211,7 +1212,7 @@ export class StrokeStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -1228,7 +1229,7 @@ export class StrokeStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -1240,7 +1241,7 @@ export class StrokeStyle extends Style {
    */
   get predecessor(): StrokeStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as StrokeStyle | null;
     }
     return null;
@@ -1252,7 +1253,7 @@ export class StrokeStyle extends Style {
    */
   get template(): StrokeStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as StrokeStyle | null;
     }
     return null;
@@ -1269,7 +1270,7 @@ export class StrokeStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1286,7 +1287,7 @@ export class StrokeStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1695,35 +1696,35 @@ export class StrokeStyle extends Style {
     h = (h * 31 + hashFloat(this._smoothing)) & 0xffffffff;
     h = (h * 31 + hashFloat(this._streamline)) & 0xffffffff;
     h = (h * 31 + this._easing) & 0xffffffff;
-    if (this._start !== null) {
+    if (this._start != null) {
       h = (h * 31 + this._start.hash()) & 0xffffffff;
     }
-    if (this._end !== null) {
+    if (this._end != null) {
       h = (h * 31 + this._end.hash()) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1754,9 +1755,9 @@ export class StrokeStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;

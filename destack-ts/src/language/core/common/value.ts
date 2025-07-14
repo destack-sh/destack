@@ -109,14 +109,14 @@ export class Value extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type.hash()) & 0xffffffff;
-    if (this.value !== null) {
+    if (this.value != null) {
       h = (h * 31 + hashString(JSON.stringify(this.value))) & 0xffffffff;
     }
 

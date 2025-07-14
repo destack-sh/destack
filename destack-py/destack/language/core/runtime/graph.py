@@ -2,6 +2,7 @@ import abc
 from collections.abc import Collection, Sequence
 from typing import (
     TYPE_CHECKING,
+    Any,
     Optional,
     assert_never,
     final,
@@ -23,14 +24,14 @@ from destack.utils.uuid import UUID
 from ..builtin import EMPTY_LIST, UNSET, NodeType, TraitType
 
 if TYPE_CHECKING:
-    from destack.language import Node, Session
+    from destack.language import Entity, Event, Node, Session
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 type_ = type
 
 
-class Graph(abc.ABC):
+class Graph[N: Node](abc.ABC):
     """
     A Graph is a collection of Nodes.
     """
@@ -50,7 +51,7 @@ class Graph(abc.ABC):
 
     @property
     @abc.abstractmethod
-    def nodes(self) -> Collection["Node"]:
+    def nodes(self) -> Collection[N]:
         """All nodes in the graph"""
         raise NotImplementedError
 
@@ -59,12 +60,12 @@ class Graph(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get(self, id: UUID) -> Optional["Node"]:
+    def get(self, id: UUID) -> Optional[N]:
         """Gets a Node by id"""
         raise NotImplementedError
 
     @final
-    def get_or_error(self, id: UUID) -> "Node":
+    def get_or_error(self, id: UUID) -> N:
         """Gets a Node by id, raising an error if not found"""
         node = self.get(id)
         if node is None:
@@ -82,35 +83,35 @@ class Graph(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def add(self, node: "Node"):
+    def add(self, node: N):
         """Add a new Node to the graph (must not exist, excluding descendants)."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def remove(self, node: "Node"):
+    def remove(self, node: N):
         """Remove a Node from the graph (must exist, excluding descendants)."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_roots[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None
-    ) -> Sequence[N]:
+    def get_roots[M: Entity = Entity](
+        self, node_type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
         """Find root Nodes in the graph."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_leaves[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
-    ) -> Sequence[N]:
+    def get_leaves[M: Entity = Entity](
+        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
+    ) -> Sequence[M]:
         """Find leaf Nodes in the graph."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_children[N: Node = Node](
+    def get_children[M: Entity = Entity](
         self,
-        node: "Node",
-        type: NodeType | TraitType | type[N] | None = None,
-    ) -> Sequence[N]:
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
         """
         Collect child Nodes (one level down).
         If the Nodes are IsOrdered, their order is preserved.
@@ -118,18 +119,18 @@ class Graph(abc.ABC):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_ancestors[N: Node = Node](
-        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
-    ) -> Sequence[N]:
+    def get_ancestors[M: Entity = Entity](
+        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
         """Gets the ancestors of this Node (recursively up)."""
         raise NotImplementedError
 
     @abc.abstractmethod
-    def get_descendants[N: Node = Node](
+    def get_descendants[M: Entity = Entity](
         self,
-        node: "Node",
-        type: NodeType | TraitType | type[N] | None = None,
-    ) -> Sequence[N]:
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
         """
         Collect descendant Nodes (recursively down).
         If a type is specified, only Nodes of that type are collected.
@@ -139,20 +140,20 @@ class Graph(abc.ABC):
         raise NotImplementedError
 
 
-class SingletonGraph(Graph):
+class EntitySingletonGraph(Graph["Entity"]):
     """
-    A Graph that contains only a single Node.
+    A Graph that contains only a single Entity.
     """
 
     __slots__ = ("node", "supergraph")
 
-    def __init__(self, supergraph: "Supergraph", node: "Node"):
+    def __init__(self, supergraph: "Supergraph", node: "Entity"):
         self.supergraph = supergraph
         self.node = node
 
     @property
     @override
-    def nodes(self) -> Collection["Node"]:
+    def nodes(self) -> Collection["Entity"]:
         return (self.node,)
 
     @override
@@ -160,7 +161,7 @@ class SingletonGraph(Graph):
         return 1
 
     @override
-    def get(self, id: UUID) -> Optional["Node"]:
+    def get(self, id: UUID) -> Optional["Entity"]:
         return self.node if self.node.id == id else None
 
     @override
@@ -172,69 +173,71 @@ class SingletonGraph(Graph):
         raise ValueError(f"cannot clear {self!r}")
 
     @override
-    def add(self, node: "Node"):
+    def add(self, node: "Entity"):
         raise ValueError(f"cannot add {node!r} to {self!r}")
 
     @override
-    def remove(self, node: "Node"):
+    def remove(self, node: "Entity"):
         raise ValueError(f"cannot remove {node!r} from {self!r}")
 
     @override
-    def get_roots[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None
-    ) -> Sequence[N]:
+    def get_roots[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
         return ()
 
     @override
-    def get_leaves[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
-    ) -> Sequence[N]:
+    def get_leaves[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
+    ) -> Sequence[M]:
         return ()
 
     @override
-    def get_children[N: Node = Node](
+    def get_children[M: "Entity" = "Entity"](
         self,
-        node: "Node",
-        type: NodeType | TraitType | type[N] | None = None,
-    ) -> Sequence[N]:
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
         return ()
 
     @override
-    def get_ancestors[N: Node = Node](
-        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
-    ) -> Sequence[N]:
+    def get_ancestors[M: "Entity" = "Entity"](
+        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
         return ()
 
     @override
-    def get_descendants[N: Node = Node](
+    def get_descendants[M: "Entity" = "Entity"](
         self,
-        node: "Node",
-        type: NodeType | TraitType | type[N] | None = None,
-    ) -> Sequence[N]:
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
         return ()
 
 
-class PolyGraph(Graph):
+class EntityGraph(Graph["Entity"]):
     """
-    A Graph with an arbitrary set of Nodes.
+    A Graph with an arbitrary, hierarchical set of Entities.
     """
 
     __slots__ = ("nodes_by_id", "nodes_by_parent", "supergraph")
 
     def __init__(self, supergraph: "Supergraph"):
         self.supergraph = supergraph
-        self.nodes_by_id: dict[UUID, Node] = {}
-        self.nodes_by_parent: dict[UUID, dict[NodeType, list[Node]]] = {}
+        self.nodes_by_id: dict[UUID, Entity] = {}
+        self.nodes_by_parent: dict[UUID, dict[NodeType, list[Entity]]] = {}
 
     @property
-    def nodes(self) -> Collection["Node"]:
+    @override
+    def nodes(self) -> Collection["Entity"]:
         return self.nodes_by_id.values()
 
+    @override
     def __len__(self):
         return len(self.nodes_by_id)
 
     @override
-    def get(self, id: UUID) -> Optional["Node"]:
+    def get(self, id: UUID) -> Optional["Entity"]:
         return self.nodes_by_id.get(id)
 
     @override
@@ -252,7 +255,7 @@ class PolyGraph(Graph):
         self.nodes_by_parent.clear()
 
     @override
-    def add(self, node: "Node"):
+    def add(self, node: "Entity"):
         if (existing := self.nodes_by_id.get(node.id)) is not None:
             raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
         # node
@@ -272,7 +275,7 @@ class PolyGraph(Graph):
             self.supergraph._cached_nodes_by_id[node.id] = node
 
     @override
-    def remove(self, node: "Node"):
+    def remove(self, node: "Entity"):
         # supergraph
         if self.supergraph._cached_nodes_by_id.get(node.id) is node:
             self.supergraph._cached_nodes_by_id.pop(node.id)
@@ -292,9 +295,9 @@ class PolyGraph(Graph):
         self.nodes_by_id.pop(node.id)
 
     @override
-    def get_roots[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None
-    ) -> Sequence[N]:
+    def get_roots[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
         node_types = expand_node_types(node_type)
         if node_types is None:
             roots = tuple(
@@ -312,9 +315,9 @@ class PolyGraph(Graph):
         return roots  # type: ignore (must be right type)
 
     @override
-    def get_leaves[N: Node = Node](
-        self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
-    ) -> Sequence[N]:
+    def get_leaves[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
+    ) -> Sequence[M]:
         if node is None:
             node_types = expand_node_types(node_type)
             if node_types is None:
@@ -331,11 +334,11 @@ class PolyGraph(Graph):
         return leaves  # type: ignore (must be right type)
 
     @override
-    def get_children[N: Node = Node](
+    def get_children[M: "Entity" = "Entity"](
         self,
         node: "Node",
-        type: NodeType | TraitType | type[N] | None = None,
-    ) -> Sequence[N]:
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
         # bail if no children
         if not self.nodes_by_parent:
             return ()
@@ -379,10 +382,10 @@ class PolyGraph(Graph):
                 return children
 
     @override
-    def get_ancestors[N: Node = Node](
-        self, node: "Node", type: NodeType | TraitType | type[N] | None = None
-    ) -> Sequence[N]:
-        ancestors: list[Node] = []
+    def get_ancestors[M: "Entity" = "Entity"](
+        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
+        ancestors: list[Entity] = []
         current = node.parent_ptr
         node_types = expand_node_types(type, expand_inheritance=True)
 
@@ -398,16 +401,16 @@ class PolyGraph(Graph):
         return ancestors  # type: ignore (must be right type)
 
     @override
-    def get_descendants[N: Node = Node](
+    def get_descendants[M: "Entity" = "Entity"](
         self,
-        node: "Node",
-        type: NodeType | TraitType | type[N] | None = None,
-    ) -> Sequence[N]:
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
         if not self.nodes_by_parent:
             return ()
 
-        queue: list[Node] = [node]
-        descendants: list[Node] = []
+        queue: list[Entity] = [node]
+        descendants: list[Entity] = []
         node_types = expand_node_types(type, expand_inheritance=True)
 
         # BFS
@@ -429,6 +432,79 @@ class PolyGraph(Graph):
         return descendants  # type: ignore (must be right type)
 
 
+class EventGraph(Graph["Event"]):
+    """A Graph with a flat set of Events."""
+
+    def __init__(self, supergraph: "Supergraph"):
+        self.supergraph = supergraph
+        self.nodes_by_id: dict[UUID, Event] = {}
+
+    @property
+    @override
+    def nodes(self) -> Collection["Event"]:
+        return self.nodes_by_id.values()
+
+    @override
+    def __len__(self):
+        return len(self.nodes_by_id)
+
+    @override
+    def get(self, id: UUID) -> Optional["Event"]:
+        return self.nodes_by_id.get(id)
+
+    @override
+    def has(self, id: UUID) -> bool:
+        return id in self.nodes_by_id
+
+    @override
+    def clear(self):
+        self.nodes_by_id.clear()
+
+    @override
+    def add(self, node: "Event"):
+        if (existing := self.nodes_by_id.get(node.id)) is not None:
+            raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
+        self.nodes_by_id[node.id] = node
+
+    @override
+    def remove(self, node: "Event"):
+        self.nodes_by_id.pop(node.id)
+
+    @override
+    def get_roots[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_leaves[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_children[M: "Entity" = "Entity"](
+        self,
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_ancestors[M: "Entity" = "Entity"](
+        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_descendants[M: "Entity" = "Entity"](
+        self,
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
+        return ()
+
+
 class NullGraph(Graph):
     """An always empty Graph."""
 
@@ -436,50 +512,62 @@ class NullGraph(Graph):
         self.supergraph = supergraph
 
     @property
+    @override
     def nodes(self) -> Collection["Node"]:
         return ()
 
+    @override
     def __len__(self):
         return 0
 
+    @override
     def get(self, id: UUID) -> Optional["Node"]:
         return None
 
+    @override
     def has(self, id: UUID) -> bool:
         return False
 
+    @override
     def clear(self):
         pass
 
+    @override
     def add(self, node: "Node"):
         pass
 
-    def get_roots[N: Node = Node](
+    @override
+    def get_roots[N: "Entity" = "Entity"](
         self, node_type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         return ()
 
+    @override
     def remove(self, node: "Node"):
         pass
 
-    def get_leaves[N: Node = Node](
+    @override
+    def get_leaves[N: "Entity" = "Entity"](
         self, node_type: NodeType | TraitType | type[N] | None = None, node: "Node | None" = None
     ) -> Sequence[N]:
         return ()
 
-    def get_children[N: Node = Node](
+    @override
+    def get_children[N: "Entity" = "Entity"](
         self,
         node: "Node",
         type: NodeType | TraitType | type[N] | None = None,
     ) -> Sequence[N]:
         return ()
 
-    def get_ancestors[N: Node = Node](
+    @override
+    def get_ancestors[N: "Entity" = "Entity"](
         self, node: "Node", type: NodeType | TraitType | type[N] | None = None
     ) -> Sequence[N]:
         return ()
 
-    def get_descendants[N: Node = Node](
+    @override
+    def get_descendants[N: "Entity" = "Entity"](
         self,
         node: "Node",
         type: NodeType | TraitType | type[N] | None = None,
@@ -500,7 +588,7 @@ class Supergraph:
 
     def __init__(self, session: "Session"):
         self.session = session
-        self.graphs: list[Graph] = []
+        self.graphs: list[Graph[Any]] = []
         self._cached_nodes_by_id: dict[UUID, Node | object] = {}  # cache
 
     def __str__(self):
@@ -509,34 +597,40 @@ class Supergraph:
     def __repr__(self):
         return f"<Supergraph {self}>"
 
-    def create_singleton_graph(self, node: "Node") -> SingletonGraph:
-        """Create a new SingletonGraph and add it to this Supergraph."""
-        new_graph = SingletonGraph(self, node)
+    def create_entity_singleton_graph(self, node: "Entity") -> EntitySingletonGraph:
+        """Create a new EntitySingletonGraph and add it to this Supergraph."""
+        new_graph = EntitySingletonGraph(self, node)
         self.add_graph(new_graph)
         return new_graph
 
-    def create_polygraph(self) -> PolyGraph:
-        """Create a new PolyGraph and add it to this Supergraph."""
-        new_graph = PolyGraph(self)
+    def create_entity_graph(self) -> EntityGraph:
+        """Create a new EntityGraph and add it to this Supergraph."""
+        new_graph = EntityGraph(self)
         self.add_graph(new_graph)
         return new_graph
 
-    def promote_to_polygraph(self, graph: SingletonGraph) -> PolyGraph:
-        """Promote a SingletonGraph to a PolyGraph in one operation."""
-        new_graph = self.create_polygraph()
+    def create_event_graph(self) -> EventGraph:
+        """Create a new EventGraph and add it to this Supergraph."""
+        new_graph = EventGraph(self)
+        self.add_graph(new_graph)
+        return new_graph
+
+    def promote_to_polygraph(self, graph: EntitySingletonGraph) -> EntityGraph:
+        """Promote an EntitySingletonGraph to an EntityGraph in one operation."""
+        new_graph = self.create_entity_graph()
         new_graph.add(graph.node)
         self.graphs.remove(graph)
         self.graphs.append(new_graph)
         return new_graph
 
-    def add_graph(self, graph: Graph):
+    def add_graph(self, graph: Graph[Any]):
         """Add a Graph to this Supergraph."""
         self.graphs.append(graph)
         for node in graph.nodes:
             if (cached := self._cached_nodes_by_id.get(node.id)) is None or cached is _MISSING:
                 self._cached_nodes_by_id[node.id] = node
 
-    def remove_graph(self, graph: Graph):
+    def remove_graph(self, graph: Graph[Any]):
         """Remove a Graph from this Supergraph."""
         self.graphs.remove(graph)
         for node in graph.nodes:

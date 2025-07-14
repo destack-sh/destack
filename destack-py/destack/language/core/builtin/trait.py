@@ -25,14 +25,12 @@ from .property import (
     _PROPERTY_SPECIFIERS,
     _resolve_trait_type,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
         CustomEntityDefinition,
         CustomEventDefinition,
-        Entity,
         Node,
         NodeDefinitionReference,
         NodeReference,
@@ -74,10 +72,15 @@ def builtin_trait(
         cls, _ = _process_object_cls(
             cls=cast(type["Trait"], cls),
             object_type=None,
-            is_concrete=False,
-            is_node=True,
-            is_abstract=True,
             is_frozen=pretend_frozen,
+            is_concrete=False,
+            is_struct=False,
+            is_node=True,
+            is_entity=False,
+            is_root_node=False,
+            is_abstract=True,
+            base_type=None,
+            traits=(),
         )
         cls.__is_trait__ = True
         cls.__is_abstract__ = True
@@ -126,9 +129,6 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     #   since Trait doesn't actually inherit from Node for circularity reasons;
     #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=None)
-    parent: Optional["Entity"] = builtin_property_parent()
-    if TYPE_CHECKING:
-        parent_ptr: Optional[NodeReference] = None
 
     """Whether this trait can be extended by custom Traits."""
     __is_extensible__: ClassVar[bool] = False

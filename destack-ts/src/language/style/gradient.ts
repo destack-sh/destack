@@ -14,6 +14,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -134,7 +135,7 @@ export class GradientStop extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.color !== null) {
+      if (this.color != null) {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
       propertyReprs.push(`position=${this.position}`);
@@ -145,13 +146,13 @@ export class GradientStop extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.color !== null) {
+    if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashFloat(this.position)) & 0xffffffff;
@@ -291,7 +292,7 @@ export class Gradient extends StructFrozen {
    */
   get style(): GradientStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -388,7 +389,7 @@ export class Gradient extends StructFrozen {
     ) {
       return false;
     }
-    if (this.stops.length !== other.stops.length) {
+    if (this.stops.length != other.stops.length) {
       return false;
     }
     for (let i = 0; i < this.stops.length; i++) {
@@ -409,16 +410,16 @@ export class Gradient extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${GradientType[this.type]}`);
-      if (this.style !== null) {
+      if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
-      if (this.angle !== null) {
+      if (this.angle != null) {
         propertyReprs.push(`angle=${this.angle}`);
       }
       if (this.stops.length > 0) {
         propertyReprs.push(`stops=${this.stops.map((_item) => _item.repr()).join(", ")}`);
       }
-      if (this.centerAnchor !== null) {
+      if (this.centerAnchor != null) {
         propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -428,17 +429,17 @@ export class Gradient extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
+    if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    if (this.angle !== null) {
+    if (this.angle != null) {
       h = (h * 31 + hashFloat(this.angle)) & 0xffffffff;
     }
     if (this.stops && this.stops.length > 0) {
@@ -446,7 +447,7 @@ export class Gradient extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.centerAnchor !== null) {
+    if (this.centerAnchor != null) {
       h = (h * 31 + this.centerAnchor.hash()) & 0xffffffff;
     }
 
@@ -647,7 +648,7 @@ export class GradientStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -659,7 +660,7 @@ export class GradientStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -676,7 +677,7 @@ export class GradientStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -688,7 +689,7 @@ export class GradientStyle extends Style {
    */
   get predecessor(): GradientStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as GradientStyle | null;
     }
     return null;
@@ -700,7 +701,7 @@ export class GradientStyle extends Style {
    */
   get template(): GradientStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as GradientStyle | null;
     }
     return null;
@@ -717,7 +718,7 @@ export class GradientStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -734,7 +735,7 @@ export class GradientStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1019,7 +1020,7 @@ export class GradientStyle extends Style {
     ) {
       return false;
     }
-    if (this._stops.length !== other._stops.length) {
+    if (this._stops.length != other._stops.length) {
       return false;
     }
     for (let i = 0; i < this._stops.length; i++) {
@@ -1061,7 +1062,7 @@ export class GradientStyle extends Style {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    if (this._angle !== null) {
+    if (this._angle != null) {
       h = (h * 31 + hashFloat(this._angle)) & 0xffffffff;
     }
     if (this._stops && this._stops.length > 0) {
@@ -1069,35 +1070,35 @@ export class GradientStyle extends Style {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this._centerAnchor !== null) {
+    if (this._centerAnchor != null) {
       h = (h * 31 + this._centerAnchor.hash()) & 0xffffffff;
     }
-    if (this._dark !== null) {
+    if (this._dark != null) {
       h = (h * 31 + this._dark.hash()) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1128,9 +1129,9 @@ export class GradientStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1144,13 +1145,13 @@ export class GradientStyle extends Style {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${GradientType[this.type]}`);
-    if (this.angle !== null) {
+    if (this.angle != null) {
       propertyReprs.push(`angle=${this.angle}`);
     }
     if (this.stops.length > 0) {
       propertyReprs.push(`stops=${this.stops.map((_item) => _item.repr()).join(", ")}`);
     }
-    if (this.centerAnchor !== null) {
+    if (this.centerAnchor != null) {
       propertyReprs.push(`centerAnchor=${this.centerAnchor.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

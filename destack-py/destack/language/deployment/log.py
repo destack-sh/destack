@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Enum,
@@ -9,11 +9,10 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import Space
+    pass
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -32,7 +31,6 @@ class LogLevel(Enum):
 class LogEvent(Event):
     """A Log message."""
 
-    parent: Optional["Space"] = builtin_property_parent()
     content: str = builtin_property(110)
     attributes: dict[str, Json] = builtin_property(111)
     level: LogLevel = builtin_property(112)

@@ -12,7 +12,7 @@ import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
-import { Supergraph } from "@destack/language/core/runtime/graph";
+import { EventGraph, Supergraph } from "@destack/language/core/runtime/graph";
 import { WORLD_ORACLE, type Oracle } from "@destack/language/core/runtime/oracle";
 import { assertNever, Casing, toCasing } from "@destack/utils";
 import { Temporal } from "temporal-polyfill";
@@ -27,6 +27,7 @@ export class Session {
   actorPtr: NodeReference | null;
   store: EventStore | EntityStore | null;
   supergraph: Supergraph;
+  eventGraph: EventGraph;
 
   pendingEvents: Event[];
 
@@ -48,6 +49,7 @@ export class Session {
     this.actorPtr = options?.actorPtr ?? null;
     this.store = options?.store ?? null;
     this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
+    this.eventGraph = this.supergraph.createEventGraph();
 
     // runtime
     this.pendingEvents = [];

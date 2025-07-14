@@ -12,6 +12,7 @@ import type {
 import {
   ACTIVE_SPACE,
   Entity,
+  Event,
   EventStatus,
   Node,
   NodeType,
@@ -40,12 +41,6 @@ import { Temporal } from "temporal-polyfill";
  */
 export abstract class DragEvent extends InputEvent {
   static metatype: NodeType = NodeType.DRAG_EVENT;
-
-  /**
-   * Event.parent
-   */
-  abstract get parent(): Space | null;
-  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
@@ -112,23 +107,11 @@ export class DragStartEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_START_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -140,7 +123,7 @@ export class DragStartEvent extends DragEvent {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -157,7 +140,7 @@ export class DragStartEvent extends DragEvent {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -169,7 +152,7 @@ export class DragStartEvent extends DragEvent {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -191,7 +174,7 @@ export class DragStartEvent extends DragEvent {
    */
   get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
@@ -205,7 +188,6 @@ export class DragStartEvent extends DragEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -224,11 +206,7 @@ export class DragStartEvent extends DragEvent {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -242,11 +220,6 @@ export class DragStartEvent extends DragEvent {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -347,23 +320,20 @@ export class DragStartEvent extends DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -395,9 +365,9 @@ export class DragStartEvent extends DragEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -423,9 +393,6 @@ export class DragStartEvent extends DragEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560401;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -462,11 +429,6 @@ export class DragStartEvent extends DragEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -487,7 +449,6 @@ export class DragStartEvent extends DragEvent {
     return new DragStartEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -519,9 +480,6 @@ export class DragStartEvent extends DragEvent {
   static __packProto__(object: DragStartEvent): DragStartEventProto {
     const objectProto: Partial<DragStartEventProto> = { metatype: 560401 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -565,16 +523,6 @@ export class DragStartEvent extends DragEvent {
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
@@ -659,23 +607,11 @@ export class DragEndEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_END_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -687,7 +623,7 @@ export class DragEndEvent extends DragEvent {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -704,7 +640,7 @@ export class DragEndEvent extends DragEvent {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -716,7 +652,7 @@ export class DragEndEvent extends DragEvent {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -738,7 +674,7 @@ export class DragEndEvent extends DragEvent {
    */
   get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
@@ -752,7 +688,6 @@ export class DragEndEvent extends DragEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -771,11 +706,7 @@ export class DragEndEvent extends DragEvent {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -789,11 +720,6 @@ export class DragEndEvent extends DragEvent {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -894,23 +820,20 @@ export class DragEndEvent extends DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -942,9 +865,9 @@ export class DragEndEvent extends DragEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -970,9 +893,6 @@ export class DragEndEvent extends DragEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560402;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1009,11 +929,6 @@ export class DragEndEvent extends DragEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1034,7 +949,6 @@ export class DragEndEvent extends DragEvent {
     return new DragEndEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1066,9 +980,6 @@ export class DragEndEvent extends DragEvent {
   static __packProto__(object: DragEndEvent): DragEndEventProto {
     const objectProto: Partial<DragEndEventProto> = { metatype: 560402 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1112,16 +1023,6 @@ export class DragEndEvent extends DragEvent {
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1206,23 +1107,11 @@ export class DragOverEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_OVER_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -1234,7 +1123,7 @@ export class DragOverEvent extends DragEvent {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -1251,7 +1140,7 @@ export class DragOverEvent extends DragEvent {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1263,7 +1152,7 @@ export class DragOverEvent extends DragEvent {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -1285,7 +1174,7 @@ export class DragOverEvent extends DragEvent {
    */
   get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
@@ -1299,7 +1188,6 @@ export class DragOverEvent extends DragEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1318,11 +1206,7 @@ export class DragOverEvent extends DragEvent {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -1336,11 +1220,6 @@ export class DragOverEvent extends DragEvent {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -1441,23 +1320,20 @@ export class DragOverEvent extends DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -1489,9 +1365,9 @@ export class DragOverEvent extends DragEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1517,9 +1393,6 @@ export class DragOverEvent extends DragEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560403;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1556,11 +1429,6 @@ export class DragOverEvent extends DragEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1581,7 +1449,6 @@ export class DragOverEvent extends DragEvent {
     return new DragOverEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1613,9 +1480,6 @@ export class DragOverEvent extends DragEvent {
   static __packProto__(object: DragOverEvent): DragOverEventProto {
     const objectProto: Partial<DragOverEventProto> = { metatype: 560403 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1659,16 +1523,6 @@ export class DragOverEvent extends DragEvent {
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1753,23 +1607,11 @@ export class DragEnterEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_ENTER_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -1781,7 +1623,7 @@ export class DragEnterEvent extends DragEvent {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -1798,7 +1640,7 @@ export class DragEnterEvent extends DragEvent {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1810,7 +1652,7 @@ export class DragEnterEvent extends DragEvent {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -1832,7 +1674,7 @@ export class DragEnterEvent extends DragEvent {
    */
   get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
@@ -1846,7 +1688,6 @@ export class DragEnterEvent extends DragEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1865,11 +1706,7 @@ export class DragEnterEvent extends DragEvent {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -1883,11 +1720,6 @@ export class DragEnterEvent extends DragEvent {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -1988,23 +1820,20 @@ export class DragEnterEvent extends DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -2036,9 +1865,9 @@ export class DragEnterEvent extends DragEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -2064,9 +1893,6 @@ export class DragEnterEvent extends DragEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560404;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -2103,11 +1929,6 @@ export class DragEnterEvent extends DragEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -2128,7 +1949,6 @@ export class DragEnterEvent extends DragEvent {
     return new DragEnterEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -2160,9 +1980,6 @@ export class DragEnterEvent extends DragEvent {
   static __packProto__(object: DragEnterEvent): DragEnterEventProto {
     const objectProto: Partial<DragEnterEventProto> = { metatype: 560404 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -2206,16 +2023,6 @@ export class DragEnterEvent extends DragEvent {
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2300,23 +2107,11 @@ export class DragLeaveEvent extends DragEvent {
   static metatype: NodeType = NodeType.DRAG_LEAVE_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -2328,7 +2123,7 @@ export class DragLeaveEvent extends DragEvent {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -2345,7 +2140,7 @@ export class DragLeaveEvent extends DragEvent {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -2357,7 +2152,7 @@ export class DragLeaveEvent extends DragEvent {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -2379,7 +2174,7 @@ export class DragLeaveEvent extends DragEvent {
    */
   get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
@@ -2393,7 +2188,6 @@ export class DragLeaveEvent extends DragEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -2412,11 +2206,7 @@ export class DragLeaveEvent extends DragEvent {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -2430,11 +2220,6 @@ export class DragLeaveEvent extends DragEvent {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -2535,23 +2320,20 @@ export class DragLeaveEvent extends DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -2583,9 +2365,9 @@ export class DragLeaveEvent extends DragEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -2611,9 +2393,6 @@ export class DragLeaveEvent extends DragEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560405;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -2650,11 +2429,6 @@ export class DragLeaveEvent extends DragEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -2675,7 +2449,6 @@ export class DragLeaveEvent extends DragEvent {
     return new DragLeaveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -2707,9 +2480,6 @@ export class DragLeaveEvent extends DragEvent {
   static __packProto__(object: DragLeaveEvent): DragLeaveEventProto {
     const objectProto: Partial<DragLeaveEventProto> = { metatype: 560405 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -2753,16 +2523,6 @@ export class DragLeaveEvent extends DragEvent {
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2847,23 +2607,11 @@ export class DropEvent extends DragEvent {
   static metatype: NodeType = NodeType.DROP_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -2875,7 +2623,7 @@ export class DropEvent extends DragEvent {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -2892,7 +2640,7 @@ export class DropEvent extends DragEvent {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -2904,7 +2652,7 @@ export class DropEvent extends DragEvent {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -2926,7 +2674,7 @@ export class DropEvent extends DragEvent {
    */
   get node(): View | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as View | null;
     }
     return null;
@@ -2940,7 +2688,6 @@ export class DropEvent extends DragEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -2959,11 +2706,7 @@ export class DropEvent extends DragEvent {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -2977,11 +2720,6 @@ export class DropEvent extends DragEvent {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -3082,23 +2820,20 @@ export class DropEvent extends DragEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.position.hash()) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -3130,9 +2865,9 @@ export class DropEvent extends DragEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -3158,9 +2893,6 @@ export class DropEvent extends DragEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 560406;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -3197,11 +2929,6 @@ export class DropEvent extends DragEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3222,7 +2949,6 @@ export class DropEvent extends DragEvent {
     return new DropEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -3254,9 +2980,6 @@ export class DropEvent extends DragEvent {
   static __packProto__(object: DropEvent): DropEventProto {
     const objectProto: Partial<DropEventProto> = { metatype: 560406 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -3300,16 +3023,6 @@ export class DropEvent extends DragEvent {
         objectProto.nodePtr != undefined
           ? _NodeReference.fromProto(
               objectProto.nodePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,

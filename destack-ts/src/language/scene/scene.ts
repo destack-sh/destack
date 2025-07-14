@@ -43,12 +43,6 @@ export abstract class SceneEvent extends Event {
   static metatype: NodeType = NodeType.SCENE_EVENT;
 
   /**
-   * Event.parent
-   */
-  abstract get parent(): Space | null;
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
@@ -115,7 +109,7 @@ export class Scene
    */
   get parent(): Folder | Window | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Folder | Window | null;
     }
     return null;
@@ -127,7 +121,7 @@ export class Scene
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -144,7 +138,7 @@ export class Scene
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -156,7 +150,7 @@ export class Scene
    */
   get predecessor(): Scene | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | null;
     }
     return null;
@@ -168,7 +162,7 @@ export class Scene
    */
   get template(): Scene | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | null;
     }
     return null;
@@ -185,7 +179,7 @@ export class Scene
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -202,7 +196,7 @@ export class Scene
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -224,7 +218,7 @@ export class Scene
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -286,7 +280,7 @@ export class Scene
    */
   get rootView(): ContainerView | null {
     const nodePtr: NodeReference | null = this.rootViewPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as ContainerView | null;
     }
     return null;
@@ -495,38 +489,38 @@ export class Scene
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this._rootViewPtr !== null) {
+    if (this._rootViewPtr != null) {
       h = (h * 31 + hashString(this._rootViewPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._icon !== null) {
+    if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this._ownedByPtr !== null) {
+    if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -557,9 +551,9 @@ export class Scene
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -573,7 +567,7 @@ export class Scene
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    if (this.ownedBy !== null) {
+    if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Scene "${this.path}" ${propertyReprs.join(" ")}>`;

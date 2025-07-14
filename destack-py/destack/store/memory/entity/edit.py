@@ -15,9 +15,9 @@ from destack.language import (
     EditEvent,
     EditOperation,
     EditType,
+    Entity,
     IsArchivable,
     IsDeletable,
-    Node,
     NodeDefinitionReference,
     NodeReference,
     NodeType,
@@ -32,7 +32,7 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
-NODE_PARENT_KEY = str(Node.property("parent").id)
+ENTITY_PARENT_KEY = str(Entity.property("parent").id)
 
 ARCHIVED_AT_KEY = str(IsArchivable.property("archived_at").id)
 DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
@@ -223,7 +223,7 @@ def _execute_edit(
                 parent_table.rows_by_parent[parent_key].remove(row)
             # update parent pointer
             row.parent_ptr = parent_ptr
-            row.value[NODE_PARENT_KEY] = parent_ptr.to_value() if parent_ptr is not None else None
+            row.value[ENTITY_PARENT_KEY] = parent_ptr.to_value() if parent_ptr is not None else None
             # add to new parent
             if row.parent_ptr is not None:
                 parent_table = context.get_entity_table(row.parent_ptr)

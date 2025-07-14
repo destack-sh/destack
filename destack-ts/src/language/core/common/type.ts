@@ -299,22 +299,22 @@ export class StringConstraint extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.format !== null) {
+    if (this.format != null) {
       h = (h * 31 + this.format) & 0xffffffff;
     }
-    if (this.regex !== null) {
+    if (this.regex != null) {
       h = (h * 31 + hashString(this.regex)) & 0xffffffff;
     }
-    if (this.startsWith !== null) {
+    if (this.startsWith != null) {
       h = (h * 31 + hashString(this.startsWith)) & 0xffffffff;
     }
-    if (this.endsWith !== null) {
+    if (this.endsWith != null) {
       h = (h * 31 + hashString(this.endsWith)) & 0xffffffff;
     }
 
@@ -591,28 +591,28 @@ export class NumberConstraint extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.format !== null) {
+    if (this.format != null) {
       h = (h * 31 + this.format) & 0xffffffff;
     }
-    if (this.minValue !== null) {
+    if (this.minValue != null) {
       h = (h * 31 + hashFloat(this.minValue)) & 0xffffffff;
     }
-    if (this.maxValue !== null) {
+    if (this.maxValue != null) {
       h = (h * 31 + hashFloat(this.maxValue)) & 0xffffffff;
     }
-    if (this.stepValue !== null) {
+    if (this.stepValue != null) {
       h = (h * 31 + hashFloat(this.stepValue)) & 0xffffffff;
     }
-    if (this.precision !== null) {
+    if (this.precision != null) {
       h = (h * 31 + hashInt(this.precision)) & 0xffffffff;
     }
-    if (this.scale !== null) {
+    if (this.scale != null) {
       h = (h * 31 + hashInt(this.scale)) & 0xffffffff;
     }
 
@@ -853,16 +853,16 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.minLength !== null) {
+    if (this.minLength != null) {
       h = (h * 31 + hashInt(this.minLength)) & 0xffffffff;
     }
-    if (this.maxLength !== null) {
+    if (this.maxLength != null) {
       h = (h * 31 + hashInt(this.maxLength)) & 0xffffffff;
     }
 
@@ -1055,7 +1055,7 @@ export class NodeConstraint extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.nodeTypes.length !== other.nodeTypes.length) {
+    if (this.nodeTypes.length != other.nodeTypes.length) {
       return false;
     }
     for (let i = 0; i < this.nodeTypes.length; i++) {
@@ -1063,7 +1063,7 @@ export class NodeConstraint extends StructFrozen {
         return false;
       }
     }
-    if (this.nodeTraits.length !== other.nodeTraits.length) {
+    if (this.nodeTraits.length != other.nodeTraits.length) {
       return false;
     }
     for (let i = 0; i < this.nodeTraits.length; i++) {
@@ -1079,7 +1079,7 @@ export class NodeConstraint extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1301,7 +1301,7 @@ export class Type extends StructFrozen {
     | CustomTraitDefinition
     | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -1529,27 +1529,27 @@ export class Type extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.name !== null) {
+      if (this.name != null) {
         propertyReprs.push(`name=${`"${this.name}"`}`);
       }
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
-      if (this.primitiveType !== null) {
+      if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
       }
-      if (this.enumType !== null) {
+      if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeType !== null) {
+      if (this.nodeType != null) {
         propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       }
-      if (this.structType !== null) {
+      if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.definition !== null) {
+      if (this.definition != null) {
         propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
-      if (this.keyType !== null) {
+      if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -1559,54 +1559,54 @@ export class Type extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.name !== null) {
+    if (this.name != null) {
       h = (h * 31 + hashString(this.name)) & 0xffffffff;
     }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
-    if (this.primitiveType !== null) {
+    if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
     }
-    if (this.enumType !== null) {
+    if (this.enumType != null) {
       h = (h * 31 + this.enumType) & 0xffffffff;
     }
-    if (this.nodeType !== null) {
+    if (this.nodeType != null) {
       h = (h * 31 + this.nodeType) & 0xffffffff;
     }
-    if (this.structType !== null) {
+    if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.keyType !== null) {
+    if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.isRequired !== null) {
+    if (this.isRequired != null) {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     }
-    if (this.value !== null) {
+    if (this.value != null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.valueFactory !== null) {
+    if (this.valueFactory != null) {
       h = (h * 31 + this.valueFactory) & 0xffffffff;
     }
-    if (this.collectionConstraint !== null) {
+    if (this.collectionConstraint != null) {
       h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
     }
-    if (this.stringConstraint !== null) {
+    if (this.stringConstraint != null) {
       h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
     }
-    if (this.numberConstraint !== null) {
+    if (this.numberConstraint != null) {
       h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
     }
-    if (this.nodeConstraint !== null) {
+    if (this.nodeConstraint != null) {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
 

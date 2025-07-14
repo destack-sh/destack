@@ -14,7 +14,7 @@ from .core import MemoryEntityRow
 
 NODE_METATYPE_KEY = str(Node.property("metatype").id)
 NODE_ID_KEY = str(Node.property("id").id)
-NODE_PARENT_PTR_KEY = str(Node.property("parent").id)
+NODE_PARENT_PTR_KEY = str(Entity.property("parent").id)
 NODE_SPACE_PTR_ID = str(Node.property("space").id)
 NODE_DEFINITION_PTR_ID = str(IsExtensible.property("definition").id)
 

@@ -61,23 +61,11 @@ export class LogEvent extends Event {
   static metatype: NodeType = NodeType.LOG_EVENT;
 
   /**
-   * LogEvent.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -89,7 +77,7 @@ export class LogEvent extends Event {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -106,7 +94,7 @@ export class LogEvent extends Event {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -118,7 +106,7 @@ export class LogEvent extends Event {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -140,7 +128,7 @@ export class LogEvent extends Event {
    */
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Node | null;
     }
     return null;
@@ -164,7 +152,6 @@ export class LogEvent extends Event {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -185,11 +172,7 @@ export class LogEvent extends Event {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -203,11 +186,6 @@ export class LogEvent extends Event {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -323,9 +301,6 @@ export class LogEvent extends Event {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.content)) & 0xffffffff;
     if (this.attributes && Object.keys(this.attributes).length > 0) {
       for (const [_key, _value] of Object.entries(this.attributes)) {
@@ -334,21 +309,21 @@ export class LogEvent extends Event {
       }
     }
     h = (h * 31 + this.level) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -379,9 +354,9 @@ export class LogEvent extends Event {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -406,9 +381,6 @@ export class LogEvent extends Event {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 170301;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -447,11 +419,6 @@ export class LogEvent extends Event {
     _connection?: any | null,
   ): LogEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const unpackedAttributes = {} as any;
     if (objectValue["111"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["111"])) {
@@ -481,7 +448,6 @@ export class LogEvent extends Event {
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new LogEvent({
-      parent: unpackedParentPtr,
       content: objectValue["110"],
       attributes: unpackedAttributes,
       level: Number(objectValue["112"]),
@@ -517,9 +483,6 @@ export class LogEvent extends Event {
   static __packProto__(object: LogEvent): LogEventProto {
     const objectProto: Partial<LogEventProto> = { metatype: 170301 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -564,16 +527,6 @@ export class LogEvent extends Event {
       }
     }
     return new LogEvent({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       content: objectProto.content,
       attributes: unpackedAttributes,
       level: Number(objectProto.level) as LogLevel,

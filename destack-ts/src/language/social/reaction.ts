@@ -48,7 +48,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get parent(): (Entity & IsReactable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsReactable) | null;
     }
     return null;
@@ -60,7 +60,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -77,7 +77,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -89,7 +89,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get predecessor(): Reaction | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Reaction | null;
     }
     return null;
@@ -101,7 +101,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get template(): Reaction | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Reaction | null;
     }
     return null;
@@ -118,7 +118,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -135,7 +135,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -152,7 +152,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -351,29 +351,29 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._content)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -404,9 +404,9 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -706,23 +706,11 @@ export class ReactionEvent extends Event {
   static metatype: NodeType = NodeType.REACTION_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -734,7 +722,7 @@ export class ReactionEvent extends Event {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -751,7 +739,7 @@ export class ReactionEvent extends Event {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -763,7 +751,7 @@ export class ReactionEvent extends Event {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -785,7 +773,7 @@ export class ReactionEvent extends Event {
    */
   get node(): Reaction | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Reaction | null;
     }
     return null;
@@ -799,7 +787,6 @@ export class ReactionEvent extends Event {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -818,11 +805,7 @@ export class ReactionEvent extends Event {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -836,11 +819,6 @@ export class ReactionEvent extends Event {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -945,20 +923,17 @@ export class ReactionEvent extends Event {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.content)) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -990,9 +965,9 @@ export class ReactionEvent extends Event {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1017,9 +992,6 @@ export class ReactionEvent extends Event {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220201;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1048,11 +1020,6 @@ export class ReactionEvent extends Event {
     _connection?: any | null,
   ): ReactionEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1079,7 +1046,6 @@ export class ReactionEvent extends Event {
         _connection,
       ),
       content: objectValue["102"],
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1111,9 +1077,6 @@ export class ReactionEvent extends Event {
   static __packProto__(object: ReactionEvent): ReactionEventProto {
     const objectProto: Partial<ReactionEventProto> = { metatype: 220201 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1151,16 +1114,6 @@ export class ReactionEvent extends Event {
         _connection,
       ),
       content: objectProto.content,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1240,7 +1193,6 @@ export class ReactionAddedEvent extends ReactionEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1296,20 +1248,17 @@ export class ReactionAddedEvent extends ReactionEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.content)) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -1341,9 +1290,9 @@ export class ReactionAddedEvent extends ReactionEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1368,9 +1317,6 @@ export class ReactionAddedEvent extends ReactionEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220202;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1399,11 +1345,6 @@ export class ReactionAddedEvent extends ReactionEvent {
     _connection?: any | null,
   ): ReactionAddedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1430,7 +1371,6 @@ export class ReactionAddedEvent extends ReactionEvent {
         _connection,
       ),
       content: objectValue["102"],
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1468,9 +1408,6 @@ export class ReactionAddedEvent extends ReactionEvent {
   static __packProto__(object: ReactionAddedEvent): ReactionAddedEventProto {
     const objectProto: Partial<ReactionAddedEventProto> = { metatype: 220202 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1508,16 +1445,6 @@ export class ReactionAddedEvent extends ReactionEvent {
         _connection,
       ),
       content: objectProto.content,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1603,7 +1530,6 @@ export class ReactionRemovedEvent extends ReactionEvent {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1659,20 +1585,17 @@ export class ReactionRemovedEvent extends ReactionEvent {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.content)) & 0xffffffff;
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -1704,9 +1627,9 @@ export class ReactionRemovedEvent extends ReactionEvent {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1731,9 +1654,6 @@ export class ReactionRemovedEvent extends ReactionEvent {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 220203;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -1762,11 +1682,6 @@ export class ReactionRemovedEvent extends ReactionEvent {
     _connection?: any | null,
   ): ReactionRemovedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1793,7 +1708,6 @@ export class ReactionRemovedEvent extends ReactionEvent {
         _connection,
       ),
       content: objectValue["102"],
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -1831,9 +1745,6 @@ export class ReactionRemovedEvent extends ReactionEvent {
   static __packProto__(object: ReactionRemovedEvent): ReactionRemovedEventProto {
     const objectProto: Partial<ReactionRemovedEventProto> = { metatype: 220203 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -1871,16 +1782,6 @@ export class ReactionRemovedEvent extends ReactionEvent {
         _connection,
       ),
       content: objectProto.content,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(

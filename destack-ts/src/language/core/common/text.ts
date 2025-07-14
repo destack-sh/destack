@@ -55,7 +55,7 @@ export class TextSpan extends StructFrozen {
    */
   get node(): Node | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -198,35 +198,35 @@ export class TextSpan extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.content !== null) {
+    if (this.content != null) {
       h = (h * 31 + hashString(this.content)) & 0xffffffff;
     }
-    if (this.nodePtr !== null) {
+    if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.url !== null) {
+    if (this.url != null) {
       h = (h * 31 + hashString(this.url)) & 0xffffffff;
     }
-    if (this.isBold !== null) {
+    if (this.isBold != null) {
       h = (h * 31 + hashBool(this.isBold)) & 0xffffffff;
     }
-    if (this.isItalic !== null) {
+    if (this.isItalic != null) {
       h = (h * 31 + hashBool(this.isItalic)) & 0xffffffff;
     }
-    if (this.isStrikethrough !== null) {
+    if (this.isStrikethrough != null) {
       h = (h * 31 + hashBool(this.isStrikethrough)) & 0xffffffff;
     }
-    if (this.isUnderline !== null) {
+    if (this.isUnderline != null) {
       h = (h * 31 + hashBool(this.isUnderline)) & 0xffffffff;
     }
-    if (this.isCode !== null) {
+    if (this.isCode != null) {
       h = (h * 31 + hashBool(this.isCode)) & 0xffffffff;
     }
 
@@ -515,7 +515,7 @@ export class Text extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.spans.length !== other.spans.length) {
+    if (this.spans.length != other.spans.length) {
       return false;
     }
     for (let i = 0; i < this.spans.length; i++) {
@@ -546,7 +546,7 @@ export class Text extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -557,19 +557,19 @@ export class Text extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.isBold !== null) {
+    if (this.isBold != null) {
       h = (h * 31 + hashBool(this.isBold)) & 0xffffffff;
     }
-    if (this.isItalic !== null) {
+    if (this.isItalic != null) {
       h = (h * 31 + hashBool(this.isItalic)) & 0xffffffff;
     }
-    if (this.isStrikethrough !== null) {
+    if (this.isStrikethrough != null) {
       h = (h * 31 + hashBool(this.isStrikethrough)) & 0xffffffff;
     }
-    if (this.isUnderline !== null) {
+    if (this.isUnderline != null) {
       h = (h * 31 + hashBool(this.isUnderline)) & 0xffffffff;
     }
-    if (this.isCode !== null) {
+    if (this.isCode != null) {
       h = (h * 31 + hashBool(this.isCode)) & 0xffffffff;
     }
 

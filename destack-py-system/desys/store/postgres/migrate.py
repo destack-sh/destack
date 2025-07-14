@@ -123,7 +123,7 @@ def delete_migrations_in_fs(from_id: int, to_id: int) -> None:
             migration_file.unlink()
 
 
-MIGRATIONS = []  # nocheckin: (postgres) migrations :Migrations
+MIGRATIONS = []  # nocheckin: Migrations / MigrationOperations :Migrations
 
 
 def has_migration_after(version_a: str, *, is_global: bool) -> bool:

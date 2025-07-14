@@ -73,23 +73,11 @@ export class EditEvent extends Event {
   static metatype: NodeType = NodeType.EDIT_EVENT;
 
   /**
-   * Event.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -101,7 +89,7 @@ export class EditEvent extends Event {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -118,7 +106,7 @@ export class EditEvent extends Event {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -130,7 +118,7 @@ export class EditEvent extends Event {
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -157,7 +145,7 @@ export class EditEvent extends Event {
    */
   get node(): Entity | null {
     const nodePtr: NodeReference | null = this.nodePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
@@ -179,7 +167,7 @@ export class EditEvent extends Event {
    */
   get customProperty(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.customPropertyPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
@@ -208,7 +196,6 @@ export class EditEvent extends Event {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -234,11 +221,7 @@ export class EditEvent extends Event {
       // id
       options.id ?? null,
       // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
+      null,
       // session
       options._session ?? null,
       // supergraph
@@ -252,11 +235,6 @@ export class EditEvent extends Event {
     );
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
     let _space = options.space ?? null;
     if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
       _space = (_space as Node).toRef();
@@ -408,41 +386,38 @@ export class EditEvent extends Event {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    if (this.operation !== null) {
+    if (this.operation != null) {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
-    if (this.propertyId !== null) {
+    if (this.propertyId != null) {
       h = (h * 31 + hashInt(this.propertyId)) & 0xffffffff;
     }
-    if (this.customPropertyPtr !== null) {
+    if (this.customPropertyPtr != null) {
       h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
-    if (this.key !== null) {
+    if (this.key != null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
     }
-    if (this.value !== null) {
+    if (this.value != null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.reverseOperation !== null) {
+    if (this.reverseOperation != null) {
       h = (h * 31 + this.reverseOperation) & 0xffffffff;
     }
-    if (this.reverseValue !== null) {
+    if (this.reverseValue != null) {
       h = (h * 31 + this.reverseValue.hash()) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
-    if (this.clientPtr !== null) {
+    if (this.clientPtr != null) {
       h = (h * 31 + hashString(this.clientPtr.id)) & 0xffffffff;
     }
-    if (this.clientNonce !== null) {
+    if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
@@ -474,9 +449,9 @@ export class EditEvent extends Event {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -491,22 +466,22 @@ export class EditEvent extends Event {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${EditType[this.type]}`);
     propertyReprs.push(`node=${this.node?.repr()}`);
-    if (this.operation !== null) {
+    if (this.operation != null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    if (this.propertyId !== null) {
+    if (this.propertyId != null) {
       propertyReprs.push(`propertyId=${this.propertyId}`);
     }
-    if (this.customProperty !== null) {
+    if (this.customProperty != null) {
       propertyReprs.push(`customProperty=${this.customProperty?.repr()}`);
     }
-    if (this.key !== null) {
+    if (this.key != null) {
       propertyReprs.push(`key=${this.key.repr()}`);
     }
-    if (this.reverseOperation !== null) {
+    if (this.reverseOperation != null) {
       propertyReprs.push(`reverseOperation=${EditOperation[this.reverseOperation]}`);
     }
-    if (this.reverseValue !== null) {
+    if (this.reverseValue != null) {
       propertyReprs.push(`reverseValue=${this.reverseValue.repr()}`);
     }
     propertyReprs.push(`status=${EventStatus[this.status]}`);
@@ -521,9 +496,6 @@ export class EditEvent extends Event {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2001;
     objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -607,11 +579,6 @@ export class EditEvent extends Event {
       reverseValueValue != undefined
         ? _Value.fromValue(reverseValueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -645,7 +612,6 @@ export class EditEvent extends Event {
       value: unpackedValue,
       reverseOperation: unpackedReverseOperation,
       reverseValue: unpackedReverseValue,
-      parent: unpackedParentPtr,
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
@@ -677,9 +643,6 @@ export class EditEvent extends Event {
   static __packProto__(object: EditEvent): EditEventProto {
     const objectProto: Partial<EditEventProto> = { metatype: 2001 };
     objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -769,16 +732,6 @@ export class EditEvent extends Event {
       reverseValue:
         objectProto.reverseValue != undefined
           ? _Value.fromProto(objectProto.reverseValue!, _session, _supergraph, _graph, _connection)
-          : null,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
           : null,
       snapshot:
         objectProto.snapshotPtr != undefined

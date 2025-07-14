@@ -25,7 +25,6 @@ from .property import (
     PropertyDeclaration,
     _resolve_trait_type,
     builtin_property,
-    builtin_property_parent,
     builtin_property_runtime,
 )
 from .trait import (
@@ -35,7 +34,6 @@ from .trait import (
 if TYPE_CHECKING:
     from destack.language import (
         Condition,
-        Entity,
         ExpressionIn,
         Graph,
         JoinIn,
@@ -60,6 +58,7 @@ type_ = type
 def builtin_node(
     node_type: NodeType | None,
     root_type: NodeType | None = NodeType.SPACE,
+    # nocheckin: get rid of the root type business (all Nodes have Space as root)
     frozen: bool = False,
     index: tuple[IndexIn, ...] = (),
     event_types: tuple[NodeType, ...] = (),
@@ -108,14 +107,19 @@ def builtin_node(
         if NodeType.EVENT in inherits:
             frozen = True  # Events are frozen by default
 
+        # process class
+        is_entity = any(base.__name__ == "Entity" for base in cls.__bases__)
         cls, _ = _process_object_cls(
             cls=cast(type["Node"], cls),
             object_type=node_type,
+            is_struct=False,
             is_concrete=node_type is not None,
             is_node=True,
             is_root_node=root_type is None,
+            is_entity=is_entity,
             is_frozen=frozen,
             is_abstract=is_abstract,
+            base_type=None,
             traits=cls.__traits__,
             inherits=cls.__inherits__,
         )
@@ -130,7 +134,6 @@ def builtin_node(
 
         # parent/root
         parent_property = cls.__properties__.get("parent", None)
-        assert parent_property is not None, f"missing parent property for {node_type}"
         cls.__parent_property__ = parent_property
         cls.__root_type__ = root_type
 
@@ -180,7 +183,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The root ancestor type of this Node type (if any)."""
     __root_type__: ClassVar[NodeType | None] = None
     """The parent type of this Node type (directly)."""
-    __parent_property__: ClassVar[PropertyDeclaration] = UNSET
+    __parent_property__: ClassVar[PropertyDeclaration | None] = None
     """The parent classes of this Node type (directly)."""
     __parent_classes__: ClassVar[tuple[type["Node"], ...]] = ()
     """The parent types of this Node type (directly)."""
@@ -200,7 +203,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # 1-20: node identity
     # Node.metatype: 1
     id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
-    parent: Optional["Entity"] = builtin_property_parent()
     space: "Space" = builtin_property(
         5,
         is_managed=True,
@@ -213,7 +215,6 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     # Entity.[*]: 10-20
     if TYPE_CHECKING:
         space_ptr: NodeReference = UNSET
-        parent_ptr: Optional[NodeReference] = None
 
     """The current Session this Node is in."""
     _session: "Session" = builtin_property_runtime()

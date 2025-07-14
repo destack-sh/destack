@@ -18,6 +18,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -203,11 +204,11 @@ export class DatabaseInfo extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${DatabaseType[this.type]}`);
       propertyReprs.push(`region=${Region[this.region]}`);
-      if (this.galaxyName !== null) {
+      if (this.galaxyName != null) {
         propertyReprs.push(`galaxyName=${`"${this.galaxyName}"`}`);
       }
       propertyReprs.push(`externalName=${`"${this.externalName}"`}`);
-      if (this.customSchemaName !== null) {
+      if (this.customSchemaName != null) {
         propertyReprs.push(`customSchemaName=${`"${this.customSchemaName}"`}`);
       }
       propertyReprs.push(`tenancy=${Tenancy[this.tenancy]}`);
@@ -218,7 +219,7 @@ export class DatabaseInfo extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -226,15 +227,15 @@ export class DatabaseInfo extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.region) & 0xffffffff;
-    if (this.galaxyName !== null) {
+    if (this.galaxyName != null) {
       h = (h * 31 + hashString(this.galaxyName)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.externalName)) & 0xffffffff;
-    if (this.customSchemaName !== null) {
+    if (this.customSchemaName != null) {
       h = (h * 31 + hashString(this.customSchemaName)) & 0xffffffff;
     }
     h = (h * 31 + this.tenancy) & 0xffffffff;
-    if (this.connectionUrl !== null) {
+    if (this.connectionUrl != null) {
       h = (h * 31 + hashString(this.connectionUrl)) & 0xffffffff;
     }
 
@@ -393,7 +394,7 @@ export class Database extends Resource {
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -405,7 +406,7 @@ export class Database extends Resource {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -417,7 +418,7 @@ export class Database extends Resource {
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
@@ -442,7 +443,7 @@ export class Database extends Resource {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -454,7 +455,7 @@ export class Database extends Resource {
    */
   get predecessor(): Database | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Database | null;
     }
     return null;
@@ -466,7 +467,7 @@ export class Database extends Resource {
    */
   get template(): Database | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Database | null;
     }
     return null;
@@ -483,7 +484,7 @@ export class Database extends Resource {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -500,7 +501,7 @@ export class Database extends Resource {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -533,7 +534,7 @@ export class Database extends Resource {
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -990,51 +991,51 @@ export class Database extends Resource {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._icon !== null) {
+    if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + this._region) & 0xffffffff;
-    if (this._galaxyName !== null) {
+    if (this._galaxyName != null) {
       h = (h * 31 + hashString(this._galaxyName)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._externalName)) & 0xffffffff;
-    if (this._customSchemaName !== null) {
+    if (this._customSchemaName != null) {
       h = (h * 31 + hashString(this._customSchemaName)) & 0xffffffff;
     }
     h = (h * 31 + this._tenancy) & 0xffffffff;
-    if (this._connectionUrl !== null) {
+    if (this._connectionUrl != null) {
       h = (h * 31 + hashString(this._connectionUrl)) & 0xffffffff;
     }
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1044,7 +1045,7 @@ export class Database extends Resource {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1075,9 +1076,9 @@ export class Database extends Resource {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1093,11 +1094,11 @@ export class Database extends Resource {
     propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`type=${DatabaseType[this.type]}`);
     propertyReprs.push(`region=${Region[this.region]}`);
-    if (this.galaxyName !== null) {
+    if (this.galaxyName != null) {
       propertyReprs.push(`galaxyName=${`"${this.galaxyName}"`}`);
     }
     propertyReprs.push(`externalName=${`"${this.externalName}"`}`);
-    if (this.customSchemaName !== null) {
+    if (this.customSchemaName != null) {
       propertyReprs.push(`customSchemaName=${`"${this.customSchemaName}"`}`);
     }
     propertyReprs.push(`tenancy=${Tenancy[this.tenancy]}`);

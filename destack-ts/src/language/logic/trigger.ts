@@ -61,12 +61,6 @@ export abstract class TriggerEvent extends Event {
   static metatype: NodeType = NodeType.TRIGGER_EVENT;
 
   /**
-   * Event.parent
-   */
-  abstract get parent(): Space | null;
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   abstract get space(): Space | null;
@@ -130,7 +124,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
@@ -142,7 +136,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -159,7 +153,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -171,7 +165,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get predecessor(): Trigger | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Trigger | null;
     }
     return null;
@@ -183,7 +177,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get template(): Trigger | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Trigger | null;
     }
     return null;
@@ -200,7 +194,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -217,7 +211,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -234,7 +228,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -326,7 +320,7 @@ export class Trigger extends Entity implements IsSourceable {
    */
   get target(): Action | Service | null {
     const nodePtr: NodeReference | null = this.targetPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Action | Service | null;
     }
     return null;
@@ -590,16 +584,16 @@ export class Trigger extends Entity implements IsSourceable {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._icon !== null) {
+    if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this._event !== null) {
+    if (this._event != null) {
       h = (h * 31 + this._event.hash()) & 0xffffffff;
     }
-    if (this._where !== null) {
+    if (this._where != null) {
       h = (h * 31 + this._where.hash()) & 0xffffffff;
     }
-    if (this._targetPtr !== null) {
+    if (this._targetPtr != null) {
       h = (h * 31 + hashString(this._targetPtr.id)) & 0xffffffff;
     }
     if (this._arguments && Object.keys(this._arguments).length > 0) {
@@ -608,30 +602,30 @@ export class Trigger extends Entity implements IsSourceable {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.sourcePtr !== null) {
+    if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this._key !== null) {
+    if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
@@ -663,9 +657,9 @@ export class Trigger extends Entity implements IsSourceable {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;

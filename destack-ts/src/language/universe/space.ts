@@ -62,7 +62,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
@@ -74,7 +74,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -91,7 +91,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -103,7 +103,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get predecessor(): Space | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -115,7 +115,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get template(): Space | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -132,7 +132,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -149,7 +149,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -161,7 +161,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -239,7 +239,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get handle(): Handle | null {
     const nodePtr: NodeReference | null = this.handlePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Handle | null;
     }
     return null;
@@ -262,7 +262,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get systemFolder(): Folder | null {
     const nodePtr: NodeReference | null = this.systemFolderPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
@@ -285,7 +285,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get homeFolder(): Folder | null {
     const nodePtr: NodeReference | null = this.homeFolderPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
@@ -340,7 +340,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
    */
   get database(): Database | null {
     const nodePtr: NodeReference | null = this.databasePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Database | null;
     }
     return null;
@@ -578,43 +578,43 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this._handlePtr !== null) {
+    if (this._handlePtr != null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
-    if (this._systemFolderPtr !== null) {
+    if (this._systemFolderPtr != null) {
       h = (h * 31 + hashString(this._systemFolderPtr.id)) & 0xffffffff;
     }
-    if (this._homeFolderPtr !== null) {
+    if (this._homeFolderPtr != null) {
       h = (h * 31 + hashString(this._homeFolderPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._region) & 0xffffffff;
-    if (this._galaxyName !== null) {
+    if (this._galaxyName != null) {
       h = (h * 31 + hashString(this._galaxyName)) & 0xffffffff;
     }
-    if (this._databasePtr !== null) {
+    if (this._databasePtr != null) {
       h = (h * 31 + hashString(this._databasePtr.id)) & 0xffffffff;
     }
-    if (this._ownedByPtr !== null) {
+    if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -650,7 +650,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${SpaceStatus[this.status]}`);
-    if (this.ownedBy !== null) {
+    if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Space "${this.path}" ${propertyReprs.join(" ")}>`;

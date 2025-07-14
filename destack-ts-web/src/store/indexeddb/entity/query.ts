@@ -1,7 +1,7 @@
 import {
   ENTITY_SNAPSHOT_KEY,
   IndexedDBContext,
-  NODE_PARENT_KEY,
+  ENTITY_PARENT_KEY,
   NODE_REFERENCE_ID_KEY,
   NULL_SENTINEL,
 } from "@destack-web/store/indexeddb/core";
@@ -434,7 +434,7 @@ export async function walkNode(options: {
             store.get(key).then((row) => {
               if (row != null) {
                 const { value } = unpackEntityRow(row);
-                const parentPtr = value.value[NODE_PARENT_KEY];
+                const parentPtr = value.value[ENTITY_PARENT_KEY];
                 if (
                   parentPtr != null &&
                   !nodesById.has(parentPtr[NODE_REFERENCE_ID_KEY]) &&
@@ -484,7 +484,7 @@ export async function walkNode(options: {
       for (const def of definitions) {
         const table = context.getEntityTable(def);
         const store = tx.objectStore(table.name);
-        const index = store.index(getIndexName(table, NODE_PARENT_KEY));
+        const index = store.index(getIndexName(table, ENTITY_PARENT_KEY));
 
         for (const parentId of currentParentIds) {
           const range = IDBKeyRange.only(parentId);
@@ -688,8 +688,8 @@ async function executeSubquery(options: {
     // collect/walk
     const parentsPtr = new Map<string, NodeReference>();
     for (const nodeValue of result.nodes || []) {
-      if (nodeValue.value !== null && nodeValue.value[NODE_PARENT_KEY] !== undefined) {
-        const parentPtrValue = nodeValue.value[NODE_PARENT_KEY];
+      if (nodeValue.value !== null && nodeValue.value[ENTITY_PARENT_KEY] !== undefined) {
+        const parentPtrValue = nodeValue.value[ENTITY_PARENT_KEY];
         const parentId = parentPtrValue[NODE_REFERENCE_ID_KEY];
         if (parentsPtr.has(parentId.toString())) {
           continue;

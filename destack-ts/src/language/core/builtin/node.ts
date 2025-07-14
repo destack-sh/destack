@@ -1,3 +1,16 @@
+import type {
+  Aggregation,
+  Condition,
+  Entity,
+  Expression,
+  ExpressionIn,
+  Join,
+  NodeDefinition,
+  NodeDefinitionReference,
+  NodeReference,
+  Query,
+  Sort,
+} from "@destack/language";
 import {
   NodeType,
   StoreDomain,
@@ -6,21 +19,7 @@ import {
 } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import { BuiltinObject, BuiltinObjectClass } from "@destack/language/core/builtin/object";
-import type {
-  NodeDefinitionReference,
-  NodeReference,
-} from "@destack/language/core/builtin/relation";
 import { isStruct } from "@destack/language/core/builtin/struct";
-import type {
-  Aggregation,
-  Condition,
-  Expression,
-  ExpressionIn,
-  Join,
-  NodeDefinition,
-  Query,
-  Sort,
-} from "@destack/language/core/common";
 import { AggregationType, JoinType, QueryType } from "@destack/language/core/common/query";
 import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/core/runtime";
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
@@ -42,13 +41,7 @@ export abstract class Node extends BuiltinObject {
   static readonly __definitionReference: NodeDefinitionReference;
 
   readonly id: string;
-  get parent(): Node | null {
-    if (this.parentPtr === null) {
-      return null;
-    }
-    return this._supergraph.get(this.parentPtr.id);
-  }
-  readonly parentPtr: NodeReference | null;
+  readonly parentPtr: NodeReference | null = null;
 
   // runtime
   /* The current Session this Node is in. */
@@ -76,14 +69,22 @@ export abstract class Node extends BuiltinObject {
     _isNew: boolean,
   ) {
     super(_supergraph);
-    this.id = id ?? (this.__definition__.storeDomain == StoreDomain.EVENT ? uuid7() : uuid4());
-    this.parentPtr = parentPtr;
+    const isEvent = this.__definition__.storeDomain == StoreDomain.EVENT;
+    this.id = id ?? (isEvent ? uuid7() : uuid4());
+    this.parentPtr = parentPtr; // is assigned again in subclasses but needed for adding to Graph
     this._session = _session ?? activeSession();
     this._supergraph = _supergraph ?? this._session.supergraph;
-    if (_graph == null) {
-      _graph = this._supergraph.createSingletonGraph(this);
-    } else {
+    if (isEvent) {
+      if (_graph == null) {
+        _graph = this._session.eventGraph;
+      }
       _graph.add(this);
+    } else {
+      if (_graph == null) {
+        _graph = this._supergraph.createEntitySingletonGraph(this as unknown as Entity);
+      } else {
+        _graph.add(this);
+      }
     }
     this._graph = _graph;
     this._connection = _connection;

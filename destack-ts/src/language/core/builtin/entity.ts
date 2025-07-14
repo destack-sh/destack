@@ -3,6 +3,7 @@ import type { ResourceStatus } from "@destack/language/core/builtin/common";
 import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, hasTrait } from "@destack/language/core/builtin/node";
 import type {
@@ -25,7 +26,7 @@ import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
-import { SingletonGraph } from "@destack/language/core/runtime/graph";
+import { EntitySingletonGraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
@@ -173,7 +174,7 @@ export abstract class Entity extends Node {
     // prepare graph & nodes
     const supergraph = this._supergraph;
     const oldGraph = this._graph;
-    let newGraph: Graph;
+    let newGraph: Graph<Entity>;
     let parentPtr: NodeReference | null;
 
     if (parent !== null) {
@@ -197,11 +198,11 @@ export abstract class Entity extends Node {
         throw new Error(`cannot move ${this.repr()} to ${parent.repr()} (different Space)`);
       }
 
-      newGraph = parent._graph;
+      newGraph = parent._graph as Graph<Entity>; // has to be an Entity's Graph
       parentPtr = parent.toRef();
 
       // promote parent to polygraph if needed
-      if (newGraph instanceof SingletonGraph) {
+      if (newGraph instanceof EntitySingletonGraph) {
         newGraph = supergraph.promoteToPolygraph(newGraph);
         parent._graph = newGraph;
       }
@@ -210,7 +211,7 @@ export abstract class Entity extends Node {
       if (this.parentPtr === null) {
         return; // nothing to do
       }
-      newGraph = supergraph.createPolyGraph();
+      newGraph = supergraph.createEntityGraph();
       parentPtr = null;
     }
 
@@ -362,7 +363,7 @@ export class CustomEntityDefinition
    */
   get parent(): Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
@@ -374,7 +375,7 @@ export class CustomEntityDefinition
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -391,7 +392,7 @@ export class CustomEntityDefinition
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -403,7 +404,7 @@ export class CustomEntityDefinition
    */
   get predecessor(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
     }
     return null;
@@ -415,7 +416,7 @@ export class CustomEntityDefinition
    */
   get template(): CustomEntityDefinition | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomEntityDefinition | null;
     }
     return null;
@@ -432,7 +433,7 @@ export class CustomEntityDefinition
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -449,7 +450,7 @@ export class CustomEntityDefinition
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -487,7 +488,7 @@ export class CustomEntityDefinition
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -565,7 +566,7 @@ export class CustomEntityDefinition
    */
   get prototype(): Entity | null {
     const nodePtr: NodeReference | null = this.prototypePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
@@ -595,7 +596,7 @@ export class CustomEntityDefinition
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -623,7 +624,7 @@ export class CustomEntityDefinition
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -878,7 +879,7 @@ export class CustomEntityDefinition
     if (!this._baseType.equals(other._baseType)) {
       return false;
     }
-    if (this._baseTraits.length !== other._baseTraits.length) {
+    if (this._baseTraits.length != other._baseTraits.length) {
       return false;
     }
     for (let i = 0; i < this._baseTraits.length; i++) {
@@ -942,7 +943,7 @@ export class CustomEntityDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._baseType.hash()) & 0xffffffff;
@@ -952,11 +953,11 @@ export class CustomEntityDefinition
       }
     }
     h = (h * 31 + hashBool(this._isAbstract)) & 0xffffffff;
-    if (this._prototypePtr !== null) {
+    if (this._prototypePtr != null) {
       h = (h * 31 + hashString(this._prototypePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._icon !== null) {
+    if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
@@ -965,36 +966,36 @@ export class CustomEntityDefinition
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._ownedByPtr !== null) {
+    if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
-    if (this.sourcePtr !== null) {
+    if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this._key !== null) {
+    if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1026,9 +1027,9 @@ export class CustomEntityDefinition
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1042,7 +1043,7 @@ export class CustomEntityDefinition
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    if (this.ownedBy !== null) {
+    if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<CustomEntityDefinition "${this.path}" ${propertyReprs.join(" ")}>`;
@@ -1549,7 +1550,7 @@ export class CustomTraitDefinition
    */
   get parent(): Folder | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
@@ -1561,7 +1562,7 @@ export class CustomTraitDefinition
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -1578,7 +1579,7 @@ export class CustomTraitDefinition
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -1590,7 +1591,7 @@ export class CustomTraitDefinition
    */
   get predecessor(): CustomTraitDefinition | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomTraitDefinition | null;
     }
     return null;
@@ -1602,7 +1603,7 @@ export class CustomTraitDefinition
    */
   get template(): CustomTraitDefinition | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomTraitDefinition | null;
     }
     return null;
@@ -1619,7 +1620,7 @@ export class CustomTraitDefinition
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1636,7 +1637,7 @@ export class CustomTraitDefinition
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1722,7 +1723,7 @@ export class CustomTraitDefinition
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -1750,7 +1751,7 @@ export class CustomTraitDefinition
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -1993,7 +1994,7 @@ export class CustomTraitDefinition
     ) {
       return false;
     }
-    if (this._baseTraits.length !== other._baseTraits.length) {
+    if (this._baseTraits.length != other._baseTraits.length) {
       return false;
     }
     for (let i = 0; i < this._baseTraits.length; i++) {
@@ -2051,10 +2052,10 @@ export class CustomTraitDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this._baseType !== null) {
+    if (this._baseType != null) {
       h = (h * 31 + this._baseType.hash()) & 0xffffffff;
     }
     if (this._baseTraits && this._baseTraits.length > 0) {
@@ -2064,19 +2065,19 @@ export class CustomTraitDefinition
     }
     h = (h * 31 + hashBool(this._isAbstract)) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._icon !== null) {
+    if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.sourcePtr !== null) {
+    if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this._key !== null) {
+    if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
@@ -2085,21 +2086,21 @@ export class CustomTraitDefinition
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
@@ -2131,9 +2132,9 @@ export class CustomTraitDefinition
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -2863,7 +2864,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get parent(): Space | Snapshot | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | Snapshot | null;
     }
     return null;
@@ -2875,7 +2876,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -2892,7 +2893,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -2904,7 +2905,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get predecessor(): Snapshot | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -2916,7 +2917,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get template(): Snapshot | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -2933,7 +2934,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -2950,7 +2951,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -2972,7 +2973,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
    */
   get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -3226,34 +3227,34 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this._ownedByPtr !== null) {
+    if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.archivedAt !== null) {
+    if (this.archivedAt != null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -3284,9 +3285,9 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -3300,7 +3301,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    if (this.ownedBy !== null) {
+    if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     return `<Snapshot "${this.path}" ${propertyReprs.join(" ")}>`;

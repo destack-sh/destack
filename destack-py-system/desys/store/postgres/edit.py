@@ -16,6 +16,7 @@ from destack.language import (
     EditEvent,
     EditOperation,
     EditType,
+    Entity,
     IsArchivable,
     IsDeletable,
     NodeDefinitionReference,
@@ -258,6 +259,9 @@ WHERE id = ${param_i}
     # move
     elif edit_type == EditType.MOVE:
         # prepare statement
+        assert issubclass(node_cls, Entity), (
+            f"cannot move non-Entity {node_cls.__name__} in {edits!r}"
+        )
         parent_prop = node_cls.__parent_property__
         parent_prop_type = parent_prop.to_type()
         update_template: dict[str, Any] = {}

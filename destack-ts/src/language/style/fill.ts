@@ -13,6 +13,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -119,7 +120,7 @@ export class Fill extends StructFrozen {
    */
   get style(): FillStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -144,7 +145,7 @@ export class Fill extends StructFrozen {
    */
   get image(): File | null {
     const nodePtr: NodeReference | null = this.imagePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -260,22 +261,22 @@ export class Fill extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${FillType[this.type]}`);
-      if (this.style !== null) {
+      if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
-      if (this.color !== null) {
+      if (this.color != null) {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
-      if (this.gradient !== null) {
+      if (this.gradient != null) {
         propertyReprs.push(`gradient=${this.gradient.repr()}`);
       }
-      if (this.image !== null) {
+      if (this.image != null) {
         propertyReprs.push(`image=${this.image?.repr()}`);
       }
-      if (this.position !== null) {
+      if (this.position != null) {
         propertyReprs.push(`position=${FillPosition[this.position]}`);
       }
-      if (this.size !== null) {
+      if (this.size != null) {
         propertyReprs.push(`size=${FillSize[this.size]}`);
       }
       // @ts-expect-error(readonly)
@@ -285,29 +286,29 @@ export class Fill extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
+    if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    if (this.color !== null) {
+    if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
-    if (this.gradient !== null) {
+    if (this.gradient != null) {
       h = (h * 31 + this.gradient.hash()) & 0xffffffff;
     }
-    if (this.imagePtr !== null) {
+    if (this.imagePtr != null) {
       h = (h * 31 + hashString(this.imagePtr.id)) & 0xffffffff;
     }
-    if (this.position !== null) {
+    if (this.position != null) {
       h = (h * 31 + this.position) & 0xffffffff;
     }
-    if (this.size !== null) {
+    if (this.size != null) {
       h = (h * 31 + this.size) & 0xffffffff;
     }
 
@@ -525,7 +526,7 @@ export class FillStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -537,7 +538,7 @@ export class FillStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -554,7 +555,7 @@ export class FillStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -566,7 +567,7 @@ export class FillStyle extends Style {
    */
   get predecessor(): FillStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as FillStyle | null;
     }
     return null;
@@ -578,7 +579,7 @@ export class FillStyle extends Style {
    */
   get template(): FillStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as FillStyle | null;
     }
     return null;
@@ -595,7 +596,7 @@ export class FillStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -612,7 +613,7 @@ export class FillStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -698,7 +699,7 @@ export class FillStyle extends Style {
    */
   get image(): File | null {
     const nodePtr: NodeReference | null = this.imagePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as File | null;
     }
     return null;
@@ -963,44 +964,44 @@ export class FillStyle extends Style {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    if (this._color !== null) {
+    if (this._color != null) {
       h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this._gradient !== null) {
+    if (this._gradient != null) {
       h = (h * 31 + this._gradient.hash()) & 0xffffffff;
     }
-    if (this._imagePtr !== null) {
+    if (this._imagePtr != null) {
       h = (h * 31 + hashString(this._imagePtr.id)) & 0xffffffff;
     }
-    if (this._position !== null) {
+    if (this._position != null) {
       h = (h * 31 + this._position) & 0xffffffff;
     }
-    if (this._size !== null) {
+    if (this._size != null) {
       h = (h * 31 + this._size) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1031,9 +1032,9 @@ export class FillStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1047,19 +1048,19 @@ export class FillStyle extends Style {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FillType[this.type]}`);
-    if (this.color !== null) {
+    if (this.color != null) {
       propertyReprs.push(`color=${this.color.repr()}`);
     }
-    if (this.gradient !== null) {
+    if (this.gradient != null) {
       propertyReprs.push(`gradient=${this.gradient.repr()}`);
     }
-    if (this.image !== null) {
+    if (this.image != null) {
       propertyReprs.push(`image=${this.image?.repr()}`);
     }
-    if (this.position !== null) {
+    if (this.position != null) {
       propertyReprs.push(`position=${FillPosition[this.position]}`);
     }
-    if (this.size !== null) {
+    if (this.size != null) {
       propertyReprs.push(`size=${FillSize[this.size]}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

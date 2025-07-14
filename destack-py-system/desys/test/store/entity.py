@@ -253,7 +253,7 @@ async def test_create_layer_with_heterogeneous_views(session: Session, space: Sp
     assert len(view_tree_unpacked) == 4 + 4 * (1 + 4 * (1 + 4))
 
     # query view (parent, recursive)
-    view_leaves = layer._graph.get_leaves(TextView, layer)
+    view_leaves = layer.get_leaves(TextView)
     layer_tree = await TextView.get(
         where=TextView.property("id").eq(view_leaves[0].id),
         Parents=View.search(

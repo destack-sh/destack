@@ -10,7 +10,7 @@ from .const import ACTIVE_EVENT
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
-from .property import builtin_property, builtin_property_parent
+from .property import builtin_property
 from .trait import IsCustomizable, IsExtensible, IsSourceable
 
 if TYPE_CHECKING:
@@ -54,8 +54,6 @@ class Event[N: Node = Node](Node):
     """
 
     __store_domain__ = StoreDomain.EVENT
-
-    parent: Optional["Space"] = builtin_property_parent(is_readonly=True)
 
     # 10-20: event identity
     snapshot: Optional["Snapshot"] = builtin_property(
@@ -103,6 +101,16 @@ class Event[N: Node = Node](Node):
         node_ptr: Optional[NodeReference] = None
     else:
         node: Optional["Node"] = builtin_property(101, description="The Node this Event is about.")
+
+    @property
+    def parent(self) -> "Space":
+        """The Space this Event is in."""
+        return self.space
+
+    @property
+    def parent_ptr(self) -> "NodeReference":
+        """The NodeReference to the parent of this Event."""
+        return self.space_ptr
 
     @contextmanager
     def active(self: "Event[Node]") -> Generator["Event[Node]", None, None]:

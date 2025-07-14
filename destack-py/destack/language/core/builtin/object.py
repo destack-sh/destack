@@ -93,6 +93,7 @@ _processed_classes: dict[type["BuiltinObject"], type["BuiltinObject"]] = {}
 def _generate_init[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     is_node: bool,
+    is_entity: bool,
     is_root_node: bool,
     is_frozen: bool,
     traits: tuple[TraitType, ...],
@@ -328,12 +329,22 @@ if {arg_name} is None:
             method_body_lines.append(f"self.{self_name} = {self_name}")
 
     if is_node:
-        method_body_lines.append(f"""\
+        if is_entity:
+            method_body_lines.append(f"""\
 # graph
 if _graph is None:
-    _graph = _supergraph.create_singleton_graph(self)
+    _graph = _supergraph.create_entity_singleton_graph(self)
 else:
     _graph.add(self)
+{set_template_str.format("_graph", "_graph")}
+{set_template_str.format("_connection", "_connection")}
+""")
+        else:  # is event
+            method_body_lines.append(f"""\
+# graph
+if _graph is None:
+    _graph = _session.event_graph
+_graph.add(self)
 {set_template_str.format("_graph", "_graph")}
 {set_template_str.format("_connection", "_connection")}
 """)
@@ -893,14 +904,15 @@ def {prop.name}(self: "BuiltinObject", value: "Node | None"):
 def _process_object_cls[ObjectT: BuiltinObject](
     cls: type[ObjectT],
     object_type: NodeType | StructType | None,
-    is_frozen: bool = False,
-    is_concrete: bool = False,
-    is_struct: bool = False,
-    is_node: bool = False,
-    is_root_node: bool = False,
-    is_abstract: bool = False,
-    base_type: StructType | NodeType | None = None,
-    traits: tuple[TraitType, ...] = (),
+    is_frozen: bool,
+    is_concrete: bool,
+    is_struct: bool,
+    is_node: bool,
+    is_entity: bool,
+    is_root_node: bool,
+    is_abstract: bool,
+    base_type: StructType | NodeType | None,
+    traits: tuple[TraitType, ...],
     inherits: tuple[StructType, ...] | tuple[NodeType, ...] = (),
 ) -> tuple[type[ObjectT], dict[str, "PropertyDeclaration"]]:
     """Process a BuiltinObject base class and return the processed class and its properties."""
@@ -1072,6 +1084,7 @@ def _process_object_cls[ObjectT: BuiltinObject](
             init_str, init_glbls = _generate_init(
                 cls,
                 is_node=is_node,
+                is_entity=is_entity,
                 is_frozen=is_frozen,
                 is_root_node=is_root_node,
                 properties=properties,
@@ -1164,7 +1177,11 @@ def _builtin_object[ObjectT: BuiltinObject](
             is_concrete=concrete,
             is_struct=struct,
             is_node=node,
+            is_root_node=False,
+            is_entity=False,
             is_abstract=True,
+            base_type=None,
+            traits=(),
         )
         cls.__is_abstract__ = True
         return cast(type[ObjectT], cls)

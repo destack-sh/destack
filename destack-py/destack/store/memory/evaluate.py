@@ -9,6 +9,7 @@ from destack.language import (
     AggregationType,
     Condition,
     ConditionalType,
+    Entity,
     Expression,
     ExpressionType,
     Function,
@@ -27,7 +28,7 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
-NODE_PARENT_KEY = str(Node.property("parent").id)
+ENTITY_PARENT_KEY = str(Entity.property("parent").id)
 NODE_ID_ID = Node.property("id").id
 NODE_ID_KEY = str(Node.property("id").id)
 
