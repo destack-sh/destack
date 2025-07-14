@@ -425,6 +425,65 @@ export class EventGraph extends Graph<Event> {
   }
 }
 
+/** A Graph with a flat set of generic Nodes. */
+export class GenericGraph extends Graph<Node> {
+  readonly nodesById: Map<string, Node>;
+
+  constructor(supergraph: Supergraph) {
+    super(supergraph);
+    this.nodesById = new Map();
+  }
+
+  override get size(): number {
+    return this.nodesById.size;
+  }
+
+  override get nodes(): Node[] {
+    return Array.from(this.nodesById.values());
+  }
+
+  override get(id: string): Node | null {
+    return this.nodesById.get(id) || null;
+  }
+
+  override has(id: string): boolean {
+    return this.nodesById.has(id);
+  }
+
+  override clear(): void {
+    this.nodesById.clear();
+  }
+
+  override add(node: Node): void {
+    const existing = this.nodesById.get(node.id);
+    if (existing !== undefined) {
+      throw new Error(`node ${node} already in ${this}: ${existing}`);
+    }
+    // node
+    this.nodesById.set(node.id, node);
+  }
+
+  override remove(node: Node): void {
+    this.nodesById.delete(node.id);
+  }
+
+  override getRoots(options?: { nodeType?: NodeType }): Node[] {
+    return [];
+  }
+
+  override getLeaves(options?: { nodeType?: NodeType; node?: Node }): Node[] {
+    return [];
+  }
+
+  override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
+    return [];
+  }
+
+  override getDescendants(options: { node: Node; nodeType?: NodeType }): Node[] {
+    return [];
+  }
+}
+
 /** An always empty Graph. */
 export class NullGraph extends Graph<Node> {
   override get size(): number {

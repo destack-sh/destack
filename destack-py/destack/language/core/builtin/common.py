@@ -606,6 +606,12 @@ class NodeType(Enum):
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
     # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
+    # physics [260_000-280_000]
+    # MESH, COLLISION, ...
+
+    # synthesis?
+    # GENERATOR, ...
+
     # scene [500_000-520_000]
     WINDOW = 500_000, "Window", None, "fas fa-galaxy"
     SCENE = 500_100, "Scene", "Scene of an Application", "fas fa-masks-theater"
@@ -719,9 +725,6 @@ class NodeType(Enum):
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
 
-    # procedural [620_000-640_000]
-    # ...?
-
 
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)
 class UniverseCategory(Enum):
@@ -740,6 +743,7 @@ class UniverseCategory(Enum):
     OPTIMIZATION = 200_000, "Optimization", "Improve the system"
     SOCIAL = 220_000, "Social", "Social interactions"
     FINANCE = 240_000, "Finance", "Financial operations"
+    PHYSICS = 260_000, "Physics", "Physics simulation"
     SCENE = 500_000, "Scene", "Scene construction"
     VIEW = 520_000, "View", "View building"
     CANVAS = 540_000, "Canvas", "Drawing and painting"

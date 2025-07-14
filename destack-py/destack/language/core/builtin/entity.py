@@ -529,9 +529,9 @@ class Resource(IsDeletable, IsExtensible, Entity):
 class SnapshotType(Enum):
     """The type of a Snapshot."""
 
-    PARTIAL = 1, "Partial", "A partial Snapshot (partial/full Nodes, partial Graph)"
-    COPY = 2, "Copy", "A full Snapshot (full Nodes, full Graph)"
-    # ROOT?
+    PARTIAL = 1, "Partial", "Partial Snapshot (partial/full Nodes, partial Graph)"
+    COPY = 2, "Copy", "Full Snapshot (full Nodes, full Graph)"
+    ROOT = 3, "Root", "Root Snapshot (full Nodes, full Graph)"
 
 
 @builtin_enum(EnumType.SNAPSHOT_STATUS)
