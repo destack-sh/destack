@@ -33,7 +33,7 @@ import {
   toValue,
   Value,
 } from "destack";
-import { IDBPDatabase, IDBPTransaction } from "idb";
+import { IDBPTransaction } from "idb";
 
 const MAX_RECURSION_DEPTH = 10;
 
@@ -64,8 +64,8 @@ async function filterRows(options: {
       const table = context.getEntityTable(def);
       const store = tx.objectStore(table.name);
       const index = store.index(getIndexName(table, ENTITY_SNAPSHOT_KEY));
-      for await (const cursor of index.iterate(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL))) {
-        const row = cursor.value;
+      const rows = await index.getAll(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL));
+      for (const row of rows) {
         const { nodePtr, value } = unpackEntityRow(row);
         if (where === null || evaluateCondition({ value: value.value, condition: where })) {
           filteredRows.push({ nodePtr, value });
@@ -75,13 +75,14 @@ async function filterRows(options: {
   } else {
     // collect from single definition
     const table = context.getEntityTable(definition);
+    const store = tx.objectStore(table.name);
     if (where !== null) {
       const { isIdCondition, nodeIds } = extractIdCondition({ condition: where });
       if (isIdCondition) {
         const keys = nodeIds.map((idVal) => getEntityKey(idVal, snapshotId));
-        const rows = (
-          await Promise.all(keys.map((key) => tx.objectStore(table.name).get(key)))
-        ).filter((row) => row != null);
+        const rows = (await Promise.all(keys.map((key) => store.get(key)))).filter(
+          (row) => row != null,
+        );
         for (const row of rows) {
           const { nodePtr, value } = unpackEntityRow(row);
           if (evaluateCondition({ value: value.value, condition: where })) {
@@ -90,10 +91,9 @@ async function filterRows(options: {
         }
       } else {
         // need to scan all rows for this snapshot
-        const store = tx.objectStore(table.name);
         const index = store.index(getIndexName(table, ENTITY_SNAPSHOT_KEY));
-        for await (const cursor of index.iterate(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL))) {
-          const row = cursor.value;
+        const rows = await index.getAll(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL));
+        for (const row of rows) {
           const { nodePtr, value } = unpackEntityRow(row);
           if (evaluateCondition({ value: value.value, condition: where })) {
             filteredRows.push({ nodePtr, value });
@@ -102,10 +102,9 @@ async function filterRows(options: {
       }
     } else {
       // get all rows for this snapshot
-      const store = tx.objectStore(table.name);
       const index = store.index(getIndexName(table, ENTITY_SNAPSHOT_KEY));
-      for await (const cursor of index.iterate(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL))) {
-        const row = cursor.value;
+      const rows = await index.getAll(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL));
+      for (const row of rows) {
         const { nodePtr, value } = unpackEntityRow(row);
         filteredRows.push({ nodePtr, value });
       }
@@ -343,8 +342,7 @@ async function queryGroupedScalar(options: {
   groupBy: readonly Expression[];
   snapshotPath: readonly string[];
 }): Promise<Array<[Value, Value]>> {
-  const { tx, context, definition, aggregation, where, having, groupBy, snapshotPath } =
-    options;
+  const { tx, context, definition, aggregation, where, having, groupBy, snapshotPath } = options;
 
   if (definition.isMulti) {
     throw new Error("grouped scalar queries not supported for multi definitions");
@@ -413,43 +411,55 @@ export async function walkNode(options: {
   if (direction === EdgeDirection.PARENT) {
     // start with root nodes and walk up
     let currentDepth = 0;
-    let currentNodeIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
+    let currentParentIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
     for (const ptr of nodesPtrs) {
       nodesById.set(ptr.id, ptr);
       sourceIdByNodeId.set(ptr.id, ptr.id);
     }
 
     while (currentDepth < depth) {
-      if (currentNodeIds.size === 0) {
+      if (currentParentIds.size === 0) {
         break;
       }
 
-      const nextNodeIds = new Set<string>();
+      const nextParentIds = new Set<string>();
+      const getPromises: Promise<{ nodeId: string; parentNodePtr: NodeReference } | null>[] = [];
       for (const def of definitions) {
         const table = context.getEntityTable(def);
         const store = tx.objectStore(table.name);
 
-        for (const nodeId of currentNodeIds) {
+        for (const nodeId of currentParentIds) {
           const key = getEntityKey(nodeId, snapshotId);
-          const row = await store.get(key);
-          if (row != null) {
-            const { value } = unpackEntityRow(row);
-            const parentPtr = value.value[NODE_PARENT_KEY];
-            if (
-              parentPtr != null &&
-              !nodesById.has(parentPtr[NODE_REFERENCE_ID_KEY]) &&
-              (where == null || evaluateCondition({ value: value.value, condition: where }))
-            ) {
-              const parentNodePtr = NodeReference.fromValue(parentPtr);
-              sourceIdByNodeId.set(parentNodePtr.id, sourceIdByNodeId.get(nodeId)!);
-              nodesById.set(parentNodePtr.id, parentNodePtr);
-              nextNodeIds.add(parentNodePtr.id);
-            }
-          }
+          getPromises.push(
+            store.get(key).then((row) => {
+              if (row != null) {
+                const { value } = unpackEntityRow(row);
+                const parentPtr = value.value[NODE_PARENT_KEY];
+                if (
+                  parentPtr != null &&
+                  !nodesById.has(parentPtr[NODE_REFERENCE_ID_KEY]) &&
+                  (where == null || evaluateCondition({ value: value.value, condition: where }))
+                ) {
+                  const parentNodePtr = NodeReference.fromValue(parentPtr);
+                  return { nodeId, parentNodePtr };
+                }
+              }
+              return null;
+            }),
+          );
+        }
+      }
+      const getResults = await Promise.all(getPromises);
+      for (const getResult of getResults) {
+        if (getResult != null) {
+          const { nodeId, parentNodePtr } = getResult;
+          sourceIdByNodeId.set(parentNodePtr.id, sourceIdByNodeId.get(nodeId)!);
+          nodesById.set(parentNodePtr.id, parentNodePtr);
+          nextParentIds.add(parentNodePtr.id);
         }
       }
 
-      currentNodeIds = nextNodeIds;
+      currentParentIds = nextParentIds;
       currentDepth++;
     }
   }
@@ -469,6 +479,8 @@ export async function walkNode(options: {
       }
 
       const nextParentIds = new Set<string>();
+      const getPromises: Promise<{ parentId: string; childNodePtrs: NodeReference[] } | null>[] =
+        [];
       for (const def of definitions) {
         const table = context.getEntityTable(def);
         const store = tx.objectStore(table.name);
@@ -476,17 +488,31 @@ export async function walkNode(options: {
 
         for (const parentId of currentParentIds) {
           const range = IDBKeyRange.only(parentId);
-          for await (const cursor of index.iterate(range)) {
-            const row = cursor.value;
-            const { nodePtr, value } = unpackEntityRow(row);
-            if (
-              !nodesById.has(nodePtr.id) &&
-              (where == null || evaluateCondition({ value: value.value, condition: where }))
-            ) {
-              sourceIdByNodeId.set(nodePtr.id, sourceIdByNodeId.get(parentId)!);
-              nodesById.set(nodePtr.id, nodePtr);
-              nextParentIds.add(nodePtr.id);
-            }
+          getPromises.push(
+            index.getAll(range).then((rows) => {
+              const childNodePtrs: NodeReference[] = [];
+              for (const row of rows) {
+                const { nodePtr, value } = unpackEntityRow(row);
+                if (
+                  !nodesById.has(nodePtr.id) &&
+                  (where == null || evaluateCondition({ value: value.value, condition: where }))
+                ) {
+                  childNodePtrs.push(nodePtr);
+                }
+              }
+              return childNodePtrs.length > 0 ? { parentId, childNodePtrs } : null;
+            }),
+          );
+        }
+      }
+      const getResults = await Promise.all(getPromises);
+      for (const getResult of getResults) {
+        if (getResult != null) {
+          const { parentId, childNodePtrs } = getResult;
+          for (const nodePtr of childNodePtrs) {
+            sourceIdByNodeId.set(nodePtr.id, sourceIdByNodeId.get(parentId)!);
+            nodesById.set(nodePtr.id, nodePtr);
+            nextParentIds.add(nodePtr.id);
           }
         }
       }
@@ -591,11 +617,7 @@ async function queryClause(options: {
     nodesPtrs = [];
     const groups: QueryResultGroup[] = [];
     for (const { discriminator, nodes, nodesPtrs } of groupsValue) {
-      const group = new QueryResultGroup({
-        type: QueryType.NODE,
-        discriminator,
-        nodes,
-      });
+      const group = new QueryResultGroup({ type: QueryType.NODE, discriminator, nodes });
       groups.push(group);
       nodesPtrs.push(...nodesPtrs);
     }

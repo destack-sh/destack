@@ -189,7 +189,6 @@ async function executeEdit(options: {
       }
     }
     await Promise.all(editPromises);
-
     return { edits, cascadedEdits: [] };
   }
 
@@ -291,7 +290,6 @@ async function executeEdit(options: {
         );
       }
       await Promise.all(editPromises);
-
       if (rootDts.size > 0) {
         if (editType === EditType.UNARCHIVE) {
           where = IsArchivable.property("archived_at").in(...Array.from(rootDts));
@@ -341,7 +339,6 @@ async function executeEdit(options: {
       );
     }
     await Promise.all(editPromises);
-
     return { edits, cascadedEdits };
   }
 

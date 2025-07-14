@@ -178,7 +178,6 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   });
 
   const NUM_FOLDERS_PER_LEVEL = 4;
-
   sessionTest("create folders recursive", async ({ session }) => {
     // create
     const rootFolder = new Folder({ name: "Folder", type: FolderType.HOME });
@@ -204,9 +203,9 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       }
       await session.commit();
     }
-    expect(
-      await Folder.count({ where: Folder.property("parent").eq(rootFolder) }).executeCount(),
-    ).toBe(NUM_FOLDERS_PER_LEVEL);
+    
+    const rootFolderChildCount = await Folder.count({ where: Folder.property("parent").eq(rootFolder) }).executeCount();
+    expect(rootFolderChildCount).toBe(NUM_FOLDERS_PER_LEVEL);
 
     // query
     for (const folder of rootFolder.getChildren(Folder)) {
@@ -247,21 +246,23 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }).executeCount();
     session.delete(rootFolder);
     await session.commit();
-    expect(
-      await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount(),
-    ).toBe(0);
+    
+    const deletedFoldersCount = await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount();
+    expect(deletedFoldersCount).toBe(0);
+    
     // restore root folder (should restore all folders)
     session.restore(rootFolder);
     await session.commit();
-    expect(
-      await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount(),
-    ).toBe(numTotalFolders);
+    
+    const restoredFoldersCount = await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount();
+    expect(restoredFoldersCount).toBe(numTotalFolders);
 
     // delete and restore subfolders one at a time
     for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
       // delete just this subfolder (and its descendants)
       session.delete(folder);
       await session.commit();
+      
       const connection = await Folder.get({
         where: Folder.property("id").eq(folder.id).and(Folder.property("deletedAt").isNull()),
         Folders: Folder.search({
@@ -271,21 +272,20 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       }).execute();
       expect(connection.toOneOrNone()).toBeNull();
 
-      expect(
-        await Folder.count({
-          where: Folder.property("deletedAt").isNull(),
-        }).executeCount(),
-      ).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
+      const remainingFoldersCount = await Folder.count({
+        where: Folder.property("deletedAt").isNull(),
+      }).executeCount();
+      expect(remainingFoldersCount).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
     }
     // restore subfolders one at a time
     for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
       session.restore(folder);
       await session.commit();
-      expect(
-        await Folder.count({
-          where: Folder.property("deletedAt").isNull(),
-        }).executeCount(),
-      ).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
+      
+      const restoredSubfoldersCount = await Folder.count({
+        where: Folder.property("deletedAt").isNull(),
+      }).executeCount();
+      expect(restoredSubfoldersCount).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
     }
   });
 

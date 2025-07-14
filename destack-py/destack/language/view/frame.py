@@ -7,6 +7,8 @@ from .container import ContainerView
 
 @builtin_node(NodeType.FRAME_VIEW)
 class FrameView(ContainerView):
-    """A frame container View."""
+    """
+    A frame View is a bare ContainerView.
+    """
 
     pass

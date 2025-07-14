@@ -27,7 +27,10 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CONTAINER_VIEW, is_abstract=True)
 class ContainerView(View):
-    """A container View contains other Views."""
+    """
+    A container View contains other Views.
+    Containers can be laid out as stacks or grids.
+    """
 
     # layout
     layout: Optional["Layout"] = builtin_property(120)

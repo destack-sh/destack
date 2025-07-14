@@ -6,12 +6,13 @@ import { IDBPTransaction } from "idb";
 /**
  * Append Events in IndexedDB.
  */
-export function executeAppend(options: {
+export async function executeAppend(options: {
   tx: IDBPTransaction<unknown, string[], "readwrite">;
   context: IndexedDBContext;
   events: Event[];
-}): Event[] {
+}): Promise<Event[]> {
   const { tx, context, events } = options;
+  const promises: Promise<any>[] = [];
   for (const event of events) {
     const nodePtr = event.toRef();
     const table = context.getEventTable(nodePtr);
@@ -21,7 +22,8 @@ export function executeAppend(options: {
       value: event.toValue(),
     });
     const row = packEventRow(eventValue);
-    store.put(row);
+    promises.push(store.put(row));
   }
+  await Promise.all(promises);
   return events;
 }
