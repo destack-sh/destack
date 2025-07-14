@@ -60,7 +60,7 @@ export class MemoryDatabase {
       } else if (nodeClass.__definition__.storeDomain == StoreDomain.EVENT) {
         this.eventTables.set(nodeClass.metatype, new MemoryEventTable(this, nodeClass.metatype));
       } else {
-        throw new Error(`unknown store domain for ${nodeClass.metatype}`);
+        throw new Error(`unknown store domain for ${NodeType[nodeClass.metatype]}`);
       }
     }
   }
