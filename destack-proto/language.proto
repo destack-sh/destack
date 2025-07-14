@@ -787,6 +787,7 @@ enum NodeTypeProto {
   NODE_TYPE_RESOURCE = 1100;
   NODE_TYPE_METRIC = 1200;
   NODE_TYPE_SNAPSHOT = 1300;
+  NODE_TYPE_SERVICE = 1400;
   NODE_TYPE_SIGNAL = 2000;
   NODE_TYPE_EDIT_EVENT = 2001;
   NODE_TYPE_MEASUREMENT_EVENT = 2010;
@@ -830,20 +831,19 @@ enum NodeTypeProto {
   NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 60505;
   NODE_TYPE_AGENT = 60600;
   NODE_TYPE_FILE = 80000;
-  NODE_TYPE_SERVICE = 100000;
-  NODE_TYPE_SCRIPT = 105000;
-  NODE_TYPE_METHOD = 106000;
-  NODE_TYPE_ACTION = 106100;
-  NODE_TYPE_TRIGGER = 107000;
-  NODE_TYPE_TRIGGER_EVENT = 107001;
-  NODE_TYPE_TIMER = 107100;
-  NODE_TYPE_TIMER_EVENT = 107101;
-  NODE_TYPE_TIMER_STARTED_EVENT = 107102;
-  NODE_TYPE_TIMER_COMPLETED_EVENT = 107103;
-  NODE_TYPE_TIMER_CANCELLED_EVENT = 107104;
-  NODE_TYPE_CURSOR = 108000;
-  NODE_TYPE_EVENT_CURSOR = 108100;
-  NODE_TYPE_SCREEN_CURSOR = 108200;
+  NODE_TYPE_SCRIPT = 100000;
+  NODE_TYPE_METHOD = 101000;
+  NODE_TYPE_ACTION = 101100;
+  NODE_TYPE_TRIGGER = 105000;
+  NODE_TYPE_TRIGGER_EVENT = 105001;
+  NODE_TYPE_TIMER = 105100;
+  NODE_TYPE_TIMER_EVENT = 105101;
+  NODE_TYPE_TIMER_STARTED_EVENT = 105102;
+  NODE_TYPE_TIMER_COMPLETED_EVENT = 105103;
+  NODE_TYPE_TIMER_CANCELLED_EVENT = 105104;
+  NODE_TYPE_CURSOR = 106000;
+  NODE_TYPE_EVENT_CURSOR = 106100;
+  NODE_TYPE_SCREEN_CURSOR = 106200;
   NODE_TYPE_THREAD_CURSOR = 108300;
   NODE_TYPE_ROUTE = 110000;
   NODE_TYPE_DATABASE = 140000;
@@ -1580,6 +1580,7 @@ message ActionProto {
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
   optional TextProto text = 104;
@@ -1640,7 +1641,7 @@ message AnnotationShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -1699,7 +1700,7 @@ message ArrowShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -1957,7 +1958,7 @@ message ContainerViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -2006,7 +2007,7 @@ message ContentViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -2076,6 +2077,7 @@ message CounterMetricProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2125,7 +2127,8 @@ message CustomEntityDefinitionProto {
   bool is_abstract = 45;
   optional NodeReferenceProto prototype_ptr = 50;
   optional NodeReferenceProto source_ptr = 60;
-  optional NodeReferenceProto script_ptr = 70;
+  optional string key = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2148,6 +2151,7 @@ message CustomEnumDefinitionProto {
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2172,6 +2176,7 @@ message CustomEventDefinitionProto {
   repeated NodeDefinitionReferenceProto base_traits = 41;
   bool is_abstract = 45;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2193,6 +2198,7 @@ message CustomOptionProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2215,6 +2221,7 @@ message CustomPropertyProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   PropertyTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
@@ -2267,6 +2274,7 @@ message CustomStructDefinitionProto {
   optional StructDefinitionReferenceProto base_type = 41;
   bool is_frozen = 42;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2292,7 +2300,8 @@ message CustomTraitDefinitionProto {
   repeated NodeDefinitionReferenceProto base_traits = 41;
   bool is_abstract = 45;
   optional NodeReferenceProto source_ptr = 60;
-  optional NodeReferenceProto script_ptr = 70;
+  optional string key = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2330,7 +2339,7 @@ message DatabaseProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   ResourceStatusProto status = 90;
   DatabaseTypeProto type = 100;
   string name = 101;
@@ -2774,7 +2783,7 @@ message FileProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   ResourceStatusProto status = 90;
   FileTypeProto type = 100;
   string name = 101;
@@ -3023,7 +3032,7 @@ message FrameViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3099,6 +3108,7 @@ message GaugeMetricProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -3212,6 +3222,7 @@ message HistogramMetricProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -3261,7 +3272,7 @@ message InputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3302,7 +3313,7 @@ message InternalViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3543,7 +3554,7 @@ message LabelViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3632,7 +3643,7 @@ message LineShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3701,7 +3712,7 @@ message MachineProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   ResourceStatusProto status = 90;
   MachineTypeProto type = 100;
   string version = 110;
@@ -3851,6 +3862,7 @@ message MethodProto {
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
   optional TextProto text = 104;
@@ -3882,6 +3894,7 @@ message MetricProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
   optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -4107,7 +4120,7 @@ message NumberInputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -4604,7 +4617,7 @@ message RecordProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
 }
 
 // A Resource represents an external asset outside of Destack.
@@ -4626,7 +4639,7 @@ message ResourceProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   ResourceStatusProto status = 90;
 }
 
@@ -5108,7 +5121,8 @@ message ServiceProto {
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
   optional NodeReferenceProto source_ptr = 60;
-  optional NodeReferenceProto script_ptr = 70;
+  optional string key = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -5170,7 +5184,7 @@ message ShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5217,7 +5231,7 @@ message SignalProto {
   optional string client_nonce = 23;
   map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -5262,7 +5276,7 @@ message SliderInputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5369,7 +5383,7 @@ message SplitViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5677,7 +5691,7 @@ message TextViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5767,6 +5781,9 @@ message TimerProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   TimerTypeProto type = 100;
   string name = 101;
   optional ScheduleProto schedule = 110;
@@ -5905,6 +5922,9 @@ message TriggerProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   string name = 101;
   optional IconProto icon = 102;
   optional NodeDefinitionReferenceProto event = 110;
@@ -5952,6 +5972,7 @@ message TripleClickEventProto {
 
 message TypeProto {
   StructTypeProto metatype = 1;
+  optional string name = 101;
   TypeCardinalityProto cardinality = 110;
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
@@ -6109,7 +6130,7 @@ message ViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional NodeReferenceProto script_ptr = 70;
+  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -6262,18 +6283,18 @@ message SomeNodeProto {
     DoubleClickEventProto double_click_event = 560203;
     TripleClickEventProto triple_click_event = 560204;
     WheelEventProto wheel_event = 560210;
-    MethodProto method = 106000;
-    ActionProto action = 106100;
-    EventCursorProto event_cursor = 108100;
-    ScreenCursorProto screen_cursor = 108200;
+    MethodProto method = 101000;
+    ActionProto action = 101100;
+    EventCursorProto event_cursor = 106100;
+    ScreenCursorProto screen_cursor = 106200;
     ThreadCursorProto thread_cursor = 108300;
-    ScriptProto script = 105000;
-    ServiceProto service = 100000;
-    TimerStartedEventProto timer_started_event = 107102;
-    TimerCompletedEventProto timer_completed_event = 107103;
-    TimerCancelledEventProto timer_cancelled_event = 107104;
-    TimerProto timer = 107100;
-    TriggerProto trigger = 107000;
+    ScriptProto script = 100000;
+    ServiceProto service = 1400;
+    TimerStartedEventProto timer_started_event = 105102;
+    TimerCompletedEventProto timer_completed_event = 105103;
+    TimerCancelledEventProto timer_cancelled_event = 105104;
+    TimerProto timer = 105100;
+    TriggerProto trigger = 105000;
     GaugeMetricProto gauge_metric = 180000;
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMetricProto counter_metric = 180100;
@@ -6359,15 +6380,15 @@ message SomeEntityProto {
     EnvironmentProto environment = 160000;
     DatabaseProto database = 140000;
     MachineProto machine = 140100;
-    MethodProto method = 106000;
-    ActionProto action = 106100;
-    EventCursorProto event_cursor = 108100;
-    ScreenCursorProto screen_cursor = 108200;
+    MethodProto method = 101000;
+    ActionProto action = 101100;
+    EventCursorProto event_cursor = 106100;
+    ScreenCursorProto screen_cursor = 106200;
     ThreadCursorProto thread_cursor = 108300;
-    ScriptProto script = 105000;
-    ServiceProto service = 100000;
-    TimerProto timer = 107100;
-    TriggerProto trigger = 107000;
+    ScriptProto script = 100000;
+    ServiceProto service = 1400;
+    TimerProto timer = 105100;
+    TriggerProto trigger = 105000;
     GaugeMetricProto gauge_metric = 180000;
     CounterMetricProto counter_metric = 180100;
     HistogramMetricProto histogram_metric = 180200;
@@ -6459,9 +6480,9 @@ message SomeEventProto {
     DoubleClickEventProto double_click_event = 560203;
     TripleClickEventProto triple_click_event = 560204;
     WheelEventProto wheel_event = 560210;
-    TimerStartedEventProto timer_started_event = 107102;
-    TimerCompletedEventProto timer_completed_event = 107103;
-    TimerCancelledEventProto timer_cancelled_event = 107104;
+    TimerStartedEventProto timer_started_event = 105102;
+    TimerCompletedEventProto timer_completed_event = 105103;
+    TimerCancelledEventProto timer_cancelled_event = 105104;
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMeasurementEventProto counter_measurement_event = 180101;
     HistogramMeasurementEventProto histogram_measurement_event = 180201;

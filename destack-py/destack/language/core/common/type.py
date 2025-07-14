@@ -125,7 +125,9 @@ type Json = Any
 class Type(StructFrozen):
     """A Type in the type system."""
 
-    # name: str | None = 101?
+    name: str | None = builtin_property(
+        101, is_repr=True, description="The name of this Type when it was used."
+    )
 
     # scalar
     cardinality: TypeCardinality = builtin_property(

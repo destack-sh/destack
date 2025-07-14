@@ -937,7 +937,7 @@ export class SliderInputView extends InputView {
     }
     objectValue["27"] = object.orderKey;
     if (object._scriptPtr != null) {
-      objectValue["70"] = object._scriptPtr.toValue();
+      objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["101"] = object._name;
     if (object._position != null) {
@@ -1106,7 +1106,7 @@ export class SliderInputView extends InputView {
         );
       }
     }
-    const scriptPtrValue = objectValue["70"];
+    const scriptPtrValue = objectValue["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)

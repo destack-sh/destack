@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:100000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400 ==== */
 /**
  * A Service provides related functionality via Actions (and Methods).
  * Services may be stateful (with custom Properties and runtime only state).
@@ -223,7 +223,7 @@ export class Service
   _ownedByPtr: NodeReference | null;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -233,6 +233,22 @@ export class Service
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * The main / root Script of this Node.
@@ -315,6 +331,7 @@ export class Service
     orderKey?: string;
     ownedBy?: (Entity & IsSubject) | NodeReference | null;
     source?: Script | NodeReference | null;
+    key?: string | null;
     script?: Script | NodeReference | null;
     name: string;
     icon?: Icon | null;
@@ -423,6 +440,8 @@ export class Service
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -492,6 +511,9 @@ export class Service
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -542,6 +564,9 @@ export class Service
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -630,7 +655,7 @@ export class Service
 
   static __packValue__(object: Service): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 100000;
+    objectValue["1"] = 1400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -677,8 +702,11 @@ export class Service
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     if (object._scriptPtr != null) {
-      objectValue["70"] = object._scriptPtr.toValue();
+      objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["101"] = object._name;
     if (object._icon != null) {
@@ -736,6 +764,8 @@ export class Service
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -778,7 +808,7 @@ export class Service
         );
       }
     }
-    const scriptPtrValue = objectValue["70"];
+    const scriptPtrValue = objectValue["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
@@ -791,6 +821,7 @@ export class Service
       definition: unpackedDefinitionPtr,
       baseType: unpackedBaseType,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -826,7 +857,7 @@ export class Service
   }
 
   static __packProto__(object: Service): ServiceProto {
-    const objectProto: Partial<ServiceProto> = { metatype: 100000 };
+    const objectProto: Partial<ServiceProto> = { metatype: 1400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -871,6 +902,9 @@ export class Service
     }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
@@ -952,6 +986,7 @@ export class Service
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1062,4 +1097,4 @@ export class Service
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SERVICE, Service);
-/* ==== DESTACK_GENERATED_END:NODE:100000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400 ==== */

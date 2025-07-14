@@ -950,7 +950,7 @@ export class Machine extends Resource {
       objectValue["26"] = packedCustomValues;
     }
     if (object._scriptPtr != null) {
-      objectValue["70"] = object._scriptPtr.toValue();
+      objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object._status;
     objectValue["100"] = object._type;
@@ -1071,7 +1071,7 @@ export class Machine extends Resource {
         );
       }
     }
-    const scriptPtrValue = objectValue["70"];
+    const scriptPtrValue = objectValue["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)

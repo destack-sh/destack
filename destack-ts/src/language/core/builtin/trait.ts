@@ -52,7 +52,7 @@ export const INTER_ORDER_TYPES = [
 
 /* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
 /**
- * A Node that can be archived.
+ * An Entity that can be archived.
  */
 export interface IsArchivable {
   /**
@@ -66,7 +66,7 @@ export interface IsArchivable {
 }
 
 /**
- * A Node that can be archived.
+ * An Entity that can be archived.
  */
 class IsArchivable$Type extends TraitClass<IsArchivable, TraitType.ARCHIVABLE> {}
 
@@ -76,7 +76,7 @@ registerTraitClass(TraitType.ARCHIVABLE, IsArchivable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:102 ==== */
 /**
- * A Node that can be deleted.
+ * An Entity that can be deleted.
  */
 export interface IsDeletable {
   /**
@@ -90,7 +90,7 @@ export interface IsDeletable {
 }
 
 /**
- * A Node that can be deleted.
+ * An Entity that can be deleted.
  */
 class IsDeletable$Type extends TraitClass<IsDeletable, TraitType.DELETABLE> {}
 
@@ -100,7 +100,7 @@ registerTraitClass(TraitType.DELETABLE, IsDeletable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
 /**
- * A Node that can be ordered.
+ * An Entity that can be ordered.
  */
 export interface IsOrdered {
   /**
@@ -114,7 +114,7 @@ export interface IsOrdered {
 }
 
 /**
- * A Node that can be ordered.
+ * An Entity that can be ordered.
  */
 class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
 
@@ -124,7 +124,7 @@ registerTraitClass(TraitType.ORDERED, IsOrdered);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:110 ==== */
 /**
- * A Node that can be customized with custom Properties.
+ * An Entity that can be customized with custom Properties.
  */
 export interface IsCustomizable {
   /**
@@ -142,7 +142,7 @@ export interface IsCustomizable {
 }
 
 /**
- * A Node that can be customized with custom Properties.
+ * An Entity that can be customized with custom Properties.
  */
 class IsCustomizable$Type extends TraitClass<IsCustomizable, TraitType.CUSTOMIZABLE> {}
 
@@ -179,7 +179,7 @@ registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:120 ==== */
 /**
- * A Node that cannot be rewound in spacetime.
+ * An Entity that cannot be rewound in spacetime.
  */
 export interface IsIrreversible {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -188,7 +188,7 @@ export interface IsIrreversible {
 }
 
 /**
- * A Node that cannot be rewound in spacetime.
+ * An Entity that cannot be rewound in spacetime.
  */
 class IsIrreversible$Type extends TraitClass<IsIrreversible, TraitType.IRREVERSIBLE> {}
 
@@ -198,7 +198,7 @@ registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:40000 ==== */
 /**
- * A Node that can be tagged (with a Tag).
+ * An Entity that can be tagged (with a Tag).
  */
 export interface IsTaggable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -207,7 +207,7 @@ export interface IsTaggable {
 }
 
 /**
- * A Node that can be tagged (with a Tag).
+ * An Entity that can be tagged (with a Tag).
  */
 class IsTaggable$Type extends TraitClass<IsTaggable, TraitType.TAGGABLE> {}
 
@@ -217,7 +217,7 @@ registerTraitClass(TraitType.TAGGABLE, IsTaggable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:220032 ==== */
 /**
- * A Node that can be reacted to (with Reactions).
+ * An Entity that can be reacted to (with Reactions).
  */
 export interface IsReactable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -226,7 +226,7 @@ export interface IsReactable {
 }
 
 /**
- * A Node that can be reacted to (with Reactions).
+ * An Entity that can be reacted to (with Reactions).
  */
 class IsReactable$Type extends TraitClass<IsReactable, TraitType.REACTABLE> {}
 
@@ -236,7 +236,7 @@ registerTraitClass(TraitType.REACTABLE, IsReactable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:220030 ==== */
 /**
- * A Node that can be starred (with Stars).
+ * An Entity that can be starred (with Stars).
  */
 export interface IsStarable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -245,7 +245,7 @@ export interface IsStarable {
 }
 
 /**
- * A Node that can be starred (with Stars).
+ * An Entity that can be starred (with Stars).
  */
 class IsStarable$Type extends TraitClass<IsStarable, TraitType.STARABLE> {}
 
@@ -255,7 +255,7 @@ registerTraitClass(TraitType.STARABLE, IsStarable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:220034 ==== */
 /**
- * A Node that can be followed (with Follows).
+ * An Entity that can be followed (with Follows).
  */
 export interface IsFollowable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -264,7 +264,7 @@ export interface IsFollowable {
 }
 
 /**
- * A Node that can be followed (with Follows).
+ * An Entity that can be followed (with Follows).
  */
 class IsFollowable$Type extends TraitClass<IsFollowable, TraitType.FOLLOWABLE> {}
 
@@ -274,11 +274,29 @@ registerTraitClass(TraitType.FOLLOWABLE, IsFollowable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100003 ==== */
 /**
- * A Node that can be sourced from / defined by a Script.
+ * An Entity that can be defined in a Script.
  */
 export interface IsSourceable extends IsOrdered {
   get source(): Script | null;
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null;
+  set key(value: string | null);
+
+  /**
+   * The name of this Node.
+   */
+  /**
+   * The name of this Node.
+   */
+  get name(): string;
+  set name(value: string);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -286,7 +304,7 @@ export interface IsSourceable extends IsOrdered {
 }
 
 /**
- * A Node that can be sourced from / defined by a Script.
+ * An Entity that can be defined in a Script.
  */
 class IsSourceable$Type extends TraitClass<IsSourceable, TraitType.SOURCEABLE> {}
 
@@ -296,7 +314,7 @@ registerTraitClass(TraitType.SOURCEABLE, IsSourceable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100002 ==== */
 /**
- * A Node that can be scripted.
+ * An Entity that can be scripted.
  */
 export interface IsScriptable {
   get script(): Script | null;
@@ -313,7 +331,7 @@ export interface IsScriptable {
 }
 
 /**
- * A Node that can be scripted.
+ * An Entity that can be scripted.
  */
 class IsScriptable$Type extends TraitClass<IsScriptable, TraitType.SCRIPTABLE> {}
 
@@ -323,7 +341,7 @@ registerTraitClass(TraitType.SCRIPTABLE, IsScriptable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100001 ==== */
 /**
- * A Node that can be run directly (with Runs).
+ * An Entity that can be (directly, with Runs).
  */
 export interface IsRunnable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -332,7 +350,7 @@ export interface IsRunnable {
 }
 
 /**
- * A Node that can be run directly (with Runs).
+ * An Entity that can be (directly, with Runs).
  */
 class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
 
@@ -342,7 +360,7 @@ registerTraitClass(TraitType.RUNNABLE, IsRunnable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60000 ==== */
 /**
- * A Node that can be owned by another Node.
+ * An Entity that can be owned by another Entity.
  */
 export interface IsOwnable {
   get ownedBy(): (Entity & IsSubject) | null;
@@ -359,7 +377,7 @@ export interface IsOwnable {
 }
 
 /**
- * A Node that can be owned by another Node.
+ * An Entity that can be owned by another Entity.
  */
 class IsOwnable$Type extends TraitClass<IsOwnable, TraitType.OWNABLE> {}
 
@@ -369,7 +387,7 @@ registerTraitClass(TraitType.OWNABLE, IsOwnable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60003 ==== */
 /**
- * A Node that can be joined by Subjects.
+ * An Entity that can be joined by Subjects.
  */
 export interface IsJoinable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -378,7 +396,7 @@ export interface IsJoinable {
 }
 
 /**
- * A Node that can be joined by Subjects.
+ * An Entity that can be joined by Subjects.
  */
 class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
 
@@ -388,7 +406,7 @@ registerTraitClass(TraitType.JOINABLE, IsJoinable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60001 ==== */
 /**
- * A Node that must be owned by another Node.
+ * An Entity that must be owned by another Entity.
  */
 export interface IsOwned extends IsOwnable {
   get ownedBy(): (Entity & IsSubject) | null;
@@ -405,7 +423,7 @@ export interface IsOwned extends IsOwnable {
 }
 
 /**
- * A Node that must be owned by another Node.
+ * An Entity that must be owned by another Entity.
  */
 class IsOwned$Type extends TraitClass<IsOwned, TraitType.OWNED> {}
 
@@ -415,7 +433,7 @@ registerTraitClass(TraitType.OWNED, IsOwned);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60004 ==== */
 /**
- * A Node that can be a Subject.
+ * An Entity that can be a Subject.
  */
 export interface IsSubject {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -424,7 +442,7 @@ export interface IsSubject {
 }
 
 /**
- * A Node that can be a Subject.
+ * An Entity that can be a Subject.
  */
 class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
 
@@ -434,7 +452,7 @@ registerTraitClass(TraitType.SUBJECT, IsSubject);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:540000 ==== */
 /**
- * A Node that can be presented visually.
+ * An Entity that can be presented visually.
  */
 export interface IsViewable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -443,7 +461,7 @@ export interface IsViewable {
 }
 
 /**
- * A Node that can be presented visually.
+ * An Entity that can be presented visually.
  */
 class IsViewable$Type extends TraitClass<IsViewable, TraitType.VIEWABLE> {}
 

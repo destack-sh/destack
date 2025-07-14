@@ -427,11 +427,12 @@ class NodeType(Enum):
     RESOURCE = 1100, "Resource", "External asset outside of Destack", "fas fa-dot"
     METRIC = 1200, "Metric", None, "fas fa-gauge"
     SNAPSHOT = 1300, "Snapshot", "Point in Space-time", "fas fa-save"
+    SERVICE = 1400, "Service", None, "fas fa-screwdriver-wrench"
     # event
     SIGNAL = 2000, "Signal", "Custom Event", "fas fa-signal"
     EDIT_EVENT = 2001, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
-    MEASUREMENT_EVENT = 2010, "Measurement", None, "fas fa-gauge"
+    MEASUREMENT_EVENT = 2010, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [20_000-40_000]
     UNIVERSE = 20_000, "Universe", "Universal Space", None
@@ -452,13 +453,14 @@ class NodeType(Enum):
     # DEPENDENCY, ...
     TAG = 41_000, "Tag", None, "fas fa-tag"
     TAGGING = 41_100, "Tagging", None, "fas fa-tag"
+    # GROUP, ...
     # spacetime
     BRANCH = 45_000, "Branch", None, "fas fa-code-branch"
     # HISTORY, REPLAY, ...
     # FORK, ...
 
     # access [60_000-80_000]
-    MEMBERSHIP = 60_000, "Membership", "Membership in a Space/Folder", "fas fa-user-group"
+    MEMBERSHIP = 60_000, "Membership", "Membership to something", "fas fa-user-group"
     MEMBERSHIP_EVENT = 60_001, "Membership Event", None, "fas fa-user-group"
     MEMBERSHIP_JOINED_EVENT = 60_002, "Membership Join Event", None, "fas fa-user-group"
     MEMBERSHIP_LEFT_EVENT = 60_003, "Membership Leave Event", None, "fas fa-user-group"
@@ -490,27 +492,26 @@ class NodeType(Enum):
 
     # data [80_000-100_000]
     FILE = 80_000, "File", None, "fas fa-file"
+    # DIRECTORY, SYNC, ...
     # INDEX, CONSTRAINT, MIGRATION, ...
-    # MIRROR/SYNC, ...
     # STREAM, SECRET, ...
     # LOCALE, STRING, TRANSLATION, ...
     # SETTINGS, ...
 
     # logic [100_000-120_000]
-    SERVICE = 100_000, "Service", None, "fas fa-screwdriver-wrench"
-    SCRIPT = 105_000, "Script", None, "fas fa-code"
-    METHOD = 106_000, "Method", None, "fas fa-code"
-    ACTION = 106_100, "Action", None, "fas fa-code"
-    TRIGGER = 107_000, "Trigger", None, "fas fa-bolt"
-    TRIGGER_EVENT = 107_001, "Trigger Event", None, "fas fa-bolt"
-    TIMER = 107_100, "Timer", None, "fas fa-clock"
-    TIMER_EVENT = 107_101, "Timer Event", None, "fas fa-clock"
-    TIMER_STARTED_EVENT = 107_102, "Timer Started Event", None, "fas fa-clock"
-    TIMER_COMPLETED_EVENT = 107_103, "Timer Completed Event", None, "fas fa-clock"
-    TIMER_CANCELLED_EVENT = 107_104, "Timer Cancelled Event", None, "fas fa-clock"
-    CURSOR = 108_000, "Cursor", None, "fas fa-mouse-pointer"
-    EVENT_CURSOR = 108_100, "Event Cursor", None, "fas fa-signal"
-    SCREEN_CURSOR = 108_200, "Screen Cursor", None, "fas fa-mouse"
+    SCRIPT = 100_000, "Script", None, "fas fa-code"
+    METHOD = 101_000, "Method", None, "fas fa-code"
+    ACTION = 101_100, "Action", None, "fas fa-code"
+    TRIGGER = 105_000, "Trigger", None, "fas fa-bolt"
+    TRIGGER_EVENT = 105_001, "Trigger Event", None, "fas fa-bolt"
+    TIMER = 105_100, "Timer", None, "fas fa-clock"
+    TIMER_EVENT = 105_101, "Timer Event", None, "fas fa-clock"
+    TIMER_STARTED_EVENT = 105_102, "Timer Started Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 105_103, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 105_104, "Timer Cancelled Event", None, "fas fa-clock"
+    CURSOR = 106_000, "Cursor", None, "fas fa-mouse-pointer"
+    EVENT_CURSOR = 106_100, "Event Cursor", None, "fas fa-signal"
+    SCREEN_CURSOR = 106_200, "Screen Cursor", None, "fas fa-mouse"
     THREAD_CURSOR = 108_300, "Thread Cursor", None, "fas fa-magnifying-glass"
     # QUERY_CURSOR, WEB_CURSOR, ...
     ROUTE = 110_000, "Route", None, "fas fa-route"

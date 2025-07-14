@@ -222,7 +222,7 @@ export class CustomStructDefinition
   _isFrozen: boolean;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -232,6 +232,22 @@ export class CustomStructDefinition
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * CustomStructDefinition.name
@@ -284,6 +300,7 @@ export class CustomStructDefinition
     baseType?: StructDefinitionReference | null;
     isFrozen?: boolean;
     source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     _session?: Session | null;
@@ -391,6 +408,8 @@ export class CustomStructDefinition
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`CustomStructDefinition.name is required`);
@@ -460,6 +479,9 @@ export class CustomStructDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -505,6 +527,9 @@ export class CustomStructDefinition
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -631,6 +656,9 @@ export class CustomStructDefinition
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
@@ -683,6 +711,8 @@ export class CustomStructDefinition
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
@@ -733,6 +763,7 @@ export class CustomStructDefinition
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       customValues: unpackedCustomValues,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
@@ -817,6 +848,9 @@ export class CustomStructDefinition
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
@@ -886,6 +920,7 @@ export class CustomStructDefinition
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       customValues: unpackedCustomValues,
       parent:
         objectProto.parentPtr != undefined
