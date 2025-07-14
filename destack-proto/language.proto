@@ -3911,11 +3911,10 @@ message NodeDefinitionProto {
   repeated NodeTypeProto inherited_by = 123;
   repeated TraitTypeProto base_traits = 124;
   repeated TraitTypeProto traits = 125;
-  optional NodeTypeProto root_type = 130;
-  repeated NodeTypeProto parent_types = 131;
-  repeated NodeTypeProto child_types = 132;
-  repeated NodeTypeProto ancestor_types = 133;
-  repeated NodeTypeProto descendant_types = 134;
+  repeated NodeTypeProto parent_types = 130;
+  repeated NodeTypeProto child_types = 131;
+  repeated NodeTypeProto ancestor_types = 132;
+  repeated NodeTypeProto descendant_types = 133;
   repeated NodeTypeProto event_types = 140;
   repeated NodeTypeProto base_event_types = 141;
   repeated StoreKeyProto primary_store_keys = 150;

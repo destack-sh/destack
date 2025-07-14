@@ -776,7 +776,7 @@ def _generate_path(cls: type[Node]) -> str:
         path_key_str = f"`{cls.__name__}[id=${{this.id}}]`"
 
     # Node.path
-    if cls.__root_type__ is None:
+    if cls.metatype == NodeType.SPACE:
         path_str = f"""\
 get _pathKey(): string {{
     return {path_key_str};

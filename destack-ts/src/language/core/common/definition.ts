@@ -192,11 +192,6 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly traits: readonly TraitType[];
 
   /**
-   * The root ancestor type of this Node type (if any).
-   */
-  readonly rootType: NodeType | null;
-
-  /**
    * The parent types of this Node type (directly).
    */
   readonly parentTypes: readonly NodeType[];
@@ -253,7 +248,6 @@ export class NodeDefinition extends BuiltinDefinition {
     inheritedBy?: readonly NodeType[];
     baseTraits?: readonly TraitType[];
     traits?: readonly TraitType[];
-    rootType?: NodeType | null;
     parentTypes?: readonly NodeType[];
     childTypes?: readonly NodeType[];
     ancestorTypes?: readonly NodeType[];
@@ -348,8 +342,6 @@ export class NodeDefinition extends BuiltinDefinition {
       _traits = [];
     }
     this.traits = _traits;
-    let _rootType = options.rootType ?? null;
-    this.rootType = _rootType;
     let _parentTypes = options.parentTypes ?? null;
     if (_parentTypes === null) {
       _parentTypes = [];
@@ -473,9 +465,6 @@ export class NodeDefinition extends BuiltinDefinition {
       if (!(this.traits[i] === other.traits[i])) {
         return false;
       }
-    }
-    if (!(this.rootType === other.rootType)) {
-      return false;
     }
     if (this.parentTypes.length != other.parentTypes.length) {
       return false;
@@ -621,9 +610,6 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.rootType != null) {
-      h = (h * 31 + this.rootType) & 0xffffffff;
-    }
     if (this.parentTypes && this.parentTypes.length > 0) {
       for (const _item of this.parentTypes) {
         h = (h * 31 + _item) & 0xffffffff;
@@ -755,36 +741,33 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectValue["125"] = packedTraits;
     }
-    if (object.rootType != null) {
-      objectValue["130"] = object.rootType;
-    }
     if (object.parentTypes.length > 0) {
       const packedParentTypes: any[] = [];
       for (const item of object.parentTypes) {
         packedParentTypes.push(item);
       }
-      objectValue["131"] = packedParentTypes;
+      objectValue["130"] = packedParentTypes;
     }
     if (object.childTypes.length > 0) {
       const packedChildTypes: any[] = [];
       for (const item of object.childTypes) {
         packedChildTypes.push(item);
       }
-      objectValue["132"] = packedChildTypes;
+      objectValue["131"] = packedChildTypes;
     }
     if (object.ancestorTypes.length > 0) {
       const packedAncestorTypes: any[] = [];
       for (const item of object.ancestorTypes) {
         packedAncestorTypes.push(item);
       }
-      objectValue["133"] = packedAncestorTypes;
+      objectValue["132"] = packedAncestorTypes;
     }
     if (object.descendantTypes.length > 0) {
       const packedDescendantTypes: any[] = [];
       for (const item of object.descendantTypes) {
         packedDescendantTypes.push(item);
       }
-      objectValue["134"] = packedDescendantTypes;
+      objectValue["133"] = packedDescendantTypes;
     }
     if (object.eventTypes.length > 0) {
       const packedEventTypes: any[] = [];
@@ -875,29 +858,27 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedTraits.push(Number(item));
       }
     }
-    const rootTypeValue = objectValue["130"];
-    const unpackedRootType = rootTypeValue != undefined ? Number(rootTypeValue) : null;
     const unpackedParentTypes: any[] = [];
-    if (objectValue["131"] != undefined) {
-      for (const item of objectValue["131"]) {
+    if (objectValue["130"] != undefined) {
+      for (const item of objectValue["130"]) {
         unpackedParentTypes.push(Number(item));
       }
     }
     const unpackedChildTypes: any[] = [];
-    if (objectValue["132"] != undefined) {
-      for (const item of objectValue["132"]) {
+    if (objectValue["131"] != undefined) {
+      for (const item of objectValue["131"]) {
         unpackedChildTypes.push(Number(item));
       }
     }
     const unpackedAncestorTypes: any[] = [];
-    if (objectValue["133"] != undefined) {
-      for (const item of objectValue["133"]) {
+    if (objectValue["132"] != undefined) {
+      for (const item of objectValue["132"]) {
         unpackedAncestorTypes.push(Number(item));
       }
     }
     const unpackedDescendantTypes: any[] = [];
-    if (objectValue["134"] != undefined) {
-      for (const item of objectValue["134"]) {
+    if (objectValue["133"] != undefined) {
+      for (const item of objectValue["133"]) {
         unpackedDescendantTypes.push(Number(item));
       }
     }
@@ -941,7 +922,6 @@ export class NodeDefinition extends BuiltinDefinition {
       inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
-      rootType: unpackedRootType,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
@@ -1042,9 +1022,6 @@ export class NodeDefinition extends BuiltinDefinition {
         packedTraits.push(Number(item) as TraitTypeProto);
       }
       objectProto.traits = packedTraits;
-    }
-    if (object.rootType != null) {
-      objectProto.rootType = Number(object.rootType) as NodeTypeProto;
     }
     if (object.parentTypes) {
       const packedParentTypes: any[] = [];
@@ -1217,8 +1194,6 @@ export class NodeDefinition extends BuiltinDefinition {
       inheritedBy: unpackedInheritedBy,
       baseTraits: unpackedBaseTraits,
       traits: unpackedTraits,
-      rootType:
-        objectProto.rootType != undefined ? (Number(objectProto.rootType) as NodeType) : null,
       parentTypes: unpackedParentTypes,
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,

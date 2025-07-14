@@ -34,7 +34,7 @@ class SpaceStatus(Enum):
     ACTIVE = 10
 
 
-@builtin_node(NodeType.SPACE, root_type=None)
+@builtin_node(NodeType.SPACE)
 class Space(
     IsFollowable,
     IsJoinable,
