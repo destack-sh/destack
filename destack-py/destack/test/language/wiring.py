@@ -5,6 +5,7 @@ from hypothesis import HealthCheck, given, settings
 from destack.grpc import AnyObjectProto
 from destack.language import (
     BuiltinObject,
+    GenericGraph,
     Join,
     JoinType,
     NodeReference,
@@ -121,7 +122,7 @@ def test_roundtrip_builtin_object(
     packed_bytes = packed_obj_data.SerializeToString()
     unpacked_obj_data = type(packed_obj_data)()
     unpacked_obj_data.ParseFromString(packed_bytes)
-    unpacked_obj = obj.__unpack_proto__(unpacked_obj_data)
+    unpacked_obj = obj.__unpack_proto__(unpacked_obj_data, _graph=GenericGraph(session.supergraph))
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"
 
@@ -129,6 +130,6 @@ def test_roundtrip_builtin_object(
     packed_obj_value = obj.to_value()
     packed_obj_value_str = json.dumps(packed_obj_value, indent=2)
     unpacked_obj_value = json.loads(packed_obj_value_str)
-    unpacked_obj = obj.from_value(unpacked_obj_value)
+    unpacked_obj = obj.from_value(unpacked_obj_value, _graph=GenericGraph(session.supergraph))
     assert unpacked_obj.equals(obj), f"{unpacked_obj!r} != {obj!r}"
     assert unpacked_obj.hash() == obj.hash(), f"{unpacked_obj.hash()} != {obj.hash()}"

@@ -505,6 +505,79 @@ class EventGraph(Graph["Event"]):
         return ()
 
 
+class GenericGraph(Graph["Node"]):
+    """A Graph with a flat set of Nodes."""
+
+    def __init__(self, supergraph: "Supergraph"):
+        self.supergraph = supergraph
+        self.nodes_by_id: dict[UUID, Node] = {}
+
+    @property
+    @override
+    def nodes(self) -> Collection["Node"]:
+        return self.nodes_by_id.values()
+
+    @override
+    def __len__(self):
+        return len(self.nodes_by_id)
+
+    @override
+    def get(self, id: UUID) -> Optional["Node"]:
+        return self.nodes_by_id.get(id)
+
+    @override
+    def has(self, id: UUID) -> bool:
+        return id in self.nodes_by_id
+
+    @override
+    def clear(self):
+        self.nodes_by_id.clear()
+
+    @override
+    def add(self, node: "Node"):
+        if (existing := self.nodes_by_id.get(node.id)) is not None:
+            raise ValueError(f"node {node!r} already in {self!r}: {existing!r}")
+        self.nodes_by_id[node.id] = node
+
+    @override
+    def remove(self, node: "Node"):
+        self.nodes_by_id.pop(node.id)
+
+    @override
+    def get_roots[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_leaves[M: "Entity" = "Entity"](
+        self, node_type: NodeType | TraitType | type[M] | None = None, node: "Entity | None" = None
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_children[M: "Entity" = "Entity"](
+        self,
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_ancestors[M: "Entity" = "Entity"](
+        self, node: "Entity", type: NodeType | TraitType | type[M] | None = None
+    ) -> Sequence[M]:
+        return ()
+
+    @override
+    def get_descendants[M: "Entity" = "Entity"](
+        self,
+        node: "Entity",
+        type: NodeType | TraitType | type[M] | None = None,
+    ) -> Sequence[M]:
+        return ()
+
+
 class NullGraph(Graph):
     """An always empty Graph."""
 
