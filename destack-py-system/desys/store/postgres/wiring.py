@@ -341,7 +341,9 @@ def unpack_node_row(table: PostgresTable, row: asyncpg.Record) -> tuple[Value, N
 #
 
 
-def _pack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", value: Json) -> Any:
+def _pack_column_scalar(
+    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Json
+) -> Any:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -368,7 +370,9 @@ def _pack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", valu
         assert_never(type.scalar_type)
 
 
-def pack_column_flat(type: "PropertyDefinition | Type | CustomProperty", value: Json) -> Any:
+def pack_column_flat(
+    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Json
+) -> Any:
     """Pack a dynamic column value into a single column value."""
     if type.cardinality == TypeCardinality.SCALAR:
         return _pack_column_scalar(type, value)
@@ -381,7 +385,7 @@ def pack_column_flat(type: "PropertyDefinition | Type | CustomProperty", value: 
 
 
 def pack_column_wide(
-    type: "PropertyDefinition | Type | CustomProperty",
+    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty",
     value: Json | None,
     table: PostgresTable,
     column_name: str,
@@ -424,7 +428,9 @@ def pack_column_wide(
         assert_never(type.cardinality)
 
 
-def _unpack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", value: Any) -> Json:
+def _unpack_column_scalar(
+    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Any
+) -> Json:
     assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
     if type.scalar_type == ScalarType.PRIMITIVE:
         if type.primitive_type == PrimitiveType.BYTES:
@@ -449,7 +455,9 @@ def _unpack_column_scalar(type: "PropertyDefinition | Type | CustomProperty", va
         assert_never(type.scalar_type)
 
 
-def unpack_column(type: "PropertyDefinition | Type | CustomProperty", value: Any) -> Json:
+def unpack_column(
+    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Any
+) -> Json:
     if type.cardinality == TypeCardinality.SCALAR:
         return _unpack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:

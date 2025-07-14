@@ -394,7 +394,7 @@ export class ThreadCursor extends Cursor {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`ThreadCursor.materialization is required`);
@@ -1084,7 +1084,7 @@ export class EventCursor extends Cursor {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`EventCursor.materialization is required`);
@@ -1791,7 +1791,7 @@ export class ScreenCursor extends Cursor {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`ScreenCursor.materialization is required`);

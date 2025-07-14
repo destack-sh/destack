@@ -13,11 +13,7 @@ from .node import builtin_node
 from .property import builtin_property
 
 if TYPE_CHECKING:
-    from destack.language import (
-        NodeReference,
-        PropertyReference,
-        Value,
-    )
+    from destack.language import CustomProperty, NodeReference, Value
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -97,8 +93,13 @@ class EditEvent(Event):
     operation: "EditOperation | None" = builtin_property(
         102, is_repr=True, description="The specific Edit operation."
     )
-    attribute: "PropertyReference | None" = builtin_property(
-        103, is_repr=True, description="The builtin or custom Property being edited."
+    property_id: int | None = builtin_property(
+        103,
+        is_repr=True,
+        description="The id of the builtin Property being edited (if not a custom Property).",
+    )
+    custom_property: "CustomProperty | None" = builtin_property(
+        104, is_repr=True, description="The custom Property being edited (if not a builtin)."
     )
     key: "Value | None" = builtin_property(
         105, is_repr=True, description="The key for map operations."

@@ -429,7 +429,7 @@ export class InternalView extends View {
     this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`InternalView.materialization is required`);

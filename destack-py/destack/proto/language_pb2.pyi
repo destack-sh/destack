@@ -699,8 +699,9 @@ class MachineTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 class MaterializationProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     MATERIALIZATION_UNSPECIFIED: _ClassVar[MaterializationProto]
-    MATERIALIZATION_PARTIAL: _ClassVar[MaterializationProto]
-    MATERIALIZATION_FULL: _ClassVar[MaterializationProto]
+    MATERIALIZATION_INSTANCE: _ClassVar[MaterializationProto]
+    MATERIALIZATION_COPY: _ClassVar[MaterializationProto]
+    MATERIALIZATION_ROOT: _ClassVar[MaterializationProto]
 
 class MethodCardinalityProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1205,7 +1206,7 @@ class SnapshotTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SNAPSHOT_TYPE_UNSPECIFIED: _ClassVar[SnapshotTypeProto]
     SNAPSHOT_TYPE_PARTIAL: _ClassVar[SnapshotTypeProto]
-    SNAPSHOT_TYPE_FULL: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_COPY: _ClassVar[SnapshotTypeProto]
 
 class SortModeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -2050,8 +2051,9 @@ MACHINE_TYPE_MAC: MachineTypeProto
 MACHINE_TYPE_WINDOWS: MachineTypeProto
 MACHINE_TYPE_CUSTOM: MachineTypeProto
 MATERIALIZATION_UNSPECIFIED: MaterializationProto
-MATERIALIZATION_PARTIAL: MaterializationProto
-MATERIALIZATION_FULL: MaterializationProto
+MATERIALIZATION_INSTANCE: MaterializationProto
+MATERIALIZATION_COPY: MaterializationProto
+MATERIALIZATION_ROOT: MaterializationProto
 METHOD_CARDINALITY_UNSPECIFIED: MethodCardinalityProto
 METHOD_CARDINALITY_UNARY: MethodCardinalityProto
 MODE_TYPE_UNSPECIFIED: ModeTypeProto
@@ -2442,7 +2444,7 @@ SNAPSHOT_STATUS_ACTIVE: SnapshotStatusProto
 SNAPSHOT_STATUS_READONLY: SnapshotStatusProto
 SNAPSHOT_TYPE_UNSPECIFIED: SnapshotTypeProto
 SNAPSHOT_TYPE_PARTIAL: SnapshotTypeProto
-SNAPSHOT_TYPE_FULL: SnapshotTypeProto
+SNAPSHOT_TYPE_COPY: SnapshotTypeProto
 SORT_MODE_UNSPECIFIED: SortModeProto
 SORT_MODE_MAX: SortModeProto
 SORT_MODE_MIN: SortModeProto
@@ -4474,7 +4476,7 @@ class DropEventProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., position: _Optional[_Union[Vector2fProto, _Mapping]] = ...) -> None: ...
 
 class EditEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "type", "node_ptr", "operation", "attribute", "key", "value", "reverse_operation", "reverse_value")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "type", "node_ptr", "operation", "property_id", "custom_property_ptr", "key", "value", "reverse_operation", "reverse_value")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -4488,7 +4490,8 @@ class EditEventProto(_message.Message):
     TYPE_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
     OPERATION_FIELD_NUMBER: _ClassVar[int]
-    ATTRIBUTE_FIELD_NUMBER: _ClassVar[int]
+    PROPERTY_ID_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_PROPERTY_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
     VALUE_FIELD_NUMBER: _ClassVar[int]
     REVERSE_OPERATION_FIELD_NUMBER: _ClassVar[int]
@@ -4506,12 +4509,13 @@ class EditEventProto(_message.Message):
     type: EditTypeProto
     node_ptr: NodeReferenceProto
     operation: EditOperationProto
-    attribute: PropertyReferenceProto
+    property_id: int
+    custom_property_ptr: NodeReferenceProto
     key: ValueProto
     value: ValueProto
     reverse_operation: EditOperationProto
     reverse_value: ValueProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., attribute: _Optional[_Union[PropertyReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., reverse_operation: _Optional[_Union[EditOperationProto, str]] = ..., reverse_value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., type: _Optional[_Union[EditTypeProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., operation: _Optional[_Union[EditOperationProto, str]] = ..., property_id: _Optional[int] = ..., custom_property_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[_Union[ValueProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., reverse_operation: _Optional[_Union[EditOperationProto, str]] = ..., reverse_value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
 
 class EffectProto(_message.Message):
     __slots__ = ("metatype", "type", "style_ptr", "opacity", "offset", "scale", "rotate", "skew", "perspective", "delay", "duration", "threshold", "once", "repeat", "split", "offscreen", "transition")

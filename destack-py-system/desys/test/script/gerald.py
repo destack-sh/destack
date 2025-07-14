@@ -1,6 +1,12 @@
 # ruff: noqa
 # type: ignore
 
+import pytest
+from typing import TYPE_CHECKING
+
+if not TYPE_CHECKING:
+    pytest.skip(allow_module_level=True)
+
 # ===============================================
 # Gerald/DataAnalyzer [Service]
 # ===============================================
@@ -13,12 +19,14 @@ import logging
 import re
 from datetime import datetime
 from pathlib import Path
-
-import pandas as pd
-
 from destack import *  # noqa: F403
 
 from .scaffold import *  # noqa: F403
+
+try:
+    import pandas as pd
+except ImportError:
+    pd = Any
 
 
 def clean_number_enhanced(value):

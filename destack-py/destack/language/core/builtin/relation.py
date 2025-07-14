@@ -73,12 +73,17 @@ class NodeDefinitionReference(StructFrozen):
     def object_cls(self) -> type_[BuiltinObject] | None:
         return NODE_CLASS_BY_TYPE.get(self.node_type)
 
-    def resolve_property(self, name: str) -> "PropertyDeclaration | None":
+    def resolve_property(self, key: str | int) -> "PropertyDeclaration | None":
         """Resolve a Property in this definition."""
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
-        return object_cls.__properties_by_alias__.get(name)
+        if isinstance(key, str):
+            return object_cls.__properties_by_alias__.get(key)
+        elif isinstance(key, int):
+            return object_cls.__properties_by_id__.get(key)
+        else:
+            assert_never(key)
 
     def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
         """Resolve a Property in this definition (error if not found)."""

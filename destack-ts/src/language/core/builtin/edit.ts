@@ -5,8 +5,9 @@ import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
-import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor } from "@destack/language/core/builtin/trait";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -24,7 +25,7 @@ import {
   EventStatusProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:50 ==== */
@@ -169,9 +170,21 @@ export class EditEvent extends Event {
   readonly operation: EditOperation | null;
 
   /**
-   * The builtin or custom Property being edited.
+   * The id of the builtin Property being edited (if not a custom Property).
    */
-  readonly attribute: PropertyReference | null;
+  readonly propertyId: number | null;
+
+  /**
+   * The custom Property being edited (if not a builtin).
+   */
+  get customProperty(): CustomProperty | null {
+    const nodePtr: NodeReference | null = this.customPropertyPtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as CustomProperty | null;
+    }
+    return null;
+  }
+  readonly customPropertyPtr: NodeReference | null;
 
   /**
    * The key for map operations.
@@ -206,7 +219,8 @@ export class EditEvent extends Event {
     type: EditType;
     node: Entity | NodeReference;
     operation?: EditOperation | null;
-    attribute?: PropertyReference | null;
+    propertyId?: number | null;
+    customProperty?: CustomProperty | NodeReference | null;
     key?: Value | null;
     value?: Value | null;
     reverseOperation?: EditOperation | null;
@@ -296,8 +310,13 @@ export class EditEvent extends Event {
     this.nodePtr = _node;
     let _operation = options.operation ?? null;
     this.operation = _operation;
-    let _attribute = options.attribute ?? null;
-    this.attribute = _attribute;
+    let _propertyId = options.propertyId ?? null;
+    this.propertyId = _propertyId;
+    let _customProperty = options.customProperty ?? null;
+    if (_customProperty != null && _customProperty.metatype != StructType.NODE_REFERENCE) {
+      _customProperty = (_customProperty as Node).toRef();
+    }
+    this.customPropertyPtr = _customProperty;
     let _key = options.key ?? null;
     this.key = _key;
     let _value = options.value ?? null;
@@ -339,10 +358,10 @@ export class EditEvent extends Event {
     if (!(this.operation === other.operation)) {
       return false;
     }
-    if (
-      (this.attribute == null) !== (other.attribute == null) ||
-      (this.attribute != null && !this.attribute.equals(other.attribute))
-    ) {
+    if (!(this.propertyId === other.propertyId)) {
+      return false;
+    }
+    if (!(this.customPropertyPtr?.id === other.customPropertyPtr?.id)) {
       return false;
     }
     if (
@@ -392,8 +411,11 @@ export class EditEvent extends Event {
     if (this.operation !== null) {
       h = (h * 31 + this.operation) & 0xffffffff;
     }
-    if (this.attribute !== null) {
-      h = (h * 31 + this.attribute.hash()) & 0xffffffff;
+    if (this.propertyId !== null) {
+      h = (h * 31 + hashInt(this.propertyId)) & 0xffffffff;
+    }
+    if (this.customPropertyPtr !== null) {
+      h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
     if (this.key !== null) {
       h = (h * 31 + this.key.hash()) & 0xffffffff;
@@ -472,8 +494,11 @@ export class EditEvent extends Event {
     if (this.operation !== null) {
       propertyReprs.push(`operation=${EditOperation[this.operation]}`);
     }
-    if (this.attribute !== null) {
-      propertyReprs.push(`attribute=${this.attribute.repr()}`);
+    if (this.propertyId !== null) {
+      propertyReprs.push(`propertyId=${this.propertyId}`);
+    }
+    if (this.customProperty !== null) {
+      propertyReprs.push(`customProperty=${this.customProperty?.repr()}`);
     }
     if (this.key !== null) {
       propertyReprs.push(`key=${this.key.repr()}`);
@@ -519,8 +544,11 @@ export class EditEvent extends Event {
     if (object.operation != null) {
       objectValue["102"] = object.operation;
     }
-    if (object.attribute != null) {
-      objectValue["103"] = object.attribute.toValue();
+    if (object.propertyId != null) {
+      objectValue["103"] = object.propertyId;
+    }
+    if (object.customPropertyPtr != null) {
+      objectValue["104"] = object.customPropertyPtr.toValue();
     }
     if (object.key != null) {
       objectValue["105"] = object.key.toValue();
@@ -545,16 +573,21 @@ export class EditEvent extends Event {
     _connection?: any | null,
   ): EditEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const operationValue = objectValue["102"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
-    const attributeValue = objectValue["103"];
-    const unpackedAttribute =
-      attributeValue != undefined
-        ? _PropertyReference.fromValue(attributeValue, _session, _supergraph, _graph, _connection)
+    const propertyIdValue = objectValue["103"];
+    const unpackedPropertyId = propertyIdValue != undefined ? Number(propertyIdValue) : null;
+    const customPropertyPtrValue = objectValue["104"];
+    const unpackedCustomPropertyPtr =
+      customPropertyPtrValue != undefined
+        ? _NodeReference.fromValue(
+            customPropertyPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const keyValue = objectValue["105"];
     const unpackedKey =
@@ -606,7 +639,8 @@ export class EditEvent extends Event {
         _connection,
       ),
       operation: unpackedOperation,
-      attribute: unpackedAttribute,
+      propertyId: unpackedPropertyId,
+      customProperty: unpackedCustomPropertyPtr,
       key: unpackedKey,
       value: unpackedValue,
       reverseOperation: unpackedReverseOperation,
@@ -666,8 +700,11 @@ export class EditEvent extends Event {
     if (object.operation != null) {
       objectProto.operation = Number(object.operation) as EditOperationProto;
     }
-    if (object.attribute != null) {
-      objectProto.attribute = object.attribute.toProto();
+    if (object.propertyId != null) {
+      objectProto.propertyId = object.propertyId;
+    }
+    if (object.customPropertyPtr != null) {
+      objectProto.customPropertyPtr = object.customPropertyPtr.toProto();
     }
     if (object.key != null) {
       objectProto.key = object.key.toProto();
@@ -692,9 +729,6 @@ export class EditEvent extends Event {
     _connection?: any | null,
   ): EditEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
@@ -709,10 +743,11 @@ export class EditEvent extends Event {
         objectProto.operation != undefined
           ? (Number(objectProto.operation) as EditOperation)
           : null,
-      attribute:
-        objectProto.attribute != undefined
-          ? _PropertyReference.fromProto(
-              objectProto.attribute!,
+      propertyId: objectProto.propertyId != undefined ? Number(objectProto.propertyId) : null,
+      customProperty:
+        objectProto.customPropertyPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.customPropertyPtr!,
               _session,
               _supergraph,
               _graph,

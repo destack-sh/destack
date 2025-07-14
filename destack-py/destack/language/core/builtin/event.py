@@ -39,6 +39,7 @@ class EventStatus(Enum):
     SKIPPED = 11, "Skipped", "Skipped and ignored in system"
     FAILED = 12, "Failed", "Could not apply in system"
     REJECTED = 13, "Rejected", "Denied by the system"
+    # COMPACTED, ...
 
 
 @builtin_node(

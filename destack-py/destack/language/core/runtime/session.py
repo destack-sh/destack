@@ -134,7 +134,6 @@ class Session:
         assert self.closed_at is None, f"{self!r} is closed"
         old_value = getattr(node, prop.name)
         node_ptr = node.to_ref()
-        prop_ptr = prop.to_ref()
         prop_type = prop.to_type()
 
         # undo
@@ -156,7 +155,7 @@ class Session:
         edit = EditEvent(
             type=EditType.UPDATE,
             node_ptr=node_ptr,
-            attribute=prop_ptr,
+            property_id=prop.id,
             operation=operation,
             value=new_value,
             reverse_operation=undo_operation,

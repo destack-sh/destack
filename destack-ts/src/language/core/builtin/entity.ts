@@ -757,7 +757,7 @@ export class CustomEntityDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEntityDefinition.materialization is required`);
@@ -1882,7 +1882,7 @@ export class CustomTraitDefinition
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`CustomTraitDefinition.materialization is required`);
@@ -3104,7 +3104,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`Snapshot.materialization is required`);
@@ -3607,8 +3607,9 @@ registerNodeClass(NodeType.SNAPSHOT, Snapshot);
  * Materialization
  */
 export enum Materialization {
-  PARTIAL = 1,
-  FULL = 32,
+  INSTANCE = 1,
+  COPY = 2,
+  ROOT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -3623,7 +3624,7 @@ registerEnumClass(EnumType.MATERIALIZATION, Materialization);
  */
 export enum SnapshotType {
   PARTIAL = 1,
-  FULL = 2,
+  COPY = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

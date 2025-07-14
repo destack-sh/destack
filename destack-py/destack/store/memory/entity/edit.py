@@ -181,9 +181,9 @@ def _execute_edit(
     elif edit_type == EditType.UPDATE:
         for edit in edits:
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
-            assert edit.attribute is not None, f"no attribute for {edit!r}"
-            prop = edit.attribute.resolve()
-            assert prop is not None, f"no attribute for {edit!r}"
+            assert edit.property_id is not None, f"no property_id for {edit!r}"
+            prop = definition.resolve_property(edit.property_id)
+            assert prop is not None, f"no property for {edit!r}"
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if not (row := table.rows.get(node_key)):
                 raise LookupError(f"node not found for {edit!r}: {edit.node_ptr!r}")

@@ -144,7 +144,6 @@ export class Session {
     }
     const propName = toCasing(prop.name, Casing.CAMEL);
     const nodePtr = node.toRef();
-    const propPtr = prop.toRef();
     const propType = prop.toType();
 
     // undo
@@ -172,7 +171,7 @@ export class Session {
     const edit = new EditEvent({
       type: EditType.UPDATE,
       node: nodePtr,
-      attribute: propPtr,
+      propertyId: prop.id,
       operation: operation,
       value: newValue,
       reverseOperation: undoOperation,

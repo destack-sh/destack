@@ -53,8 +53,9 @@ object_set_ = object.__setattr__
 class Materialization(Enum):
     """The materialization level of an Entity."""
 
-    PARTIAL = 1, "Partial Node"
-    FULL = 32, "Full Node"
+    INSTANCE = 1, "Instance", "A partial instance copy of a template"
+    COPY = 2, "Copy", "A full instance copy of a template"
+    ROOT = 3, "Root", "A full Node"
 
 
 @builtin_node(
@@ -78,7 +79,7 @@ class Entity(Node):
         is_eq=False,
         is_hash=False,
         is_repr=False,
-        default=Materialization.FULL,
+        default=Materialization.ROOT,
     )
     snapshot: Optional["Snapshot"] = builtin_property(
         11,
@@ -396,7 +397,7 @@ class Entity(Node):
         self,
         snapshot: "Snapshot",
         *,
-        materialization: Materialization = Materialization.PARTIAL,
+        materialization: Materialization = Materialization.INSTANCE,
     ) -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Snapshot.
@@ -502,7 +503,8 @@ class SnapshotType(Enum):
     """The type of a Snapshot."""
 
     PARTIAL = 1, "Partial", "A partial Snapshot (partial/full Nodes, partial Graph)"
-    FULL = 2, "Full", "A full Snapshot (full Nodes, full Graph)"
+    COPY = 2, "Copy", "A full Snapshot (full Nodes, full Graph)"
+    # ROOT?
 
 
 @builtin_enum(EnumType.SNAPSHOT_STATUS)
@@ -559,7 +561,7 @@ class Snapshot(
         self,
         snapshot: "Snapshot",
         *,
-        materialization: Materialization = Materialization.FULL,
+        materialization: Materialization = Materialization.ROOT,
     ) -> "Self":
         if snapshot.id == self.id:
             return self

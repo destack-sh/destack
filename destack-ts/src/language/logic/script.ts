@@ -262,7 +262,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`Script.materialization is required`);
