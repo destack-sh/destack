@@ -52,7 +52,7 @@ export enum MethodCardinality {
 registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
 /* ==== DESTACK_GENERATED_END:ENUM:102001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:106000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:101000 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -189,7 +189,7 @@ export class Method
   readonly orderKey: string;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -199,6 +199,22 @@ export class Method
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Method.name
@@ -280,6 +296,7 @@ export class Method
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     text?: Text | null;
@@ -377,6 +394,8 @@ export class Method
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Method.name is required`);
@@ -448,6 +467,9 @@ export class Method
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -490,6 +512,9 @@ export class Method
     h = (h * 31 + this._cardinality) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -571,7 +596,7 @@ export class Method
 
   static __packValue__(object: Method): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 106000;
+    objectValue["1"] = 101000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -608,6 +633,9 @@ export class Method
     objectValue["27"] = object.orderKey;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
     }
     objectValue["101"] = object._name;
     if (object._icon != null) {
@@ -651,6 +679,8 @@ export class Method
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
@@ -700,6 +730,7 @@ export class Method
       text: unpackedText,
       cardinality: Number(objectValue["110"]),
       source: unpackedSourcePtr,
+      key: unpackedKey,
       customValues: unpackedCustomValues,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
@@ -734,7 +765,7 @@ export class Method
   }
 
   static __packProto__(object: Method): MethodProto {
-    const objectProto: Partial<MethodProto> = { metatype: 106000 };
+    const objectProto: Partial<MethodProto> = { metatype: 101000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -770,6 +801,9 @@ export class Method
     objectProto.orderKey = object.orderKey;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.name = object._name;
     if (object._icon != null) {
@@ -833,6 +867,7 @@ export class Method
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       customValues: unpackedCustomValues,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -925,4 +960,4 @@ export class Method
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METHOD, Method);
-/* ==== DESTACK_GENERATED_END:NODE:106000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:101000 ==== */

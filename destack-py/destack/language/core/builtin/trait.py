@@ -141,7 +141,7 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
 
 @builtin_trait(TraitType.ORDERED, is_extensible=True)
 class IsOrdered(Trait):
-    """A Node that can be ordered."""
+    """An Entity that can be ordered."""
 
     order_key: str = builtin_property(
         27,
@@ -159,7 +159,7 @@ class IsOrdered(Trait):
 
 @builtin_trait(TraitType.OWNABLE, is_extensible=True)
 class IsOwnable(Trait):
-    """A Node that can be owned by another Node."""
+    """An Entity that can be owned by another Entity."""
 
     owned_by: Optional["IsSubject"] = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
@@ -168,7 +168,7 @@ class IsOwnable(Trait):
 
 @builtin_trait(TraitType.OWNED)
 class IsOwned(IsOwnable):
-    """A Node that must be owned by another Node."""
+    """An Entity that must be owned by another Entity."""
 
     owned_by: "IsSubject" = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
@@ -177,14 +177,14 @@ class IsOwned(IsOwnable):
 
 @builtin_trait(TraitType.JOINABLE, is_extensible=True)
 class IsJoinable(Trait):
-    """A Node that can be joined by Subjects."""
+    """An Entity that can be joined by Subjects."""
 
     pass
 
 
 @builtin_trait(TraitType.SUBJECT)
 class IsSubject(Trait):
-    """A Node that can be a Subject."""
+    """An Entity that can be a Subject."""
 
     pass
 
@@ -196,7 +196,7 @@ class IsSubject(Trait):
 
 @builtin_trait(TraitType.TAGGABLE, is_extensible=True)
 class IsTaggable(Trait):
-    """A Node that can be tagged (with a Tag)."""
+    """An Entity that can be tagged (with a Tag)."""
 
     pass
 
@@ -212,7 +212,7 @@ class IsTaggable(Trait):
     event_types=(NodeType.REACTION_EVENT,),
 )
 class IsReactable(Trait):
-    """A Node that can be reacted to (with Reactions)."""
+    """An Entity that can be reacted to (with Reactions)."""
 
     pass
 
@@ -223,7 +223,7 @@ class IsReactable(Trait):
     event_types=(NodeType.STAR_EVENT,),
 )
 class IsStarable(Trait):
-    """A Node that can be starred (with Stars)."""
+    """An Entity that can be starred (with Stars)."""
 
     pass
 
@@ -234,7 +234,7 @@ class IsStarable(Trait):
     event_types=(NodeType.FOLLOW_EVENT,),
 )
 class IsFollowable(Trait):
-    """A Node that can be followed (with Follows)."""
+    """An Entity that can be followed (with Follows)."""
 
     pass
 
@@ -246,7 +246,7 @@ class IsFollowable(Trait):
 
 @builtin_trait(TraitType.VIEWABLE)
 class IsViewable(Trait):
-    """A Node that can be presented visually."""
+    """An Entity that can be presented visually."""
 
     pass
 
@@ -258,24 +258,38 @@ class IsViewable(Trait):
 
 @builtin_trait(TraitType.SOURCEABLE)
 class IsSourceable(IsOrdered):
-    """A Node that can be sourced from / defined by a Script."""
+    """An Entity that can be defined in a Script."""
 
-    source: Optional["Script"] = builtin_property(60, is_managed=True)
+    source: Optional["Script"] = builtin_property(
+        60,
+        is_managed=True,
+        description="The Script that defines this Node.",
+    )
     # token_range, ...
+    key: str | None = builtin_property(
+        70,
+        description="The key to uniquely identify this Node in reconciliation. If not set, name is used.",
+    )
+
+    name: str = builtin_property(
+        101,
+        is_repr=True,
+        description="The name of this Node.",
+    )
 
 
 @builtin_trait(TraitType.SCRIPTABLE)
 class IsScriptable(Trait):
-    """A Node that can be scripted."""
+    """An Entity that can be scripted."""
 
     script: Optional["Script"] = builtin_property(
-        70, description="The main / root Script of this Node."
+        80, description="The main / root Script of this Node."
     )
 
 
 @builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
-    """A Node that can be run directly (with Runs)."""
+    """An Entity that can be (directly, with Runs)."""
 
     pass
 
@@ -287,7 +301,7 @@ class IsRunnable(Trait):
 
 @builtin_trait(TraitType.ARCHIVABLE, is_extensible=True)
 class IsArchivable(Trait):
-    """A Node that can be archived."""
+    """An Entity that can be archived."""
 
     archived_at: Optional[datetime] = builtin_property(24, is_managed=True, is_eq=False)
 
@@ -314,7 +328,7 @@ class IsArchivable(Trait):
 
 @builtin_trait(TraitType.DELETABLE, is_extensible=True)
 class IsDeletable(Trait):
-    """A Node that can be deleted."""
+    """An Entity that can be deleted."""
 
     deleted_at: Optional[datetime] = builtin_property(25, is_managed=True, is_eq=False)
 
@@ -337,7 +351,7 @@ class IsDeletable(Trait):
 
 @builtin_trait(TraitType.CUSTOMIZABLE)
 class IsCustomizable(Trait):
-    """A Node that can be customized with custom Properties."""
+    """An Entity that can be customized with custom Properties."""
 
     custom_values: dict[UUID, "Value"] = builtin_property(
         26,
@@ -375,6 +389,6 @@ class IsExtensible(IsCustomizable, IsScriptable):
 
 @builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)
 class IsIrreversible(Trait):
-    """A Node that cannot be rewound in spacetime."""
+    """An Entity that cannot be rewound in spacetime."""
 
     pass

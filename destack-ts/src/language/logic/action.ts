@@ -23,7 +23,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:106100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:101100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -47,6 +47,7 @@ export class Action extends Method implements IsRunnable {
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     text?: Text | null;
@@ -87,6 +88,9 @@ export class Action extends Method implements IsRunnable {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -132,6 +136,9 @@ export class Action extends Method implements IsRunnable {
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -212,7 +219,7 @@ export class Action extends Method implements IsRunnable {
 
   static __packValue__(object: Action): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 106100;
+    objectValue["1"] = 101100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -249,6 +256,9 @@ export class Action extends Method implements IsRunnable {
     objectValue["27"] = object.orderKey;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
     }
     objectValue["101"] = object._name;
     if (object._icon != null) {
@@ -292,6 +302,8 @@ export class Action extends Method implements IsRunnable {
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
@@ -342,6 +354,7 @@ export class Action extends Method implements IsRunnable {
       cardinality: Number(objectValue["110"]),
       id: String(objectValue["2"]),
       source: unpackedSourcePtr,
+      key: unpackedKey,
       customValues: unpackedCustomValues,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
@@ -375,7 +388,7 @@ export class Action extends Method implements IsRunnable {
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 106100 };
+    const objectProto: Partial<ActionProto> = { metatype: 101100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -411,6 +424,9 @@ export class Action extends Method implements IsRunnable {
     objectProto.orderKey = object.orderKey;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.name = object._name;
     if (object._icon != null) {
@@ -475,6 +491,7 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       customValues: unpackedCustomValues,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
@@ -566,4 +583,4 @@ export class Action extends Method implements IsRunnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:106100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:101100 ==== */

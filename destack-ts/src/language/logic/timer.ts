@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
+  IsSourceable,
   IsSubject,
   NodeClass,
   NodeReference,
@@ -21,6 +22,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Schedule } from "@destack/language/logic/schedule";
+import type { Script } from "@destack/language/logic/script";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -55,7 +57,7 @@ export enum TimerType {
 registerEnumClass(EnumType.TIMER_TYPE, TimerType);
 /* ==== DESTACK_GENERATED_END:ENUM:105100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105101 ==== */
 /**
  * A TimerEvent is an Event that corresponds to a Timer.
  */
@@ -118,9 +120,9 @@ export abstract class TimerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_EVENT, TimerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:107101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105102 ==== */
 /**
  * A Timer was started.
  */
@@ -422,7 +424,7 @@ export class TimerStartedEvent extends TimerEvent {
 
   static __packValue__(object: TimerStartedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 107102;
+    objectValue["1"] = 105102;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -520,7 +522,7 @@ export class TimerStartedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerStartedEvent): TimerStartedEventProto {
-    const objectProto: Partial<TimerStartedEventProto> = { metatype: 107102 };
+    const objectProto: Partial<TimerStartedEventProto> = { metatype: 105102 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -644,9 +646,9 @@ export class TimerStartedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_STARTED_EVENT, TimerStartedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:107102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107103 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105103 ==== */
 /**
  * A Timer was completed.
  */
@@ -948,7 +950,7 @@ export class TimerCompletedEvent extends TimerEvent {
 
   static __packValue__(object: TimerCompletedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 107103;
+    objectValue["1"] = 105103;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1046,7 +1048,7 @@ export class TimerCompletedEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCompletedEvent): TimerCompletedEventProto {
-    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 107103 };
+    const objectProto: Partial<TimerCompletedEventProto> = { metatype: 105103 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1170,9 +1172,9 @@ export class TimerCompletedEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_COMPLETED_EVENT, TimerCompletedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:107103 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105103 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107104 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105104 ==== */
 /**
  * A Timer was cancelled.
  */
@@ -1474,7 +1476,7 @@ export class TimerCancelledEvent extends TimerEvent {
 
   static __packValue__(object: TimerCancelledEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 107104;
+    objectValue["1"] = 105104;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1572,7 +1574,7 @@ export class TimerCancelledEvent extends TimerEvent {
   }
 
   static __packProto__(object: TimerCancelledEvent): TimerCancelledEventProto {
-    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 107104 };
+    const objectProto: Partial<TimerCancelledEventProto> = { metatype: 105104 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1696,13 +1698,13 @@ export class TimerCancelledEvent extends TimerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER_CANCELLED_EVENT, TimerCancelledEvent);
-/* ==== DESTACK_GENERATED_END:NODE:107104 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105104 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105100 ==== */
 /**
  * A Timer.
  */
-export class Timer extends Entity {
+export class Timer extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.TIMER;
 
   /**
@@ -1805,6 +1807,39 @@ export class Timer extends Entity {
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * The absolute order key of this Node in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
+
+  /**
    * Timer.type
    */
   /**
@@ -1864,6 +1899,9 @@ export class Timer extends Entity {
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    orderKey?: string;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     type: TimerType;
     name: string;
     schedule?: Schedule | null;
@@ -1940,6 +1978,21 @@ export class Timer extends Entity {
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Timer.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Timer.type is required`);
@@ -1997,6 +2050,12 @@ export class Timer extends Entity {
     ) {
       return false;
     }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2020,6 +2079,12 @@ export class Timer extends Entity {
     if (this._schedule !== null) {
       h = (h * 31 + this._schedule.hash()) & 0xffffffff;
     }
+    if (this.sourcePtr !== null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -2040,6 +2105,7 @@ export class Timer extends Entity {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2094,7 +2160,7 @@ export class Timer extends Entity {
 
   static __packValue__(object: Timer): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 107100;
+    objectValue["1"] = 105100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2118,6 +2184,13 @@ export class Timer extends Entity {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    objectValue["27"] = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     objectValue["100"] = object._type;
     objectValue["101"] = object._name;
     if (object._schedule != null) {
@@ -2140,6 +2213,13 @@ export class Timer extends Entity {
       scheduleValue != undefined
         ? _Schedule.fromValue(scheduleValue, _session, _supergraph, _graph, _connection)
         : null;
+    const sourcePtrValue = objectValue["60"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -2174,6 +2254,8 @@ export class Timer extends Entity {
       type: Number(objectValue["100"]),
       name: objectValue["101"],
       schedule: unpackedSchedule,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -2183,6 +2265,7 @@ export class Timer extends Entity {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2206,7 +2289,7 @@ export class Timer extends Entity {
   }
 
   static __packProto__(object: Timer): TimerProto {
-    const objectProto: Partial<TimerProto> = { metatype: 107100 };
+    const objectProto: Partial<TimerProto> = { metatype: 105100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2229,6 +2312,13 @@ export class Timer extends Entity {
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.type = Number(object._type) as TimerTypeProto;
     objectProto.name = object._name;
@@ -2254,6 +2344,17 @@ export class Timer extends Entity {
         objectProto.schedule != undefined
           ? _Schedule.fromProto(objectProto.schedule!, _session, _supergraph, _graph, _connection)
           : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2317,6 +2418,7 @@ export class Timer extends Entity {
               _connection,
             )
           : null,
+      orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -2352,4 +2454,4 @@ export class Timer extends Entity {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TIMER, Timer);
-/* ==== DESTACK_GENERATED_END:NODE:107100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105100 ==== */

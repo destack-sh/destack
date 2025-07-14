@@ -1256,6 +1256,11 @@ export class Type extends StructFrozen {
   static __isFrozen__: boolean = true;
 
   /**
+   * The name of this Type when it was used.
+   */
+  readonly name: string | null;
+
+  /**
    * Type.cardinality
    */
   readonly cardinality: TypeCardinality;
@@ -1353,6 +1358,7 @@ export class Type extends StructFrozen {
   readonly nodeConstraint: NodeConstraint | null;
 
   constructor(options: {
+    name?: string | null;
     cardinality?: TypeCardinality;
     scalarType: ScalarType;
     primitiveType?: PrimitiveType | null;
@@ -1390,6 +1396,8 @@ export class Type extends StructFrozen {
     );
 
     // properties
+    let _name = options.name ?? null;
+    this.name = _name;
     let _cardinality = options.cardinality ?? null;
     if (_cardinality === null) {
       _cardinality = 1 /* TypeCardinality.SCALAR */;
@@ -1446,6 +1454,9 @@ export class Type extends StructFrozen {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
       return false;
     }
     if (!(this.cardinality === other.cardinality)) {
@@ -1518,6 +1529,9 @@ export class Type extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
+      if (this.name !== null) {
+        propertyReprs.push(`name=${`"${this.name}"`}`);
+      }
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
       if (this.primitiveType !== null) {
@@ -1551,6 +1565,9 @@ export class Type extends StructFrozen {
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.name !== null) {
+      h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
     if (this.primitiveType !== null) {
@@ -1613,6 +1630,9 @@ export class Type extends StructFrozen {
   static __packValue__(object: Type): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 601;
+    if (object.name != null) {
+      objectValue["101"] = object.name;
+    }
     objectValue["110"] = object.cardinality;
     objectValue["111"] = object.scalarType;
     if (object.primitiveType != null) {
@@ -1679,6 +1699,8 @@ export class Type extends StructFrozen {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const nameValue = objectValue["101"];
+    const unpackedName = nameValue != undefined ? nameValue : null;
     const primitiveTypeValue = objectValue["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
@@ -1746,6 +1768,7 @@ export class Type extends StructFrozen {
         ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Type({
+      name: unpackedName,
       cardinality: Number(objectValue["110"]),
       scalarType: Number(objectValue["111"]),
       primitiveType: unpackedPrimitiveType,
@@ -1786,6 +1809,9 @@ export class Type extends StructFrozen {
 
   static __packProto__(object: Type): TypeProto {
     const objectProto: Partial<TypeProto> = { metatype: 601 };
+    if (object.name != null) {
+      objectProto.name = object.name;
+    }
     objectProto.cardinality = Number(object.cardinality) as TypeCardinalityProto;
     objectProto.scalarType = Number(object.scalarType) as ScalarTypeProto;
     if (object.primitiveType != null) {
@@ -1853,6 +1879,7 @@ export class Type extends StructFrozen {
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
     return new Type({
+      name: objectProto.name != undefined ? objectProto.name : null,
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
       scalarType: Number(objectProto.scalarType) as ScalarType,
       primitiveType:

@@ -591,7 +591,7 @@ export class CustomEntityDefinition
   _prototypePtr: NodeReference | null;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -601,6 +601,22 @@ export class CustomEntityDefinition
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * The main / root Script of this Node.
@@ -685,6 +701,7 @@ export class CustomEntityDefinition
     isAbstract?: boolean;
     prototype?: Entity | NodeReference | null;
     source?: Script | NodeReference | null;
+    key?: string | null;
     script?: Script | NodeReference | null;
     name: string;
     icon?: Icon | null;
@@ -809,6 +826,8 @@ export class CustomEntityDefinition
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -902,6 +921,9 @@ export class CustomEntityDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -954,6 +976,9 @@ export class CustomEntityDefinition
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -1082,8 +1107,11 @@ export class CustomEntityDefinition
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     if (object._scriptPtr != null) {
-      objectValue["70"] = object._scriptPtr.toValue();
+      objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["101"] = object._name;
     if (object._icon != null) {
@@ -1150,7 +1178,7 @@ export class CustomEntityDefinition
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["70"];
+    const scriptPtrValue = objectValue["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
@@ -1160,6 +1188,8 @@ export class CustomEntityDefinition
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1204,6 +1234,7 @@ export class CustomEntityDefinition
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1293,6 +1324,9 @@ export class CustomEntityDefinition
     }
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
@@ -1402,6 +1436,7 @@ export class CustomEntityDefinition
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1683,7 +1718,7 @@ export class CustomTraitDefinition
   _isAbstract: boolean;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -1693,6 +1728,22 @@ export class CustomTraitDefinition
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * The main / root Script of this Node.
@@ -1775,6 +1826,7 @@ export class CustomTraitDefinition
     baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
     source?: Script | NodeReference | null;
+    key?: string | null;
     script?: Script | NodeReference | null;
     name: string;
     icon?: Icon | null;
@@ -1886,6 +1938,8 @@ export class CustomTraitDefinition
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1962,6 +2016,9 @@ export class CustomTraitDefinition
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
@@ -2012,6 +2069,9 @@ export class CustomTraitDefinition
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.deletedAt !== null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -2145,8 +2205,11 @@ export class CustomTraitDefinition
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     if (object._scriptPtr != null) {
-      objectValue["70"] = object._scriptPtr.toValue();
+      objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["101"] = object._name;
     if (object._icon != null) {
@@ -2202,12 +2265,14 @@ export class CustomTraitDefinition
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["70"];
+    const scriptPtrValue = objectValue["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
@@ -2257,6 +2322,7 @@ export class CustomTraitDefinition
       name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       deletedAt: unpackedDeletedAt,
       script: unpackedScriptPtr,
       customValues: unpackedCustomValues,
@@ -2346,6 +2412,9 @@ export class CustomTraitDefinition
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
@@ -2424,6 +2493,7 @@ export class CustomTraitDefinition
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       script:

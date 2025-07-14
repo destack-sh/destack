@@ -4,6 +4,7 @@ import type {
   EventStatus,
   Graph,
   Icon,
+  IsSourceable,
   IsSubject,
   NodeClass,
   NodeDefinitionReference,
@@ -25,6 +26,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Action } from "@destack/language/logic/action";
+import type { Script } from "@destack/language/logic/script";
 import type { Service } from "@destack/language/logic/service";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -51,7 +53,7 @@ export enum TriggerType {
 registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
 /* ==== DESTACK_GENERATED_END:ENUM:105000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105001 ==== */
 /**
  * A TriggerEvent is an Event that corresponds to a Trigger.
  */
@@ -114,13 +116,13 @@ export abstract class TriggerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:107001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:107000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
 /**
  * A Trigger is a dynamic event to run something.
  */
-export class Trigger extends Entity {
+export class Trigger extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.TRIGGER;
 
   /**
@@ -221,6 +223,39 @@ export class Trigger extends Entity {
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The absolute order key of this Node in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr !== null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Trigger.name
@@ -344,6 +379,9 @@ export class Trigger extends Entity {
     createdBy?: (Entity & IsSubject) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    orderKey?: string;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     event?: NodeDefinitionReference | null;
@@ -423,6 +461,21 @@ export class Trigger extends Entity {
       _template = (_template as Node).toRef();
     }
     this.templatePtr = _template;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Trigger.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`Trigger.name is required`);
@@ -512,6 +565,12 @@ export class Trigger extends Entity {
         return false;
       }
     }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -549,6 +608,12 @@ export class Trigger extends Entity {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
+    if (this.sourcePtr !== null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -569,6 +634,7 @@ export class Trigger extends Entity {
     if (this.updatedByPtr !== null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -622,7 +688,7 @@ export class Trigger extends Entity {
 
   static __packValue__(object: Trigger): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 107000;
+    objectValue["1"] = 105000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -645,6 +711,13 @@ export class Trigger extends Entity {
     objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    objectValue["27"] = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
     }
     objectValue["101"] = object._name;
     if (object._icon != null) {
@@ -715,6 +788,13 @@ export class Trigger extends Entity {
         );
       }
     }
+    const sourcePtrValue = objectValue["60"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -752,6 +832,8 @@ export class Trigger extends Entity {
       where: unpackedWhere,
       target: unpackedTargetPtr,
       arguments: unpackedArguments,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -761,6 +843,7 @@ export class Trigger extends Entity {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -784,7 +867,7 @@ export class Trigger extends Entity {
   }
 
   static __packProto__(object: Trigger): TriggerProto {
-    const objectProto: Partial<TriggerProto> = { metatype: 107000 };
+    const objectProto: Partial<TriggerProto> = { metatype: 105000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -807,6 +890,13 @@ export class Trigger extends Entity {
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    objectProto.orderKey = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.name = object._name;
     if (object._icon != null) {
@@ -884,6 +974,17 @@ export class Trigger extends Entity {
             )
           : null,
       arguments: unpackedArguments,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -947,6 +1048,7 @@ export class Trigger extends Entity {
               _connection,
             )
           : null,
+      orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -982,4 +1084,4 @@ export class Trigger extends Entity {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER, Trigger);
-/* ==== DESTACK_GENERATED_END:NODE:107000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */

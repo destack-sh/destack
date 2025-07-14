@@ -108,10 +108,19 @@ export abstract class Metric extends Entity implements IsSourceable {
   declare readonly orderKey: string;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   abstract get source(): Script | null;
   declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
 
   /**
    * Metric.name
@@ -321,7 +330,7 @@ export class GaugeMetric extends Metric {
   readonly orderKey: string;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -331,6 +340,22 @@ export class GaugeMetric extends Metric {
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Metric.name
@@ -378,6 +403,7 @@ export class GaugeMetric extends Metric {
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     orderKey?: string;
     source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     _session?: Session | null;
@@ -466,6 +492,8 @@ export class GaugeMetric extends Metric {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`GaugeMetric.name is required`);
@@ -520,6 +548,9 @@ export class GaugeMetric extends Metric {
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -544,6 +575,9 @@ export class GaugeMetric extends Metric {
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -647,6 +681,9 @@ export class GaugeMetric extends Metric {
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
@@ -673,6 +710,8 @@ export class GaugeMetric extends Metric {
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -707,6 +746,7 @@ export class GaugeMetric extends Metric {
       name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -768,6 +808,9 @@ export class GaugeMetric extends Metric {
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
@@ -800,6 +843,7 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1585,7 +1629,7 @@ export class CounterMetric extends Metric {
   readonly orderKey: string;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -1595,6 +1639,22 @@ export class CounterMetric extends Metric {
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Metric.name
@@ -1642,6 +1702,7 @@ export class CounterMetric extends Metric {
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     orderKey?: string;
     source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     _session?: Session | null;
@@ -1730,6 +1791,8 @@ export class CounterMetric extends Metric {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`CounterMetric.name is required`);
@@ -1784,6 +1847,9 @@ export class CounterMetric extends Metric {
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1808,6 +1874,9 @@ export class CounterMetric extends Metric {
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -1911,6 +1980,9 @@ export class CounterMetric extends Metric {
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
@@ -1937,6 +2009,8 @@ export class CounterMetric extends Metric {
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1971,6 +2045,7 @@ export class CounterMetric extends Metric {
       name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -2032,6 +2107,9 @@ export class CounterMetric extends Metric {
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
@@ -2064,6 +2142,7 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -2849,7 +2928,7 @@ export class HistogramMetric extends Metric {
   readonly orderKey: string;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -2859,6 +2938,22 @@ export class HistogramMetric extends Metric {
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Metric.name
@@ -2906,6 +3001,7 @@ export class HistogramMetric extends Metric {
     updatedBy?: (Entity & IsSubject) | NodeReference | null;
     orderKey?: string;
     source?: Script | NodeReference | null;
+    key?: string | null;
     name: string;
     icon?: Icon | null;
     _session?: Session | null;
@@ -2994,6 +3090,8 @@ export class HistogramMetric extends Metric {
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`HistogramMetric.name is required`);
@@ -3048,6 +3146,9 @@ export class HistogramMetric extends Metric {
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -3072,6 +3173,9 @@ export class HistogramMetric extends Metric {
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -3175,6 +3279,9 @@ export class HistogramMetric extends Metric {
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
@@ -3201,6 +3308,8 @@ export class HistogramMetric extends Metric {
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -3235,6 +3344,7 @@ export class HistogramMetric extends Metric {
       name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -3296,6 +3406,9 @@ export class HistogramMetric extends Metric {
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
@@ -3328,6 +3441,7 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(

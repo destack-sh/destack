@@ -191,7 +191,7 @@ export class CustomProperty
   readonly orderKey: string;
 
   /**
-   * IsSourceable.source
+   * The Script that defines this Node.
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
@@ -201,6 +201,22 @@ export class CustomProperty
     return null;
   }
   readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * CustomProperty.type
@@ -620,6 +636,7 @@ export class CustomProperty
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     source?: Script | NodeReference | null;
+    key?: string | null;
     type?: PropertyType;
     name: string;
     icon?: Icon | null;
@@ -740,6 +757,8 @@ export class CustomProperty
       _source = (_source as Node).toRef();
     }
     this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* PropertyType.MEMBER */;
@@ -936,6 +955,9 @@ export class CustomProperty
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1026,6 +1048,9 @@ export class CustomProperty
     }
     if (this.sourcePtr !== null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key !== null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.snapshotPtr !== null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -1151,6 +1176,9 @@ export class CustomProperty
     objectValue["27"] = object.orderKey;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
     }
     objectValue["100"] = object._type;
     objectValue["101"] = object._name;
@@ -1340,6 +1368,8 @@ export class CustomProperty
       sourcePtrValue != undefined
         ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1393,6 +1423,7 @@ export class CustomProperty
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
+      key: unpackedKey,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1458,6 +1489,9 @@ export class CustomProperty
     objectProto.orderKey = object.orderKey;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.type = Number(object._type) as PropertyTypeProto;
     objectProto.name = object._name;
@@ -1659,6 +1693,7 @@ export class CustomProperty
               _connection,
             )
           : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
