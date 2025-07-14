@@ -10,7 +10,7 @@ from .definition import (
 )
 from .enum import CustomEnumDefinition, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .property import CustomProperty, CustomPropertyGroup
+from .property import CustomProperty
 from .query import (
     Aggregation,
     AggregationType,
@@ -112,7 +112,6 @@ __all__ = [
     "CustomEnumDefinition",
     "CustomOption",
     "CustomProperty",
-    "CustomPropertyGroup",
     "CustomStruct",
     "CustomStructDefinition",
     "Dimension",

@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.12.0"
+VERSION = "2025.07.14.0"
 
 # import from all generated files
 from .health_pb2 import *
@@ -34,9 +34,7 @@ AnyNodeProto = Union[
     EditEventProto,
     CustomEnumDefinitionProto,
     CustomOptionProto,
-    CustomOptionGroupProto,
     CustomPropertyProto,
-    CustomPropertyGroupProto,
     CustomStructDefinitionProto,
     AgentProto,
     EntitlementEventProto,
@@ -113,7 +111,7 @@ AnyNodeProto = Union[
     FocusEventProto,
     FocusInEventProto,
     FocusOutEventProto,
-    KeyboardEventProto,
+    KeyEventProto,
     KeyDownEventProto,
     KeyUpEventProto,
     KeyPressEventProto,
@@ -198,13 +196,6 @@ AnyNodeProto = Union[
     StrokeStyleProto,
     ThemeProto,
     ClientProto,
-    FriendshipProto,
-    FriendshipInviteEventProto,
-    FriendshipInviteSentEventProto,
-    FriendshipInviteRescindedEventProto,
-    FriendshipInviteAcceptedEventProto,
-    FriendshipInviteRejectedEventProto,
-    FriendshipInviteProto,
     HandleProto,
     OrganizationProto,
     SpaceProto,

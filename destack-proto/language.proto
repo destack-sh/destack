@@ -782,9 +782,7 @@ enum NodeTypeProto {
   NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 103;
   NODE_TYPE_CUSTOM_ENUM_DEFINITION = 104;
   NODE_TYPE_CUSTOM_PROPERTY = 110;
-  NODE_TYPE_CUSTOM_PROPERTY_GROUP = 111;
   NODE_TYPE_CUSTOM_OPTION = 120;
-  NODE_TYPE_CUSTOM_OPTION_GROUP = 121;
   NODE_TYPE_RECORD = 1000;
   NODE_TYPE_RESOURCE = 1100;
   NODE_TYPE_METRIC = 1200;
@@ -796,13 +794,6 @@ enum NodeTypeProto {
   NODE_TYPE_SPACE = 20100;
   NODE_TYPE_HANDLE = 20200;
   NODE_TYPE_USER = 21000;
-  NODE_TYPE_FRIENDSHIP = 21100;
-  NODE_TYPE_FRIENDSHIP_INVITE = 21200;
-  NODE_TYPE_FRIENDSHIP_INVITE_EVENT = 21201;
-  NODE_TYPE_FRIENDSHIP_INVITE_SENT_EVENT = 21202;
-  NODE_TYPE_FRIENDSHIP_INVITE_RESCINDED_EVENT = 21203;
-  NODE_TYPE_FRIENDSHIP_INVITE_ACCEPTED_EVENT = 21204;
-  NODE_TYPE_FRIENDSHIP_INVITE_REJECTED_EVENT = 21205;
   NODE_TYPE_CLIENT = 21300;
   NODE_TYPE_ORGANIZATION = 22000;
   NODE_TYPE_TEAM = 22100;
@@ -932,8 +923,8 @@ enum NodeTypeProto {
   NODE_TYPE_SINGLE_CLICK_EVENT = 560202;
   NODE_TYPE_DOUBLE_CLICK_EVENT = 560203;
   NODE_TYPE_TRIPLE_CLICK_EVENT = 560204;
-  NODE_TYPE_WHEEL_EVENT = 560205;
-  NODE_TYPE_KEYBOARD_EVENT = 560300;
+  NODE_TYPE_WHEEL_EVENT = 560210;
+  NODE_TYPE_KEY_EVENT = 560300;
   NODE_TYPE_KEY_DOWN_EVENT = 560301;
   NODE_TYPE_KEY_UP_EVENT = 560302;
   NODE_TYPE_KEY_PRESS_EVENT = 560303;
@@ -2204,29 +2195,6 @@ message CustomOptionProto {
   optional NodeReferenceProto source_ptr = 60;
   string name = 101;
   optional IconProto icon = 102;
-  optional NodeReferenceProto group_ptr = 105;
-}
-
-// A CustomOptionGroup is a group of CustomOptions.
-message CustomOptionGroupProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  string order_key = 27;
-  optional NodeReferenceProto source_ptr = 60;
-  string name = 101;
-  optional IconProto icon = 102;
 }
 
 // A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
@@ -2250,7 +2218,6 @@ message CustomPropertyProto {
   PropertyTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
-  optional NodeReferenceProto group_ptr = 105;
   TypeCardinalityProto cardinality = 110;
   ScalarTypeProto scalar_type = 111;
   optional PrimitiveTypeProto primitive_type = 112;
@@ -2271,28 +2238,6 @@ message CustomPropertyProto {
   optional bool is_unique = 151;
   optional bool is_computed = 152;
   optional bool is_readonly = 153;
-}
-
-// A CustomPropertyGroup is a group of CustomProperties.
-message CustomPropertyGroupProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  string order_key = 27;
-  optional NodeReferenceProto source_ptr = 60;
-  string name = 101;
-  optional IconProto icon = 102;
 }
 
 message CustomStructProto {
@@ -3108,116 +3053,6 @@ message FrameViewProto {
   optional CornersProto radius = 148;
 }
 
-// A Friendship between two Users.
-message FriendshipProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  NodeReferenceProto user_a_ptr = 40;
-  NodeReferenceProto user_b_ptr = 41;
-}
-
-// An invite to be friends with another User.
-message FriendshipInviteProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  NodeReferenceProto owned_by_ptr = 28;
-}
-
-// A FriendshipInvite was accepted.
-message FriendshipInviteAcceptedEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
-// A Event regarding a Friendship Invite.
-message FriendshipInviteEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
-// A FriendshipInvite was rejected.
-message FriendshipInviteRejectedEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
-// A FriendshipInvite was rescinded.
-message FriendshipInviteRescindedEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
-// A FriendshipInvite was sent.
-message FriendshipInviteSentEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  NodeReferenceProto node_ptr = 101;
-}
-
 message FunctionProto {
   StructTypeProto metatype = 1;
   FunctionTypeProto type = 100;
@@ -3620,6 +3455,29 @@ message KeyDownEventProto {
   bool meta_key = 123;
 }
 
+// A KeyEvent is an InputEvent that corresponds to some direct user input with a keyboard.
+message KeyEventProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  optional NodeReferenceProto client_ptr = 22;
+  optional string client_nonce = 23;
+  EventStatusProto status = 30;
+  optional NodeReferenceProto node_ptr = 101;
+  string key = 110;
+  string code = 111;
+  bool is_repeat = 112;
+  bool is_redacted = 113;
+  bool shift_key = 120;
+  bool alt_key = 121;
+  bool ctrl_key = 122;
+  bool meta_key = 123;
+}
+
 // A KeyPressEvent is a KeyboardEvent when a key is pressed.
 message KeyPressEventProto {
   NodeTypeProto metatype = 1;
@@ -3645,29 +3503,6 @@ message KeyPressEventProto {
 
 // A KeyUpEvent is a KeyboardEvent when a key is released.
 message KeyUpEventProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  optional NodeReferenceProto client_ptr = 22;
-  optional string client_nonce = 23;
-  EventStatusProto status = 30;
-  optional NodeReferenceProto node_ptr = 101;
-  string key = 110;
-  string code = 111;
-  bool is_repeat = 112;
-  bool is_redacted = 113;
-  bool shift_key = 120;
-  bool alt_key = 121;
-  bool ctrl_key = 122;
-  bool meta_key = 123;
-}
-
-// A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard.
-message KeyboardEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -5724,7 +5559,7 @@ message StructDefinitionReferenceProto {
   NodeReferenceProto definition_ptr = 105;
 }
 
-// A Style is a style definition.
+// A Style defines a base visual appearance in some context.
 message StyleProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6353,9 +6188,7 @@ message SomeNodeProto {
     EditEventProto edit_event = 2001;
     CustomEnumDefinitionProto custom_enum_definition = 104;
     CustomOptionProto custom_option = 120;
-    CustomOptionGroupProto custom_option_group = 121;
     CustomPropertyProto custom_property = 110;
-    CustomPropertyGroupProto custom_property_group = 111;
     CustomStructDefinitionProto custom_struct_definition = 103;
     AgentProto agent = 60600;
     EntitlementRequestedEventProto entitlement_requested_event = 60502;
@@ -6428,7 +6261,7 @@ message SomeNodeProto {
     SingleClickEventProto single_click_event = 560202;
     DoubleClickEventProto double_click_event = 560203;
     TripleClickEventProto triple_click_event = 560204;
-    WheelEventProto wheel_event = 560205;
+    WheelEventProto wheel_event = 560210;
     MethodProto method = 106000;
     ActionProto action = 106100;
     EventCursorProto event_cursor = 108100;
@@ -6487,12 +6320,6 @@ message SomeNodeProto {
     StrokeStyleProto stroke_style = 6001100;
     ThemeProto theme = 600000;
     ClientProto client = 21300;
-    FriendshipProto friendship = 21100;
-    FriendshipInviteSentEventProto friendship_invite_sent_event = 21202;
-    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 21203;
-    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 21204;
-    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 21205;
-    FriendshipInviteProto friendship_invite = 21200;
     HandleProto handle = 20200;
     OrganizationProto organization = 22000;
     SpaceProto space = 20100;
@@ -6509,9 +6336,7 @@ message SomeEntityProto {
     CustomEventDefinitionProto custom_event_definition = 102;
     CustomEnumDefinitionProto custom_enum_definition = 104;
     CustomOptionProto custom_option = 120;
-    CustomOptionGroupProto custom_option_group = 121;
     CustomPropertyProto custom_property = 110;
-    CustomPropertyGroupProto custom_property_group = 111;
     CustomStructDefinitionProto custom_struct_definition = 103;
     AgentProto agent = 60600;
     EntitlementProto entitlement = 60500;
@@ -6572,8 +6397,6 @@ message SomeEntityProto {
     StrokeStyleProto stroke_style = 6001100;
     ThemeProto theme = 600000;
     ClientProto client = 21300;
-    FriendshipProto friendship = 21100;
-    FriendshipInviteProto friendship_invite = 21200;
     HandleProto handle = 20200;
     OrganizationProto organization = 22000;
     SpaceProto space = 20100;
@@ -6635,7 +6458,7 @@ message SomeEventProto {
     SingleClickEventProto single_click_event = 560202;
     DoubleClickEventProto double_click_event = 560203;
     TripleClickEventProto triple_click_event = 560204;
-    WheelEventProto wheel_event = 560205;
+    WheelEventProto wheel_event = 560210;
     TimerStartedEventProto timer_started_event = 107102;
     TimerCompletedEventProto timer_completed_event = 107103;
     TimerCancelledEventProto timer_cancelled_event = 107104;
@@ -6656,10 +6479,6 @@ message SomeEventProto {
     StarEventProto star_event = 220301;
     StarAddedEventProto star_added_event = 220302;
     StarRemovedEventProto star_removed_event = 220303;
-    FriendshipInviteSentEventProto friendship_invite_sent_event = 21202;
-    FriendshipInviteRescindedEventProto friendship_invite_rescinded_event = 21203;
-    FriendshipInviteAcceptedEventProto friendship_invite_accepted_event = 21204;
-    FriendshipInviteRejectedEventProto friendship_invite_rejected_event = 21205;
   };
 }
 

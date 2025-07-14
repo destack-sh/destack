@@ -32,10 +32,10 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:560300 ==== */
 /**
- * A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard.
+ * A KeyEvent is an InputEvent that corresponds to some direct user input with a keyboard.
  */
-export abstract class KeyboardEvent extends InputEvent {
-  static metatype: NodeType = NodeType.KEYBOARD_EVENT;
+export abstract class KeyEvent extends InputEvent {
+  static metatype: NodeType = NodeType.KEY_EVENT;
 
   /**
    * Event.parent
@@ -104,7 +104,7 @@ export abstract class KeyboardEvent extends InputEvent {
   declare readonly isRepeat: boolean;
 
   /**
-   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   * Whether the key was masked for some reason (e.g., security, privacy).
    */
   declare readonly isRedacted: boolean;
 
@@ -132,14 +132,14 @@ export abstract class KeyboardEvent extends InputEvent {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.KEYBOARD_EVENT, KeyboardEvent);
+registerNodeClass(NodeType.KEY_EVENT, KeyEvent);
 /* ==== DESTACK_GENERATED_END:NODE:560300 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:560301 ==== */
 /**
  * A KeyDownEvent is a KeyboardEvent when a key is pressed down.
  */
-export class KeyDownEvent extends KeyboardEvent {
+export class KeyDownEvent extends KeyEvent {
   static metatype: NodeType = NodeType.KEY_DOWN_EVENT;
 
   /**
@@ -245,7 +245,7 @@ export class KeyDownEvent extends KeyboardEvent {
   readonly isRepeat: boolean;
 
   /**
-   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   * Whether the key was masked for some reason (e.g., security, privacy).
    */
   readonly isRedacted: boolean;
 
@@ -813,7 +813,7 @@ registerNodeClass(NodeType.KEY_DOWN_EVENT, KeyDownEvent);
 /**
  * A KeyUpEvent is a KeyboardEvent when a key is released.
  */
-export class KeyUpEvent extends KeyboardEvent {
+export class KeyUpEvent extends KeyEvent {
   static metatype: NodeType = NodeType.KEY_UP_EVENT;
 
   /**
@@ -919,7 +919,7 @@ export class KeyUpEvent extends KeyboardEvent {
   readonly isRepeat: boolean;
 
   /**
-   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   * Whether the key was masked for some reason (e.g., security, privacy).
    */
   readonly isRedacted: boolean;
 
@@ -1487,7 +1487,7 @@ registerNodeClass(NodeType.KEY_UP_EVENT, KeyUpEvent);
 /**
  * A KeyPressEvent is a KeyboardEvent when a key is pressed.
  */
-export class KeyPressEvent extends KeyboardEvent {
+export class KeyPressEvent extends KeyEvent {
   static metatype: NodeType = NodeType.KEY_PRESS_EVENT;
 
   /**
@@ -1593,7 +1593,7 @@ export class KeyPressEvent extends KeyboardEvent {
   readonly isRepeat: boolean;
 
   /**
-   * Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).
+   * Whether the key was masked for some reason (e.g., security, privacy).
    */
   readonly isRedacted: boolean;
 

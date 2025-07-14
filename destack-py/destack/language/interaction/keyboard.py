@@ -9,9 +9,9 @@ from .input import InputEvent
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.KEYBOARD_EVENT, frozen=True, is_abstract=True)
-class KeyboardEvent(InputEvent):
-    """A KeyboardEvent is an InputEvent that corresponds to some direct user input with a keyboard."""
+@builtin_node(NodeType.KEY_EVENT, frozen=True, is_abstract=True)
+class KeyEvent(InputEvent):
+    """A KeyEvent is an InputEvent that corresponds to some direct user input with a keyboard."""
 
     key: str = builtin_property(
         110,
@@ -30,7 +30,7 @@ class KeyboardEvent(InputEvent):
     )
     is_redacted: bool = builtin_property(
         113,
-        description="Whether the KeyboardEvent was masked for some reason (e.g., security, privacy).",
+        description="Whether the key was masked for some reason (e.g., security, privacy).",
     )
 
     shift_key: bool = builtin_property(
@@ -52,21 +52,21 @@ class KeyboardEvent(InputEvent):
 
 
 @builtin_node(NodeType.KEY_DOWN_EVENT, frozen=True)
-class KeyDownEvent(KeyboardEvent):
+class KeyDownEvent(KeyEvent):
     """A KeyDownEvent is a KeyboardEvent when a key is pressed down."""
 
     pass
 
 
 @builtin_node(NodeType.KEY_UP_EVENT, frozen=True)
-class KeyUpEvent(KeyboardEvent):
+class KeyUpEvent(KeyEvent):
     """A KeyUpEvent is a KeyboardEvent when a key is released."""
 
     pass
 
 
 @builtin_node(NodeType.KEY_PRESS_EVENT, frozen=True)
-class KeyPressEvent(KeyboardEvent):
+class KeyPressEvent(KeyEvent):
     """A KeyPressEvent is a KeyboardEvent when a key is pressed."""
 
     pass

@@ -61,7 +61,6 @@ class CustomProperty(
     type: PropertyType = builtin_property(100, default=PropertyType.MEMBER)
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
-    group: "CustomPropertyGroup | None" = builtin_property(105)
     # key?
 
     # scalar
@@ -154,19 +153,3 @@ class CustomProperty(
 
     def desc(self) -> "Sort":
         return Sort.of(self, SortType.DESCENDING)
-
-
-@builtin_node(NodeType.CUSTOM_PROPERTY_GROUP)
-class CustomPropertyGroup(
-    IsArchivable,
-    IsDeletable,
-    IsSourceable,
-    Entity,
-):
-    """
-    A CustomPropertyGroup is a group of CustomProperties.
-    """
-
-    parent: Union["IsCustomizable", None] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)

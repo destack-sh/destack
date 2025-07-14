@@ -139,13 +139,9 @@ import type {
   StructDefinition,
   TraitDefinition,
 } from "@destack/language/core/common/definition";
-import type {
-  CustomEnumDefinition,
-  CustomOption,
-  CustomOptionGroup,
-} from "@destack/language/core/common/enum";
+import type { CustomEnumDefinition, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
-import type { CustomProperty, CustomPropertyGroup } from "@destack/language/core/common/property";
+import type { CustomProperty } from "@destack/language/core/common/property";
 import type {
   Aggregation,
   AggregationType,
@@ -261,9 +257,9 @@ import type { FocusEvent, FocusInEvent, FocusOutEvent } from "@destack/language/
 import type { InputEvent } from "@destack/language/interaction/input";
 import type {
   KeyDownEvent,
+  KeyEvent,
   KeyPressEvent,
   KeyUpEvent,
-  KeyboardEvent,
 } from "@destack/language/interaction/keyboard";
 import type {
   ClickEvent,
@@ -423,15 +419,6 @@ import type {
   TransitionType,
 } from "@destack/language/style/transition";
 import type { Client } from "@destack/language/universe/client";
-import type {
-  Friendship,
-  FriendshipInvite,
-  FriendshipInviteAcceptedEvent,
-  FriendshipInviteEvent,
-  FriendshipInviteRejectedEvent,
-  FriendshipInviteRescindedEvent,
-  FriendshipInviteSentEvent,
-} from "@destack/language/universe/friendship";
 import type { Handle } from "@destack/language/universe/handle";
 import type { Organization, OrganizationStatus } from "@destack/language/universe/organization";
 import type { Space, SpaceStatus } from "@destack/language/universe/space";
@@ -464,9 +451,7 @@ export type NodeTypeMapping = {
   [NodeType.EDIT_EVENT]: EditEvent;
   [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
   [NodeType.CUSTOM_OPTION]: CustomOption;
-  [NodeType.CUSTOM_OPTION_GROUP]: CustomOptionGroup;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
-  [NodeType.CUSTOM_PROPERTY_GROUP]: CustomPropertyGroup;
   [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
   [NodeType.AGENT]: Agent;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
@@ -543,7 +528,7 @@ export type NodeTypeMapping = {
   [NodeType.FOCUS_EVENT]: FocusEvent;
   [NodeType.FOCUS_IN_EVENT]: FocusInEvent;
   [NodeType.FOCUS_OUT_EVENT]: FocusOutEvent;
-  [NodeType.KEYBOARD_EVENT]: KeyboardEvent;
+  [NodeType.KEY_EVENT]: KeyEvent;
   [NodeType.KEY_DOWN_EVENT]: KeyDownEvent;
   [NodeType.KEY_UP_EVENT]: KeyUpEvent;
   [NodeType.KEY_PRESS_EVENT]: KeyPressEvent;
@@ -628,13 +613,6 @@ export type NodeTypeMapping = {
   [NodeType.STROKE_STYLE]: StrokeStyle;
   [NodeType.THEME]: Theme;
   [NodeType.CLIENT]: Client;
-  [NodeType.FRIENDSHIP]: Friendship;
-  [NodeType.FRIENDSHIP_INVITE_EVENT]: FriendshipInviteEvent;
-  [NodeType.FRIENDSHIP_INVITE_SENT_EVENT]: FriendshipInviteSentEvent;
-  [NodeType.FRIENDSHIP_INVITE_RESCINDED_EVENT]: FriendshipInviteRescindedEvent;
-  [NodeType.FRIENDSHIP_INVITE_ACCEPTED_EVENT]: FriendshipInviteAcceptedEvent;
-  [NodeType.FRIENDSHIP_INVITE_REJECTED_EVENT]: FriendshipInviteRejectedEvent;
-  [NodeType.FRIENDSHIP_INVITE]: FriendshipInvite;
   [NodeType.HANDLE]: Handle;
   [NodeType.ORGANIZATION]: Organization;
   [NodeType.SPACE]: Space;
