@@ -239,7 +239,7 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`Star.materialization is required`);

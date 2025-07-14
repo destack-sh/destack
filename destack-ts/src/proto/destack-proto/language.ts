@@ -3458,9 +3458,13 @@ export interface EditEventProto {
      */
     operation?: EditOperationProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.PropertyReferenceProto attribute = 103
+     * @generated from protobuf field: optional int64 property_id = 103 [jstype = JS_NUMBER]
      */
-    attribute?: PropertyReferenceProto;
+    propertyId?: number;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto custom_property_ptr = 104
+     */
+    customPropertyPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: optional symbol.destack.ValueProto key = 105
      */
@@ -20625,13 +20629,17 @@ export enum MaterializationProto {
      */
     MATERIALIZATION_UNSPECIFIED = 0,
     /**
-     * @generated from protobuf enum value: MATERIALIZATION_PARTIAL = 1;
+     * @generated from protobuf enum value: MATERIALIZATION_INSTANCE = 1;
      */
-    MATERIALIZATION_PARTIAL = 1,
+    MATERIALIZATION_INSTANCE = 1,
     /**
-     * @generated from protobuf enum value: MATERIALIZATION_FULL = 32;
+     * @generated from protobuf enum value: MATERIALIZATION_COPY = 2;
      */
-    MATERIALIZATION_FULL = 32
+    MATERIALIZATION_COPY = 2,
+    /**
+     * @generated from protobuf enum value: MATERIALIZATION_ROOT = 3;
+     */
+    MATERIALIZATION_ROOT = 3
 }
 /**
  * @generated from protobuf enum symbol.destack.MethodCardinalityProto
@@ -22421,9 +22429,9 @@ export enum SnapshotTypeProto {
      */
     SNAPSHOT_TYPE_PARTIAL = 1,
     /**
-     * @generated from protobuf enum value: SNAPSHOT_TYPE_FULL = 2;
+     * @generated from protobuf enum value: SNAPSHOT_TYPE_COPY = 2;
      */
-    SNAPSHOT_TYPE_FULL = 2
+    SNAPSHOT_TYPE_COPY = 2
 }
 /**
  * @generated from protobuf enum symbol.destack.SortModeProto
@@ -31186,7 +31194,8 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EditTypeProto", EditTypeProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "operation", kind: "enum", opt: true, T: () => ["symbol.destack.EditOperationProto", EditOperationProto] },
-            { no: 103, name: "attribute", kind: "message", T: () => PropertyReferenceProto },
+            { no: 103, name: "property_id", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 104, name: "custom_property_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 105, name: "key", kind: "message", T: () => ValueProto },
             { no: 110, name: "value", kind: "message", T: () => ValueProto },
             { no: 202, name: "reverse_operation", kind: "enum", opt: true, T: () => ["symbol.destack.EditOperationProto", EditOperationProto] },
@@ -31247,8 +31256,11 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
                 case /* optional symbol.destack.EditOperationProto operation */ 102:
                     message.operation = reader.int32();
                     break;
-                case /* optional symbol.destack.PropertyReferenceProto attribute */ 103:
-                    message.attribute = PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.attribute);
+                case /* optional int64 property_id = 103 [jstype = JS_NUMBER] */ 103:
+                    message.propertyId = reader.int64().toNumber();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto custom_property_ptr */ 104:
+                    message.customPropertyPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.customPropertyPtr);
                     break;
                 case /* optional symbol.destack.ValueProto key */ 105:
                     message.key = ValueProto.internalBinaryRead(reader, reader.uint32(), options, message.key);
@@ -31313,9 +31325,12 @@ class EditEventProto$Type extends MessageType<EditEventProto> {
         /* optional symbol.destack.EditOperationProto operation = 102; */
         if (message.operation !== undefined)
             writer.tag(102, WireType.Varint).int32(message.operation);
-        /* optional symbol.destack.PropertyReferenceProto attribute = 103; */
-        if (message.attribute)
-            PropertyReferenceProto.internalBinaryWrite(message.attribute, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+        /* optional int64 property_id = 103 [jstype = JS_NUMBER]; */
+        if (message.propertyId !== undefined)
+            writer.tag(103, WireType.Varint).int64(message.propertyId);
+        /* optional symbol.destack.NodeReferenceProto custom_property_ptr = 104; */
+        if (message.customPropertyPtr)
+            NodeReferenceProto.internalBinaryWrite(message.customPropertyPtr, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.ValueProto key = 105; */
         if (message.key)
             ValueProto.internalBinaryWrite(message.key, writer.tag(105, WireType.LengthDelimited).fork(), options).join();

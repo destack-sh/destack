@@ -406,7 +406,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 32 /* Materialization.FULL */;
+      _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`CustomEventDefinition.materialization is required`);

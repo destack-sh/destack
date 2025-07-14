@@ -185,8 +185,8 @@ function executeEdit(options: {
   else if (editType === EditType.UPDATE) {
     for (const edit of edits) {
       const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
-      if (!edit.attribute) {
-        throw new Error(`no attribute for ${edit.repr()}`);
+      if (!edit.propertyId) {
+        throw new Error(`no propertyId for ${edit.repr()}`);
       }
       const nodeKey = table.getNodeKey({ id: edit.nodePtr.id, snapshotId });
       const row = table.rows.get(nodeKey);
@@ -196,9 +196,9 @@ function executeEdit(options: {
         if (!edit.value) {
           throw new Error(`no value for ${edit.repr()}`);
         }
-        row.value[String(edit.attribute.id)] = edit.value.value;
+        row.value[String(edit.propertyId)] = edit.value.value;
       } else if (edit.operation === EditOperation.CLEAR) {
-        delete row.value[String(edit.attribute.id)];
+        delete row.value[String(edit.propertyId)];
       } else {
         throw new Error(`unsupported operation: ${edit.repr()}`);
       }

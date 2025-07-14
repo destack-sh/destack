@@ -706,8 +706,9 @@ enum MachineTypeProto {
 // The materialization level of an Entity.
 enum MaterializationProto {
   MATERIALIZATION_UNSPECIFIED = 0;
-  MATERIALIZATION_PARTIAL = 1;
-  MATERIALIZATION_FULL = 32;
+  MATERIALIZATION_INSTANCE = 1;
+  MATERIALIZATION_COPY = 2;
+  MATERIALIZATION_ROOT = 3;
 }
 
 enum MethodCardinalityProto {
@@ -1231,7 +1232,7 @@ enum SnapshotStatusProto {
 enum SnapshotTypeProto {
   SNAPSHOT_TYPE_UNSPECIFIED = 0;
   SNAPSHOT_TYPE_PARTIAL = 1;
-  SNAPSHOT_TYPE_FULL = 2;
+  SNAPSHOT_TYPE_COPY = 2;
 }
 
 enum SortModeProto {
@@ -2520,7 +2521,8 @@ message EditEventProto {
   EditTypeProto type = 100;
   NodeReferenceProto node_ptr = 101;
   optional EditOperationProto operation = 102;
-  optional PropertyReferenceProto attribute = 103;
+  optional int64 property_id = 103 [jstype = JS_NUMBER];
+  optional NodeReferenceProto custom_property_ptr = 104;
   optional ValueProto key = 105;
   optional ValueProto value = 110;
   optional EditOperationProto reverse_operation = 202;

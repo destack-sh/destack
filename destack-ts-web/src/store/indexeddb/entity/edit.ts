@@ -197,8 +197,8 @@ async function executeEdit(options: {
     const table = context.getEntityTable(definition);
     const store = tx.objectStore(table.name);
     for (const edit of edits) {
-      if (!edit.attribute) {
-        throw new Error(`no attribute for ${edit.repr()}`);
+      if (!edit.propertyId) {
+        throw new Error(`no propertyId for ${edit.repr()}`);
       }
       const snapshotId = edit.snapshotPtr ? edit.snapshotPtr.id : null;
       const nodeKey = getEntityKey(edit.nodePtr.id, snapshotId);
@@ -209,9 +209,9 @@ async function executeEdit(options: {
         if (!edit.value) {
           throw new Error(`no value for ${edit.repr()}`);
         }
-        row[String(edit.attribute.id)] = edit.value.value;
+        row[String(edit.propertyId)] = edit.value.value;
       } else if (edit.operation === EditOperation.CLEAR) {
-        delete row[String(edit.attribute.id)];
+        delete row[String(edit.propertyId)];
       } else {
         throw new Error(`unsupported operation: ${edit.repr()}`);
       }
