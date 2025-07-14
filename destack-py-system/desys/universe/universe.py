@@ -28,7 +28,7 @@ from destack.language import (
     Folder,
     FolderType,
     Handle,
-    IsSubject,
+    IsActor,
     JoinType,
     Oracle,
     Region,
@@ -104,7 +104,7 @@ class UniverseService(ServiceBase, UniverseBase):
     @override
     async def resolve_client(
         self, request, metadata: RpcMetadata
-    ) -> tuple[IsSubject | None, Client | None]:
+    ) -> tuple[IsActor | None, Client | None]:
         if not metadata.client_access_token:
             return None, None
         client = await Client.get(
@@ -120,11 +120,11 @@ class UniverseService(ServiceBase, UniverseBase):
         self,
         request: "SignupUserRequest",
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> "SignupUserResponse":
-        if subject is not None:
+        if actor is not None:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
         if not request.password:
             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "password required")
@@ -202,37 +202,37 @@ class UniverseService(ServiceBase, UniverseBase):
         self,
         request: "ChangeUserPasswordRequest",
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> "ChangeUserPasswordResponse":
-        if not isinstance(subject, User):
+        if not isinstance(actor, User):
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
-        if subject.password_salt is None or subject.password_hash is None:
+        if actor.password_salt is None or actor.password_hash is None:
             raise GRPCError(GRPCStatus.FAILED_PRECONDITION, "password not set")
         if not await check_password(
-            request.old_password, subject.password_salt, subject.password_hash, self.oracle
+            request.old_password, actor.password_salt, actor.password_hash, self.oracle
         ):
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "incorrect password")
 
         # set new password
-        subject.password_salt = generate_salt(SALT_LENGTH)
-        subject.password_hash = hash_password(request.new_password, subject.password_salt)
+        actor.password_salt = generate_salt(SALT_LENGTH)
+        actor.password_hash = hash_password(request.new_password, actor.password_salt)
         await session.commit()
 
-        logger.info("destack.change_user_password", user=subject, span="current")
-        return ChangeUserPasswordResponse(user=subject.to_proto())
+        logger.info("destack.change_user_password", user=actor, span="current")
+        return ChangeUserPasswordResponse(user=actor.to_proto())
 
     @override
     async def login_user(
         self,
         request: "LoginUserRequest",
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> "LoginUserResponse":
-        if subject is not None:
+        if actor is not None:
             raise GRPCError(GRPCStatus.ALREADY_EXISTS, "already logged in")
         key_name = request.WhichOneof("user")
         key_value = getattr(request, key_name)
@@ -270,25 +270,23 @@ class UniverseService(ServiceBase, UniverseBase):
         self,
         request: "LogoutUserRequest",
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> "LogoutUserResponse":
         if client is None:
             raise GRPCError(GRPCStatus.UNAUTHENTICATED, "not logged in")
-        if not isinstance(subject, User):
-            raise GRPCError(GRPCStatus.FAILED_PRECONDITION, f"{subject!r} is not a User")
+        if not isinstance(actor, User):
+            raise GRPCError(GRPCStatus.FAILED_PRECONDITION, f"{actor!r} is not a User")
 
         # log out the current or the specified clients
         if request.clients:
             client_ids = [UUID(c.id) for c in request.clients]
             clients = await Client.search(
-                where=Client.property("parent").eq(subject) & Client.property("id").in_(client_ids),
+                where=Client.property("parent").eq(actor) & Client.property("id").in_(client_ids),
             ).execute_list()
         elif request.logout_all:
-            clients = await Client.search(
-                where=Client.property("parent").eq(subject)
-            ).execute_list()
+            clients = await Client.search(where=Client.property("parent").eq(actor)).execute_list()
         else:
             clients = (client,)
         for client in clients:
@@ -297,7 +295,7 @@ class UniverseService(ServiceBase, UniverseBase):
             client.seen_at = self.oracle.utc()
         await session.commit()
 
-        logger.info("destack.logout_user", user=subject, clients=clients, span="current")
+        logger.info("destack.logout_user", user=actor, clients=clients, span="current")
         return LogoutUserResponse()
 
     @override
@@ -305,7 +303,7 @@ class UniverseService(ServiceBase, UniverseBase):
         self,
         request: "ResolveSpacesRequest",
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> "ResolveSpacesResponse":

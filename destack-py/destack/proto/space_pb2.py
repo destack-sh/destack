@@ -4,7 +4,7 @@
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
-    from destack.language import Session, Session, IsSubject, Client
+    from destack.language import Session, Session, IsActor, Client
 
 
 # -*- coding: utf-8 -*-

@@ -6,7 +6,7 @@ from grpclib import GRPCError
 from grpclib import Status as GRPCStatus
 from opentelemetry import trace
 
-from destack.language import Client, IsSubject, Oracle, Session
+from destack.language import Client, IsActor, Oracle, Session
 from destack.proto import (
     HealthBase,
     HealthCheckRequest,
@@ -51,7 +51,7 @@ class HealthService(ServiceBase, HealthBase):
         self,
         request: HealthCheckRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> HealthCheckResponse:
@@ -64,7 +64,7 @@ class HealthService(ServiceBase, HealthBase):
         self,
         request: HealthCheckRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> HealthCheckResponse:

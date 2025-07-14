@@ -5,7 +5,7 @@
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
-    from destack.language import Session, Session, IsSubject, Client
+    from destack.language import Session, Session, IsActor, Client
 
 
 
@@ -1439,7 +1439,7 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_OWNABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNED: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_JOINABLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_SUBJECT: _ClassVar[TraitTypeProto]
+    TRAIT_TYPE_ACTOR: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_RUNNABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_SCRIPTABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_SOURCEABLE: _ClassVar[TraitTypeProto]
@@ -2613,7 +2613,7 @@ TRAIT_TYPE_TAGGABLE: TraitTypeProto
 TRAIT_TYPE_OWNABLE: TraitTypeProto
 TRAIT_TYPE_OWNED: TraitTypeProto
 TRAIT_TYPE_JOINABLE: TraitTypeProto
-TRAIT_TYPE_SUBJECT: TraitTypeProto
+TRAIT_TYPE_ACTOR: TraitTypeProto
 TRAIT_TYPE_RUNNABLE: TraitTypeProto
 TRAIT_TYPE_SCRIPTABLE: TraitTypeProto
 TRAIT_TYPE_SOURCEABLE: TraitTypeProto
@@ -8476,7 +8476,7 @@ class RoleProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., template_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., type: _Optional[_Union[RoleTypeProto, str]] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
 
 class RoleAssignedEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "node_ptr", "subject_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "node_ptr", "actor_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -8488,7 +8488,7 @@ class RoleAssignedEventProto(_message.Message):
     CLIENT_NONCE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    SUBJECT_PTR_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -8500,11 +8500,11 @@ class RoleAssignedEventProto(_message.Message):
     client_nonce: str
     status: EventStatusProto
     node_ptr: NodeReferenceProto
-    subject_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., subject_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    actor_ptr: NodeReferenceProto
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., actor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class RoleEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "node_ptr", "subject_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "node_ptr", "actor_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -8516,7 +8516,7 @@ class RoleEventProto(_message.Message):
     CLIENT_NONCE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    SUBJECT_PTR_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -8528,11 +8528,11 @@ class RoleEventProto(_message.Message):
     client_nonce: str
     status: EventStatusProto
     node_ptr: NodeReferenceProto
-    subject_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., subject_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    actor_ptr: NodeReferenceProto
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., actor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class RoleUnassignedEventProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "node_ptr", "subject_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "snapshot_ptr", "created_at", "created_by_ptr", "client_ptr", "client_nonce", "status", "node_ptr", "actor_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -8544,7 +8544,7 @@ class RoleUnassignedEventProto(_message.Message):
     CLIENT_NONCE_FIELD_NUMBER: _ClassVar[int]
     STATUS_FIELD_NUMBER: _ClassVar[int]
     NODE_PTR_FIELD_NUMBER: _ClassVar[int]
-    SUBJECT_PTR_FIELD_NUMBER: _ClassVar[int]
+    ACTOR_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
@@ -8556,8 +8556,8 @@ class RoleUnassignedEventProto(_message.Message):
     client_nonce: str
     status: EventStatusProto
     node_ptr: NodeReferenceProto
-    subject_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., subject_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    actor_ptr: NodeReferenceProto
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., client_nonce: _Optional[str] = ..., status: _Optional[_Union[EventStatusProto, str]] = ..., node_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., actor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class RouteProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "owned_by_ptr", "name")

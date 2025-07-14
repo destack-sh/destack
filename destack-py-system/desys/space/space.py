@@ -9,7 +9,7 @@ from destack.language import (
     Client,
     Database,
     DatabaseInfo,
-    IsSubject,
+    IsActor,
     NodeReference,
     NodeType,
     Oracle,
@@ -125,7 +125,7 @@ class SpaceService(ServiceBase, SpaceBase):
     @override
     async def resolve_client(
         self, request, metadata: RpcMetadata
-    ) -> tuple[IsSubject | None, Client | None]:
+    ) -> tuple[IsActor | None, Client | None]:
         raise NotImplementedError
 
     @override
@@ -133,13 +133,13 @@ class SpaceService(ServiceBase, SpaceBase):
         self,
         request: QueryRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> QueryResponse:
         assert self.store is not None, f"no store ready in {self!r}"
         query = Query.from_proto(request.query)
-        # query = transform_query(query, subject, client)
+        # query = transform_query(query, actor, client)
         query_result = await self.store.query(query)
         return QueryResponse(result=query_result.to_proto())
 
@@ -148,7 +148,7 @@ class SpaceService(ServiceBase, SpaceBase):
         self,
         request: AppendRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> AppendResponse:
@@ -167,7 +167,7 @@ class SpaceService(ServiceBase, SpaceBase):
         self,
         request: SubscribeRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> AsyncIterator[SubscribeResponse]:

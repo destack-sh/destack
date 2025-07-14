@@ -7,7 +7,7 @@ import {
   EntityStore,
   Event,
   EventStore,
-  IsSubject,
+  Isactor,
   Node,
   Oracle,
   Session,
@@ -24,7 +24,7 @@ export class ReactiveSession extends Session {
     space?: Space | null;
     client?: Client | null;
     clientNonce?: string | null;
-    subject?: (Node & IsSubject) | null;
+    actor?: (Node & Isactor) | null;
     store?: EventStore | EntityStore | null;
   }) {
     super({

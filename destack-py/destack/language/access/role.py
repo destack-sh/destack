@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
+    IsActor,
     IsDeletable,
     IsJoinable,
     IsOrdered,
-    IsSubject,
     NodeType,
     RoleType,
     builtin_node,
@@ -25,7 +25,7 @@ class RoleEvent(Event["Role"]):
     """A Event regarding a Role."""
 
     node: "Role" = builtin_property(101)
-    subject: "IsSubject" = builtin_property(110)
+    actor: "IsActor" = builtin_property(110)
 
 
 @builtin_node(NodeType.ROLE_ASSIGNED_EVENT, frozen=True)
@@ -47,12 +47,12 @@ class RoleUnassignedEvent(RoleEvent):
     event_types=(NodeType.ROLE_EVENT,),
 )
 class Role(
-    IsSubject,
+    IsActor,
     IsOrdered,
     IsDeletable,
     Entity,
 ):
-    """A Role for Subjects to take."""
+    """A Role for Actors to take."""
 
     parent: Optional["IsJoinable"] = builtin_property_parent()
     type: RoleType = builtin_property(100, is_repr=True)

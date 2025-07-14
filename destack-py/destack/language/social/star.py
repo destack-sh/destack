@@ -27,7 +27,7 @@ class Star(
     IsOwned,
     Entity,
 ):
-    """A Star is a relationship between a Subject and a Starred Node."""
+    """A Star is a relationship between a Actor and a Starred Node."""
 
     parent: Union["IsStarable", None] = builtin_property_parent()
 

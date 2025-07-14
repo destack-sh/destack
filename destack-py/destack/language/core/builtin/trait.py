@@ -161,7 +161,7 @@ class IsOrdered(Trait):
 class IsOwnable(Trait):
     """An Entity that can be owned by another Entity."""
 
-    owned_by: Optional["IsSubject"] = builtin_property(28, is_repr=True)
+    owned_by: Optional["IsActor"] = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
 
@@ -170,21 +170,21 @@ class IsOwnable(Trait):
 class IsOwned(IsOwnable):
     """An Entity that must be owned by another Entity."""
 
-    owned_by: "IsSubject" = builtin_property(28, is_repr=True)
+    owned_by: "IsActor" = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: NodeReference = UNSET
 
 
 @builtin_trait(TraitType.JOINABLE, is_extensible=True)
 class IsJoinable(Trait):
-    """An Entity that can be joined by Subjects."""
+    """An Entity that can be joined by Actors."""
 
     pass
 
 
-@builtin_trait(TraitType.SUBJECT)
-class IsSubject(Trait):
-    """An Entity that can be a Subject."""
+@builtin_trait(TraitType.ACTOR)
+class IsActor(Trait):
+    """An Entity that can be an Actor (can do something)."""
 
     pass
 

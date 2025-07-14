@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
+    IsActor,
     IsDeletable,
     IsFollowable,
-    IsSubject,
     NodeType,
     builtin_node,
     builtin_property,
@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.AGENT)
 class Agent(
-    IsSubject,
+    IsActor,
     IsFollowable,
     IsDeletable,
     Entity,

@@ -2,9 +2,9 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   Icon,
+  IsActor,
   IsRunnable,
   IsScriptable,
-  IsSubject,
   NodeReference,
   QueryConnection,
   Session,
@@ -40,9 +40,9 @@ export class Action extends Method implements IsRunnable {
     predecessor?: Action | NodeReference | null;
     template?: Action | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;

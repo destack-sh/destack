@@ -6,7 +6,7 @@ import {
 } from "@destack/grpc";
 import type {
   Graph,
-  IsSubject,
+  IsActor,
   NodeReference,
   QueryConnection,
   Session,
@@ -104,10 +104,10 @@ export class LogEvent extends Event {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -168,7 +168,7 @@ export class LogEvent extends Event {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;

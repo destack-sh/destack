@@ -1471,7 +1471,7 @@ enum TraitTypeProto {
   TRAIT_TYPE_OWNABLE = 60000;
   TRAIT_TYPE_OWNED = 60001;
   TRAIT_TYPE_JOINABLE = 60003;
-  TRAIT_TYPE_SUBJECT = 60004;
+  TRAIT_TYPE_ACTOR = 60004;
   TRAIT_TYPE_RUNNABLE = 100001;
   TRAIT_TYPE_SCRIPTABLE = 100002;
   TRAIT_TYPE_SOURCEABLE = 100003;
@@ -1940,6 +1940,7 @@ message ConstantDefinitionProto {
 }
 
 // A container View contains other Views.
+// Containers can be laid out as stacks or grids.
 message ContainerViewProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2580,7 +2581,7 @@ message EffectStyleProto {
   optional TransitionProto transition = 213;
 }
 
-// A Entitlement to some Subject.
+// A Entitlement to some Actor.
 message EntitlementProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2911,7 +2912,7 @@ message FolderProto {
   optional NodeReferenceProto main_scene_ptr = 110;
 }
 
-// A Follow is a relationship between a Subject and an IsFollowable Node.
+// A Follow is a relationship between a Actor and an IsFollowable Node.
 message FollowProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -3013,7 +3014,7 @@ message FontStyleProto {
   optional TextTransformProto transform = 109;
 }
 
-// A frame container View.
+// A frame View is a bare ContainerView.
 message FrameViewProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -3745,7 +3746,7 @@ message MeasurementEventProto {
   optional NodeReferenceProto node_ptr = 101;
 }
 
-// A Membership of a Subject in a Joinable.
+// A Membership of a Actor in a Joinable.
 message MembershipProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4530,7 +4531,7 @@ message QueryUpdateProto {
   optional QueryResultProto result = 101;
 }
 
-// A Reaction is a relationship between a Subject and a Reaction Node.
+// A Reaction is a relationship between a Actor and a Reaction Node.
 message ReactionProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4643,7 +4644,7 @@ message ResourceProto {
   ResourceStatusProto status = 90;
 }
 
-// A Role for Subjects to take.
+// A Role for Actors to take.
 message RoleProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4677,7 +4678,7 @@ message RoleAssignedEventProto {
   optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
-  NodeReferenceProto subject_ptr = 110;
+  NodeReferenceProto actor_ptr = 110;
 }
 
 // A Event regarding a Role.
@@ -4693,7 +4694,7 @@ message RoleEventProto {
   optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
-  NodeReferenceProto subject_ptr = 110;
+  NodeReferenceProto actor_ptr = 110;
 }
 
 // A Event regarding a Role.
@@ -4709,7 +4710,7 @@ message RoleUnassignedEventProto {
   optional string client_nonce = 23;
   EventStatusProto status = 30;
   NodeReferenceProto node_ptr = 101;
-  NodeReferenceProto subject_ptr = 110;
+  NodeReferenceProto actor_ptr = 110;
 }
 
 // A Route is a path to something (a Scene, a View in a Scene, an Action, etc.).
@@ -4901,7 +4902,7 @@ message RunStopRequestedEventProto {
   optional NodeReferenceProto target_ptr = 110;
 }
 
-// A Sanction on some Subject.
+// A Sanction on some Actor.
 message SanctionProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -5413,7 +5414,7 @@ message SplitViewProto {
   optional CornersProto radius = 148;
 }
 
-// A Star is a relationship between a Subject and a Starred Node.
+// A Star is a relationship between a Actor and a Starred Node.
 message StarProto {
   NodeTypeProto metatype = 1;
   string id = 2;

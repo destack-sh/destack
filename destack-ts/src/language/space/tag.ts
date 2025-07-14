@@ -2,9 +2,9 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   Icon,
+  IsActor,
   IsDeletable,
   IsOrdered,
-  IsSubject,
   IsTaggable,
   NodeClass,
   NodeReference,
@@ -107,12 +107,12 @@ export class Tag extends Entity implements IsOrdered, IsDeletable {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -124,12 +124,12 @@ export class Tag extends Entity implements IsOrdered, IsDeletable {
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -186,9 +186,9 @@ export class Tag extends Entity implements IsOrdered, IsDeletable {
     predecessor?: Tag | NodeReference | null;
     template?: Tag | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name: string;
@@ -776,12 +776,12 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -793,12 +793,12 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -853,9 +853,9 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
     predecessor?: Tagging | NodeReference | null;
     template?: Tagging | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     tag?: Tag | NodeReference | null;

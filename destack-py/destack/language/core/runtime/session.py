@@ -42,13 +42,13 @@ class Session:
 
     __slots__ = (
         "_token",
+        "actor_ptr",
         "closed_at",
         "connections",
         "oracle",
         "pending_events",
         "runtime",
         "store",
-        "subject_ptr",
         "supergraph",
     )
 
@@ -56,11 +56,11 @@ class Session:
         self,
         *,
         oracle: Oracle = WORLD_ORACLE,
-        subject_ptr: NodeReference | None = None,
+        actor_ptr: NodeReference | None = None,
         store: "EventStore | EntityStore | None" = None,
     ):
         self.oracle: Oracle = oracle
-        self.subject_ptr: NodeReference | None = subject_ptr
+        self.actor_ptr: NodeReference | None = actor_ptr
         self.store: EventStore | EntityStore | None = store
         self.supergraph = Supergraph(self)
 
@@ -72,8 +72,8 @@ class Session:
 
     def __str__(self) -> str:
         content_parts: list[str] = []
-        if self.subject_ptr is not None:
-            content_parts.append(f"subject={self.subject_ptr!r}")
+        if self.actor_ptr is not None:
+            content_parts.append(f"actor={self.actor_ptr!r}")
         if self.store is not None:
             content_parts.append(f"store={self.store!r}")
         if self.closed_at is not None:

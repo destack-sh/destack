@@ -27,7 +27,7 @@ class Follow(
     IsOwned,
     Entity,
 ):
-    """A Follow is a relationship between a Subject and an IsFollowable Node."""
+    """A Follow is a relationship between a Actor and an IsFollowable Node."""
 
     parent: Union["IsFollowable", None] = builtin_property_parent()
 

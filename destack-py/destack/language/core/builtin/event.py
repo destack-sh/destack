@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from destack.language import (
         Client,
         Icon,
-        IsSubject,
+        IsActor,
         NodeDefinitionReference,
         NodeReference,
         Snapshot,
@@ -72,7 +72,7 @@ class Event[N: Node = Node](Node):
         is_readonly=True,
         can_write=RoleType.SYSTEM,
     )
-    created_by: Optional["IsSubject"] = builtin_property(
+    created_by: Optional["IsActor"] = builtin_property(
         21,
         default=None,
         is_managed=True,

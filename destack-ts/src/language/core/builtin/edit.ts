@@ -6,7 +6,7 @@ import { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
-import type { IsSubject } from "@destack/language/core/builtin/trait";
+import type { IsActor } from "@destack/language/core/builtin/trait";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -115,10 +115,10 @@ export class EditEvent extends Event {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -199,7 +199,7 @@ export class EditEvent extends Event {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;

@@ -2,10 +2,10 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   Icon,
+  IsActor,
   IsDeletable,
   IsJoinable,
   IsOrdered,
-  IsSubject,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -71,7 +71,7 @@ export abstract class RoleEvent extends Event {
   /**
    * Event.createdBy
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -97,10 +97,10 @@ export abstract class RoleEvent extends Event {
   declare readonly nodePtr: NodeReference;
 
   /**
-   * RoleEvent.subject
+   * RoleEvent.actor
    */
-  abstract get subject(): (Entity & IsSubject) | null;
-  declare readonly subjectPtr: NodeReference;
+  abstract get actor(): (Entity & IsActor) | null;
+  declare readonly actorPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -160,10 +160,10 @@ export class RoleAssignedEvent extends RoleEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -204,16 +204,16 @@ export class RoleAssignedEvent extends RoleEvent {
   readonly nodePtr: NodeReference;
 
   /**
-   * RoleEvent.subject
+   * RoleEvent.actor
    */
-  get subject(): (Entity & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.subjectPtr;
+  get actor(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.actorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  readonly subjectPtr: NodeReference;
+  readonly actorPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -221,12 +221,12 @@ export class RoleAssignedEvent extends RoleEvent {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Role | NodeReference;
-    subject: (Entity & IsSubject) | NodeReference;
+    actor: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -305,14 +305,14 @@ export class RoleAssignedEvent extends RoleEvent {
       throw new Error(`RoleAssignedEvent.node is required`);
     }
     this.nodePtr = _node;
-    let _subject = options.subject;
-    if (_subject != null && _subject.metatype != StructType.NODE_REFERENCE) {
-      _subject = (_subject as Node).toRef();
+    let _actor = options.actor;
+    if (_actor != null && _actor.metatype != StructType.NODE_REFERENCE) {
+      _actor = (_actor as Node).toRef();
     }
-    if (_subject === null) {
-      throw new Error(`RoleAssignedEvent.subject is required`);
+    if (_actor === null) {
+      throw new Error(`RoleAssignedEvent.actor is required`);
     }
-    this.subjectPtr = _subject;
+    this.actorPtr = _actor;
 
     // identity
     if (options.id == null) {
@@ -340,7 +340,7 @@ export class RoleAssignedEvent extends RoleEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (!(this.subjectPtr.id === other.subjectPtr.id)) {
+    if (!(this.actorPtr.id === other.actorPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -365,7 +365,7 @@ export class RoleAssignedEvent extends RoleEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.actorPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -457,7 +457,7 @@ export class RoleAssignedEvent extends RoleEvent {
     }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
-    objectValue["110"] = object.subjectPtr.toValue();
+    objectValue["110"] = object.actorPtr.toValue();
     return objectValue;
   }
 
@@ -499,7 +499,7 @@ export class RoleAssignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
-      subject: _NodeReference.fromValue(
+      actor: _NodeReference.fromValue(
         objectValue["110"],
         _session,
         _supergraph,
@@ -563,7 +563,7 @@ export class RoleAssignedEvent extends RoleEvent {
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
-    objectProto.subjectPtr = object.subjectPtr.toProto();
+    objectProto.actorPtr = object.actorPtr.toProto();
     return objectProto as RoleAssignedEventProto;
   }
 
@@ -583,8 +583,8 @@ export class RoleAssignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
-      subject: _NodeReference.fromProto(
-        objectProto.subjectPtr!,
+      actor: _NodeReference.fromProto(
+        objectProto.actorPtr!,
         _session,
         _supergraph,
         _graph,
@@ -727,10 +727,10 @@ export class RoleUnassignedEvent extends RoleEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -771,16 +771,16 @@ export class RoleUnassignedEvent extends RoleEvent {
   readonly nodePtr: NodeReference;
 
   /**
-   * RoleEvent.subject
+   * RoleEvent.actor
    */
-  get subject(): (Entity & IsSubject) | null {
-    const nodePtr: NodeReference | null = this.subjectPtr;
+  get actor(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.actorPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  readonly subjectPtr: NodeReference;
+  readonly actorPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -788,12 +788,12 @@ export class RoleUnassignedEvent extends RoleEvent {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Role | NodeReference;
-    subject: (Entity & IsSubject) | NodeReference;
+    actor: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -872,14 +872,14 @@ export class RoleUnassignedEvent extends RoleEvent {
       throw new Error(`RoleUnassignedEvent.node is required`);
     }
     this.nodePtr = _node;
-    let _subject = options.subject;
-    if (_subject != null && _subject.metatype != StructType.NODE_REFERENCE) {
-      _subject = (_subject as Node).toRef();
+    let _actor = options.actor;
+    if (_actor != null && _actor.metatype != StructType.NODE_REFERENCE) {
+      _actor = (_actor as Node).toRef();
     }
-    if (_subject === null) {
-      throw new Error(`RoleUnassignedEvent.subject is required`);
+    if (_actor === null) {
+      throw new Error(`RoleUnassignedEvent.actor is required`);
     }
-    this.subjectPtr = _subject;
+    this.actorPtr = _actor;
 
     // identity
     if (options.id == null) {
@@ -907,7 +907,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (!(this.subjectPtr.id === other.subjectPtr.id)) {
+    if (!(this.actorPtr.id === other.actorPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -932,7 +932,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.subjectPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.actorPtr.id)) & 0xffffffff;
     if (this.parentPtr !== null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -1024,7 +1024,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     }
     objectValue["30"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
-    objectValue["110"] = object.subjectPtr.toValue();
+    objectValue["110"] = object.actorPtr.toValue();
     return objectValue;
   }
 
@@ -1066,7 +1066,7 @@ export class RoleUnassignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
-      subject: _NodeReference.fromValue(
+      actor: _NodeReference.fromValue(
         objectValue["110"],
         _session,
         _supergraph,
@@ -1130,7 +1130,7 @@ export class RoleUnassignedEvent extends RoleEvent {
     }
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
-    objectProto.subjectPtr = object.subjectPtr.toProto();
+    objectProto.actorPtr = object.actorPtr.toProto();
     return objectProto as RoleUnassignedEventProto;
   }
 
@@ -1150,8 +1150,8 @@ export class RoleUnassignedEvent extends RoleEvent {
         _graph,
         _connection,
       ),
-      subject: _NodeReference.fromProto(
-        objectProto.subjectPtr!,
+      actor: _NodeReference.fromProto(
+        objectProto.actorPtr!,
         _session,
         _supergraph,
         _graph,
@@ -1245,9 +1245,9 @@ registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:60200 ==== */
 /**
- * A Role for Subjects to take.
+ * A Role for Actors to take.
  */
-export class Role extends Entity implements IsSubject, IsOrdered, IsDeletable {
+export class Role extends Entity implements IsActor, IsOrdered, IsDeletable {
   static metatype: NodeType = NodeType.ROLE;
 
   /**
@@ -1321,12 +1321,12 @@ export class Role extends Entity implements IsSubject, IsOrdered, IsDeletable {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1338,12 +1338,12 @@ export class Role extends Entity implements IsSubject, IsOrdered, IsDeletable {
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1416,9 +1416,9 @@ export class Role extends Entity implements IsSubject, IsOrdered, IsDeletable {
     predecessor?: Role | NodeReference | null;
     template?: Role | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     type: RoleType;

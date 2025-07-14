@@ -24,7 +24,7 @@ export class Session {
   oracle: Oracle;
   clientPtr: NodeReference | null;
   clientNonce: string | null;
-  subjectPtr: NodeReference | null;
+  actorPtr: NodeReference | null;
   store: EventStore | EntityStore | null;
   supergraph: Supergraph;
 
@@ -38,14 +38,14 @@ export class Session {
     oracle?: Oracle;
     clientPtr?: NodeReference | null;
     clientNonce?: string | null;
-    subjectPtr?: NodeReference | null;
+    actorPtr?: NodeReference | null;
     store?: EventStore | EntityStore | null;
     supergraphClass?: typeof Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
     this.clientPtr = options?.clientPtr ?? null;
     this.clientNonce = options?.clientNonce ?? null;
-    this.subjectPtr = options?.subjectPtr ?? null;
+    this.actorPtr = options?.actorPtr ?? null;
     this.store = options?.store ?? null;
     this.supergraph = new (options?.supergraphClass ?? Supergraph)(this);
 
@@ -58,8 +58,8 @@ export class Session {
 
   repr(): string {
     const contentParts: string[] = [];
-    if (this.subjectPtr) {
-      contentParts.push(`subject=${this.subjectPtr.id}`);
+    if (this.actorPtr) {
+      contentParts.push(`actor=${this.actorPtr.id}`);
     }
     if (this.store) {
       contentParts.push(`store=${this.store.repr()}`);
