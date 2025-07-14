@@ -15,7 +15,14 @@ import type {
   Supergraph,
   Value,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Layer } from "@destack/language/scene";
@@ -503,12 +510,13 @@ export class SliderInputView extends InputView {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`SliderInputView has no session`);
+        throw new Error(`SliderInputView has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`SliderInputView has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`SliderInputView has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`SliderInputView.space is required`);

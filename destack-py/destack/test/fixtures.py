@@ -1,5 +1,5 @@
 import warnings
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator, Generator, Mapping
 from contextlib import contextmanager
 
 import grpclib
@@ -18,18 +18,19 @@ _setup_test_env()
 from destack.language import (
     ACTIVE_SESSION,
     NODE_TYPES,
+    REGION,
     STRUCT_TYPES,
     WORLD_ORACLE,
     BuiltinObject,
-    NodeReference,
     NodeType,
     Session,
+    Space,
+    SpaceStatus,
     StoreKey,
     StructType,
 )
 from destack.store import MemoryStore
 from destack.test.conftest import _setup_test_env
-from destack.utils.uuid import uuid4
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -37,10 +38,7 @@ tracer = trace.get_tracer(__name__)
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session() -> AsyncGenerator[Session, None]:
-    session = Session(
-        store=MemoryStore(keys=tuple(StoreKey)),
-        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
-    )
+    session = Session(store=MemoryStore(keys=tuple(StoreKey)))
     await session.open()
     yield session
     await session.close()
@@ -49,13 +47,23 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(
-        store=MemoryStore(keys=tuple(StoreKey)),
-        space_ptr=NodeReference(type=NodeType.SPACE, id=uuid4()),
-    )
+    session = Session(store=MemoryStore(keys=tuple(StoreKey)))
     await session.open()
     yield session
     await session.close()
+
+
+@pytest.fixture
+def space(session: Session) -> Generator[Space, None, None]:
+    space = Space(
+        name="Test",
+        slug="test",
+        status=SpaceStatus.ACTIVE,
+        region=REGION,
+    )
+    session.create(space)
+    with space.active():
+        yield space
 
 
 @contextmanager

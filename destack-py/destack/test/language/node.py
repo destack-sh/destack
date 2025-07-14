@@ -42,18 +42,18 @@ def test_node_space_ptr(session: Session):
         status=SpaceStatus.ACTIVE,
         region=REGION,
     )
-    session.space_ptr = space.to_ref()
     session.create(space)
-    folder = Folder(name="MyFolder")
-    space.add_child(folder)
-    assert folder.space_ptr and folder.space_ptr.id == space.id
-    tags = [Tag(name="A"), Tag(name="B"), Tag(name="C")]
-    folder.add_children(*tags)
-    for tag in tags:
-        assert tag.space_ptr and tag.space_ptr.id == space.id
+    with space.active():
+        folder = Folder(name="MyFolder")
+        space.add_child(folder)
+        assert folder.space_ptr and folder.space_ptr.id == space.id
+        tags = [Tag(name="A"), Tag(name="B"), Tag(name="C")]
+        folder.add_children(*tags)
+        for tag in tags:
+            assert tag.space_ptr and tag.space_ptr.id == space.id
 
 
-def test_node_ordering(session: Session):
+def test_node_ordering(session: Session, space: Space):
     """Add Nodes that are IsOrdered and check that they are ordered."""
 
     folder = Folder(name="MyFolder")

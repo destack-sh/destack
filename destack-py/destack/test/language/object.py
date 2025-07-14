@@ -1,6 +1,6 @@
 from hypothesis import HealthCheck, given, settings
 
-from destack.language import BuiltinObject, Folder, Session, Thread
+from destack.language import BuiltinObject, Folder, Session, Space, Thread
 from destack.proto import AnyObjectProto
 from destack.test.fixtures import BUILTIN_OBJECTS
 from destack.test.strategies import builtin_objects, examples
@@ -9,7 +9,7 @@ from destack.test.strategies import builtin_objects, examples
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_object_slots(obj: BuiltinObject[AnyObjectProto], session: Session):
+def test_object_slots(obj: BuiltinObject[AnyObjectProto], session: Session, space: Space):
     assert not hasattr(obj, "__dict__")
     assert obj.__slots__
 
@@ -35,5 +35,5 @@ def test_resolve_property():
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_repr_builtin_object(obj: BuiltinObject[AnyObjectProto], session: Session):
+def test_repr_builtin_object(obj: BuiltinObject[AnyObjectProto], session: Session, space: Space):
     print(repr(obj))  # noqa: T201

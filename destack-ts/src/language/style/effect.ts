@@ -17,6 +17,7 @@ import type {
   Vector2f,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Materialization,
@@ -1240,12 +1241,13 @@ export class EffectStyle extends Style {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EffectStyle has no session`);
+        throw new Error(`EffectStyle has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EffectStyle has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EffectStyle has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EffectStyle.space is required`);

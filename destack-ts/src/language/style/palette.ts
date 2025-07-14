@@ -13,7 +13,14 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, PaletteProto } from "@destack/proto";
@@ -223,12 +230,13 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Palette has no session`);
+        throw new Error(`Palette has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Palette has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Palette has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Palette.space is required`);

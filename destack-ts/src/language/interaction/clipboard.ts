@@ -8,7 +8,14 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  EventStatus,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
@@ -226,12 +233,13 @@ export class CopyEvent extends ClipboardEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CopyEvent has no session`);
+        throw new Error(`CopyEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CopyEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CopyEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CopyEvent.space is required`);
@@ -744,12 +752,13 @@ export class CutEvent extends ClipboardEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CutEvent has no session`);
+        throw new Error(`CutEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CutEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CutEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CutEvent.space is required`);
@@ -1262,12 +1271,13 @@ export class PasteEvent extends ClipboardEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`PasteEvent has no session`);
+        throw new Error(`PasteEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`PasteEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`PasteEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`PasteEvent.space is required`);

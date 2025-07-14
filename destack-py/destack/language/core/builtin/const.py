@@ -9,12 +9,12 @@ from typing import (
 
 from destack.utils.env import get_from_env
 from destack.utils.frozen import frozendict
-from destack.utils.uuid import UUID, uuid4
+from destack.utils.uuid import uuid4
 
 from .common import Cloud, Region
 
 if TYPE_CHECKING:
-    from destack.language import Event, Node, Session, Snapshot
+    from destack.language import Event, Node, NodeReference, Session, Snapshot, Space
 
 
 class _Unset:
@@ -30,9 +30,6 @@ VERSION = "2025.07.12.0"
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
-# builtin destackes :Builtins
-DESTACK_SLUG = "destack"
-DESTACK_ID = UUID("11111111-1111-1111-1111-000000000000")
 
 # runtime constants
 NONCE = uuid4()
@@ -42,9 +39,11 @@ EMPTY_SET: frozenset = frozenset()
 EMPTY_DICT: dict[Any, Any] = frozendict()
 
 # runtime context
-IS_IN_USER_CODE = contextvars.ContextVar("is_in_user_code", default=False)
 ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.ContextVar(
     "active_session", default=None
+)
+ACTIVE_SPACE: contextvars.ContextVar[Optional["Space"]] = contextvars.ContextVar(
+    "active_space", default=None
 )
 ACTIVE_SNAPSHOT: contextvars.ContextVar[Optional["Snapshot"]] = contextvars.ContextVar(
     "active_snapshot", default=None
@@ -64,6 +63,31 @@ def active_session() -> "Session":
     session = ACTIVE_SESSION.get()
     assert session is not None, "no active session"
     return session
+
+
+def get_active_space() -> Optional["Space"]:
+    """Gets the currently active Space (if any)."""
+    return ACTIVE_SPACE.get()
+
+
+def get_active_space_ptr() -> Optional["NodeReference"]:
+    """Gets the currently active Space (if any)."""
+    space = ACTIVE_SPACE.get()
+    return space.to_ref() if space else None
+
+
+def active_space() -> "Space":
+    """Gets the currently active Space (error if none)."""
+    space = ACTIVE_SPACE.get()
+    assert space is not None, "no active space"
+    return space
+
+
+def active_space_ptr() -> "NodeReference":
+    """Gets the currently active Space (error if none)."""
+    space = ACTIVE_SPACE.get()
+    assert space is not None, "no active space"
+    return space.to_ref()
 
 
 def get_active_snapshot() -> Optional["Snapshot"]:

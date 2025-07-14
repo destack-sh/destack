@@ -14,6 +14,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -302,12 +303,13 @@ export class MembershipJoinedEvent extends MembershipEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`MembershipJoinedEvent has no session`);
+        throw new Error(`MembershipJoinedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`MembershipJoinedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`MembershipJoinedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`MembershipJoinedEvent.space is required`);
@@ -950,12 +952,13 @@ export class MembershipLeftEvent extends MembershipEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`MembershipLeftEvent has no session`);
+        throw new Error(`MembershipLeftEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`MembershipLeftEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`MembershipLeftEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`MembershipLeftEvent.space is required`);
@@ -1656,12 +1659,13 @@ export class Membership extends Entity implements IsOwnable, IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Membership has no session`);
+        throw new Error(`Membership has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Membership has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Membership has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Membership.space is required`);

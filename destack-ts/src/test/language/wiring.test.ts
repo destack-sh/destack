@@ -1,10 +1,14 @@
 import {
+  ACTIVE_SPACE,
   Join,
   JoinType,
   NodeReference,
   NodeType,
   Query,
+  Region,
   Session,
+  Space,
+  SpaceStatus,
   Thread,
   ThreadCursor,
   User,
@@ -16,10 +20,15 @@ import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({
   session: async ({ task }, use) => {
-    const session = new Session({
-      spacePtr: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
-    });
+    const session = new Session();
     await session.open();
+    const space = new Space({
+      name: "My Space",
+      slug: "my-space",
+      status: SpaceStatus.ACTIVE,
+      region: Region.ZURICH,
+    });
+    ACTIVE_SPACE.set(space);
     await use(session);
     await session.close();
   },

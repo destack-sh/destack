@@ -1,6 +1,9 @@
+from collections.abc import Generator
+from contextlib import contextmanager
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
+    ACTIVE_SPACE,
     Entity,
     Enum,
     EnumType,
@@ -80,3 +83,13 @@ class Space(
     # search, analytics, vault, cache, ...
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None
+
+    @contextmanager
+    def active(self: "Space") -> Generator["Space", None, None]:
+        """Set this Space as the active Space."""
+        token = ACTIVE_SPACE.set(self)
+        try:
+            ACTIVE_SPACE.set(self)
+            yield self
+        finally:
+            ACTIVE_SPACE.reset(token)

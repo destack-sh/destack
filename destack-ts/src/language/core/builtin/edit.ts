@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity } from "@destack/language/core/builtin/entity";
 import { Event, EventStatus } from "@destack/language/core/builtin/event";
@@ -248,12 +249,13 @@ export class EditEvent extends Event {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EditEvent has no session`);
+        throw new Error(`EditEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EditEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EditEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EditEvent.space is required`);

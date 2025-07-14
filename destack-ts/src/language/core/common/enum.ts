@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
@@ -266,12 +267,13 @@ export class CustomEnumDefinition
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomEnumDefinition has no session`);
+        throw new Error(`CustomEnumDefinition has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomEnumDefinition has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomEnumDefinition has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomEnumDefinition.space is required`);
@@ -1094,12 +1096,13 @@ export class CustomOption
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomOption has no session`);
+        throw new Error(`CustomOption has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomOption has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomOption has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomOption.space is required`);
@@ -1868,12 +1871,13 @@ export class CustomOptionGroup extends Entity implements IsArchivable, IsDeletab
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomOptionGroup has no session`);
+        throw new Error(`CustomOptionGroup has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomOptionGroup has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomOptionGroup has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomOptionGroup.space is required`);

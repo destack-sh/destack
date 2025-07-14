@@ -1,4 +1,4 @@
-import type { Session, Snapshot } from "@destack/language";
+import type { Session, Snapshot, Space } from "@destack/language";
 import { ContextVar } from "@destack/utils/context";
 import { Temporal } from "temporal-polyfill";
 import { v4 as uuidv4 } from "uuid";
@@ -16,8 +16,8 @@ export const EMPTY_SET: Set<any> = new Set();
 export const EMPTY_DICT: Record<string, any> = {};
 
 // runtime context
-export const IS_IN_USER_CODE: ContextVar<boolean> = new ContextVar(false);
 export const ACTIVE_SESSION: ContextVar<Session | null> = new ContextVar(null);
+export const ACTIVE_SPACE: ContextVar<Space | null> = new ContextVar(null);
 export const ACTIVE_SNAPSHOT: ContextVar<Snapshot | null> = new ContextVar(null);
 export const ACTIVE_EVENT: ContextVar<Event | null> = new ContextVar(null);
 
@@ -33,6 +33,20 @@ export function activeSession(): Session {
     throw new Error("no active Session");
   }
   return session;
+}
+
+/** Gets the currently active Space (if any). */
+export function getActiveSpace(): Space | null {
+  return ACTIVE_SPACE.get();
+}
+
+/** Gets the currently active Space (error if none). */
+export function activeSpace(): Space {
+  const space = ACTIVE_SPACE.get();
+  if (space == null) {
+    throw new Error("no active Space");
+  }
+  return space;
 }
 
 /** Gets the currently active Snapshot (if any). */

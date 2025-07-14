@@ -8,7 +8,14 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  EventStatus,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
@@ -226,12 +233,13 @@ export class FocusInEvent extends FocusEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FocusInEvent has no session`);
+        throw new Error(`FocusInEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FocusInEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FocusInEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FocusInEvent.space is required`);
@@ -744,12 +752,13 @@ export class FocusOutEvent extends FocusEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FocusOutEvent has no session`);
+        throw new Error(`FocusOutEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FocusOutEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FocusOutEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FocusOutEvent.space is required`);

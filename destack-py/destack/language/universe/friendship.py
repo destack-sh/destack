@@ -16,6 +16,8 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+# nocheckin: remove Friendships
+
 
 @builtin_node(NodeType.FRIENDSHIP, root_type=None)
 class Friendship(Entity):

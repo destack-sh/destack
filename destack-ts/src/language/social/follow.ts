@@ -13,6 +13,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -224,12 +225,13 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Follow has no session`);
+        throw new Error(`Follow has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Follow has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Follow has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Follow.space is required`);
@@ -806,12 +808,13 @@ export class FollowEvent extends Event {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FollowEvent has no session`);
+        throw new Error(`FollowEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FollowEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FollowEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FollowEvent.space is required`);

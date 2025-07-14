@@ -14,6 +14,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -264,12 +265,13 @@ export class RoleAssignedEvent extends RoleEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RoleAssignedEvent has no session`);
+        throw new Error(`RoleAssignedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RoleAssignedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RoleAssignedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RoleAssignedEvent.space is required`);
@@ -830,12 +832,13 @@ export class RoleUnassignedEvent extends RoleEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RoleUnassignedEvent has no session`);
+        throw new Error(`RoleUnassignedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RoleUnassignedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RoleUnassignedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RoleUnassignedEvent.space is required`);
@@ -1459,12 +1462,13 @@ export class Role extends Entity implements IsSubject, IsOrdered, IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Role has no session`);
+        throw new Error(`Role has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Role has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Role has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Role.space is required`);

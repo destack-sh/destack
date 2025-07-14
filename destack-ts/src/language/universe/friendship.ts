@@ -11,6 +11,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -241,12 +242,13 @@ export class Friendship extends Entity {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Friendship has no session`);
+        throw new Error(`Friendship has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Friendship has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Friendship has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Friendship.space is required`);
@@ -889,12 +891,13 @@ export class FriendshipInviteSentEvent extends FriendshipInviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FriendshipInviteSentEvent has no session`);
+        throw new Error(`FriendshipInviteSentEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FriendshipInviteSentEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FriendshipInviteSentEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FriendshipInviteSentEvent.space is required`);
@@ -1414,12 +1417,13 @@ export class FriendshipInviteRescindedEvent extends FriendshipInviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FriendshipInviteRescindedEvent has no session`);
+        throw new Error(`FriendshipInviteRescindedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FriendshipInviteRescindedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FriendshipInviteRescindedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FriendshipInviteRescindedEvent.space is required`);
@@ -1941,12 +1945,13 @@ export class FriendshipInviteAcceptedEvent extends FriendshipInviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FriendshipInviteAcceptedEvent has no session`);
+        throw new Error(`FriendshipInviteAcceptedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FriendshipInviteAcceptedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FriendshipInviteAcceptedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FriendshipInviteAcceptedEvent.space is required`);
@@ -2466,12 +2471,13 @@ export class FriendshipInviteRejectedEvent extends FriendshipInviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FriendshipInviteRejectedEvent has no session`);
+        throw new Error(`FriendshipInviteRejectedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FriendshipInviteRejectedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FriendshipInviteRejectedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FriendshipInviteRejectedEvent.space is required`);
@@ -3031,12 +3037,13 @@ export class FriendshipInvite extends Entity implements IsOwnable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`FriendshipInvite has no session`);
+        throw new Error(`FriendshipInvite has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`FriendshipInvite has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`FriendshipInvite has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`FriendshipInvite.space is required`);

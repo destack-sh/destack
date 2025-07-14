@@ -14,6 +14,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -304,12 +305,13 @@ export class InviteSentEvent extends InviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`InviteSentEvent has no session`);
+        throw new Error(`InviteSentEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`InviteSentEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`InviteSentEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`InviteSentEvent.space is required`);
@@ -940,12 +942,13 @@ export class InviteRescindedEvent extends InviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`InviteRescindedEvent has no session`);
+        throw new Error(`InviteRescindedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`InviteRescindedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`InviteRescindedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`InviteRescindedEvent.space is required`);
@@ -1566,12 +1569,13 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`InviteAcceptedEvent has no session`);
+        throw new Error(`InviteAcceptedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`InviteAcceptedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`InviteAcceptedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`InviteAcceptedEvent.space is required`);
@@ -2214,12 +2218,13 @@ export class InviteRejectedEvent extends InviteEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`InviteRejectedEvent has no session`);
+        throw new Error(`InviteRejectedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`InviteRejectedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`InviteRejectedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`InviteRejectedEvent.space is required`);
@@ -2920,12 +2925,13 @@ export class Invite extends Entity implements IsOwnable, IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Invite has no session`);
+        throw new Error(`Invite has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Invite has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Invite has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Invite.space is required`);

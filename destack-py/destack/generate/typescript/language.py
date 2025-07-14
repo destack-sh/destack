@@ -511,12 +511,13 @@ if (_{ts_name_in} === null) {{
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
     if (this._session === null) {{
-        throw new Error(`{cls.__name__} has no session`);
+        throw new Error(`{cls.__name__} has no Session`);
     }}
-    if (this._session.spacePtr === null) {{
-        throw new Error(`{cls.__name__} has no space`);
+    _space = ACTIVE_SPACE.get()
+    if (_space === null) {{
+        throw new Error(`{cls.__name__} has no Space`);
     }}
-    _{ts_name_in} = this._session.spacePtr;
+    _{ts_name_in} = _space.toRef();
 }}""")
             else:
                 raise ValueError(
@@ -1753,8 +1754,10 @@ def _generate_file(
     language_imports_by_module["core.builtin.const"] = {
         "ACTIVE_SESSION",
         "activeSession",
+        "ACTIVE_SPACE",
+        "activeSpace",
     }
-    value_dependencies.update(("ACTIVE_SESSION", "activeSession"))
+    value_dependencies.update(("ACTIVE_SESSION", "activeSession", "ACTIVE_SPACE", "activeSpace"))
     language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
     value_dependencies.update(("Node", "isNode", "hasTrait"))
     language_imports_by_module["core.builtin.trait"] = {"TraitClass"}
