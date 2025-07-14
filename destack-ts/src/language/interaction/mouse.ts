@@ -2312,7 +2312,7 @@ export class TripleClickEvent extends ClickEvent {
 registerNodeClass(NodeType.TRIPLE_CLICK_EVENT, TripleClickEvent);
 /* ==== DESTACK_GENERATED_END:NODE:560204 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560205 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:560210 ==== */
 /**
  * A WheelEvent is a MouseEvent when a wheel is scrolled.
  */
@@ -2741,7 +2741,7 @@ export class WheelEvent extends MouseEvent {
 
   static __packValue__(object: WheelEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560205;
+    objectValue["1"] = 560210;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2855,7 +2855,7 @@ export class WheelEvent extends MouseEvent {
   }
 
   static __packProto__(object: WheelEvent): WheelEventProto {
-    const objectProto: Partial<WheelEventProto> = { metatype: 560205 };
+    const objectProto: Partial<WheelEventProto> = { metatype: 560210 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -3003,4 +3003,4 @@ export class WheelEvent extends MouseEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WHEEL_EVENT, WheelEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560205 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:560210 ==== */

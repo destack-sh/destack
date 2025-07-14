@@ -20,8 +20,8 @@ from .focus import (
 )
 from .input import InputEvent
 from .keyboard import (
-    KeyboardEvent,
     KeyDownEvent,
+    KeyEvent,
     KeyPressEvent,
     KeyUpEvent,
 )
@@ -63,9 +63,9 @@ __all__ = [
     "FocusOutEvent",
     "InputEvent",
     "KeyDownEvent",
+    "KeyEvent",
     "KeyPressEvent",
     "KeyUpEvent",
-    "KeyboardEvent",
     "MouseButton",
     "MouseEvent",
     "PasteEvent",

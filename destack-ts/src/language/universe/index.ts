@@ -1,5 +1,4 @@
 export * from "@destack/language/universe/client";
-export * from "@destack/language/universe/friendship";
 export * from "@destack/language/universe/handle";
 export * from "@destack/language/universe/organization";
 export * from "@destack/language/universe/space";

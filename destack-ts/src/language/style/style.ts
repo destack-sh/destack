@@ -18,7 +18,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:600200 ==== */
 /**
- * A Style is a style definition.
+ * A Style defines a base visual appearance in some context.
  */
 export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsDeletable {
   static metatype: NodeType = NodeType.STYLE;

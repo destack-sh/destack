@@ -421,9 +421,7 @@ class NodeType(Enum):
     CUSTOM_STRUCT_DEFINITION = 103, "Custom Struct Definition", None, "fas fa-shapes"
     CUSTOM_ENUM_DEFINITION = 104, "Custom Enum Definition", None, "fas fa-shapes"
     CUSTOM_PROPERTY = 110, "Custom Property", None, "fas fa-triangle"
-    CUSTOM_PROPERTY_GROUP = 111, "Custom Property Group", None, "fas fa-table"
     CUSTOM_OPTION = 120, "Custom Option", None, "fas fa-circle"
-    CUSTOM_OPTION_GROUP = 121, "Custom Option Group", None, "fas fa-table"
     # entity
     RECORD = 1000, "Record", "Custom Entity", "fas fa-database"
     RESOURCE = 1100, "Resource", "External asset outside of Destack", "fas fa-dot"
@@ -441,33 +439,7 @@ class NodeType(Enum):
     HANDLE = 20_200, "Handle", "Unique @handle", "fas fa-at"
     # user
     USER = 21_000, "User", None, "fas fa-user"
-    FRIENDSHIP = 21_100, "Friendship", "Friendship between two Users", "fas fa-user-friends"
-    FRIENDSHIP_INVITE = (
-        21_200,
-        "Friendship Invite",
-        "Invite to be friends with another User",
-        "fas fa-user-plus",
-    )
-    FRIENDSHIP_INVITE_EVENT = 21_201, "Friendship Invite Event", None, "fas fa-user-plus"
-    FRIENDSHIP_INVITE_SENT_EVENT = 21_202, "Friendship Invite Sent Event", None, "fas fa-user-plus"
-    FRIENDSHIP_INVITE_RESCINDED_EVENT = (
-        21_203,
-        "Friendship Invite Rescinded Event",
-        None,
-        "fas fa-user-plus",
-    )
-    FRIENDSHIP_INVITE_ACCEPTED_EVENT = (
-        21_204,
-        "Friendship Invite Accepted Event",
-        None,
-        "fas fa-user-plus",
-    )
-    FRIENDSHIP_INVITE_REJECTED_EVENT = (
-        21_205,
-        "Friendship Invite Rejected Event",
-        None,
-        "fas fa-user-plus",
-    )
+    # FRIENDSHIP, FRIENDSHIP_INVITE, ...
     CLIENT = 21_300, "Client", None, "fas fa-desktop"
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # organization
@@ -692,9 +664,9 @@ class NodeType(Enum):
     SINGLE_CLICK_EVENT = 560_202, "Single Click Event", None, "fas fa-mouse-pointer"
     DOUBLE_CLICK_EVENT = 560_203, "Double Click Event", None, "fas fa-mouse-pointer"
     TRIPLE_CLICK_EVENT = 560_204, "Triple Click Event", None, "fas fa-mouse-pointer"
-    WHEEL_EVENT = 560_205, "Wheel Event", None, "fas fa-mouse-pointer"
+    WHEEL_EVENT = 560_210, "Wheel Event", None, "fas fa-mouse-pointer"
     # keyboard events
-    KEYBOARD_EVENT = 560_300, "Key Event", None, "fas fa-keyboard"
+    KEY_EVENT = 560_300, "Key Event", None, "fas fa-keyboard"
     KEY_DOWN_EVENT = 560_301, "Key Down Event", None, "fas fa-keyboard"
     KEY_UP_EVENT = 560_302, "Key Up Event", None, "fas fa-keyboard"
     KEY_PRESS_EVENT = 560_303, "Key Press Event", None, "fas fa-keyboard"

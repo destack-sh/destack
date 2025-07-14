@@ -40,7 +40,7 @@ class ViewEvent(Event["View"]):
         NodeType.VIEW_EVENT,
         NodeType.POINTER_EVENT,
         NodeType.MOUSE_EVENT,
-        NodeType.KEYBOARD_EVENT,
+        NodeType.KEY_EVENT,
         NodeType.DRAG_EVENT,
         NodeType.CLIPBOARD_EVENT,
         NodeType.FOCUS_EVENT,
