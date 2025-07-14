@@ -3626,6 +3626,7 @@ registerEnumClass(EnumType.MATERIALIZATION, Materialization);
 export enum SnapshotType {
   PARTIAL = 1,
   COPY = 2,
+  ROOT = 3,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

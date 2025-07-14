@@ -169,6 +169,7 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
 
     __slots__ = (
         "graph",
+        "is_live",
         "nodes",
         "query",
         "result",
@@ -176,7 +177,14 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
         "store",
     )
 
-    def __init__(self, query: Query, store: "Store", session: "Session"):
+    def __init__(
+        self,
+        *,
+        query: Query,
+        store: "Store",
+        session: "Session",
+        is_live: bool = False,
+    ):
         super().__init__(
             connection=cast(QueryConnection, self),
             type=query.type,
@@ -189,12 +197,17 @@ class QueryConnection[NodeT: "Node" = Node](QueryContainer[NodeT]):
         self.store: Store = store
         self.session: Session = session
         self.graph: Graph = session.supergraph.create_entity_graph()
+        self.is_live: bool = is_live
 
     def __repr__(self) -> str:
         return f"<QueryConnection query={self.query!r}>"
 
     async def execute(self) -> None:
-        """Execute the Query."""
+        """
+        Execute the Query.
+        If live, the results to this Query will be updated in realtime (until closed).
+        Returns as soon as an initial full result is available.
+        """
         self.result = await self.store.query(self.query)
         self._add_result(self.result, self.query)
 

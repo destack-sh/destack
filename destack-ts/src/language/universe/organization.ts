@@ -55,12 +55,12 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   static metatype: NodeType = NodeType.ORGANIZATION;
 
   /**
-   * Entity.parent
+   * Organization.parent
    */
-  get parent(): Entity | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -210,7 +210,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
 
   constructor(options: {
     id?: string;
-    parent?: Entity | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -376,13 +376,13 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
     if (this._handlePtr != null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
-    }
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -495,15 +495,15 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     _connection?: any | null,
   ): Organization {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const handlePtrValue = objectValue["111"];
-    const unpackedHandlePtr =
-      handlePtrValue != undefined
-        ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const handlePtrValue = objectValue["111"];
+    const unpackedHandlePtr =
+      handlePtrValue != undefined
+        ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -531,10 +531,10 @@ export class Organization extends Entity implements IsActor, IsJoinable {
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Organization({
+      parent: unpackedParentPtr,
       slug: objectValue["101"],
       status: Number(objectValue["102"]),
       handle: unpackedHandlePtr,
-      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -607,22 +607,22 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   ): Organization {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Organization({
-      slug: objectProto.slug,
-      status: Number(objectProto.status) as OrganizationStatus,
-      handle:
-        objectProto.handlePtr != undefined
+      parent:
+        objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.handlePtr!,
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
-      parent:
-        objectProto.parentPtr != undefined
+      slug: objectProto.slug,
+      status: Number(objectProto.status) as OrganizationStatus,
+      handle:
+        objectProto.handlePtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
+              objectProto.handlePtr!,
               _session,
               _supergraph,
               _graph,

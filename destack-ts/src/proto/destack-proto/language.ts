@@ -10243,10 +10243,6 @@ export interface QueryProto {
      * @generated from protobuf field: repeated string snapshot_path = 131
      */
     snapshotPath: string[];
-    /**
-     * @generated from protobuf field: optional bool is_live = 140
-     */
-    isLive?: boolean;
 }
 /**
  * @generated from protobuf message symbol.destack.QueryResultProto
@@ -15397,6 +15393,10 @@ export interface UniverseProto {
      * @generated from protobuf field: string id = 2
      */
     id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
      */
@@ -22043,7 +22043,11 @@ export enum SnapshotTypeProto {
     /**
      * @generated from protobuf enum value: SNAPSHOT_TYPE_COPY = 2;
      */
-    SNAPSHOT_TYPE_COPY = 2
+    SNAPSHOT_TYPE_COPY = 2,
+    /**
+     * @generated from protobuf enum value: SNAPSHOT_TYPE_ROOT = 3;
+     */
+    SNAPSHOT_TYPE_ROOT = 3
 }
 /**
  * @generated from protobuf enum symbol.destack.SortModeProto
@@ -22991,6 +22995,10 @@ export enum UniverseCategoryProto {
      * @generated from protobuf enum value: UNIVERSE_CATEGORY_FINANCE = 240000;
      */
     UNIVERSE_CATEGORY_FINANCE = 240000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_PHYSICS = 260000;
+     */
+    UNIVERSE_CATEGORY_PHYSICS = 260000,
     /**
      * @generated from protobuf enum value: UNIVERSE_CATEGORY_SCENE = 500000;
      */
@@ -46486,8 +46494,7 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 120, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 130, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 131, name: "snapshot_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ },
-            { no: 140, name: "is_live", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ }
+            { no: 131, name: "snapshot_path", kind: "scalar", repeat: 2 /*RepeatType.UNPACKED*/, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<QueryProto>): QueryProto {
@@ -46564,9 +46571,6 @@ class QueryProto$Type extends MessageType<QueryProto> {
                 case /* repeated string snapshot_path */ 131:
                     message.snapshotPath.push(reader.string());
                     break;
-                case /* optional bool is_live */ 140:
-                    message.isLive = reader.bool();
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -46633,9 +46637,6 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* repeated string snapshot_path = 131; */
         for (let i = 0; i < message.snapshotPath.length; i++)
             writer.tag(131, WireType.LengthDelimited).string(message.snapshotPath[i]);
-        /* optional bool is_live = 140; */
-        if (message.isLive !== undefined)
-            writer.tag(140, WireType.Varint).bool(message.isLive);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -58648,6 +58649,7 @@ class UniverseProto$Type extends MessageType<UniverseProto> {
         super("symbol.destack.UniverseProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
@@ -58670,6 +58672,9 @@ class UniverseProto$Type extends MessageType<UniverseProto> {
                 case /* string id */ 2:
                     message.id = reader.string();
                     break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
                     break;
@@ -58691,6 +58696,9 @@ class UniverseProto$Type extends MessageType<UniverseProto> {
         /* string id = 2; */
         if (message.id !== "")
             writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();

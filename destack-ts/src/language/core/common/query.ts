@@ -2338,11 +2338,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
    */
   readonly snapshotPath: readonly string[];
 
-  /**
-   * Query.isLive
-   */
-  readonly isLive: boolean | null;
-
   constructor(options: {
     id?: string;
     type: QueryType;
@@ -2361,7 +2356,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     offset?: number | null;
     snapshot?: Snapshot | NodeReference | null;
     snapshotPath?: readonly string[];
-    isLive?: boolean | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2444,8 +2438,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
       _snapshotPath = [];
     }
     this.snapshotPath = _snapshotPath;
-    let _isLive = options.isLive ?? null;
-    this.isLive = _isLive;
 
     // identity
     // @ts-expect-error(readonly)
@@ -2548,9 +2540,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
         return false;
       }
     }
-    if (!(this.isLive === other.isLive)) {
-      return false;
-    }
     return true;
   }
 
@@ -2596,9 +2585,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
       }
       if (this.snapshotPath.length > 0) {
         propertyReprs.push(`snapshotPath=${this.snapshotPath.map((_item) => _item).join(", ")}`);
-      }
-      if (this.isLive != null) {
-        propertyReprs.push(`isLive=${this.isLive}`);
       }
       // @ts-expect-error(readonly)
       this._repr = `<Query ${propertyReprs.join(" ")}>`;
@@ -2661,9 +2647,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
       for (const _item of this.snapshotPath) {
         h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
       }
-    }
-    if (this.isLive != null) {
-      h = (h * 31 + hashBool(this.isLive)) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -2742,9 +2725,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
         packedSnapshotPath.push(String(item));
       }
       objectValue["131"] = packedSnapshotPath;
-    }
-    if (object.isLive != null) {
-      objectValue["140"] = object.isLive;
     }
     return objectValue;
   }
@@ -2827,8 +2807,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
         unpackedSnapshotPath.push(String(item));
       }
     }
-    const isLiveValue = objectValue["140"];
-    const unpackedIsLive = isLiveValue != undefined ? isLiveValue : null;
     return new Query({
       id: String(objectValue["2"]),
       type: Number(objectValue["100"]),
@@ -2853,7 +2831,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
       offset: unpackedOffset,
       snapshot: unpackedSnapshotPtr,
       snapshotPath: unpackedSnapshotPath,
-      isLive: unpackedIsLive,
       _value: objectValue,
       _supergraph,
     });
@@ -2935,9 +2912,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
         packedSnapshotPath.push(String(item));
       }
       objectProto.snapshotPath = packedSnapshotPath;
-    }
-    if (object.isLive != null) {
-      objectProto.isLive = object.isLive;
     }
     return objectProto as QueryProto;
   }
@@ -3042,7 +3016,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
             )
           : null,
       snapshotPath: unpackedSnapshotPath,
-      isLive: objectProto.isLive != undefined ? objectProto.isLive : null,
       _proto: objectProto,
       _supergraph,
     });
@@ -3067,13 +3040,18 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Execute the Query. */
-  async execute(): Promise<QueryConnection<T>> {
+  async execute(options?: { isLive?: boolean }): Promise<QueryConnection<T>> {
     const session = activeSession();
     const store = session.store;
     if (store == null) {
       throw new Error(`no store in ${session.repr()}`);
     }
-    const connection = new QueryConnection<T>({ query: this, store, session });
+    const connection = new QueryConnection<T>({
+      query: this,
+      store,
+      session,
+      isLive: options?.isLive ?? false,
+    });
     session.connections.push(connection);
     await connection.execute();
     return connection;

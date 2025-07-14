@@ -147,7 +147,6 @@ class Type(StructFrozen):
         None,
     ] = builtin_property(116, is_repr=True)
     key_type: Optional["Type"] = builtin_property(117, is_repr=True)  # for maps
-    is_required: bool | None = builtin_property(118)
 
     # meta
     value: Optional["Value"] = builtin_property(130)
@@ -158,6 +157,10 @@ class Type(StructFrozen):
     string_constraint: Optional["StringConstraint"] = builtin_property(141)
     number_constraint: Optional["NumberConstraint"] = builtin_property(142)
     node_constraint: Optional["NodeConstraint"] = builtin_property(143)
+
+    # flags
+    is_required: bool | None = builtin_property(150)
+    is_root: bool | None = builtin_property(154)
 
 
 def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":

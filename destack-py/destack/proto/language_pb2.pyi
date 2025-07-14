@@ -1207,6 +1207,7 @@ class SnapshotTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     SNAPSHOT_TYPE_UNSPECIFIED: _ClassVar[SnapshotTypeProto]
     SNAPSHOT_TYPE_PARTIAL: _ClassVar[SnapshotTypeProto]
     SNAPSHOT_TYPE_COPY: _ClassVar[SnapshotTypeProto]
+    SNAPSHOT_TYPE_ROOT: _ClassVar[SnapshotTypeProto]
 
 class SortModeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1483,6 +1484,7 @@ class UniverseCategoryProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     UNIVERSE_CATEGORY_OPTIMIZATION: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_SOCIAL: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_FINANCE: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_PHYSICS: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_SCENE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_VIEW: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_CANVAS: _ClassVar[UniverseCategoryProto]
@@ -2445,6 +2447,7 @@ SNAPSHOT_STATUS_READONLY: SnapshotStatusProto
 SNAPSHOT_TYPE_UNSPECIFIED: SnapshotTypeProto
 SNAPSHOT_TYPE_PARTIAL: SnapshotTypeProto
 SNAPSHOT_TYPE_COPY: SnapshotTypeProto
+SNAPSHOT_TYPE_ROOT: SnapshotTypeProto
 SORT_MODE_UNSPECIFIED: SortModeProto
 SORT_MODE_MAX: SortModeProto
 SORT_MODE_MIN: SortModeProto
@@ -2646,6 +2649,7 @@ UNIVERSE_CATEGORY_OBSERVABILITY: UniverseCategoryProto
 UNIVERSE_CATEGORY_OPTIMIZATION: UniverseCategoryProto
 UNIVERSE_CATEGORY_SOCIAL: UniverseCategoryProto
 UNIVERSE_CATEGORY_FINANCE: UniverseCategoryProto
+UNIVERSE_CATEGORY_PHYSICS: UniverseCategoryProto
 UNIVERSE_CATEGORY_SCENE: UniverseCategoryProto
 UNIVERSE_CATEGORY_VIEW: UniverseCategoryProto
 UNIVERSE_CATEGORY_CANVAS: UniverseCategoryProto
@@ -8012,7 +8016,7 @@ class PropertyReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[PropertyReferenceTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., trait_type: _Optional[_Union[TraitTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[int] = ..., custom_property_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class QueryProto(_message.Message):
-    __slots__ = ("metatype", "id", "type", "domain", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "snapshot_ptr", "snapshot_path", "is_live")
+    __slots__ = ("metatype", "id", "type", "domain", "name", "definition", "subqueries", "join", "select", "where", "having", "group_by", "aggregation", "sort", "limit", "offset", "snapshot_ptr", "snapshot_path")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
@@ -8031,7 +8035,6 @@ class QueryProto(_message.Message):
     OFFSET_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_PATH_FIELD_NUMBER: _ClassVar[int]
-    IS_LIVE_FIELD_NUMBER: _ClassVar[int]
     metatype: StructTypeProto
     id: str
     type: QueryTypeProto
@@ -8050,8 +8053,7 @@ class QueryProto(_message.Message):
     offset: int
     snapshot_ptr: NodeReferenceProto
     snapshot_path: _containers.RepeatedScalarFieldContainer[str]
-    is_live: bool
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., domain: _Optional[_Union[StoreDomainProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_path: _Optional[_Iterable[str]] = ..., is_live: bool = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., id: _Optional[str] = ..., type: _Optional[_Union[QueryTypeProto, str]] = ..., domain: _Optional[_Union[StoreDomainProto, str]] = ..., name: _Optional[str] = ..., definition: _Optional[_Union[NodeDefinitionReferenceProto, _Mapping]] = ..., subqueries: _Optional[_Iterable[_Union[QueryProto, _Mapping]]] = ..., join: _Optional[_Union[JoinProto, _Mapping]] = ..., select: _Optional[_Union[SelectProto, _Mapping]] = ..., where: _Optional[_Union[ConditionProto, _Mapping]] = ..., having: _Optional[_Union[ConditionProto, _Mapping]] = ..., group_by: _Optional[_Iterable[_Union[ExpressionProto, _Mapping]]] = ..., aggregation: _Optional[_Union[AggregationProto, _Mapping]] = ..., sort: _Optional[_Iterable[_Union[SortProto, _Mapping]]] = ..., limit: _Optional[int] = ..., offset: _Optional[int] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., snapshot_path: _Optional[_Iterable[str]] = ...) -> None: ...
 
 class QueryResultProto(_message.Message):
     __slots__ = ("metatype", "id", "type", "groups", "subresults", "nodes", "count", "exists", "scalar")
@@ -10755,14 +10757,16 @@ class TypeProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., cardinality: _Optional[_Union[TypeCardinalityProto, str]] = ..., scalar_type: _Optional[_Union[ScalarTypeProto, str]] = ..., primitive_type: _Optional[_Union[PrimitiveTypeProto, str]] = ..., enum_type: _Optional[_Union[EnumTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key_type: _Optional[_Union[TypeProto, _Mapping]] = ..., is_required: bool = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., value_factory: _Optional[_Union[ValueFactoryProto, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintProto, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintProto, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintProto, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintProto, _Mapping]] = ...) -> None: ...
 
 class UniverseProto(_message.Message):
-    __slots__ = ("metatype", "id", "space_ptr")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
+    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
+    parent_ptr: NodeReferenceProto
     space_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class UserProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "template_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "custom_values", "name", "slug", "status", "last_logged_in_at", "is_staff", "handle_ptr", "cursor_ptr", "email", "password_salt", "password_hash")
