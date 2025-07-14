@@ -74,8 +74,8 @@ async function filterEventRows(options: {
     } else {
       // scan all events - use created_at index for performance
       const index = store.index(getIndexName(eventTable, EVENT_CREATED_AT_KEY));
-      for await (const cursor of index.iterate()) {
-        const row = cursor.value;
+      const rows = await index.getAll();
+      for (const row of rows) {
         const value = unpackEventRow(row);
         const nodePtr = NodeReference.fromValue(row);
         if (evaluateCondition({ value: value.value, condition: where })) {
@@ -86,11 +86,10 @@ async function filterEventRows(options: {
   } else {
     // get all events - use created_at index for default ordering
     const index = store.index(getIndexName(eventTable, EVENT_CREATED_AT_KEY));
-    for await (const cursor of index.iterate()) {
-      const row = cursor.value;
+    const rows = await index.getAll();
+    for (const row of rows) {
       const value = unpackEventRow(row);
       const nodePtr = NodeReference.fromValue(row);
-      
       filteredRows.push({ nodePtr, value });
     }
   }

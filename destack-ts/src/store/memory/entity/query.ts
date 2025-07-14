@@ -364,21 +364,21 @@ export function walkNode(options: {
   if (direction === EdgeDirection.PARENT) {
     // start with root nodes and walk up
     let currentDepth = 0;
-    let currentNodeIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
+    let currentParentIds = new Set<string>(nodesPtrs.map((ptr) => ptr.id));
     for (const ptr of nodesPtrs) {
       nodesById.set(ptr.id, ptr);
       sourceIdByNodeId.set(ptr.id, ptr.id);
     }
 
     while (currentDepth < depth) {
-      if (currentNodeIds.size === 0) {
+      if (currentParentIds.size === 0) {
         break;
       }
 
-      const nextNodeIds = new Set<string>();
+      const nextParentIds = new Set<string>();
       for (const def of definitions) {
         const table = context.getEntityTable(def);
-        for (const nodeId of currentNodeIds) {
+        for (const nodeId of currentParentIds) {
           const nodeKey = table.getNodeKey({ id: nodeId, snapshotId });
           const row = table.rows.get(nodeKey);
           if (
@@ -389,12 +389,12 @@ export function walkNode(options: {
           ) {
             sourceIdByNodeId.set(row.parentPtr.id, sourceIdByNodeId.get(nodeId)!);
             nodesById.set(row.parentPtr.id, row.parentPtr);
-            nextNodeIds.add(row.parentPtr.id);
+            nextParentIds.add(row.parentPtr.id);
           }
         }
       }
 
-      currentNodeIds = nextNodeIds;
+      currentParentIds = nextParentIds;
       currentDepth++;
     }
   }
