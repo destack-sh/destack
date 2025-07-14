@@ -29,7 +29,7 @@ class Reaction(
     IsOwned,
     Entity,
 ):
-    """A Reaction is a relationship between a Subject and a Reaction Node."""
+    """A Reaction is a relationship between a Actor and a Reaction Node."""
 
     parent: Union["IsReactable", None] = builtin_property_parent()
 

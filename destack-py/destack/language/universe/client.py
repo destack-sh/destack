@@ -4,8 +4,8 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     ClientType,
     Entity,
+    IsActor,
     IsDeletable,
-    IsSubject,
     NodeReference,
     NodeType,
     builtin_node,
@@ -27,7 +27,7 @@ class Client(
     """A Client to connect with the system."""
 
     # meta
-    parent: Optional[IsSubject] = builtin_property_parent()
+    parent: Optional[IsActor] = builtin_property_parent()
     type: ClientType = builtin_property(100, is_repr=True)
     name: str = builtin_property(101, is_repr=True)
 

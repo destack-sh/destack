@@ -10,6 +10,7 @@ import type {
   NodeReference,
 } from "@destack/language/core/builtin/relation";
 import type {
+  IsActor,
   IsArchivable,
   IsCustomizable,
   IsDeletable,
@@ -17,7 +18,6 @@ import type {
   IsOwnable,
   IsScriptable,
   IsSourceable,
-  IsSubject,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
 import { INTER_ORDER_TYPES, IsOrdered } from "@destack/language/core/builtin/trait";
@@ -97,9 +97,9 @@ export abstract class Entity extends Node {
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -108,9 +108,9 @@ export abstract class Entity extends Node {
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -428,12 +428,12 @@ export class CustomEntityDefinition
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -445,12 +445,12 @@ export class CustomEntityDefinition
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -485,14 +485,14 @@ export class CustomEntityDefinition
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsSubject) | null {
+  get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsSubject) | null) {
+  set ownedBy(node: (Entity & IsActor) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -689,13 +689,13 @@ export class CustomEntityDefinition
     predecessor?: CustomEntityDefinition | NodeReference | null;
     template?: CustomEntityDefinition | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
-    ownedBy?: (Entity & IsSubject) | NodeReference | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     baseType: NodeDefinitionReference;
     baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
@@ -1615,12 +1615,12 @@ export class CustomTraitDefinition
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1632,12 +1632,12 @@ export class CustomTraitDefinition
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1816,9 +1816,9 @@ export class CustomTraitDefinition
     predecessor?: CustomTraitDefinition | NodeReference | null;
     template?: CustomTraitDefinition | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
@@ -2669,9 +2669,9 @@ export abstract class Record
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -2680,9 +2680,9 @@ export abstract class Record
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -2707,8 +2707,8 @@ export abstract class Record
   /**
    * IsOwnable.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsSubject) | null;
-  abstract set ownedBy(value: (Entity & IsSubject) | null);
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
   /**
    * IsOwnable.ownedBy
    */
@@ -2793,9 +2793,9 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -2804,9 +2804,9 @@ export abstract class Resource extends Entity implements IsDeletable, IsExtensib
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
@@ -2929,12 +2929,12 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2946,12 +2946,12 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2970,14 +2970,14 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsSubject) | null {
+  get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsSubject) | null) {
+  set ownedBy(node: (Entity & IsActor) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -3043,12 +3043,12 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     predecessor?: Snapshot | NodeReference | null;
     template?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsSubject) | NodeReference | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     type?: SnapshotType;
     name: string;
     status?: SnapshotStatus;

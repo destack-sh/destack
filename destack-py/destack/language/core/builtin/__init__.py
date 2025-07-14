@@ -106,6 +106,7 @@ from .relation import (
 from .struct import Struct, StructFrozen, StructMutable, builtin_struct
 from .trait import (
     TRAIT_PREFIXES,
+    IsActor,
     IsArchivable,
     IsCustomizable,
     IsDeletable,
@@ -121,7 +122,6 @@ from .trait import (
     IsScriptable,
     IsSourceable,
     IsStarable,
-    IsSubject,
     IsTaggable,
     IsViewable,
     Trait,
@@ -175,6 +175,8 @@ __all__ = [
     "Event",
     "EventStatus",
     "IndexIn",
+    "IsActor",
+    "IsActor",
     "IsArchivable",
     "IsCustomizable",
     "IsDeletable",
@@ -190,8 +192,6 @@ __all__ = [
     "IsScriptable",
     "IsSourceable",
     "IsStarable",
-    "IsSubject",
-    "IsSubject",
     "IsTaggable",
     "IsViewable",
     "Materialization",

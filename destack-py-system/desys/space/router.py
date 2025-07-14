@@ -18,7 +18,7 @@ from destack.grpc import (
     ServiceKind,
     SpaceBase,
 )
-from destack.language import Client, DatabaseInfo, IsSubject, Oracle, Session
+from destack.language import Client, DatabaseInfo, IsActor, Oracle, Session
 from destack.proto import (
     AppendRequest,
     AppendResponse,
@@ -163,7 +163,7 @@ class SpaceRouterService(ServiceBase, SpaceBase):
         self,
         request: QueryRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> QueryResponse:
@@ -174,7 +174,7 @@ class SpaceRouterService(ServiceBase, SpaceBase):
         self,
         request: AppendRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> AppendResponse:
@@ -185,7 +185,7 @@ class SpaceRouterService(ServiceBase, SpaceBase):
         self,
         request: SubscribeRequest,
         session: Session,
-        subject: IsSubject | None,
+        actor: IsActor | None,
         client: Client | None,
         metadata: RpcMetadata,
     ) -> AsyncIterator[SubscribeResponse]:

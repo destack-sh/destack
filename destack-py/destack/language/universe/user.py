@@ -5,9 +5,9 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
+    IsActor,
     IsCustomizable,
     IsFollowable,
-    IsSubject,
     NodeType,
     RoleType,
     StringFormat,
@@ -30,7 +30,7 @@ class UserStatus(Enum):
 
 @builtin_node(NodeType.USER, root_type=None)
 class User(
-    IsSubject,
+    IsActor,
     IsFollowable,
     IsCustomizable,
     Entity,

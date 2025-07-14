@@ -1,4 +1,4 @@
-import type { EventStatus, IsSubject, NodeReference, Snapshot } from "@destack/language/core";
+import type { EventStatus, IsActor, NodeReference, Snapshot } from "@destack/language/core";
 import { Entity, Event, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
@@ -38,7 +38,7 @@ export abstract class InputEvent extends Event {
   /**
    * Event.createdBy
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**

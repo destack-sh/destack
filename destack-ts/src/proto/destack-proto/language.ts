@@ -1364,6 +1364,7 @@ export interface ConstantDefinitionProto {
 }
 /**
  * A container View contains other Views.
+ * Containers can be laid out as stacks or grids.
  *
  * @generated from protobuf message symbol.destack.ContainerViewProto
  */
@@ -3678,7 +3679,7 @@ export interface EffectStyleProto {
     transition?: TransitionProto;
 }
 /**
- * A Entitlement to some Subject.
+ * A Entitlement to some Actor.
  *
  * @generated from protobuf message symbol.destack.EntitlementProto
  */
@@ -4846,7 +4847,7 @@ export interface FolderProto {
     mainScenePtr?: NodeReferenceProto;
 }
 /**
- * A Follow is a relationship between a Subject and an IsFollowable Node.
+ * A Follow is a relationship between a Actor and an IsFollowable Node.
  *
  * @generated from protobuf message symbol.destack.FollowProto
  */
@@ -5208,7 +5209,7 @@ export interface FontStyleProto {
     transform?: TextTransformProto;
 }
 /**
- * A frame container View.
+ * A frame View is a bare ContainerView.
  *
  * @generated from protobuf message symbol.destack.FrameViewProto
  */
@@ -7829,7 +7830,7 @@ export interface MeasurementEventProto {
     nodePtr?: NodeReferenceProto;
 }
 /**
- * A Membership of a Subject in a Joinable.
+ * A Membership of a Actor in a Joinable.
  *
  * @generated from protobuf message symbol.destack.MembershipProto
  */
@@ -10583,7 +10584,7 @@ export interface QueryUpdateProto {
     result?: QueryResultProto;
 }
 /**
- * A Reaction is a relationship between a Subject and a Reaction Node.
+ * A Reaction is a relationship between a Actor and a Reaction Node.
  *
  * @generated from protobuf message symbol.destack.ReactionProto
  */
@@ -10979,7 +10980,7 @@ export interface ResourceProto {
     status: ResourceStatusProto;
 }
 /**
- * A Role for Subjects to take.
+ * A Role for Actors to take.
  *
  * @generated from protobuf message symbol.destack.RoleProto
  */
@@ -11104,9 +11105,9 @@ export interface RoleAssignedEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto subject_ptr = 110
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto actor_ptr = 110
      */
-    subjectPtr?: NodeReferenceProto;
+    actorPtr?: NodeReferenceProto;
 }
 /**
  * A Event regarding a Role.
@@ -11159,9 +11160,9 @@ export interface RoleEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto subject_ptr = 110
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto actor_ptr = 110
      */
-    subjectPtr?: NodeReferenceProto;
+    actorPtr?: NodeReferenceProto;
 }
 /**
  * A Event regarding a Role.
@@ -11214,9 +11215,9 @@ export interface RoleUnassignedEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto subject_ptr = 110
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto actor_ptr = 110
      */
-    subjectPtr?: NodeReferenceProto;
+    actorPtr?: NodeReferenceProto;
 }
 /**
  * A Route is a path to something (a Scene, a View in a Scene, an Action, etc.).
@@ -11878,7 +11879,7 @@ export interface RunStopRequestedEventProto {
     targetPtr?: NodeReferenceProto;
 }
 /**
- * A Sanction on some Subject.
+ * A Sanction on some Actor.
  *
  * @generated from protobuf message symbol.destack.SanctionProto
  */
@@ -13731,7 +13732,7 @@ export interface SplitViewProto {
     radius?: CornersProto;
 }
 /**
- * A Star is a relationship between a Subject and a Starred Node.
+ * A Star is a relationship between a Actor and a Starred Node.
  *
  * @generated from protobuf message symbol.destack.StarProto
  */
@@ -23221,9 +23222,9 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_JOINABLE = 60003,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SUBJECT = 60004;
+     * @generated from protobuf enum value: TRAIT_TYPE_ACTOR = 60004;
      */
-    TRAIT_TYPE_SUBJECT = 60004,
+    TRAIT_TYPE_ACTOR = 60004,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 100001;
      */
@@ -48808,7 +48809,7 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
             { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "subject_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 110, name: "actor_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
     create(value?: PartialMessage<RoleAssignedEventProto>): RoleAssignedEventProto {
@@ -48858,8 +48859,8 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
                 case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto subject_ptr */ 110:
-                    message.subjectPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
+                case /* symbol.destack.NodeReferenceProto actor_ptr */ 110:
+                    message.actorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.actorPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -48906,9 +48907,9 @@ class RoleAssignedEventProto$Type extends MessageType<RoleAssignedEventProto> {
         /* symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto subject_ptr = 110; */
-        if (message.subjectPtr)
-            NodeReferenceProto.internalBinaryWrite(message.subjectPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto actor_ptr = 110; */
+        if (message.actorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.actorPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -48934,7 +48935,7 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
             { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "subject_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 110, name: "actor_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
     create(value?: PartialMessage<RoleEventProto>): RoleEventProto {
@@ -48984,8 +48985,8 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
                 case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto subject_ptr */ 110:
-                    message.subjectPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
+                case /* symbol.destack.NodeReferenceProto actor_ptr */ 110:
+                    message.actorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.actorPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -49032,9 +49033,9 @@ class RoleEventProto$Type extends MessageType<RoleEventProto> {
         /* symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto subject_ptr = 110; */
-        if (message.subjectPtr)
-            NodeReferenceProto.internalBinaryWrite(message.subjectPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto actor_ptr = 110; */
+        if (message.actorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.actorPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -49060,7 +49061,7 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
             { no: 23, name: "client_nonce", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 30, name: "status", kind: "enum", T: () => ["symbol.destack.EventStatusProto", EventStatusProto] },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "subject_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 110, name: "actor_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
     }
     create(value?: PartialMessage<RoleUnassignedEventProto>): RoleUnassignedEventProto {
@@ -49110,8 +49111,8 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
                 case /* symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.NodeReferenceProto subject_ptr */ 110:
-                    message.subjectPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.subjectPtr);
+                case /* symbol.destack.NodeReferenceProto actor_ptr */ 110:
+                    message.actorPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.actorPtr);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -49158,9 +49159,9 @@ class RoleUnassignedEventProto$Type extends MessageType<RoleUnassignedEventProto
         /* symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto subject_ptr = 110; */
-        if (message.subjectPtr)
-            NodeReferenceProto.internalBinaryWrite(message.subjectPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto actor_ptr = 110; */
+        if (message.actorPtr)
+            NodeReferenceProto.internalBinaryWrite(message.actorPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);

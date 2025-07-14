@@ -2,12 +2,12 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
+    IsActor,
     IsDeletable,
     IsExtensible,
     IsOwnable,
     IsRunnable,
     IsSourceable,
-    IsSubject,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -28,7 +28,7 @@ class Service(
     IsTaggable,
     IsExtensible,
     IsSourceable,
-    IsSubject,
+    IsActor,
     IsRunnable,
     Entity,
 ):

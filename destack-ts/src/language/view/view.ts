@@ -3,10 +3,10 @@ import type {
   CustomEventDefinition,
   Dimension,
   EventStatus,
+  IsActor,
   IsDeletable,
   IsExtensible,
   IsOrdered,
-  IsSubject,
   IsTaggable,
   IsViewable,
   Materialization,
@@ -57,7 +57,7 @@ export abstract class ViewEvent extends Event {
   /**
    * Event.createdBy
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -151,9 +151,9 @@ export abstract class View
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -162,9 +162,9 @@ export abstract class View
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**

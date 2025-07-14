@@ -363,8 +363,8 @@ registerTraitClass(TraitType.RUNNABLE, IsRunnable);
  * An Entity that can be owned by another Entity.
  */
 export interface IsOwnable {
-  get ownedBy(): (Entity & IsSubject) | null;
-  set ownedBy(value: (Entity & IsSubject) | null);
+  get ownedBy(): (Entity & IsActor) | null;
+  set ownedBy(value: (Entity & IsActor) | null);
   /**
    * IsOwnable.ownedBy
    */
@@ -387,7 +387,7 @@ registerTraitClass(TraitType.OWNABLE, IsOwnable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60003 ==== */
 /**
- * An Entity that can be joined by Subjects.
+ * An Entity that can be joined by Actors.
  */
 export interface IsJoinable {
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -396,7 +396,7 @@ export interface IsJoinable {
 }
 
 /**
- * An Entity that can be joined by Subjects.
+ * An Entity that can be joined by Actors.
  */
 class IsJoinable$Type extends TraitClass<IsJoinable, TraitType.JOINABLE> {}
 
@@ -409,8 +409,8 @@ registerTraitClass(TraitType.JOINABLE, IsJoinable);
  * An Entity that must be owned by another Entity.
  */
 export interface IsOwned extends IsOwnable {
-  get ownedBy(): (Entity & IsSubject) | null;
-  set ownedBy(value: Entity & IsSubject);
+  get ownedBy(): (Entity & IsActor) | null;
+  set ownedBy(value: Entity & IsActor);
   /**
    * IsOwned.ownedBy
    */
@@ -433,21 +433,21 @@ registerTraitClass(TraitType.OWNED, IsOwned);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:60004 ==== */
 /**
- * An Entity that can be a Subject.
+ * An Entity that can be an Actor (can do something).
  */
-export interface IsSubject {
+export interface IsActor {
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 
 /**
- * An Entity that can be a Subject.
+ * An Entity that can be an Actor (can do something).
  */
-class IsSubject$Type extends TraitClass<IsSubject, TraitType.SUBJECT> {}
+class IsActor$Type extends TraitClass<IsActor, TraitType.ACTOR> {}
 
-export const IsSubject = new IsSubject$Type(TraitType.SUBJECT);
-registerTraitClass(TraitType.SUBJECT, IsSubject);
+export const IsActor = new IsActor$Type(TraitType.ACTOR);
+registerTraitClass(TraitType.ACTOR, IsActor);
 /* ==== DESTACK_GENERATED_END:TRAIT:60004 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:540000 ==== */

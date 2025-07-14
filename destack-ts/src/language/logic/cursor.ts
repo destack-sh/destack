@@ -1,8 +1,8 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
+  IsActor,
   IsOwnable,
-  IsSubject,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -107,9 +107,9 @@ export abstract class Cursor extends Entity implements IsOwnable {
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -118,16 +118,16 @@ export abstract class Cursor extends Entity implements IsOwnable {
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
    * IsOwnable.ownedBy
    */
-  abstract get ownedBy(): (Entity & IsSubject) | null;
-  abstract set ownedBy(value: (Entity & IsSubject) | null);
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
   /**
    * IsOwnable.ownedBy
    */
@@ -237,12 +237,12 @@ export class ThreadCursor extends Cursor {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -254,12 +254,12 @@ export class ThreadCursor extends Cursor {
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -268,14 +268,14 @@ export class ThreadCursor extends Cursor {
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsSubject) | null {
+  get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsSubject) | null) {
+  set ownedBy(node: (Entity & IsActor) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -336,10 +336,10 @@ export class ThreadCursor extends Cursor {
     predecessor?: ThreadCursor | NodeReference | null;
     template?: ThreadCursor | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    ownedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     _session?: Session | null;
@@ -927,12 +927,12 @@ export class EventCursor extends Cursor {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -944,12 +944,12 @@ export class EventCursor extends Cursor {
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -958,14 +958,14 @@ export class EventCursor extends Cursor {
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsSubject) | null {
+  get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsSubject) | null) {
+  set ownedBy(node: (Entity & IsActor) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -1026,10 +1026,10 @@ export class EventCursor extends Cursor {
     predecessor?: EventCursor | NodeReference | null;
     template?: EventCursor | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    ownedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     _session?: Session | null;
@@ -1617,12 +1617,12 @@ export class ScreenCursor extends Cursor {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1634,12 +1634,12 @@ export class ScreenCursor extends Cursor {
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1648,14 +1648,14 @@ export class ScreenCursor extends Cursor {
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsSubject) | null {
+  get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsSubject) | null) {
+  set ownedBy(node: (Entity & IsActor) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -1732,10 +1732,10 @@ export class ScreenCursor extends Cursor {
     predecessor?: ScreenCursor | NodeReference | null;
     template?: ScreenCursor | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
-    ownedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     position?: Vector2i | null;

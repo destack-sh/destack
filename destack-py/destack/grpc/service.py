@@ -23,7 +23,7 @@ from grpclib.client import ServiceMethod
 from opentelemetry import trace
 
 from destack.grpc.wiring import unpack_rpc_headers
-from destack.language import EMPTY_DICT, Client, DestackError, IsSubject, Oracle, Session
+from destack.language import EMPTY_DICT, Client, DestackError, IsActor, Oracle, Session
 from destack.proto import RpcMetadata, ServiceKind
 from destack.utils.env import IS_DEV, IS_TEST
 from destack.utils.string import Casing, to_casing
@@ -41,10 +41,10 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 UnaryRpcCallable = Callable[
-    [ProtoMessage, Session, IsSubject | None, Client | None, RpcMetadata], ProtoMessage
+    [ProtoMessage, Session, IsActor | None, Client | None, RpcMetadata], ProtoMessage
 ]
 StreamRpcCallable = Callable[
-    [ProtoMessage, Session, IsSubject | None, Client | None, RpcMetadata],
+    [ProtoMessage, Session, IsActor | None, Client | None, RpcMetadata],
     AsyncIterable[ProtoMessage],
 ]
 RpcCallable = Union[UnaryRpcCallable, StreamRpcCallable]
@@ -156,7 +156,7 @@ class ServiceBase(abc.ABC):
 
     async def resolve_client(
         self, request: ProtoMessage, metadata: RpcMetadata
-    ) -> tuple[IsSubject | None, Client | None]:
+    ) -> tuple[IsActor | None, Client | None]:
         return None, None
 
     @final
@@ -187,15 +187,15 @@ class ServiceBase(abc.ABC):
                         request = await stream.recv_message()
                         if request is None:
                             raise GRPCError(GRPCStatus.INVALID_ARGUMENT, "missing request")
-                        subject, client = await self.resolve_client(request, metadata)
+                        actor, client = await self.resolve_client(request, metadata)
 
                         if handler.cardinality == grpclib.const.Cardinality.UNARY_UNARY:
                             self.active_unary_requests_count += 1
-                            response = await func(request, session, subject, client, metadata)
+                            response = await func(request, session, actor, client, metadata)
                             await stream.send_message(response)
                         elif handler.cardinality == grpclib.const.Cardinality.UNARY_STREAM:
                             span.end()  # end early (streaming, span shouldn't continue forever?)
-                            async for response in func(request, session, subject, client, metadata):
+                            async for response in func(request, session, actor, client, metadata):
                                 log.trace(f"{rpc_name}.update")
                                 await stream.send_message(response)
                         else:

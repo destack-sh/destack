@@ -1,9 +1,9 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
+  IsActor,
   IsDeletable,
   IsJoinable,
-  IsSubject,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -90,7 +90,7 @@ export abstract class EntitlementEvent extends Event {
   /**
    * Event.createdBy
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -118,7 +118,7 @@ export abstract class EntitlementEvent extends Event {
   /**
    * EntitlementEvent.target
    */
-  abstract get target(): (Entity & IsSubject) | null;
+  abstract get target(): (Entity & IsActor) | null;
   declare readonly targetPtr: NodeReference;
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -179,10 +179,10 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -225,10 +225,10 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsSubject) | null {
+  get target(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -240,12 +240,12 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsSubject) | NodeReference;
+    target: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -746,10 +746,10 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -792,10 +792,10 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsSubject) | null {
+  get target(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -807,12 +807,12 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsSubject) | NodeReference;
+    target: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1313,10 +1313,10 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1359,10 +1359,10 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsSubject) | null {
+  get target(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1374,12 +1374,12 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsSubject) | NodeReference;
+    target: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1880,10 +1880,10 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   /**
    * Event.createdBy
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1926,10 +1926,10 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   /**
    * EntitlementEvent.target
    */
-  get target(): (Entity & IsSubject) | null {
+  get target(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -1941,12 +1941,12 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
     status?: EventStatus;
     node: Entitlement | NodeReference;
-    target: (Entity & IsSubject) | NodeReference;
+    target: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2398,7 +2398,7 @@ registerNodeClass(NodeType.ENTITLEMENT_EXPIRED_EVENT, EntitlementExpiredEvent);
 
 /* ==== DESTACK_GENERATED_START:NODE:60500 ==== */
 /**
- * A Entitlement to some Subject.
+ * A Entitlement to some Actor.
  */
 export class Entitlement extends Entity implements IsDeletable {
   static metatype: NodeType = NodeType.ENTITLEMENT;
@@ -2406,13 +2406,10 @@ export class Entitlement extends Entity implements IsDeletable {
   /**
    * Entitlement.parent
    */
-  get parent(): (Entity & IsSubject) | (Entity & IsJoinable) | null {
+  get parent(): (Entity & IsActor) | (Entity & IsJoinable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as
-        | (Entity & IsSubject)
-        | (Entity & IsJoinable)
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | (Entity & IsJoinable) | null;
     }
     return null;
   }
@@ -2477,12 +2474,12 @@ export class Entitlement extends Entity implements IsDeletable {
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2494,12 +2491,12 @@ export class Entitlement extends Entity implements IsDeletable {
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -2545,14 +2542,14 @@ export class Entitlement extends Entity implements IsDeletable {
   /**
    * Entitlement.target
    */
-  get target(): (Entity & IsSubject) | null {
+  get target(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.targetPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set target(node: Entity & IsSubject) {
+  set target(node: Entity & IsActor) {
     this.targetPtr = node.toRef();
   }
   /**
@@ -2570,20 +2567,20 @@ export class Entitlement extends Entity implements IsDeletable {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsSubject) | (Entity & IsJoinable) | NodeReference | null;
+    parent?: (Entity & IsActor) | (Entity & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Entitlement | NodeReference | null;
     template?: Entitlement | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     type: EntitlementType;
     expiresAt?: Temporal.ZonedDateTime | null;
-    target: (Entity & IsSubject) | NodeReference;
+    target: (Entity & IsActor) | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;

@@ -3,10 +3,10 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Entity,
     Event,
+    IsActor,
     IsDeletable,
     IsJoinable,
     IsOwnable,
-    IsSubject,
     NodeType,
     builtin_node,
     builtin_property,
@@ -25,7 +25,7 @@ class MembershipEvent(Event["Membership"]):
 
     node: "Membership" = builtin_property(101)
     joinable: "IsJoinable" = builtin_property(102)
-    member: "IsSubject" = builtin_property(103)
+    member: "IsActor" = builtin_property(103)
 
 
 @builtin_node(NodeType.MEMBERSHIP_JOINED_EVENT, frozen=True)
@@ -52,9 +52,9 @@ class Membership(
     IsDeletable,
     Entity,
 ):
-    """A Membership of a Subject in a Joinable."""
+    """A Membership of a Actor in a Joinable."""
 
     parent: Optional["IsJoinable"] = builtin_property_parent()
-    member: "IsSubject" = builtin_property(110)
+    member: "IsActor" = builtin_property(110)
     role: Optional["Role"] = builtin_property(111)
     role_type: Optional["RoleType"] = builtin_property(112)

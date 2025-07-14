@@ -1,10 +1,10 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
+  IsActor,
   IsDeletable,
   IsJoinable,
   IsOwnable,
-  IsSubject,
   IsTaggable,
   NodeClass,
   NodeReference,
@@ -129,12 +129,12 @@ export class Thread extends Entity implements IsTaggable, IsDeletable, IsJoinabl
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  get createdBy(): (Entity & IsSubject) | null {
+  get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -146,12 +146,12 @@ export class Thread extends Entity implements IsTaggable, IsDeletable, IsJoinabl
   readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  get updatedBy(): (Entity & IsSubject) | null {
+  get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
@@ -165,14 +165,14 @@ export class Thread extends Entity implements IsTaggable, IsDeletable, IsJoinabl
   /**
    * IsOwnable.ownedBy
    */
-  get ownedBy(): (Entity & IsSubject) | null {
+  get ownedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.ownedByPtr;
     if (nodePtr !== null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsSubject) | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
   }
-  set ownedBy(node: (Entity & IsSubject) | null) {
+  set ownedBy(node: (Entity & IsActor) | null) {
     if (node === null) {
       this.ownedByPtr = null;
     } else {
@@ -217,11 +217,11 @@ export class Thread extends Entity implements IsTaggable, IsDeletable, IsJoinabl
     predecessor?: Thread | NodeReference | null;
     template?: Thread | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
-    createdBy?: (Entity & IsSubject) | NodeReference | null;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
-    updatedBy?: (Entity & IsSubject) | NodeReference | null;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsSubject) | NodeReference | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;

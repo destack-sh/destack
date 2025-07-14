@@ -80,13 +80,13 @@ def generate() -> None:
             # replace service methods Method(Stream) -> None with Method(Request, Metadata) -> Response | AsyncIterator[Response]
             wire_py = regex.sub(
                 r"(?!.*subscribe)(async def )([a-zA-Z0-9_]+)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
-                r"\1\2(self, request: '\3', session: 'Session', subject: 'IsSubject | None', client: 'Client | None', metadata: 'RpcMetadata') -> '\4':",
+                r"\1\2(self, request: '\3', session: 'Session', actor: 'IsActor | None', client: 'Client | None', metadata: 'RpcMetadata') -> '\4':",
                 wire_py,
                 flags=re.MULTILINE,
             )
             wire_py = regex.sub(
                 r"async (def )(subscribe[a-zA-Z0-9_]*)\(self, stream: 'grpclib.server.Stream\[([a-zA-Z0-9_\.]+), ([a-zA-Z0-9_\.]+)\]'\) -> None:",
-                r"\1\2(self, request: '\3', session: 'Session', subject: 'IsSubject | None', client: 'Client | None', metadata: 'RpcMetadata') -> AsyncIterator['\4']:",
+                r"\1\2(self, request: '\3', session: 'Session', actor: 'IsActor | None', client: 'Client | None', metadata: 'RpcMetadata') -> AsyncIterator['\4']:",
                 wire_py,
                 flags=re.MULTILINE,
             )
@@ -102,7 +102,7 @@ def generate() -> None:
 from typing import TYPE_CHECKING, Union, AsyncIterator, Mapping
 
 if TYPE_CHECKING:
-    from destack.language import Session, Session, IsSubject, Client
+    from destack.language import Session, Session, IsActor, Client
 
 """
         path.write_text(patch_prefix_code + "\n\n" + wire_py)

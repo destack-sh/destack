@@ -105,6 +105,7 @@ import type {
   StructDefinitionType,
 } from "@destack/language/core/builtin/relation";
 import type {
+  IsActor,
   IsArchivable,
   IsCustomizable,
   IsDeletable,
@@ -120,7 +121,6 @@ import type {
   IsScriptable,
   IsSourceable,
   IsStarable,
-  IsSubject,
   IsTaggable,
   IsViewable,
 } from "@destack/language/core/builtin/trait";
@@ -626,7 +626,7 @@ export type TraitTypeMapping = {
   [TraitType.OWNABLE]: IsOwnable;
   [TraitType.OWNED]: IsOwned;
   [TraitType.JOINABLE]: IsJoinable;
-  [TraitType.SUBJECT]: IsSubject;
+  [TraitType.ACTOR]: IsActor;
   [TraitType.TAGGABLE]: IsTaggable;
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;

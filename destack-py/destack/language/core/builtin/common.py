@@ -352,7 +352,7 @@ class TraitType(Enum):
     OWNABLE = 60_000, "Ownable", "Is ownable", "fas fa-user"
     OWNED = 60_001, "Owned", "Is owned", "fas fa-user"
     JOINABLE = 60_003, "Joinable", "Is joinable", "fas fa-users"
-    SUBJECT = 60_004, "Subject", "Is a Subject", "fas fa-user"
+    ACTOR = 60_004, "Actor", "Is an Actor", "fas fa-user"
 
     # data [80_000-100_000]
     # ...
@@ -700,6 +700,7 @@ class NodeType(Enum):
 
     # animation [580_000-600_000]
     # ANIMATION, TRACK, KEYFRAME, ...
+    # PARTICLE, EMITTER, ...
 
     # style [600_000-620_000]
     THEME = 600_000, "Theme", None, "fas fa-palette"

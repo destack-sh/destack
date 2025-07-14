@@ -1,7 +1,7 @@
 import type {
+  IsActor,
   IsDeletable,
   IsOrdered,
-  IsSubject,
   IsTaggable,
   Materialization,
   NodeReference,
@@ -64,9 +64,9 @@ export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsD
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that created this Entity.
+   * The Actor that created this Entity.
    */
-  abstract get createdBy(): (Entity & IsSubject) | null;
+  abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
@@ -75,9 +75,9 @@ export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsD
   declare readonly updatedAt: Temporal.ZonedDateTime;
 
   /**
-   * The Subject that last updated this Entity.
+   * The Actor that last updated this Entity.
    */
-  abstract get updatedBy(): (Entity & IsSubject) | null;
+  abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
