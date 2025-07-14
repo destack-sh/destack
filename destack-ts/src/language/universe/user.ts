@@ -58,12 +58,12 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   static metatype: NodeType = NodeType.USER;
 
   /**
-   * Entity.parent
+   * User.parent
    */
-  get parent(): Entity | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -348,7 +348,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
 
   constructor(options: {
     id?: string;
-    parent?: Entity | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -577,6 +577,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
@@ -606,9 +609,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
-    }
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -747,6 +747,11 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   ): User {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const lastLoggedInAtValue = objectValue["111"];
     const unpackedLastLoggedInAt =
       lastLoggedInAtValue != undefined
@@ -782,11 +787,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
         );
       }
     }
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -813,6 +813,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new User({
+      parent: unpackedParentPtr,
       name: objectValue["101"],
       slug: objectValue["102"],
       status: Number(objectValue["110"]),
@@ -824,7 +825,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
       customValues: unpackedCustomValues,
-      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -930,6 +930,16 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       }
     }
     return new User({
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       name: objectProto.name,
       slug: objectProto.slug,
       status: Number(objectProto.status) as UserStatus,
@@ -962,16 +972,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
       passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
       customValues: unpackedCustomValues,
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined

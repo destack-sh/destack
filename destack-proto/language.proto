@@ -1233,6 +1233,7 @@ enum SnapshotTypeProto {
   SNAPSHOT_TYPE_UNSPECIFIED = 0;
   SNAPSHOT_TYPE_PARTIAL = 1;
   SNAPSHOT_TYPE_COPY = 2;
+  SNAPSHOT_TYPE_ROOT = 3;
 }
 
 enum SortModeProto {
@@ -1518,6 +1519,7 @@ enum UniverseCategoryProto {
   UNIVERSE_CATEGORY_OPTIMIZATION = 200000;
   UNIVERSE_CATEGORY_SOCIAL = 220000;
   UNIVERSE_CATEGORY_FINANCE = 240000;
+  UNIVERSE_CATEGORY_PHYSICS = 260000;
   UNIVERSE_CATEGORY_SCENE = 500000;
   UNIVERSE_CATEGORY_VIEW = 520000;
   UNIVERSE_CATEGORY_CANVAS = 540000;
@@ -4440,7 +4442,6 @@ message QueryProto {
   optional int64 offset = 121 [jstype = JS_NUMBER];
   optional NodeReferenceProto snapshot_ptr = 130;
   repeated string snapshot_path = 131;
-  optional bool is_live = 140;
 }
 
 message QueryResultProto {
@@ -5904,6 +5905,7 @@ message TypeProto {
 message UniverseProto {
   NodeTypeProto metatype = 1;
   string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
 }
 

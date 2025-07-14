@@ -154,7 +154,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """Whether this class is an actual Node (not a Trait)."""
     __is_node__: ClassVar[bool] = True
     """Whether this class is a Trait (not a Node)."""
-    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__
+    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
     """Indexes for this Node."""
     __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
 

@@ -344,12 +344,13 @@ class PropertyDefinition(BuiltinDefinition):
     is_required: bool = builtin_property(150, is_repr=True)
     is_unique: bool = builtin_property(151, is_repr=True)
     is_readonly: bool = builtin_property(153)
-    is_wired: bool = builtin_property(155)
-    is_stored: bool = builtin_property(156)
-    is_repr: bool = builtin_property(157)
-    is_hash: bool = builtin_property(158)
-    is_eq: bool = builtin_property(159)
-    is_managed: bool = builtin_property(160)
+    is_root: bool = builtin_property(154)
+    is_wired: bool = builtin_property(160)
+    is_stored: bool = builtin_property(161)
+    is_repr: bool = builtin_property(162)
+    is_hash: bool = builtin_property(163)
+    is_eq: bool = builtin_property(164)
+    is_managed: bool = builtin_property(165)
 
     @classmethod
     def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
@@ -390,13 +391,14 @@ class PropertyDefinition(BuiltinDefinition):
             # flags
             is_required=prop.is_required,
             is_unique=prop.is_unique,
+            is_readonly=prop.is_readonly,
+            is_root=prop.is_root,
             is_wired=prop.is_wired,
             is_stored=prop.is_stored,
             is_repr=prop.is_repr,
             is_hash=prop.is_hash,
             is_eq=prop.is_eq,
             is_managed=prop.is_managed,
-            is_readonly=prop.is_readonly,
         )
 
     def to_ref(self) -> PropertyReference:

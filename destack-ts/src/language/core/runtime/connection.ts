@@ -243,8 +243,9 @@ export class QueryConnection<T extends Node = Node> extends QueryContainer<T> {
   readonly store: Store;
   readonly session: Session;
   readonly graph: Graph;
+  readonly isLive: boolean;
 
-  constructor(options: { query: Query; store: Store; session: Session }) {
+  constructor(options: { query: Query; store: Store; session: Session; isLive: boolean }) {
     super({
       connection: null as any, // assigned below
       type: options.query.type,
@@ -257,6 +258,7 @@ export class QueryConnection<T extends Node = Node> extends QueryContainer<T> {
     this.store = options.store;
     this.session = options.session;
     this.graph = this.session.supergraph.createEntityGraph() as Graph<Entity>;
+    this.isLive = options.isLive;
   }
 
   repr(): string {

@@ -421,16 +421,21 @@ If Query.snapshot is set, this must contain at least one element.
         snapshot_ptr: Optional[NodeReference] = None
 
     # realtime
-    is_live: bool | None = builtin_property(140, is_repr=True)
+    # is_live?
 
-    async def execute(self) -> "QueryConnection[RootT]":
+    async def execute(self, is_live: bool = False) -> "QueryConnection[RootT]":
         """Execute the Query."""
         from ..runtime.connection import QueryConnection
 
         session = active_session()
         store = session.store
         assert store is not None, f"no store in {session!r}"
-        connection = QueryConnection(query=self, store=store, session=session)
+        connection = QueryConnection(
+            query=self,
+            store=store,
+            session=session,
+            is_live=is_live,
+        )
         session.connections.append(connection)
         await connection.execute()
         return cast("QueryConnection[RootT]", connection)
