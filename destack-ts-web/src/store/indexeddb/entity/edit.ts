@@ -1,7 +1,7 @@
 import {
   IndexedDBContext,
   MAX_RECURSION_DEPTH,
-  NODE_PARENT_KEY,
+  ENTITY_PARENT_KEY,
 } from "@destack-web/store/indexeddb/core";
 import { walkNode } from "@destack-web/store/indexeddb/entity/query";
 import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
@@ -236,7 +236,7 @@ async function executeEdit(options: {
       if (!row) {
         throw new Error(`node not found for ${edit.repr()}: ${edit.nodePtr.repr()}`);
       }
-      row[NODE_PARENT_KEY] = edit.value.value;
+      row[ENTITY_PARENT_KEY] = edit.value.value;
       await store.put(row);
     }
     return { edits, cascadedEdits: [] };

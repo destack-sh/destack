@@ -11,9 +11,9 @@ from destack.language import (
     Condition,
     ConditionalType,
     EdgeDirection,
+    Entity,
     Expression,
     JoinType,
-    Node,
     NodeDefinitionReference,
     NodeReference,
     PropertyReference,
@@ -45,9 +45,9 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
-NODE_PARENT_KEY = str(Node.property("parent").id)
-NODE_ID_ID = Node.property("id").id
-NODE_ID_KEY = str(Node.property("id").id)
+ENTITY_PARENT_KEY = str(Entity.property("parent").id)
+NODE_ID_ID = Entity.property("id").id
+NODE_ID_KEY = str(Entity.property("id").id)
 
 NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
@@ -528,7 +528,7 @@ def _execute_subquery(
         for node_value in result.nodes:
             if (
                 node_value.value is not None
-                and (parent_ptr_value := node_value.value.get(NODE_PARENT_KEY)) is not None
+                and (parent_ptr_value := node_value.value.get(ENTITY_PARENT_KEY)) is not None
             ):
                 parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:

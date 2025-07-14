@@ -61,7 +61,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
@@ -73,7 +73,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -90,7 +90,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -102,7 +102,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get predecessor(): User | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as User | null;
     }
     return null;
@@ -114,7 +114,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get template(): User | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as User | null;
     }
     return null;
@@ -131,7 +131,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -148,7 +148,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -256,7 +256,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get handle(): Handle | null {
     const nodePtr: NodeReference | null = this.handlePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Handle | null;
     }
     return null;
@@ -279,7 +279,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
    */
   get cursor(): Cursor | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Cursor | null;
     }
     return null;
@@ -579,25 +579,25 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this._lastLoggedInAt !== null) {
+    if (this._lastLoggedInAt != null) {
       h =
         (h * 31 + hashString(this._lastLoggedInAt.toString({ timeZoneName: "never" }))) &
         0xffffffff;
     }
     h = (h * 31 + hashBool(this._isStaff)) & 0xffffffff;
-    if (this._handlePtr !== null) {
+    if (this._handlePtr != null) {
       h = (h * 31 + hashString(this._handlePtr.id)) & 0xffffffff;
     }
-    if (this._cursorPtr !== null) {
+    if (this._cursorPtr != null) {
       h = (h * 31 + hashString(this._cursorPtr.id)) & 0xffffffff;
     }
-    if (this._email !== null) {
+    if (this._email != null) {
       h = (h * 31 + hashString(this._email)) & 0xffffffff;
     }
-    if (this._passwordSalt !== null) {
+    if (this._passwordSalt != null) {
       h = (h * 31 + hashBytes(this._passwordSalt)) & 0xffffffff;
     }
-    if (this._passwordHash !== null) {
+    if (this._passwordHash != null) {
       h = (h * 31 + hashBytes(this._passwordHash)) & 0xffffffff;
     }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
@@ -606,24 +606,24 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;

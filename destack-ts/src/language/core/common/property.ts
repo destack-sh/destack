@@ -19,6 +19,7 @@ import type {
 } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
@@ -81,7 +82,7 @@ export class CustomProperty
    */
   get parent(): (Entity & IsCustomizable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsCustomizable) | null;
     }
     return null;
@@ -93,7 +94,7 @@ export class CustomProperty
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -110,7 +111,7 @@ export class CustomProperty
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -122,7 +123,7 @@ export class CustomProperty
    */
   get predecessor(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
@@ -134,7 +135,7 @@ export class CustomProperty
    */
   get template(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
@@ -151,7 +152,7 @@ export class CustomProperty
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -168,7 +169,7 @@ export class CustomProperty
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -195,7 +196,7 @@ export class CustomProperty
    */
   get source(): Script | null {
     const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -373,7 +374,7 @@ export class CustomProperty
     | CustomTraitDefinition
     | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
@@ -976,97 +977,97 @@ export class CustomProperty
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._icon !== null) {
+    if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + this._cardinality) & 0xffffffff;
     h = (h * 31 + this._scalarType) & 0xffffffff;
-    if (this._primitiveType !== null) {
+    if (this._primitiveType != null) {
       h = (h * 31 + this._primitiveType) & 0xffffffff;
     }
-    if (this._enumType !== null) {
+    if (this._enumType != null) {
       h = (h * 31 + this._enumType) & 0xffffffff;
     }
-    if (this._nodeType !== null) {
+    if (this._nodeType != null) {
       h = (h * 31 + this._nodeType) & 0xffffffff;
     }
-    if (this._structType !== null) {
+    if (this._structType != null) {
       h = (h * 31 + this._structType) & 0xffffffff;
     }
-    if (this._definitionPtr !== null) {
+    if (this._definitionPtr != null) {
       h = (h * 31 + hashString(this._definitionPtr.id)) & 0xffffffff;
     }
-    if (this._keyType !== null) {
+    if (this._keyType != null) {
       h = (h * 31 + this._keyType.hash()) & 0xffffffff;
     }
-    if (this._value !== null) {
+    if (this._value != null) {
       h = (h * 31 + this._value.hash()) & 0xffffffff;
     }
-    if (this._valueFactory !== null) {
+    if (this._valueFactory != null) {
       h = (h * 31 + this._valueFactory) & 0xffffffff;
     }
-    if (this._collectionConstraint !== null) {
+    if (this._collectionConstraint != null) {
       h = (h * 31 + this._collectionConstraint.hash()) & 0xffffffff;
     }
-    if (this._stringConstraint !== null) {
+    if (this._stringConstraint != null) {
       h = (h * 31 + this._stringConstraint.hash()) & 0xffffffff;
     }
-    if (this._numberConstraint !== null) {
+    if (this._numberConstraint != null) {
       h = (h * 31 + this._numberConstraint.hash()) & 0xffffffff;
     }
-    if (this._nodeConstraint !== null) {
+    if (this._nodeConstraint != null) {
       h = (h * 31 + this._nodeConstraint.hash()) & 0xffffffff;
     }
-    if (this._edgeType !== null) {
+    if (this._edgeType != null) {
       h = (h * 31 + this._edgeType) & 0xffffffff;
     }
-    if (this._cascade !== null) {
+    if (this._cascade != null) {
       h = (h * 31 + this._cascade) & 0xffffffff;
     }
-    if (this._isRequired !== null) {
+    if (this._isRequired != null) {
       h = (h * 31 + hashBool(this._isRequired)) & 0xffffffff;
     }
-    if (this._isUnique !== null) {
+    if (this._isUnique != null) {
       h = (h * 31 + hashBool(this._isUnique)) & 0xffffffff;
     }
-    if (this._isComputed !== null) {
+    if (this._isComputed != null) {
       h = (h * 31 + hashBool(this._isComputed)) & 0xffffffff;
     }
-    if (this._isReadonly !== null) {
+    if (this._isReadonly != null) {
       h = (h * 31 + hashBool(this._isReadonly)) & 0xffffffff;
     }
-    if (this.archivedAt !== null) {
+    if (this.archivedAt != null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.sourcePtr !== null) {
+    if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
-    if (this._key !== null) {
+    if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1098,9 +1099,9 @@ export class CustomProperty
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1116,22 +1117,22 @@ export class CustomProperty
     propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
     propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
-    if (this.primitiveType !== null) {
+    if (this.primitiveType != null) {
       propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
     }
-    if (this.enumType !== null) {
+    if (this.enumType != null) {
       propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
     }
-    if (this.nodeType !== null) {
+    if (this.nodeType != null) {
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
     }
-    if (this.structType !== null) {
+    if (this.structType != null) {
       propertyReprs.push(`structType=${StructType[this.structType]}`);
     }
-    if (this.definition !== null) {
+    if (this.definition != null) {
       propertyReprs.push(`definition=${this.definition?.repr()}`);
     }
-    if (this.keyType !== null) {
+    if (this.keyType != null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);
     }
     return `<CustomProperty "${this.path}" ${propertyReprs.join(" ")}>`;

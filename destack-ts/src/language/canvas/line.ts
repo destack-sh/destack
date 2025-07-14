@@ -29,6 +29,7 @@ import {
   Direction,
   Distribute,
   Entity,
+  Event,
   Layout,
   Materialization,
   Node,
@@ -124,7 +125,7 @@ export class Line extends StructFrozen {
     ) {
       return false;
     }
-    if (this.points.length !== other.points.length) {
+    if (this.points.length != other.points.length) {
       return false;
     }
     for (let i = 0; i < this.points.length; i++) {
@@ -138,7 +139,7 @@ export class Line extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.stroke !== null) {
+      if (this.stroke != null) {
         propertyReprs.push(`stroke=${this.stroke.repr()}`);
       }
       if (propertyReprs.length > 0) {
@@ -153,13 +154,13 @@ export class Line extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.stroke !== null) {
+    if (this.stroke != null) {
       h = (h * 31 + this.stroke.hash()) & 0xffffffff;
     }
     if (this.points && this.points.length > 0) {
@@ -323,7 +324,7 @@ export class LineShape extends Shape {
    */
   get parent(): Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Layer | ContainerView | null;
     }
     return null;
@@ -335,7 +336,7 @@ export class LineShape extends Shape {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -347,7 +348,7 @@ export class LineShape extends Shape {
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
@@ -372,7 +373,7 @@ export class LineShape extends Shape {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -384,7 +385,7 @@ export class LineShape extends Shape {
    */
   get predecessor(): LineShape | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as LineShape | null;
     }
     return null;
@@ -396,7 +397,7 @@ export class LineShape extends Shape {
    */
   get template(): LineShape | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as LineShape | null;
     }
     return null;
@@ -413,7 +414,7 @@ export class LineShape extends Shape {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -430,7 +431,7 @@ export class LineShape extends Shape {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -468,7 +469,7 @@ export class LineShape extends Shape {
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -1203,7 +1204,7 @@ export class LineShape extends Shape {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this._points.length !== other._points.length) {
+    if (this._points.length != other._points.length) {
       return false;
     }
     for (let i = 0; i < this._points.length; i++) {
@@ -1410,116 +1411,116 @@ export class LineShape extends Shape {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this._stroke !== null) {
+    if (this._stroke != null) {
       h = (h * 31 + this._stroke.hash()) & 0xffffffff;
     }
-    if (this._layout !== null) {
+    if (this._layout != null) {
       h = (h * 31 + this._layout) & 0xffffffff;
     }
-    if (this._direction !== null) {
+    if (this._direction != null) {
       h = (h * 31 + this._direction) & 0xffffffff;
     }
-    if (this._distribute !== null) {
+    if (this._distribute != null) {
       h = (h * 31 + this._distribute) & 0xffffffff;
     }
-    if (this._align !== null) {
+    if (this._align != null) {
       h = (h * 31 + this._align) & 0xffffffff;
     }
-    if (this._gap !== null) {
+    if (this._gap != null) {
       h = (h * 31 + this._gap.hash()) & 0xffffffff;
     }
-    if (this._padding !== null) {
+    if (this._padding != null) {
       h = (h * 31 + this._padding.hash()) & 0xffffffff;
     }
-    if (this._grid !== null) {
+    if (this._grid != null) {
       h = (h * 31 + this._grid.hash()) & 0xffffffff;
     }
-    if (this._gridSpan !== null) {
+    if (this._gridSpan != null) {
       h = (h * 31 + this._gridSpan.hash()) & 0xffffffff;
     }
-    if (this._aspectRatio !== null) {
+    if (this._aspectRatio != null) {
       h = (h * 31 + hashFloat(this._aspectRatio)) & 0xffffffff;
     }
-    if (this._isWrap !== null) {
+    if (this._isWrap != null) {
       h = (h * 31 + hashBool(this._isWrap)) & 0xffffffff;
     }
-    if (this._isVisible !== null) {
+    if (this._isVisible != null) {
       h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
     }
-    if (this._opacity !== null) {
+    if (this._opacity != null) {
       h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
     }
-    if (this._fill !== null) {
+    if (this._fill != null) {
       h = (h * 31 + this._fill.hash()) & 0xffffffff;
     }
-    if (this._rotation !== null) {
+    if (this._rotation != null) {
       h = (h * 31 + this._rotation.hash()) & 0xffffffff;
     }
-    if (this._skew !== null) {
+    if (this._skew != null) {
       h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
-    if (this._scale !== null) {
+    if (this._scale != null) {
       h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
-    if (this._shadow !== null) {
+    if (this._shadow != null) {
       h = (h * 31 + this._shadow.hash()) & 0xffffffff;
     }
-    if (this._border !== null) {
+    if (this._border != null) {
       h = (h * 31 + this._border.hash()) & 0xffffffff;
     }
-    if (this._radius !== null) {
+    if (this._radius != null) {
       h = (h * 31 + this._radius.hash()) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._position !== null) {
+    if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
-    if (this._width !== null) {
+    if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
-    if (this._height !== null) {
+    if (this._height != null) {
       h = (h * 31 + this._height.hash()) & 0xffffffff;
     }
-    if (this._minWidth !== null) {
+    if (this._minWidth != null) {
       h = (h * 31 + this._minWidth.hash()) & 0xffffffff;
     }
-    if (this._minHeight !== null) {
+    if (this._minHeight != null) {
       h = (h * 31 + this._minHeight.hash()) & 0xffffffff;
     }
-    if (this._maxWidth !== null) {
+    if (this._maxWidth != null) {
       h = (h * 31 + this._maxWidth.hash()) & 0xffffffff;
     }
-    if (this._maxHeight !== null) {
+    if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1529,7 +1530,7 @@ export class LineShape extends Shape {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1560,9 +1561,9 @@ export class LineShape extends Shape {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1575,7 +1576,7 @@ export class LineShape extends Shape {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    if (this.stroke !== null) {
+    if (this.stroke != null) {
       propertyReprs.push(`stroke=${this.stroke.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

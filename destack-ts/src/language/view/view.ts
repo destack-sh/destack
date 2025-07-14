@@ -32,12 +32,6 @@ export abstract class ViewEvent extends Event {
   static metatype: NodeType = NodeType.VIEW_EVENT;
 
   /**
-   * Event.parent
-   */
-  abstract get parent(): Space | null;
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
    * The Space this Node is in.
    */
   abstract get space(): Space | null;

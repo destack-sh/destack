@@ -65,12 +65,16 @@ def builtin_struct(
         cls, _ = _process_object_cls(
             cls=cast(type["Struct"], cls),
             object_type=struct_type,
-            is_concrete=struct_type is not None,
             is_frozen=frozen,
+            is_concrete=struct_type is not None,
             is_struct=True,
+            is_node=False,
+            is_entity=False,
+            is_root_node=False,
             is_abstract=is_abstract,
             base_type=cls.__base_type__,
             inherits=cls.__inherits__,
+            traits=(),
         )
 
         # register struct

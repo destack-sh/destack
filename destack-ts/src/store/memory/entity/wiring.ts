@@ -11,7 +11,7 @@ import {
   NODE_DEFINITION_PTR_ID,
   NODE_ID_KEY,
   NODE_METATYPE_KEY,
-  NODE_PARENT_KEY,
+  ENTITY_PARENT_KEY,
   NODE_REFERENCE_ID_KEY,
   NODE_SPACE_PTR_ID,
 } from "@destack/store/memory/core";
@@ -42,7 +42,7 @@ export function packEntityRow(value: Value): MemoryEntityRow {
   });
 
   let parentPtr: NodeReference | null = null;
-  const parentPtrValue = valuePacked[NODE_PARENT_KEY];
+  const parentPtrValue = valuePacked[ENTITY_PARENT_KEY];
   if (parentPtrValue !== undefined) {
     parentPtr = NodeReference.fromValue(parentPtrValue);
   }

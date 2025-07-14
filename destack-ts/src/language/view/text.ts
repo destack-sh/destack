@@ -20,6 +20,7 @@ import {
   ACTIVE_SPACE,
   Align,
   Entity,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -49,7 +50,7 @@ export class TextView extends ContentView {
    */
   get parent(): Layer | ContainerView | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Layer | ContainerView | null;
     }
     return null;
@@ -61,7 +62,7 @@ export class TextView extends ContentView {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -73,7 +74,7 @@ export class TextView extends ContentView {
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
@@ -98,7 +99,7 @@ export class TextView extends ContentView {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -110,7 +111,7 @@ export class TextView extends ContentView {
    */
   get predecessor(): TextView | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as TextView | null;
     }
     return null;
@@ -122,7 +123,7 @@ export class TextView extends ContentView {
    */
   get template(): TextView | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as TextView | null;
     }
     return null;
@@ -139,7 +140,7 @@ export class TextView extends ContentView {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -156,7 +157,7 @@ export class TextView extends ContentView {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -194,7 +195,7 @@ export class TextView extends ContentView {
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -758,74 +759,74 @@ export class TextView extends ContentView {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._text !== null) {
+    if (this._text != null) {
       h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
-    if (this._font !== null) {
+    if (this._font != null) {
       h = (h * 31 + this._font.hash()) & 0xffffffff;
     }
-    if (this._color !== null) {
+    if (this._color != null) {
       h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this._align !== null) {
+    if (this._align != null) {
       h = (h * 31 + this._align) & 0xffffffff;
     }
-    if (this._isVisible !== null) {
+    if (this._isVisible != null) {
       h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
     }
-    if (this._opacity !== null) {
+    if (this._opacity != null) {
       h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._position !== null) {
+    if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
-    if (this._width !== null) {
+    if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
-    if (this._height !== null) {
+    if (this._height != null) {
       h = (h * 31 + this._height.hash()) & 0xffffffff;
     }
-    if (this._minWidth !== null) {
+    if (this._minWidth != null) {
       h = (h * 31 + this._minWidth.hash()) & 0xffffffff;
     }
-    if (this._minHeight !== null) {
+    if (this._minHeight != null) {
       h = (h * 31 + this._minHeight.hash()) & 0xffffffff;
     }
-    if (this._maxWidth !== null) {
+    if (this._maxWidth != null) {
       h = (h * 31 + this._maxWidth.hash()) & 0xffffffff;
     }
-    if (this._maxHeight !== null) {
+    if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -835,7 +836,7 @@ export class TextView extends ContentView {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -866,9 +867,9 @@ export class TextView extends ContentView {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;

@@ -239,7 +239,7 @@ def _generate_property(
 {doc_str}
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
-    if (nodePtr !== null) {{
+    if (nodePtr != null) {{
         return this._supergraph.get(nodePtr.id) as {wrapped_node_type_str} | null;
     }}
     return null;
@@ -268,7 +268,7 @@ set {wrapped_ts_name}(node: {wrapped_node_type_str}) {{
 {doc_str}
 get {wrapped_ts_name}(): {wrapped_node_type_str} | null {{
     const nodePtr: NodeReference | null = this.{prop_ts_name};
-    if (nodePtr !== null) {{
+    if (nodePtr != null) {{
         if (this._supergraph === null) {{
             return null;
         }}
@@ -414,12 +414,25 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
 super(options);
 """
     elif issubclass(cls, Node):
-        super_str = """\
+        parent_str = (
+            """\
+options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+            ? (options.parent as NodeReference)
+            : (options.parent as Node).toRef()
+        : null
+"""
+            if issubclass(cls, Entity)
+            else """\
+null
+"""
+        )
+        super_str = f"""\
 super(
     // id
     options.id ?? null,
     // parent
-    options.parent != null ? (options.parent.metatype == StructType.NODE_REFERENCE ? (options.parent as NodeReference) : (options.parent as Node).toRef()) : null,
+    {parent_str},
     // session
     options._session ?? null,
     // supergraph
@@ -664,7 +677,7 @@ repr(): string {{
                 has_required_repr_props = True
             else:
                 scalar_expr = _get_scalar_repr(prop, f"this.{prop_name}")
-                repr_parts_lines.append(f"if (this.{prop_name} !== null) {{")
+                repr_parts_lines.append(f"if (this.{prop_name} != null) {{")
                 repr_parts_lines.append(
                     f"    propertyReprs.push(`{prop_name}=${{{scalar_expr}}}`);"
                 )
@@ -780,9 +793,9 @@ get _pathKey(): string {{
 
 get path(): string {{
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {{
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {{
         pathParts.push(node._pathKey);
         lastNode = node;
         node = node.parent;
@@ -845,7 +858,7 @@ if ((this.{prop_name} == null) !== (other.{prop_name} == null) || (this.{prop_na
     elif prop.cardinality == TypeCardinality.LIST:
         # list (always required)
         return f"""\
-if (this.{prop_name}.length !== other.{prop_name}.length) {{
+if (this.{prop_name}.length != other.{prop_name}.length) {{
   return false;
 }}
 for (let i = 0; i < this.{prop_name}.length; i++) {{
@@ -918,7 +931,7 @@ def _generate_hash(cls: type[BuiltinObject]) -> str:
     if cls.__is_frozen__ and not cls.__is_node__:
         hash_impl = f"""\
 hash(): number {{
-  if (this._hash !== null) {{
+  if (this._hash != null) {{
     return this._hash;
   }}
 
@@ -955,7 +968,7 @@ def _generate_property_hash_impl(prop: PropertyDeclaration) -> str:
         else:
             scalar_hash_str = _generate_scalar_hash_impl(prop, f"this.{prop_name}")
             return f"""\
-if (this.{prop_name} !== null) {{
+if (this.{prop_name} != null) {{
   h = ((h * 31) + {scalar_hash_str}) & 0xFFFFFFFF;
 }}"""
     elif prop.cardinality == TypeCardinality.LIST:
@@ -1722,10 +1735,11 @@ def _generate_file(
     language_imports_by_module["core.runtime.graph"] = {
         "Graph",
         "Supergraph",
-        "PolyGraph",
-        "SingletonGraph",
+        "EntitySingletonGraph",
+        "EntityGraph",
+        "EventGraph",
     }
-    value_dependencies.update(("PolyGraph", "SingletonGraph"))
+    value_dependencies.update(("EntitySingletonGraph", "EntityGraph", "EventGraph"))
     language_imports_by_module["core.runtime.session"] = {"Session"}
     language_imports_by_module["core.runtime.connection"] = {"QueryConnection"}
     language_imports_by_module["core.builtin.relation"] = {"NodeReference"}

@@ -142,7 +142,7 @@ export class Vector2f extends Vectorf {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -510,7 +510,7 @@ export class Vector3f extends Vectorf {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -924,7 +924,7 @@ export class Vector4f extends Vectorf {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1329,7 +1329,7 @@ export class Vector2i extends Vectori {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1697,7 +1697,7 @@ export class Vector3i extends Vectori {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -2101,7 +2101,7 @@ export class Vector4i extends Vectori {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 

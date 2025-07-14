@@ -13,6 +13,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -90,7 +91,7 @@ export class Transition extends StructFrozen {
    */
   get style(): TransitionStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -234,7 +235,7 @@ export class Transition extends StructFrozen {
     ) {
       return false;
     }
-    if (this.ease.length !== other.ease.length) {
+    if (this.ease.length != other.ease.length) {
       return false;
     }
     for (let i = 0; i < this.ease.length; i++) {
@@ -279,31 +280,31 @@ export class Transition extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${TransitionType[this.type]}`);
-      if (this.style !== null) {
+      if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
-      if (this.delay !== null) {
+      if (this.delay != null) {
         propertyReprs.push(`delay=${this.delay}`);
       }
-      if (this.duration !== null) {
+      if (this.duration != null) {
         propertyReprs.push(`duration=${this.duration}`);
       }
       if (this.ease.length > 0) {
         propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
       }
-      if (this.stiffness !== null) {
+      if (this.stiffness != null) {
         propertyReprs.push(`stiffness=${this.stiffness}`);
       }
-      if (this.damping !== null) {
+      if (this.damping != null) {
         propertyReprs.push(`damping=${this.damping}`);
       }
-      if (this.mass !== null) {
+      if (this.mass != null) {
         propertyReprs.push(`mass=${this.mass}`);
       }
-      if (this.bounce !== null) {
+      if (this.bounce != null) {
         propertyReprs.push(`bounce=${this.bounce}`);
       }
-      if (this.springType !== null) {
+      if (this.springType != null) {
         propertyReprs.push(`springType=${SpringType[this.springType]}`);
       }
       // @ts-expect-error(readonly)
@@ -313,20 +314,20 @@ export class Transition extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
+    if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    if (this.delay !== null) {
+    if (this.delay != null) {
       h = (h * 31 + hashFloat(this.delay)) & 0xffffffff;
     }
-    if (this.duration !== null) {
+    if (this.duration != null) {
       h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
     }
     if (this.ease && this.ease.length > 0) {
@@ -334,19 +335,19 @@ export class Transition extends StructFrozen {
         h = (h * 31 + hashFloat(_item)) & 0xffffffff;
       }
     }
-    if (this.stiffness !== null) {
+    if (this.stiffness != null) {
       h = (h * 31 + hashFloat(this.stiffness)) & 0xffffffff;
     }
-    if (this.damping !== null) {
+    if (this.damping != null) {
       h = (h * 31 + hashFloat(this.damping)) & 0xffffffff;
     }
-    if (this.mass !== null) {
+    if (this.mass != null) {
       h = (h * 31 + hashFloat(this.mass)) & 0xffffffff;
     }
-    if (this.bounce !== null) {
+    if (this.bounce != null) {
       h = (h * 31 + hashFloat(this.bounce)) & 0xffffffff;
     }
-    if (this.springType !== null) {
+    if (this.springType != null) {
       h = (h * 31 + this.springType) & 0xffffffff;
     }
 
@@ -584,7 +585,7 @@ export class TransitionStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -596,7 +597,7 @@ export class TransitionStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -613,7 +614,7 @@ export class TransitionStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -625,7 +626,7 @@ export class TransitionStyle extends Style {
    */
   get predecessor(): TransitionStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as TransitionStyle | null;
     }
     return null;
@@ -637,7 +638,7 @@ export class TransitionStyle extends Style {
    */
   get template(): TransitionStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as TransitionStyle | null;
     }
     return null;
@@ -654,7 +655,7 @@ export class TransitionStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -671,7 +672,7 @@ export class TransitionStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1039,7 +1040,7 @@ export class TransitionStyle extends Style {
     ) {
       return false;
     }
-    if (this._ease.length !== other._ease.length) {
+    if (this._ease.length != other._ease.length) {
       return false;
     }
     for (let i = 0; i < this._ease.length; i++) {
@@ -1103,10 +1104,10 @@ export class TransitionStyle extends Style {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    if (this._delay !== null) {
+    if (this._delay != null) {
       h = (h * 31 + hashFloat(this._delay)) & 0xffffffff;
     }
-    if (this._duration !== null) {
+    if (this._duration != null) {
       h = (h * 31 + hashFloat(this._duration)) & 0xffffffff;
     }
     if (this._ease && this._ease.length > 0) {
@@ -1114,44 +1115,44 @@ export class TransitionStyle extends Style {
         h = (h * 31 + hashFloat(_item)) & 0xffffffff;
       }
     }
-    if (this._stiffness !== null) {
+    if (this._stiffness != null) {
       h = (h * 31 + hashFloat(this._stiffness)) & 0xffffffff;
     }
-    if (this._damping !== null) {
+    if (this._damping != null) {
       h = (h * 31 + hashFloat(this._damping)) & 0xffffffff;
     }
-    if (this._mass !== null) {
+    if (this._mass != null) {
       h = (h * 31 + hashFloat(this._mass)) & 0xffffffff;
     }
-    if (this._bounce !== null) {
+    if (this._bounce != null) {
       h = (h * 31 + hashFloat(this._bounce)) & 0xffffffff;
     }
-    if (this._springType !== null) {
+    if (this._springType != null) {
       h = (h * 31 + this._springType) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1182,9 +1183,9 @@ export class TransitionStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1198,28 +1199,28 @@ export class TransitionStyle extends Style {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${TransitionType[this.type]}`);
-    if (this.delay !== null) {
+    if (this.delay != null) {
       propertyReprs.push(`delay=${this.delay}`);
     }
-    if (this.duration !== null) {
+    if (this.duration != null) {
       propertyReprs.push(`duration=${this.duration}`);
     }
     if (this.ease.length > 0) {
       propertyReprs.push(`ease=${this.ease.map((_item) => _item).join(", ")}`);
     }
-    if (this.stiffness !== null) {
+    if (this.stiffness != null) {
       propertyReprs.push(`stiffness=${this.stiffness}`);
     }
-    if (this.damping !== null) {
+    if (this.damping != null) {
       propertyReprs.push(`damping=${this.damping}`);
     }
-    if (this.mass !== null) {
+    if (this.mass != null) {
       propertyReprs.push(`mass=${this.mass}`);
     }
-    if (this.bounce !== null) {
+    if (this.bounce != null) {
       propertyReprs.push(`bounce=${this.bounce}`);
     }
-    if (this.springType !== null) {
+    if (this.springType != null) {
       propertyReprs.push(`springType=${SpringType[this.springType]}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

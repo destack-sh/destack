@@ -16,7 +16,6 @@ import { MemoryEventTable } from "./event/core";
 
 export const MAX_RECURSION_DEPTH = 100;
 
-export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
 export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
@@ -30,6 +29,7 @@ export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
 export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
 
+export const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
 export const ENTITY_SNAPSHOT_KEY = String(Entity.property("snapshot").id);
 export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
 

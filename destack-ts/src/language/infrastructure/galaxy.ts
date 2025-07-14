@@ -103,7 +103,7 @@ export class GalaxyInfo extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 

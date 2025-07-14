@@ -406,7 +406,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.properties.length !== other.properties.length) {
+    if (this.properties.length != other.properties.length) {
       return false;
     }
     for (let i = 0; i < this.properties.length; i++) {
@@ -414,7 +414,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.groups.length !== other.groups.length) {
+    if (this.groups.length != other.groups.length) {
       return false;
     }
     for (let i = 0; i < this.groups.length; i++) {
@@ -434,7 +434,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.baseType === other.baseType)) {
       return false;
     }
-    if (this.extendedBy.length !== other.extendedBy.length) {
+    if (this.extendedBy.length != other.extendedBy.length) {
       return false;
     }
     for (let i = 0; i < this.extendedBy.length; i++) {
@@ -442,7 +442,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.inherits.length !== other.inherits.length) {
+    if (this.inherits.length != other.inherits.length) {
       return false;
     }
     for (let i = 0; i < this.inherits.length; i++) {
@@ -450,7 +450,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.inheritedBy.length !== other.inheritedBy.length) {
+    if (this.inheritedBy.length != other.inheritedBy.length) {
       return false;
     }
     for (let i = 0; i < this.inheritedBy.length; i++) {
@@ -458,7 +458,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.baseTraits.length !== other.baseTraits.length) {
+    if (this.baseTraits.length != other.baseTraits.length) {
       return false;
     }
     for (let i = 0; i < this.baseTraits.length; i++) {
@@ -466,7 +466,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.traits.length !== other.traits.length) {
+    if (this.traits.length != other.traits.length) {
       return false;
     }
     for (let i = 0; i < this.traits.length; i++) {
@@ -477,7 +477,7 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.rootType === other.rootType)) {
       return false;
     }
-    if (this.parentTypes.length !== other.parentTypes.length) {
+    if (this.parentTypes.length != other.parentTypes.length) {
       return false;
     }
     for (let i = 0; i < this.parentTypes.length; i++) {
@@ -485,7 +485,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.childTypes.length !== other.childTypes.length) {
+    if (this.childTypes.length != other.childTypes.length) {
       return false;
     }
     for (let i = 0; i < this.childTypes.length; i++) {
@@ -493,7 +493,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.ancestorTypes.length !== other.ancestorTypes.length) {
+    if (this.ancestorTypes.length != other.ancestorTypes.length) {
       return false;
     }
     for (let i = 0; i < this.ancestorTypes.length; i++) {
@@ -501,7 +501,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.descendantTypes.length !== other.descendantTypes.length) {
+    if (this.descendantTypes.length != other.descendantTypes.length) {
       return false;
     }
     for (let i = 0; i < this.descendantTypes.length; i++) {
@@ -509,7 +509,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.eventTypes.length !== other.eventTypes.length) {
+    if (this.eventTypes.length != other.eventTypes.length) {
       return false;
     }
     for (let i = 0; i < this.eventTypes.length; i++) {
@@ -517,7 +517,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.baseEventTypes.length !== other.baseEventTypes.length) {
+    if (this.baseEventTypes.length != other.baseEventTypes.length) {
       return false;
     }
     for (let i = 0; i < this.baseEventTypes.length; i++) {
@@ -525,7 +525,7 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.primaryStoreKeys.length !== other.primaryStoreKeys.length) {
+    if (this.primaryStoreKeys.length != other.primaryStoreKeys.length) {
       return false;
     }
     for (let i = 0; i < this.primaryStoreKeys.length; i++) {
@@ -563,7 +563,7 @@ export class NodeDefinition extends BuiltinDefinition {
       propertyReprs.push(`isFrozen=${this.isFrozen}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -573,7 +573,7 @@ export class NodeDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -593,7 +593,7 @@ export class NodeDefinition extends BuiltinDefinition {
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
     if (this.extendedBy && this.extendedBy.length > 0) {
@@ -621,7 +621,7 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.rootType !== null) {
+    if (this.rootType != null) {
       h = (h * 31 + this.rootType) & 0xffffffff;
     }
     if (this.parentTypes && this.parentTypes.length > 0) {
@@ -659,15 +659,15 @@ export class NodeDefinition extends BuiltinDefinition {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
-    if (this.storeDomain !== null) {
+    if (this.storeDomain != null) {
       h = (h * 31 + this.storeDomain) & 0xffffffff;
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -1464,7 +1464,7 @@ export class TraitDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.properties.length !== other.properties.length) {
+    if (this.properties.length != other.properties.length) {
       return false;
     }
     for (let i = 0; i < this.properties.length; i++) {
@@ -1472,7 +1472,7 @@ export class TraitDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.groups.length !== other.groups.length) {
+    if (this.groups.length != other.groups.length) {
       return false;
     }
     for (let i = 0; i < this.groups.length; i++) {
@@ -1486,7 +1486,7 @@ export class TraitDefinition extends BuiltinDefinition {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (this.traits.length !== other.traits.length) {
+    if (this.traits.length != other.traits.length) {
       return false;
     }
     for (let i = 0; i < this.traits.length; i++) {
@@ -1494,7 +1494,7 @@ export class TraitDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.baseTraits.length !== other.baseTraits.length) {
+    if (this.baseTraits.length != other.baseTraits.length) {
       return false;
     }
     for (let i = 0; i < this.baseTraits.length; i++) {
@@ -1502,7 +1502,7 @@ export class TraitDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.eventTypes.length !== other.eventTypes.length) {
+    if (this.eventTypes.length != other.eventTypes.length) {
       return false;
     }
     for (let i = 0; i < this.eventTypes.length; i++) {
@@ -1510,7 +1510,7 @@ export class TraitDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.baseEventTypes.length !== other.baseEventTypes.length) {
+    if (this.baseEventTypes.length != other.baseEventTypes.length) {
       return false;
     }
     for (let i = 0; i < this.baseEventTypes.length; i++) {
@@ -1544,7 +1544,7 @@ export class TraitDefinition extends BuiltinDefinition {
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -1554,7 +1554,7 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1595,10 +1595,10 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -2140,7 +2140,7 @@ export class StructDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.properties.length !== other.properties.length) {
+    if (this.properties.length != other.properties.length) {
       return false;
     }
     for (let i = 0; i < this.properties.length; i++) {
@@ -2148,7 +2148,7 @@ export class StructDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.groups.length !== other.groups.length) {
+    if (this.groups.length != other.groups.length) {
       return false;
     }
     for (let i = 0; i < this.groups.length; i++) {
@@ -2168,7 +2168,7 @@ export class StructDefinition extends BuiltinDefinition {
     if (!(this.baseType === other.baseType)) {
       return false;
     }
-    if (this.extendedBy.length !== other.extendedBy.length) {
+    if (this.extendedBy.length != other.extendedBy.length) {
       return false;
     }
     for (let i = 0; i < this.extendedBy.length; i++) {
@@ -2176,7 +2176,7 @@ export class StructDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.inherits.length !== other.inherits.length) {
+    if (this.inherits.length != other.inherits.length) {
       return false;
     }
     for (let i = 0; i < this.inherits.length; i++) {
@@ -2184,7 +2184,7 @@ export class StructDefinition extends BuiltinDefinition {
         return false;
       }
     }
-    if (this.inheritedBy.length !== other.inheritedBy.length) {
+    if (this.inheritedBy.length != other.inheritedBy.length) {
       return false;
     }
     for (let i = 0; i < this.inheritedBy.length; i++) {
@@ -2216,7 +2216,7 @@ export class StructDefinition extends BuiltinDefinition {
       propertyReprs.push(`type=${StructType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -2226,7 +2226,7 @@ export class StructDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -2246,7 +2246,7 @@ export class StructDefinition extends BuiltinDefinition {
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType) & 0xffffffff;
     }
     if (this.extendedBy && this.extendedBy.length > 0) {
@@ -2266,10 +2266,10 @@ export class StructDefinition extends BuiltinDefinition {
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -2706,7 +2706,7 @@ export class EnumDefinition extends BuiltinDefinition {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.options.length !== other.options.length) {
+    if (this.options.length != other.options.length) {
       return false;
     }
     for (let i = 0; i < this.options.length; i++) {
@@ -2738,7 +2738,7 @@ export class EnumDefinition extends BuiltinDefinition {
       propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -2748,7 +2748,7 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -2762,10 +2762,10 @@ export class EnumDefinition extends BuiltinDefinition {
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -3443,32 +3443,32 @@ export class PropertyDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
       propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
-      if (this.primitiveType !== null) {
+      if (this.primitiveType != null) {
         propertyReprs.push(`primitiveType=${PrimitiveType[this.primitiveType]}`);
       }
-      if (this.enumType !== null) {
+      if (this.enumType != null) {
         propertyReprs.push(`enumType=${EnumType[this.enumType]}`);
       }
-      if (this.nodeType !== null) {
+      if (this.nodeType != null) {
         propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       }
-      if (this.structType !== null) {
+      if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.keyType !== null) {
+      if (this.keyType != null) {
         propertyReprs.push(`keyType=${this.keyType.repr()}`);
       }
-      if (this.value !== null) {
+      if (this.value != null) {
         propertyReprs.push(`value=${this.value.repr()}`);
       }
-      if (this.valueFactory !== null) {
+      if (this.valueFactory != null) {
         propertyReprs.push(`valueFactory=${ValueFactory[this.valueFactory]}`);
       }
       propertyReprs.push(`isRequired=${this.isRequired}`);
       propertyReprs.push(`isUnique=${this.isUnique}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -3478,7 +3478,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -3487,50 +3487,50 @@ export class PropertyDefinition extends BuiltinDefinition {
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.object.hash()) & 0xffffffff;
     h = (h * 31 + this.originalObject.hash()) & 0xffffffff;
-    if (this.groupId !== null) {
+    if (this.groupId != null) {
       h = (h * 31 + hashInt(this.groupId)) & 0xffffffff;
     }
     h = (h * 31 + this.cardinality) & 0xffffffff;
     h = (h * 31 + this.scalarType) & 0xffffffff;
-    if (this.primitiveType !== null) {
+    if (this.primitiveType != null) {
       h = (h * 31 + this.primitiveType) & 0xffffffff;
     }
-    if (this.enumType !== null) {
+    if (this.enumType != null) {
       h = (h * 31 + this.enumType) & 0xffffffff;
     }
-    if (this.nodeType !== null) {
+    if (this.nodeType != null) {
       h = (h * 31 + this.nodeType) & 0xffffffff;
     }
-    if (this.structType !== null) {
+    if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.keyType !== null) {
+    if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.value !== null) {
+    if (this.value != null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
-    if (this.valueFactory !== null) {
+    if (this.valueFactory != null) {
       h = (h * 31 + this.valueFactory) & 0xffffffff;
     }
-    if (this.collectionConstraint !== null) {
+    if (this.collectionConstraint != null) {
       h = (h * 31 + this.collectionConstraint.hash()) & 0xffffffff;
     }
-    if (this.stringConstraint !== null) {
+    if (this.stringConstraint != null) {
       h = (h * 31 + this.stringConstraint.hash()) & 0xffffffff;
     }
-    if (this.numberConstraint !== null) {
+    if (this.numberConstraint != null) {
       h = (h * 31 + this.numberConstraint.hash()) & 0xffffffff;
     }
-    if (this.nodeConstraint !== null) {
+    if (this.nodeConstraint != null) {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.nodeIsExtensible)) & 0xffffffff;
     h = (h * 31 + hashBool(this.nodeIsHeterogenous)) & 0xffffffff;
-    if (this.edgeType !== null) {
+    if (this.edgeType != null) {
       h = (h * 31 + this.edgeType) & 0xffffffff;
     }
-    if (this.cascade !== null) {
+    if (this.cascade != null) {
       h = (h * 31 + this.cascade) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
@@ -3544,10 +3544,10 @@ export class PropertyDefinition extends BuiltinDefinition {
     h = (h * 31 + hashBool(this.isManaged)) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -4280,7 +4280,7 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -4290,7 +4290,7 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -4298,10 +4298,10 @@ export class PropertyGroupDefinition extends BuiltinDefinition {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -4575,7 +4575,7 @@ export class OptionDefinition extends BuiltinDefinition {
       propertyReprs.push(`type=${EnumType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -4585,22 +4585,22 @@ export class OptionDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.groupId !== null) {
+    if (this.groupId != null) {
       h = (h * 31 + hashInt(this.groupId)) & 0xffffffff;
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -4862,7 +4862,7 @@ export class OptionGroupDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -4872,7 +4872,7 @@ export class OptionGroupDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -4880,10 +4880,10 @@ export class OptionGroupDefinition extends BuiltinDefinition {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -5130,7 +5130,7 @@ export class ConstantDefinition extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -5140,14 +5140,14 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
     h = (h * 31 + this.value.hash()) & 0xffffffff;
@@ -5373,7 +5373,7 @@ export class MethodDefinition extends BuiltinDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.properties.length !== other.properties.length) {
+    if (this.properties.length != other.properties.length) {
       return false;
     }
     for (let i = 0; i < this.properties.length; i++) {
@@ -5404,7 +5404,7 @@ export class MethodDefinition extends BuiltinDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -5414,7 +5414,7 @@ export class MethodDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -5427,10 +5427,10 @@ export class MethodDefinition extends BuiltinDefinition {
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -5648,7 +5648,7 @@ export class ActionDefinition extends MethodDefinition {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.properties.length !== other.properties.length) {
+    if (this.properties.length != other.properties.length) {
       return false;
     }
     for (let i = 0; i < this.properties.length; i++) {
@@ -5679,7 +5679,7 @@ export class ActionDefinition extends MethodDefinition {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -5689,7 +5689,7 @@ export class ActionDefinition extends MethodDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -5702,10 +5702,10 @@ export class ActionDefinition extends MethodDefinition {
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 
@@ -6021,7 +6021,7 @@ export class PermissionDefinition extends BuiltinDefinition {
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description !== null) {
+      if (this.description != null) {
         propertyReprs.push(`description=${`"${this.description}"`}`);
       }
       // @ts-expect-error(readonly)
@@ -6031,7 +6031,7 @@ export class PermissionDefinition extends BuiltinDefinition {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -6041,10 +6041,10 @@ export class PermissionDefinition extends BuiltinDefinition {
     h = (h * 31 + this.nodeType) & 0xffffffff;
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon !== null) {
+    if (this.icon != null) {
       h = (h * 31 + this.icon.hash()) & 0xffffffff;
     }
-    if (this.description !== null) {
+    if (this.description != null) {
       h = (h * 31 + hashString(this.description)) & 0xffffffff;
     }
 

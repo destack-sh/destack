@@ -111,7 +111,7 @@ async def postgres_database(
     request: pytest.FixtureRequest,
 ) -> AsyncGenerator[DatabaseInfo, None]:
     """Gets the per test function omni Database"""
-    omni_schema = get_builtin_schema(*StoreKey)
+    omni_schema = get_builtin_schema(StoreKey.ENTITY_PRIMARY)
     database = get_database(f"test-{_clean_name(request.node.name)[:32]}-omni")
     await _create_test_db(database, omni_schema)
     try:
@@ -122,7 +122,7 @@ async def postgres_database(
 
 @pytest.fixture
 def postgres_store(postgres_database: DatabaseInfo) -> PostgresEntityStore:
-    return PostgresEntityStore(database=postgres_database, keys=tuple(StoreKey))
+    return PostgresEntityStore(database=postgres_database, keys=(StoreKey.ENTITY_PRIMARY,))
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")

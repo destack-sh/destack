@@ -19,7 +19,6 @@ export const MAX_RECURSION_DEPTH = 100;
 
 export const NULL_SENTINEL = "__NULL__";
 
-export const NODE_PARENT_KEY = String(Node.property("parent").id);
 export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
 export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
@@ -31,6 +30,7 @@ export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_id").id);
 export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
 
+export const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
 export const ENTITY_SNAPSHOT_KEY = String(Entity.property("snapshot").id);
 export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
 export const ENTITY_CREATED_AT_KEY = String(Entity.property("created_at").id);
@@ -43,7 +43,7 @@ export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
 export const ENTITY_PRIMARY_KEY = "_0"; // composite key of [id, snapshotId]
 export const ENTITY_KEYS_TO_INDEX: string[] = [
   ENTITY_PRIMARY_KEY,
-  NODE_PARENT_KEY,
+  ENTITY_PARENT_KEY,
   ENTITY_SNAPSHOT_KEY,
 ];
 export const ENTITY_KEYS_TO_INDEX_PREFIXED: Record<string, string> = ENTITY_KEYS_TO_INDEX.reduce(

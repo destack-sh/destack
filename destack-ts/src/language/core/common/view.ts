@@ -238,7 +238,7 @@ export class Length extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -467,16 +467,16 @@ export class Position extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${PositionType[this.type]}`);
-      if (this.top !== null) {
+      if (this.top != null) {
         propertyReprs.push(`top=${this.top.repr()}`);
       }
-      if (this.left !== null) {
+      if (this.left != null) {
         propertyReprs.push(`left=${this.left.repr()}`);
       }
-      if (this.width !== null) {
+      if (this.width != null) {
         propertyReprs.push(`width=${this.width.repr()}`);
       }
-      if (this.height !== null) {
+      if (this.height != null) {
         propertyReprs.push(`height=${this.height.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -486,23 +486,23 @@ export class Position extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.top !== null) {
+    if (this.top != null) {
       h = (h * 31 + this.top.hash()) & 0xffffffff;
     }
-    if (this.left !== null) {
+    if (this.left != null) {
       h = (h * 31 + this.left.hash()) & 0xffffffff;
     }
-    if (this.width !== null) {
+    if (this.width != null) {
       h = (h * 31 + this.width.hash()) & 0xffffffff;
     }
-    if (this.height !== null) {
+    if (this.height != null) {
       h = (h * 31 + this.height.hash()) & 0xffffffff;
     }
 
@@ -769,7 +769,7 @@ export class Dimension extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -987,19 +987,19 @@ export class Insets extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base !== null) {
+      if (this.base != null) {
         propertyReprs.push(`base=${this.base}`);
       }
-      if (this.top !== null) {
+      if (this.top != null) {
         propertyReprs.push(`top=${this.top}`);
       }
-      if (this.left !== null) {
+      if (this.left != null) {
         propertyReprs.push(`left=${this.left}`);
       }
-      if (this.right !== null) {
+      if (this.right != null) {
         propertyReprs.push(`right=${this.right}`);
       }
-      if (this.bottom !== null) {
+      if (this.bottom != null) {
         propertyReprs.push(`bottom=${this.bottom}`);
       }
       if (propertyReprs.length > 0) {
@@ -1014,25 +1014,25 @@ export class Insets extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base !== null) {
+    if (this.base != null) {
       h = (h * 31 + hashInt(this.base)) & 0xffffffff;
     }
-    if (this.top !== null) {
+    if (this.top != null) {
       h = (h * 31 + hashInt(this.top)) & 0xffffffff;
     }
-    if (this.left !== null) {
+    if (this.left != null) {
       h = (h * 31 + hashInt(this.left)) & 0xffffffff;
     }
-    if (this.right !== null) {
+    if (this.right != null) {
       h = (h * 31 + hashInt(this.right)) & 0xffffffff;
     }
-    if (this.bottom !== null) {
+    if (this.bottom != null) {
       h = (h * 31 + hashInt(this.bottom)) & 0xffffffff;
     }
 
@@ -1282,19 +1282,19 @@ export class Corners extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base !== null) {
+      if (this.base != null) {
         propertyReprs.push(`base=${this.base}`);
       }
-      if (this.topLeft !== null) {
+      if (this.topLeft != null) {
         propertyReprs.push(`topLeft=${this.topLeft}`);
       }
-      if (this.topRight !== null) {
+      if (this.topRight != null) {
         propertyReprs.push(`topRight=${this.topRight}`);
       }
-      if (this.bottomLeft !== null) {
+      if (this.bottomLeft != null) {
         propertyReprs.push(`bottomLeft=${this.bottomLeft}`);
       }
-      if (this.bottomRight !== null) {
+      if (this.bottomRight != null) {
         propertyReprs.push(`bottomRight=${this.bottomRight}`);
       }
       if (propertyReprs.length > 0) {
@@ -1309,25 +1309,25 @@ export class Corners extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base !== null) {
+    if (this.base != null) {
       h = (h * 31 + hashInt(this.base)) & 0xffffffff;
     }
-    if (this.topLeft !== null) {
+    if (this.topLeft != null) {
       h = (h * 31 + hashInt(this.topLeft)) & 0xffffffff;
     }
-    if (this.topRight !== null) {
+    if (this.topRight != null) {
       h = (h * 31 + hashInt(this.topRight)) & 0xffffffff;
     }
-    if (this.bottomLeft !== null) {
+    if (this.bottomLeft != null) {
       h = (h * 31 + hashInt(this.bottomLeft)) & 0xffffffff;
     }
-    if (this.bottomRight !== null) {
+    if (this.bottomRight != null) {
       h = (h * 31 + hashInt(this.bottomRight)) & 0xffffffff;
     }
 
@@ -1564,13 +1564,13 @@ export class Axis2 extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base !== null) {
+      if (this.base != null) {
         propertyReprs.push(`base=${this.base}`);
       }
-      if (this.x !== null) {
+      if (this.x != null) {
         propertyReprs.push(`x=${this.x}`);
       }
-      if (this.y !== null) {
+      if (this.y != null) {
         propertyReprs.push(`y=${this.y}`);
       }
       if (propertyReprs.length > 0) {
@@ -1585,19 +1585,19 @@ export class Axis2 extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base !== null) {
+    if (this.base != null) {
       h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
     }
-    if (this.x !== null) {
+    if (this.x != null) {
       h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
     }
-    if (this.y !== null) {
+    if (this.y != null) {
       h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
     }
 
@@ -1828,16 +1828,16 @@ export class Axis3 extends StructFrozen {
   repr(): string {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
-      if (this.base !== null) {
+      if (this.base != null) {
         propertyReprs.push(`base=${this.base}`);
       }
-      if (this.x !== null) {
+      if (this.x != null) {
         propertyReprs.push(`x=${this.x}`);
       }
-      if (this.y !== null) {
+      if (this.y != null) {
         propertyReprs.push(`y=${this.y}`);
       }
-      if (this.z !== null) {
+      if (this.z != null) {
         propertyReprs.push(`z=${this.z}`);
       }
       if (propertyReprs.length > 0) {
@@ -1852,22 +1852,22 @@ export class Axis3 extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.base !== null) {
+    if (this.base != null) {
       h = (h * 31 + hashFloat(this.base)) & 0xffffffff;
     }
-    if (this.x !== null) {
+    if (this.x != null) {
       h = (h * 31 + hashFloat(this.x)) & 0xffffffff;
     }
-    if (this.y !== null) {
+    if (this.y != null) {
       h = (h * 31 + hashFloat(this.y)) & 0xffffffff;
     }
-    if (this.z !== null) {
+    if (this.z != null) {
       h = (h * 31 + hashFloat(this.z)) & 0xffffffff;
     }
 
@@ -2124,13 +2124,13 @@ export class Grid extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`columns=${this.columns}`);
       propertyReprs.push(`rows=${this.rows}`);
-      if (this.columnWidth !== null) {
+      if (this.columnWidth != null) {
         propertyReprs.push(`columnWidth=${this.columnWidth.repr()}`);
       }
-      if (this.columnMinWidth !== null) {
+      if (this.columnMinWidth != null) {
         propertyReprs.push(`columnMinWidth=${this.columnMinWidth.repr()}`);
       }
-      if (this.rowHeight !== null) {
+      if (this.rowHeight != null) {
         propertyReprs.push(`rowHeight=${this.rowHeight.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -2140,7 +2140,7 @@ export class Grid extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -2148,13 +2148,13 @@ export class Grid extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashInt(this.columns)) & 0xffffffff;
     h = (h * 31 + hashInt(this.rows)) & 0xffffffff;
-    if (this.columnWidth !== null) {
+    if (this.columnWidth != null) {
       h = (h * 31 + this.columnWidth.hash()) & 0xffffffff;
     }
-    if (this.columnMinWidth !== null) {
+    if (this.columnMinWidth != null) {
       h = (h * 31 + this.columnMinWidth.hash()) & 0xffffffff;
     }
-    if (this.rowHeight !== null) {
+    if (this.rowHeight != null) {
       h = (h * 31 + this.rowHeight.hash()) & 0xffffffff;
     }
 
@@ -2406,7 +2406,7 @@ export class GridSpan extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 

@@ -14,6 +14,7 @@ import {
   ACTIVE_SPACE,
   ClientType,
   Entity,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -41,7 +42,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get parent(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -53,7 +54,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -70,7 +71,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -82,7 +83,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get predecessor(): Client | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -94,7 +95,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get template(): Client | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Client | null;
     }
     return null;
@@ -111,7 +112,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -128,7 +129,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -193,7 +194,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get machine(): Machine | null {
     const nodePtr: NodeReference | null = this.machinePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Machine | null;
     }
     return null;
@@ -223,7 +224,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get user(): User | null {
     const nodePtr: NodeReference | null = this.userPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as User | null;
     }
     return null;
@@ -301,7 +302,7 @@ export class Client extends Entity implements IsDeletable {
    */
   get cursor(): Cursor | null {
     const nodePtr: NodeReference | null = this.cursorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Cursor | null;
     }
     return null;
@@ -622,62 +623,62 @@ export class Client extends Entity implements IsDeletable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this._machinePtr !== null) {
+    if (this._machinePtr != null) {
       h = (h * 31 + hashString(this._machinePtr.id)) & 0xffffffff;
     }
-    if (this._userPtr !== null) {
+    if (this._userPtr != null) {
       h = (h * 31 + hashString(this._userPtr.id)) & 0xffffffff;
     }
-    if (this._accessToken !== null) {
+    if (this._accessToken != null) {
       h = (h * 31 + hashString(this._accessToken)) & 0xffffffff;
     }
-    if (this._seenAt !== null) {
+    if (this._seenAt != null) {
       h = (h * 31 + hashString(this._seenAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._loggedInAt !== null) {
+    if (this._loggedInAt != null) {
       h = (h * 31 + hashString(this._loggedInAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this._cursorPtr !== null) {
+    if (this._cursorPtr != null) {
       h = (h * 31 + hashString(this._cursorPtr.id)) & 0xffffffff;
     }
-    if (this._deviceType !== null) {
+    if (this._deviceType != null) {
       h = (h * 31 + hashString(this._deviceType)) & 0xffffffff;
     }
-    if (this._deviceName !== null) {
+    if (this._deviceName != null) {
       h = (h * 31 + hashString(this._deviceName)) & 0xffffffff;
     }
-    if (this._operatingSystem !== null) {
+    if (this._operatingSystem != null) {
       h = (h * 31 + hashString(this._operatingSystem)) & 0xffffffff;
     }
-    if (this._browserName !== null) {
+    if (this._browserName != null) {
       h = (h * 31 + hashString(this._browserName)) & 0xffffffff;
     }
-    if (this._browserVersion !== null) {
+    if (this._browserVersion != null) {
       h = (h * 31 + hashString(this._browserVersion)) & 0xffffffff;
     }
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -708,9 +709,9 @@ export class Client extends Entity implements IsDeletable {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;

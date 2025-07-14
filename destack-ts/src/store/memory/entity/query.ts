@@ -21,7 +21,7 @@ import {
 import {
   MAX_RECURSION_DEPTH,
   MemoryContext,
-  NODE_PARENT_KEY,
+  ENTITY_PARENT_KEY,
   NODE_REFERENCE_ID_KEY,
 } from "@destack/store/memory/core";
 import { MemoryEntityRow } from "@destack/store/memory/entity/core";
@@ -602,8 +602,8 @@ function executeSubquery(options: {
     // collect/walk
     const parentsPtr = new Map<string, NodeReference>();
     for (const nodeValue of result.nodes || []) {
-      if (nodeValue.value !== null && nodeValue.value[NODE_PARENT_KEY] !== undefined) {
-        const parentPtrValue = nodeValue.value[NODE_PARENT_KEY];
+      if (nodeValue.value !== null && nodeValue.value[ENTITY_PARENT_KEY] !== undefined) {
+        const parentPtrValue = nodeValue.value[ENTITY_PARENT_KEY];
         const parentId = parentPtrValue[NODE_REFERENCE_ID_KEY];
         if (parentsPtr.has(parentId.toString())) {
           continue;

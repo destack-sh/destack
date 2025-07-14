@@ -140,7 +140,7 @@ export class Function extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${FunctionType[this.type]}`);
       propertyReprs.push(`left=${this.left.repr()}`);
-      if (this.right !== null) {
+      if (this.right != null) {
         propertyReprs.push(`right=${this.right.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -150,7 +150,7 @@ export class Function extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -158,7 +158,7 @@ export class Function extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.left.hash()) & 0xffffffff;
-    if (this.right !== null) {
+    if (this.right != null) {
       h = (h * 31 + this.right.hash()) & 0xffffffff;
     }
 
@@ -378,7 +378,7 @@ export class Condition extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${ConditionalType[this.type]}`);
       propertyReprs.push(`left=${this.left.repr()}`);
-      if (this.right !== null) {
+      if (this.right != null) {
         propertyReprs.push(`right=${this.right.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -388,7 +388,7 @@ export class Condition extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -396,7 +396,7 @@ export class Condition extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.left.hash()) & 0xffffffff;
-    if (this.right !== null) {
+    if (this.right != null) {
       h = (h * 31 + this.right.hash()) & 0xffffffff;
     }
 
@@ -625,7 +625,7 @@ export class Aggregation extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${AggregationType[this.type]}`);
-      if (this.expression !== null) {
+      if (this.expression != null) {
         propertyReprs.push(`expression=${this.expression.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -635,14 +635,14 @@ export class Aggregation extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.expression !== null) {
+    if (this.expression != null) {
       h = (h * 31 + this.expression.hash()) & 0xffffffff;
     }
 
@@ -905,19 +905,19 @@ export class Expression extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${ExpressionType[this.type]}`);
-      if (this.literal !== null) {
+      if (this.literal != null) {
         propertyReprs.push(`literal=${this.literal.repr()}`);
       }
-      if (this.attribute !== null) {
+      if (this.attribute != null) {
         propertyReprs.push(`attribute=${this.attribute.repr()}`);
       }
-      if (this.condition !== null) {
+      if (this.condition != null) {
         propertyReprs.push(`condition=${this.condition.repr()}`);
       }
-      if (this.function !== null) {
+      if (this.function != null) {
         propertyReprs.push(`function=${this.function.repr()}`);
       }
-      if (this.aggregation !== null) {
+      if (this.aggregation != null) {
         propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -927,26 +927,26 @@ export class Expression extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.literal !== null) {
+    if (this.literal != null) {
       h = (h * 31 + this.literal.hash()) & 0xffffffff;
     }
-    if (this.attribute !== null) {
+    if (this.attribute != null) {
       h = (h * 31 + this.attribute.hash()) & 0xffffffff;
     }
-    if (this.condition !== null) {
+    if (this.condition != null) {
       h = (h * 31 + this.condition.hash()) & 0xffffffff;
     }
-    if (this.function !== null) {
+    if (this.function != null) {
       h = (h * 31 + this.function.hash()) & 0xffffffff;
     }
-    if (this.aggregation !== null) {
+    if (this.aggregation != null) {
       h = (h * 31 + this.aggregation.hash()) & 0xffffffff;
     }
 
@@ -1281,7 +1281,7 @@ export class Sort extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${SortType[this.type]}`);
       propertyReprs.push(`by=${this.by.repr()}`);
-      if (this.mode !== null) {
+      if (this.mode != null) {
         propertyReprs.push(`mode=${SortMode[this.mode]}`);
       }
       // @ts-expect-error(readonly)
@@ -1291,7 +1291,7 @@ export class Sort extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1299,7 +1299,7 @@ export class Sort extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.by.hash()) & 0xffffffff;
-    if (this.mode !== null) {
+    if (this.mode != null) {
       h = (h * 31 + this.mode) & 0xffffffff;
     }
 
@@ -1474,7 +1474,7 @@ export class Select extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.attributes.length !== other.attributes.length) {
+    if (this.attributes.length != other.attributes.length) {
       return false;
     }
     for (let i = 0; i < this.attributes.length; i++) {
@@ -1503,7 +1503,7 @@ export class Select extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1775,14 +1775,14 @@ export class Join extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${JoinType[this.type]}`);
-      if (this.definition !== null) {
+      if (this.definition != null) {
         propertyReprs.push(`definition=${this.definition.repr()}`);
       }
       propertyReprs.push(`recursive=${this.recursive}`);
-      if (this.depth !== null) {
+      if (this.depth != null) {
         propertyReprs.push(`depth=${this.depth}`);
       }
-      if (this.on !== null) {
+      if (this.on != null) {
         propertyReprs.push(`on=${this.on.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -1792,21 +1792,21 @@ export class Join extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.definition !== null) {
+    if (this.definition != null) {
       h = (h * 31 + this.definition.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.recursive)) & 0xffffffff;
-    if (this.depth !== null) {
+    if (this.depth != null) {
       h = (h * 31 + hashInt(this.depth)) & 0xffffffff;
     }
-    if (this.on !== null) {
+    if (this.on != null) {
       h = (h * 31 + this.on.hash()) & 0xffffffff;
     }
 
@@ -2090,7 +2090,7 @@ export class QueryUpdate extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`type=${QueryUpdateType[this.type]}`);
-      if (this.result !== null) {
+      if (this.result != null) {
         propertyReprs.push(`result=${this.result.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -2100,7 +2100,7 @@ export class QueryUpdate extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -2108,7 +2108,7 @@ export class QueryUpdate extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.result !== null) {
+    if (this.result != null) {
       h = (h * 31 + this.result.hash()) & 0xffffffff;
     }
 
@@ -2322,7 +2322,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -2477,7 +2477,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (!this.definition.equals(other.definition)) {
       return false;
     }
-    if (this.subqueries.length !== other.subqueries.length) {
+    if (this.subqueries.length != other.subqueries.length) {
       return false;
     }
     for (let i = 0; i < this.subqueries.length; i++) {
@@ -2509,7 +2509,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     ) {
       return false;
     }
-    if (this.groupBy.length !== other.groupBy.length) {
+    if (this.groupBy.length != other.groupBy.length) {
       return false;
     }
     for (let i = 0; i < this.groupBy.length; i++) {
@@ -2523,7 +2523,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     ) {
       return false;
     }
-    if (this.sort.length !== other.sort.length) {
+    if (this.sort.length != other.sort.length) {
       return false;
     }
     for (let i = 0; i < this.sort.length; i++) {
@@ -2540,7 +2540,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (this.snapshotPath.length !== other.snapshotPath.length) {
+    if (this.snapshotPath.length != other.snapshotPath.length) {
       return false;
     }
     for (let i = 0; i < this.snapshotPath.length; i++) {
@@ -2564,40 +2564,40 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this.subqueries.length > 0) {
         propertyReprs.push(`subqueries=${this.subqueries.map((_item) => _item.repr()).join(", ")}`);
       }
-      if (this.join !== null) {
+      if (this.join != null) {
         propertyReprs.push(`join=${this.join.repr()}`);
       }
-      if (this.select !== null) {
+      if (this.select != null) {
         propertyReprs.push(`select=${this.select.repr()}`);
       }
-      if (this.where !== null) {
+      if (this.where != null) {
         propertyReprs.push(`where=${this.where.repr()}`);
       }
-      if (this.having !== null) {
+      if (this.having != null) {
         propertyReprs.push(`having=${this.having.repr()}`);
       }
       if (this.groupBy.length > 0) {
         propertyReprs.push(`groupBy=${this.groupBy.map((_item) => _item.repr()).join(", ")}`);
       }
-      if (this.aggregation !== null) {
+      if (this.aggregation != null) {
         propertyReprs.push(`aggregation=${this.aggregation.repr()}`);
       }
       if (this.sort.length > 0) {
         propertyReprs.push(`sort=${this.sort.map((_item) => _item.repr()).join(", ")}`);
       }
-      if (this.limit !== null) {
+      if (this.limit != null) {
         propertyReprs.push(`limit=${this.limit}`);
       }
-      if (this.offset !== null) {
+      if (this.offset != null) {
         propertyReprs.push(`offset=${this.offset}`);
       }
-      if (this.snapshot !== null) {
+      if (this.snapshot != null) {
         propertyReprs.push(`snapshot=${this.snapshot?.repr()}`);
       }
       if (this.snapshotPath.length > 0) {
         propertyReprs.push(`snapshotPath=${this.snapshotPath.map((_item) => _item).join(", ")}`);
       }
-      if (this.isLive !== null) {
+      if (this.isLive != null) {
         propertyReprs.push(`isLive=${this.isLive}`);
       }
       // @ts-expect-error(readonly)
@@ -2607,7 +2607,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -2623,16 +2623,16 @@ export class Query<T extends Node = Node> extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.join !== null) {
+    if (this.join != null) {
       h = (h * 31 + this.join.hash()) & 0xffffffff;
     }
-    if (this.select !== null) {
+    if (this.select != null) {
       h = (h * 31 + this.select.hash()) & 0xffffffff;
     }
-    if (this.where !== null) {
+    if (this.where != null) {
       h = (h * 31 + this.where.hash()) & 0xffffffff;
     }
-    if (this.having !== null) {
+    if (this.having != null) {
       h = (h * 31 + this.having.hash()) & 0xffffffff;
     }
     if (this.groupBy && this.groupBy.length > 0) {
@@ -2640,7 +2640,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.aggregation !== null) {
+    if (this.aggregation != null) {
       h = (h * 31 + this.aggregation.hash()) & 0xffffffff;
     }
     if (this.sort && this.sort.length > 0) {
@@ -2648,13 +2648,13 @@ export class Query<T extends Node = Node> extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.limit !== null) {
+    if (this.limit != null) {
       h = (h * 31 + hashInt(this.limit)) & 0xffffffff;
     }
-    if (this.offset !== null) {
+    if (this.offset != null) {
       h = (h * 31 + hashInt(this.offset)) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPath && this.snapshotPath.length > 0) {
@@ -2662,7 +2662,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
       }
     }
-    if (this.isLive !== null) {
+    if (this.isLive != null) {
       h = (h * 31 + hashBool(this.isLive)) & 0xffffffff;
     }
 
@@ -3255,7 +3255,7 @@ export class QueryResult extends Struct {
     if (!(this.type === other.type)) {
       return false;
     }
-    if (this.groups.length !== other.groups.length) {
+    if (this.groups.length != other.groups.length) {
       return false;
     }
     for (let i = 0; i < this.groups.length; i++) {
@@ -3263,7 +3263,7 @@ export class QueryResult extends Struct {
         return false;
       }
     }
-    if (this.subresults.length !== other.subresults.length) {
+    if (this.subresults.length != other.subresults.length) {
       return false;
     }
     for (let i = 0; i < this.subresults.length; i++) {
@@ -3271,7 +3271,7 @@ export class QueryResult extends Struct {
         return false;
       }
     }
-    if (this.nodes.length !== other.nodes.length) {
+    if (this.nodes.length != other.nodes.length) {
       return false;
     }
     for (let i = 0; i < this.nodes.length; i++) {
@@ -3304,13 +3304,13 @@ export class QueryResult extends Struct {
     if (this.subresults.length > 0) {
       propertyReprs.push(`subresults=${this.subresults.map((_item) => _item.repr()).join(", ")}`);
     }
-    if (this.count !== null) {
+    if (this.count != null) {
       propertyReprs.push(`count=${this.count}`);
     }
-    if (this.exists !== null) {
+    if (this.exists != null) {
       propertyReprs.push(`exists=${this.exists}`);
     }
-    if (this.scalar !== null) {
+    if (this.scalar != null) {
       propertyReprs.push(`scalar=${this.scalar.repr()}`);
     }
     return `<QueryResult ${propertyReprs.join(" ")}>`;
@@ -3336,13 +3336,13 @@ export class QueryResult extends Struct {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.count !== null) {
+    if (this.count != null) {
       h = (h * 31 + hashInt(this.count)) & 0xffffffff;
     }
-    if (this.exists !== null) {
+    if (this.exists != null) {
       h = (h * 31 + hashBool(this.exists)) & 0xffffffff;
     }
-    if (this.scalar !== null) {
+    if (this.scalar != null) {
       h = (h * 31 + this.scalar.hash()) & 0xffffffff;
     }
 
@@ -3667,7 +3667,7 @@ export class QueryResultGroup extends Struct {
     if (!this.discriminator.equals(other.discriminator)) {
       return false;
     }
-    if (this.nodes.length !== other.nodes.length) {
+    if (this.nodes.length != other.nodes.length) {
       return false;
     }
     for (let i = 0; i < this.nodes.length; i++) {
@@ -3694,13 +3694,13 @@ export class QueryResultGroup extends Struct {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${QueryType[this.type]}`);
     propertyReprs.push(`discriminator=${this.discriminator.repr()}`);
-    if (this.count !== null) {
+    if (this.count != null) {
       propertyReprs.push(`count=${this.count}`);
     }
-    if (this.exists !== null) {
+    if (this.exists != null) {
       propertyReprs.push(`exists=${this.exists}`);
     }
-    if (this.scalar !== null) {
+    if (this.scalar != null) {
       propertyReprs.push(`scalar=${this.scalar.repr()}`);
     }
     return `<QueryResultGroup ${propertyReprs.join(" ")}>`;
@@ -3716,13 +3716,13 @@ export class QueryResultGroup extends Struct {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.count !== null) {
+    if (this.count != null) {
       h = (h * 31 + hashInt(this.count)) & 0xffffffff;
     }
-    if (this.exists !== null) {
+    if (this.exists != null) {
       h = (h * 31 + hashBool(this.exists)) & 0xffffffff;
     }
-    if (this.scalar !== null) {
+    if (this.scalar != null) {
       h = (h * 31 + this.scalar.hash()) & 0xffffffff;
     }
 
@@ -3969,7 +3969,7 @@ export class Histogram extends StructFrozen {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (this.buckets.length !== other.buckets.length) {
+    if (this.buckets.length != other.buckets.length) {
       return false;
     }
     for (let i = 0; i < this.buckets.length; i++) {
@@ -3977,7 +3977,7 @@ export class Histogram extends StructFrozen {
         return false;
       }
     }
-    if (this.counts.length !== other.counts.length) {
+    if (this.counts.length != other.counts.length) {
       return false;
     }
     for (let i = 0; i < this.counts.length; i++) {
@@ -4009,7 +4009,7 @@ export class Histogram extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 

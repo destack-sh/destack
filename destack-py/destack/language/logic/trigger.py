@@ -46,7 +46,8 @@ class Trigger(IsSourceable, Entity):
     event: Optional[NodeDefinitionReference] = builtin_property(110)
     where: Optional["Condition"] = builtin_property(111)
     # sampling?
-    # is_passive/scope/liveness? (only trigger if containing View? is active, no backfill)
+    # is_passive/scope/process_mode/liveness?
+    #  (only trigger if containing View? is active, no backfill)
 
     # what
     target: Union["Action", "Service", None] = builtin_property(120)

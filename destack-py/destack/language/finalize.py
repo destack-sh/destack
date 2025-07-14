@@ -15,7 +15,6 @@ from .core.builtin.common import (
     StructType,
     TraitType,
 )
-from .core.builtin.const import UNSET
 from .registry import (
     ANCESTOR_NODE_TYPES_BY_TYPE,
     CONSTANT_DEFINITIONS,
@@ -128,11 +127,11 @@ def finalize():
 
     # index parent types
     for node_cls in NODE_CLASS_BY_TYPE.values():
-        assert node_cls.__parent_property__ is not UNSET
-        if node_cls.__root_type__ is None and not node_cls.__is_abstract__:
+        if node_cls.__parent_property__ is None:
+            continue
+        elif node_cls.__root_type__ is None and not node_cls.__is_abstract__:
             node_cls.__parent_types__ = ()
-            if node_cls.__parent_property__ is not None:
-                node_cls.__parent_property__.node_types = ()
+            node_cls.__parent_property__.node_types = ()
         else:
             parent_types = expand_node_traits(node_cls.__parent_property__.node_types or ())
             assert len(parent_types) < len(NodeType), f"generic parent for '{node_cls.__name__}'"
@@ -322,6 +321,8 @@ def finalize():
 
         # check parent types
         for node_cls in NODE_CLASS_BY_TYPE.values():
+            if node_cls.__parent_property__ is None:
+                continue
             # check if parent is compatible with bases
             parent_node_types = node_cls.__parent_property__.node_types or ()
             for base_cls in node_cls.__bases__:

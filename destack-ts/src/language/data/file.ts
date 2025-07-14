@@ -22,6 +22,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -219,7 +220,7 @@ export class File extends Resource {
    */
   get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -231,7 +232,7 @@ export class File extends Resource {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -243,7 +244,7 @@ export class File extends Resource {
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as
         | CustomEntityDefinition
         | CustomEventDefinition
@@ -268,7 +269,7 @@ export class File extends Resource {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -280,7 +281,7 @@ export class File extends Resource {
    */
   get predecessor(): File | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as File | null;
     }
     return null;
@@ -292,7 +293,7 @@ export class File extends Resource {
    */
   get template(): File | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as File | null;
     }
     return null;
@@ -309,7 +310,7 @@ export class File extends Resource {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -326,7 +327,7 @@ export class File extends Resource {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -359,7 +360,7 @@ export class File extends Resource {
    */
   get script(): Script | null {
     const nodePtr: NodeReference | null = this.scriptPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Script | null;
     }
     return null;
@@ -1029,85 +1030,85 @@ export class File extends Resource {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + this._source) & 0xffffffff;
-    if (this._mimeType !== null) {
+    if (this._mimeType != null) {
       h = (h * 31 + hashString(this._mimeType)) & 0xffffffff;
     }
-    if (this._format !== null) {
+    if (this._format != null) {
       h = (h * 31 + this._format) & 0xffffffff;
     }
-    if (this._size !== null) {
+    if (this._size != null) {
       h = (h * 31 + hashInt(this._size)) & 0xffffffff;
     }
-    if (this._sha256 !== null) {
+    if (this._sha256 != null) {
       h = (h * 31 + hashString(this._sha256)) & 0xffffffff;
     }
-    if (this._width !== null) {
+    if (this._width != null) {
       h = (h * 31 + hashInt(this._width)) & 0xffffffff;
     }
-    if (this._height !== null) {
+    if (this._height != null) {
       h = (h * 31 + hashInt(this._height)) & 0xffffffff;
     }
-    if (this._aspectRatio !== null) {
+    if (this._aspectRatio != null) {
       h = (h * 31 + hashFloat(this._aspectRatio)) & 0xffffffff;
     }
-    if (this._codec !== null) {
+    if (this._codec != null) {
       h = (h * 31 + hashString(this._codec)) & 0xffffffff;
     }
-    if (this._duration !== null) {
+    if (this._duration != null) {
       h = (h * 31 + hashFloat(this._duration.total("seconds"))) & 0xffffffff;
     }
-    if (this._url !== null) {
+    if (this._url != null) {
       h = (h * 31 + hashString(this._url)) & 0xffffffff;
     }
-    if (this._contentUrl !== null) {
+    if (this._contentUrl != null) {
       h = (h * 31 + hashString(this._contentUrl)) & 0xffffffff;
     }
-    if (this._thumbnailUrl !== null) {
+    if (this._thumbnailUrl != null) {
       h = (h * 31 + hashString(this._thumbnailUrl)) & 0xffffffff;
     }
-    if (this._faviconUrl !== null) {
+    if (this._faviconUrl != null) {
       h = (h * 31 + hashString(this._faviconUrl)) & 0xffffffff;
     }
-    if (this._thumbnailWidth !== null) {
+    if (this._thumbnailWidth != null) {
       h = (h * 31 + hashInt(this._thumbnailWidth)) & 0xffffffff;
     }
-    if (this._thumbnailHeight !== null) {
+    if (this._thumbnailHeight != null) {
       h = (h * 31 + hashInt(this._thumbnailHeight)) & 0xffffffff;
     }
-    if (this._content !== null) {
+    if (this._content != null) {
       h = (h * 31 + hashBytes(this._content)) & 0xffffffff;
     }
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType !== null) {
+    if (this.baseType != null) {
       h = (h * 31 + this.baseType.hash()) & 0xffffffff;
     }
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1117,7 +1118,7 @@ export class File extends Resource {
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr !== null) {
+    if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1148,9 +1149,9 @@ export class File extends Resource {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1166,16 +1167,16 @@ export class File extends Resource {
     propertyReprs.push(`type=${FileType[this.type]}`);
     propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`source=${FileSource[this.source]}`);
-    if (this.mimeType !== null) {
+    if (this.mimeType != null) {
       propertyReprs.push(`mimeType=${`"${this.mimeType}"`}`);
     }
-    if (this.format !== null) {
+    if (this.format != null) {
       propertyReprs.push(`format=${FileFormat[this.format]}`);
     }
-    if (this.size !== null) {
+    if (this.size != null) {
       propertyReprs.push(`size=${this.size}`);
     }
-    if (this.url !== null) {
+    if (this.url != null) {
       propertyReprs.push(`url=${`"${this.url}"`}`);
     }
     return `<File "${this.path}" ${propertyReprs.join(" ")}>`;

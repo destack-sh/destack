@@ -66,7 +66,7 @@ export class NodeDefinitionReference extends StructFrozen {
    */
   get definition(): CustomEntityDefinition | CustomEventDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -146,7 +146,7 @@ export class NodeDefinitionReference extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeDefinitionType[this.type]}`);
       propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
-      if (this.definition !== null) {
+      if (this.definition != null) {
         propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -156,7 +156,7 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -164,7 +164,7 @@ export class NodeDefinitionReference extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this.nodeType) & 0xffffffff;
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
 
@@ -427,7 +427,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     | CustomStructDefinition
     | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -523,16 +523,16 @@ export class ObjectDefinitionReference extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${ObjectDefinitionType[this.type]}`);
-      if (this.nodeType !== null) {
+      if (this.nodeType != null) {
         propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       }
-      if (this.traitType !== null) {
+      if (this.traitType != null) {
         propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
       }
-      if (this.structType !== null) {
+      if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.definition !== null) {
+      if (this.definition != null) {
         propertyReprs.push(`definition=${this.definition?.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -542,23 +542,23 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.nodeType !== null) {
+    if (this.nodeType != null) {
       h = (h * 31 + this.nodeType) & 0xffffffff;
     }
-    if (this.traitType !== null) {
+    if (this.traitType != null) {
       h = (h * 31 + this.traitType) & 0xffffffff;
     }
-    if (this.structType !== null) {
+    if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.definitionPtr !== null) {
+    if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
 
@@ -790,7 +790,7 @@ export class PropertyReference extends StructFrozen {
    */
   get customProperty(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.customPropertyPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -881,19 +881,19 @@ export class PropertyReference extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${PropertyReferenceType[this.type]}`);
-      if (this.nodeType !== null) {
+      if (this.nodeType != null) {
         propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
       }
-      if (this.traitType !== null) {
+      if (this.traitType != null) {
         propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
       }
-      if (this.structType !== null) {
+      if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
-      if (this.id !== null) {
+      if (this.id != null) {
         propertyReprs.push(`id=${this.id}`);
       }
-      if (this.customProperty !== null) {
+      if (this.customProperty != null) {
         propertyReprs.push(`customProperty=${this.customProperty?.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -903,26 +903,26 @@ export class PropertyReference extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.nodeType !== null) {
+    if (this.nodeType != null) {
       h = (h * 31 + this.nodeType) & 0xffffffff;
     }
-    if (this.traitType !== null) {
+    if (this.traitType != null) {
       h = (h * 31 + this.traitType) & 0xffffffff;
     }
-    if (this.structType !== null) {
+    if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
-    if (this.id !== null) {
+    if (this.id != null) {
       h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     }
-    if (this.customPropertyPtr !== null) {
+    if (this.customPropertyPtr != null) {
       h = (h * 31 + hashString(this.customPropertyPtr.id)) & 0xffffffff;
     }
 
@@ -1250,7 +1250,7 @@ export class StructDefinitionReference extends StructFrozen {
    */
   get definition(): CustomStructDefinition | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -1326,7 +1326,7 @@ export class StructDefinitionReference extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${StructDefinitionType[this.type]}`);
-      if (this.structType !== null) {
+      if (this.structType != null) {
         propertyReprs.push(`structType=${StructType[this.structType]}`);
       }
       propertyReprs.push(`definition=${this.definition?.repr()}`);
@@ -1337,14 +1337,14 @@ export class StructDefinitionReference extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.structType !== null) {
+    if (this.structType != null) {
       h = (h * 31 + this.structType) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -1609,16 +1609,16 @@ export class NodeReference extends StructFrozen {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${NodeType[this.type]}`);
       propertyReprs.push(`id=${this.id}`);
-      if (this.definitionId !== null) {
+      if (this.definitionId != null) {
         propertyReprs.push(`definitionId=${this.definitionId}`);
       }
-      if (this.snapshotId !== null) {
+      if (this.snapshotId != null) {
         propertyReprs.push(`snapshotId=${this.snapshotId}`);
       }
-      if (this.spaceId !== null) {
+      if (this.spaceId != null) {
         propertyReprs.push(`spaceId=${this.spaceId}`);
       }
-      if (this.storeKey !== null) {
+      if (this.storeKey != null) {
         propertyReprs.push(`storeKey=${StoreKey[this.storeKey]}`);
       }
       // @ts-expect-error(readonly)
@@ -1628,7 +1628,7 @@ export class NodeReference extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
@@ -1636,16 +1636,16 @@ export class NodeReference extends StructFrozen {
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    if (this.definitionId !== null) {
+    if (this.definitionId != null) {
       h = (h * 31 + hashString(this.definitionId.toString())) & 0xffffffff;
     }
-    if (this.snapshotId !== null) {
+    if (this.snapshotId != null) {
       h = (h * 31 + hashString(this.snapshotId.toString())) & 0xffffffff;
     }
-    if (this.spaceId !== null) {
+    if (this.spaceId != null) {
       h = (h * 31 + hashString(this.spaceId.toString())) & 0xffffffff;
     }
-    if (this.storeKey !== null) {
+    if (this.storeKey != null) {
       h = (h * 31 + this.storeKey) & 0xffffffff;
     }
 

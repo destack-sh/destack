@@ -20,6 +20,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -138,7 +139,7 @@ export class Effect extends StructFrozen {
    */
   get style(): EffectStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -394,49 +395,49 @@ export class Effect extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${EffectType[this.type]}`);
-      if (this.style !== null) {
+      if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
-      if (this.opacity !== null) {
+      if (this.opacity != null) {
         propertyReprs.push(`opacity=${this.opacity}`);
       }
-      if (this.offset !== null) {
+      if (this.offset != null) {
         propertyReprs.push(`offset=${this.offset.repr()}`);
       }
-      if (this.scale !== null) {
+      if (this.scale != null) {
         propertyReprs.push(`scale=${this.scale}`);
       }
-      if (this.rotate !== null) {
+      if (this.rotate != null) {
         propertyReprs.push(`rotate=${this.rotate.repr()}`);
       }
-      if (this.skew !== null) {
+      if (this.skew != null) {
         propertyReprs.push(`skew=${this.skew.repr()}`);
       }
-      if (this.perspective !== null) {
+      if (this.perspective != null) {
         propertyReprs.push(`perspective=${this.perspective}`);
       }
-      if (this.delay !== null) {
+      if (this.delay != null) {
         propertyReprs.push(`delay=${this.delay}`);
       }
-      if (this.duration !== null) {
+      if (this.duration != null) {
         propertyReprs.push(`duration=${this.duration}`);
       }
-      if (this.threshold !== null) {
+      if (this.threshold != null) {
         propertyReprs.push(`threshold=${this.threshold}`);
       }
-      if (this.once !== null) {
+      if (this.once != null) {
         propertyReprs.push(`once=${this.once}`);
       }
-      if (this.repeat !== null) {
+      if (this.repeat != null) {
         propertyReprs.push(`repeat=${RepeatType[this.repeat]}`);
       }
-      if (this.split !== null) {
+      if (this.split != null) {
         propertyReprs.push(`split=${TextSplitType[this.split]}`);
       }
-      if (this.offscreen !== null) {
+      if (this.offscreen != null) {
         propertyReprs.push(`offscreen=${OffscreenBehavior[this.offscreen]}`);
       }
-      if (this.transition !== null) {
+      if (this.transition != null) {
         propertyReprs.push(`transition=${this.transition.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -446,56 +447,56 @@ export class Effect extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
+    if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    if (this.opacity !== null) {
+    if (this.opacity != null) {
       h = (h * 31 + hashFloat(this.opacity)) & 0xffffffff;
     }
-    if (this.offset !== null) {
+    if (this.offset != null) {
       h = (h * 31 + this.offset.hash()) & 0xffffffff;
     }
-    if (this.scale !== null) {
+    if (this.scale != null) {
       h = (h * 31 + hashFloat(this.scale)) & 0xffffffff;
     }
-    if (this.rotate !== null) {
+    if (this.rotate != null) {
       h = (h * 31 + this.rotate.hash()) & 0xffffffff;
     }
-    if (this.skew !== null) {
+    if (this.skew != null) {
       h = (h * 31 + this.skew.hash()) & 0xffffffff;
     }
-    if (this.perspective !== null) {
+    if (this.perspective != null) {
       h = (h * 31 + hashFloat(this.perspective)) & 0xffffffff;
     }
-    if (this.delay !== null) {
+    if (this.delay != null) {
       h = (h * 31 + hashFloat(this.delay.total("seconds"))) & 0xffffffff;
     }
-    if (this.duration !== null) {
+    if (this.duration != null) {
       h = (h * 31 + hashFloat(this.duration)) & 0xffffffff;
     }
-    if (this.threshold !== null) {
+    if (this.threshold != null) {
       h = (h * 31 + hashFloat(this.threshold)) & 0xffffffff;
     }
-    if (this.once !== null) {
+    if (this.once != null) {
       h = (h * 31 + hashBool(this.once)) & 0xffffffff;
     }
-    if (this.repeat !== null) {
+    if (this.repeat != null) {
       h = (h * 31 + this.repeat) & 0xffffffff;
     }
-    if (this.split !== null) {
+    if (this.split != null) {
       h = (h * 31 + this.split) & 0xffffffff;
     }
-    if (this.offscreen !== null) {
+    if (this.offscreen != null) {
       h = (h * 31 + this.offscreen) & 0xffffffff;
     }
-    if (this.transition !== null) {
+    if (this.transition != null) {
       h = (h * 31 + this.transition.hash()) & 0xffffffff;
     }
 
@@ -813,7 +814,7 @@ export class EffectStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -825,7 +826,7 @@ export class EffectStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -842,7 +843,7 @@ export class EffectStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -854,7 +855,7 @@ export class EffectStyle extends Style {
    */
   get predecessor(): EffectStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as EffectStyle | null;
     }
     return null;
@@ -866,7 +867,7 @@ export class EffectStyle extends Style {
    */
   get template(): EffectStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as EffectStyle | null;
     }
     return null;
@@ -883,7 +884,7 @@ export class EffectStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -900,7 +901,7 @@ export class EffectStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1464,71 +1465,71 @@ export class EffectStyle extends Style {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    if (this._opacity !== null) {
+    if (this._opacity != null) {
       h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
     }
-    if (this._offset !== null) {
+    if (this._offset != null) {
       h = (h * 31 + this._offset.hash()) & 0xffffffff;
     }
-    if (this._scale !== null) {
+    if (this._scale != null) {
       h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
     }
-    if (this._rotate !== null) {
+    if (this._rotate != null) {
       h = (h * 31 + this._rotate.hash()) & 0xffffffff;
     }
-    if (this._skew !== null) {
+    if (this._skew != null) {
       h = (h * 31 + this._skew.hash()) & 0xffffffff;
     }
-    if (this._perspective !== null) {
+    if (this._perspective != null) {
       h = (h * 31 + hashFloat(this._perspective)) & 0xffffffff;
     }
-    if (this._delay !== null) {
+    if (this._delay != null) {
       h = (h * 31 + hashFloat(this._delay.total("seconds"))) & 0xffffffff;
     }
-    if (this._duration !== null) {
+    if (this._duration != null) {
       h = (h * 31 + hashFloat(this._duration)) & 0xffffffff;
     }
-    if (this._threshold !== null) {
+    if (this._threshold != null) {
       h = (h * 31 + hashFloat(this._threshold)) & 0xffffffff;
     }
-    if (this._once !== null) {
+    if (this._once != null) {
       h = (h * 31 + hashBool(this._once)) & 0xffffffff;
     }
-    if (this._repeat !== null) {
+    if (this._repeat != null) {
       h = (h * 31 + this._repeat) & 0xffffffff;
     }
-    if (this._split !== null) {
+    if (this._split != null) {
       h = (h * 31 + this._split) & 0xffffffff;
     }
-    if (this._offscreen !== null) {
+    if (this._offscreen != null) {
       h = (h * 31 + this._offscreen) & 0xffffffff;
     }
-    if (this._transition !== null) {
+    if (this._transition != null) {
       h = (h * 31 + this._transition.hash()) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1559,9 +1560,9 @@ export class EffectStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1575,46 +1576,46 @@ export class EffectStyle extends Style {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${EffectType[this.type]}`);
-    if (this.opacity !== null) {
+    if (this.opacity != null) {
       propertyReprs.push(`opacity=${this.opacity}`);
     }
-    if (this.offset !== null) {
+    if (this.offset != null) {
       propertyReprs.push(`offset=${this.offset.repr()}`);
     }
-    if (this.scale !== null) {
+    if (this.scale != null) {
       propertyReprs.push(`scale=${this.scale}`);
     }
-    if (this.rotate !== null) {
+    if (this.rotate != null) {
       propertyReprs.push(`rotate=${this.rotate.repr()}`);
     }
-    if (this.skew !== null) {
+    if (this.skew != null) {
       propertyReprs.push(`skew=${this.skew.repr()}`);
     }
-    if (this.perspective !== null) {
+    if (this.perspective != null) {
       propertyReprs.push(`perspective=${this.perspective}`);
     }
-    if (this.delay !== null) {
+    if (this.delay != null) {
       propertyReprs.push(`delay=${this.delay}`);
     }
-    if (this.duration !== null) {
+    if (this.duration != null) {
       propertyReprs.push(`duration=${this.duration}`);
     }
-    if (this.threshold !== null) {
+    if (this.threshold != null) {
       propertyReprs.push(`threshold=${this.threshold}`);
     }
-    if (this.once !== null) {
+    if (this.once != null) {
       propertyReprs.push(`once=${this.once}`);
     }
-    if (this.repeat !== null) {
+    if (this.repeat != null) {
       propertyReprs.push(`repeat=${RepeatType[this.repeat]}`);
     }
-    if (this.split !== null) {
+    if (this.split != null) {
       propertyReprs.push(`split=${TextSplitType[this.split]}`);
     }
-    if (this.offscreen !== null) {
+    if (this.offscreen != null) {
       propertyReprs.push(`offscreen=${OffscreenBehavior[this.offscreen]}`);
     }
-    if (this.transition !== null) {
+    if (this.transition != null) {
       propertyReprs.push(`transition=${this.transition.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

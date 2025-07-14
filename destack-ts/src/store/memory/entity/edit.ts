@@ -16,7 +16,7 @@ import {
   MemoryContext,
   NODE_ARCHIVED_AT_KEY,
   NODE_DELETED_AT_KEY,
-  NODE_PARENT_KEY,
+  ENTITY_PARENT_KEY,
 } from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/entity/query";
 import { packEntityRow } from "@destack/store/memory/entity/wiring";
@@ -235,7 +235,7 @@ function executeEdit(options: {
       }
       // update parent pointer
       row.parentPtr = NodeReference.fromValue(edit.value.value);
-      row.value[NODE_PARENT_KEY] = edit.value.value;
+      row.value[ENTITY_PARENT_KEY] = edit.value.value;
       // add to new parent
       if (row.parentPtr) {
         const parentTable = context.getEntityTable(row.parentPtr);

@@ -1,8 +1,16 @@
 import { signal, Signal } from "@preact/signals-react";
-import { Graph, Node, NodeType, PolyGraph, SingletonGraph, Supergraph } from "destack";
+import {
+  Entity,
+  EntityGraph,
+  EntitySingletonGraph,
+  Graph,
+  Node,
+  NodeType,
+  Supergraph,
+} from "destack";
 
 /** A reactive Graph. */
-export interface ReactiveGraph extends Graph {
+export interface ReactiveGraph<T extends Node> extends Graph<T> {
   /** Touch all Nodes reactively. */
   touchAll(): void;
 
@@ -22,11 +30,14 @@ export interface ReactiveGraph extends Graph {
   subscribeChildren(id: string): void;
 }
 
-/** A reactive variant of SingletonGraph. */
-export class ReactiveSingletonGraph extends SingletonGraph implements ReactiveGraph {
+/** A reactive variant of an EntitySingletonGraph. */
+export class ReactiveEntitySingletonGraph
+  extends EntitySingletonGraph
+  implements ReactiveGraph<Entity>
+{
   readonly _signal: Signal<number>;
 
-  constructor(supergraph: Supergraph, node: Node) {
+  constructor(supergraph: Supergraph, node: Entity) {
     super(supergraph, node);
     this._signal = signal(0);
   }
@@ -59,24 +70,24 @@ export class ReactiveSingletonGraph extends SingletonGraph implements ReactiveGr
     // nothing to do
   }
 
-  override get(id: string): Node | null {
+  override get(id: string): Entity | null {
     this.subscribe(id);
     return super.get(id);
   }
 
-  override getRoots(): Node[] {
+  override getRoots(): Entity[] {
     this.subscribeAll();
     return super.getRoots();
   }
 
-  override getLeaves(): Node[] {
+  override getLeaves(): Entity[] {
     this.subscribeAll();
     return super.getLeaves();
   }
 }
 
-/** A reactive variant of PolyGraph. */
-export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
+/** A reactive variant of an EntityGraph. */
+export class ReactiveEntityGraph extends EntityGraph implements ReactiveGraph<Entity> {
   readonly _signalAll: Signal<number>;
   readonly _signalById: Map<string, Signal<number>>;
   readonly _signalByParent: Map<string, Signal<number>>;
@@ -131,7 +142,7 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
     }
   }
 
-  override get(id: string): Node | null {
+  override get(id: string): Entity | null {
     this.subscribe(id);
     return super.get(id);
   }
@@ -148,29 +159,29 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
     this._signalByParent.clear();
   }
 
-  override add(node: Node): void {
+  override add(node: Entity): void {
     this.touch(node.id);
     super.add(node);
   }
 
-  override remove(node: Node): void {
+  override remove(node: Entity): void {
     this.touch(node.id);
     super.remove(node);
     this._signalById.delete(node.id);
     this._signalByParent.delete(node.id);
   }
 
-  override getRoots(options?: { nodeType?: NodeType }): Node[] {
+  override getRoots(options?: { nodeType?: NodeType }): Entity[] {
     this.subscribeAll();
     return super.getRoots(options);
   }
 
-  override getLeaves(options?: { nodeType?: NodeType }): Node[] {
+  override getLeaves(options?: { nodeType?: NodeType }): Entity[] {
     this.subscribeAll();
     return super.getLeaves(options);
   }
 
-  override getChildren(options: { node: Node; nodeType?: NodeType }): Node[] {
+  override getChildren(options: { node: Entity; nodeType?: NodeType }): Entity[] {
     this.subscribeChildren(options.node.id);
     return super.getChildren(options);
   }
@@ -178,14 +189,14 @@ export class ReactivePolyGraph extends PolyGraph implements ReactiveGraph {
 
 /** A reactive variant of Supergraph. */
 export class ReactiveSupergraph extends Supergraph {
-  override createSingletonGraph(node: Node): ReactiveSingletonGraph {
-    const newGraph = new ReactiveSingletonGraph(this, node);
+  override createEntitySingletonGraph(node: Entity): ReactiveEntitySingletonGraph {
+    const newGraph = new ReactiveEntitySingletonGraph(this, node);
     this.addGraph(newGraph);
     return newGraph;
   }
 
-  override createPolyGraph(): ReactivePolyGraph {
-    const newGraph = new ReactivePolyGraph(this);
+  override createEntityGraph(): ReactiveEntityGraph {
+    const newGraph = new ReactiveEntityGraph(this);
     this.addGraph(newGraph);
     return newGraph;
   }

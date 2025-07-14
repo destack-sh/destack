@@ -66,7 +66,7 @@ export class Icon extends StructFrozen {
    */
   get file(): File | null {
     const nodePtr: NodeReference | null = this.filePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -177,29 +177,29 @@ export class Icon extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.emoji !== null) {
+    if (this.emoji != null) {
       h = (h * 31 + hashString(this.emoji)) & 0xffffffff;
     }
-    if (this.faName !== null) {
+    if (this.faName != null) {
       h = (h * 31 + hashString(this.faName)) & 0xffffffff;
     }
-    if (this.vscName !== null) {
+    if (this.vscName != null) {
       h = (h * 31 + hashString(this.vscName)) & 0xffffffff;
     }
-    if (this.filePtr !== null) {
+    if (this.filePtr != null) {
       h = (h * 31 + hashString(this.filePtr.id)) & 0xffffffff;
     }
-    if (this.fileUrl !== null) {
+    if (this.fileUrl != null) {
       h = (h * 31 + hashString(this.fileUrl)) & 0xffffffff;
     }
-    if (this.color !== null) {
+    if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
 

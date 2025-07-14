@@ -14,6 +14,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -89,7 +90,7 @@ export class Border extends StructFrozen {
    */
   get style(): BorderStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -177,13 +178,13 @@ export class Border extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${BorderType[this.type]}`);
-      if (this.color !== null) {
+      if (this.color != null) {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
-      if (this.width !== null) {
+      if (this.width != null) {
         propertyReprs.push(`width=${this.width.repr()}`);
       }
-      if (this.style !== null) {
+      if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
       // @ts-expect-error(readonly)
@@ -193,20 +194,20 @@ export class Border extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.color !== null) {
+    if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
-    if (this.width !== null) {
+    if (this.width != null) {
       h = (h * 31 + this.width.hash()) & 0xffffffff;
     }
-    if (this.stylePtr !== null) {
+    if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
 
@@ -381,7 +382,7 @@ export class BorderStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -393,7 +394,7 @@ export class BorderStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -410,7 +411,7 @@ export class BorderStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -422,7 +423,7 @@ export class BorderStyle extends Style {
    */
   get predecessor(): BorderStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as BorderStyle | null;
     }
     return null;
@@ -434,7 +435,7 @@ export class BorderStyle extends Style {
    */
   get template(): BorderStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as BorderStyle | null;
     }
     return null;
@@ -451,7 +452,7 @@ export class BorderStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -468,7 +469,7 @@ export class BorderStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -554,7 +555,7 @@ export class BorderStyle extends Style {
    */
   get style(): BorderStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as BorderStyle | null;
     }
     return null;
@@ -778,38 +779,38 @@ export class BorderStyle extends Style {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    if (this._color !== null) {
+    if (this._color != null) {
       h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this._width !== null) {
+    if (this._width != null) {
       h = (h * 31 + this._width.hash()) & 0xffffffff;
     }
-    if (this._stylePtr !== null) {
+    if (this._stylePtr != null) {
       h = (h * 31 + hashString(this._stylePtr.id)) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -840,9 +841,9 @@ export class BorderStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -856,13 +857,13 @@ export class BorderStyle extends Style {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${BorderType[this.type]}`);
-    if (this.color !== null) {
+    if (this.color != null) {
       propertyReprs.push(`color=${this.color.repr()}`);
     }
-    if (this.width !== null) {
+    if (this.width != null) {
       propertyReprs.push(`width=${this.width.repr()}`);
     }
-    if (this.style !== null) {
+    if (this.style != null) {
       propertyReprs.push(`style=${this.style?.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

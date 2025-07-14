@@ -14,6 +14,7 @@ import {
   ACTIVE_SPACE,
   Entity,
   EnumType,
+  Event,
   Materialization,
   Node,
   NodeType,
@@ -178,7 +179,7 @@ export class Font extends StructFrozen {
    */
   get style(): FontStyle | null {
     const nodePtr: NodeReference | null = this.stylePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
@@ -360,31 +361,31 @@ export class Font extends StructFrozen {
     if (this._repr === null) {
       const propertyReprs: string[] = [];
       propertyReprs.push(`type=${FontType[this.type]}`);
-      if (this.style !== null) {
+      if (this.style != null) {
         propertyReprs.push(`style=${this.style?.repr()}`);
       }
-      if (this.weight !== null) {
+      if (this.weight != null) {
         propertyReprs.push(`weight=${FontWeight[this.weight]}`);
       }
-      if (this.color !== null) {
+      if (this.color != null) {
         propertyReprs.push(`color=${this.color.repr()}`);
       }
-      if (this.size !== null) {
+      if (this.size != null) {
         propertyReprs.push(`size=${FontSize[this.size]}`);
       }
-      if (this.align !== null) {
+      if (this.align != null) {
         propertyReprs.push(`align=${TextAlign[this.align]}`);
       }
-      if (this.lineHeight !== null) {
+      if (this.lineHeight != null) {
         propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
       }
-      if (this.letterSpacing !== null) {
+      if (this.letterSpacing != null) {
         propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
       }
-      if (this.decoration !== null) {
+      if (this.decoration != null) {
         propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
       }
-      if (this.transform !== null) {
+      if (this.transform != null) {
         propertyReprs.push(`transform=${TextTransform[this.transform]}`);
       }
       // @ts-expect-error(readonly)
@@ -394,38 +395,38 @@ export class Font extends StructFrozen {
   }
 
   hash(): number {
-    if (this._hash !== null) {
+    if (this._hash != null) {
       return this._hash;
     }
 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.stylePtr !== null) {
+    if (this.stylePtr != null) {
       h = (h * 31 + hashString(this.stylePtr.id)) & 0xffffffff;
     }
-    if (this.weight !== null) {
+    if (this.weight != null) {
       h = (h * 31 + this.weight) & 0xffffffff;
     }
-    if (this.color !== null) {
+    if (this.color != null) {
       h = (h * 31 + this.color.hash()) & 0xffffffff;
     }
-    if (this.size !== null) {
+    if (this.size != null) {
       h = (h * 31 + this.size) & 0xffffffff;
     }
-    if (this.align !== null) {
+    if (this.align != null) {
       h = (h * 31 + this.align) & 0xffffffff;
     }
-    if (this.lineHeight !== null) {
+    if (this.lineHeight != null) {
       h = (h * 31 + this.lineHeight.hash()) & 0xffffffff;
     }
-    if (this.letterSpacing !== null) {
+    if (this.letterSpacing != null) {
       h = (h * 31 + this.letterSpacing.hash()) & 0xffffffff;
     }
-    if (this.decoration !== null) {
+    if (this.decoration != null) {
       h = (h * 31 + this.decoration) & 0xffffffff;
     }
-    if (this.transform !== null) {
+    if (this.transform != null) {
       h = (h * 31 + this.transform) & 0xffffffff;
     }
 
@@ -678,7 +679,7 @@ export class FontStyle extends Style {
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
     }
     return null;
@@ -690,7 +691,7 @@ export class FontStyle extends Style {
    */
   get space(): Space | null {
     const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
@@ -707,7 +708,7 @@ export class FontStyle extends Style {
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
@@ -719,7 +720,7 @@ export class FontStyle extends Style {
    */
   get predecessor(): FontStyle | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as FontStyle | null;
     }
     return null;
@@ -731,7 +732,7 @@ export class FontStyle extends Style {
    */
   get template(): FontStyle | null {
     const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as FontStyle | null;
     }
     return null;
@@ -748,7 +749,7 @@ export class FontStyle extends Style {
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -765,7 +766,7 @@ export class FontStyle extends Style {
    */
   get updatedBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr !== null) {
+    if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
     }
     return null;
@@ -1186,53 +1187,53 @@ export class FontStyle extends Style {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    if (this._weight !== null) {
+    if (this._weight != null) {
       h = (h * 31 + this._weight) & 0xffffffff;
     }
-    if (this._color !== null) {
+    if (this._color != null) {
       h = (h * 31 + this._color.hash()) & 0xffffffff;
     }
-    if (this._size !== null) {
+    if (this._size != null) {
       h = (h * 31 + this._size) & 0xffffffff;
     }
-    if (this._align !== null) {
+    if (this._align != null) {
       h = (h * 31 + this._align) & 0xffffffff;
     }
-    if (this._lineHeight !== null) {
+    if (this._lineHeight != null) {
       h = (h * 31 + this._lineHeight.hash()) & 0xffffffff;
     }
-    if (this._letterSpacing !== null) {
+    if (this._letterSpacing != null) {
       h = (h * 31 + this._letterSpacing.hash()) & 0xffffffff;
     }
-    if (this._decoration !== null) {
+    if (this._decoration != null) {
       h = (h * 31 + this._decoration) & 0xffffffff;
     }
-    if (this._transform !== null) {
+    if (this._transform != null) {
       h = (h * 31 + this._transform) & 0xffffffff;
     }
-    if (this.parentPtr !== null) {
+    if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    if (this.snapshotPtr !== null) {
+    if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr !== null) {
+    if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr !== null) {
+    if (this.templatePtr != null) {
       h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr !== null) {
+    if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr !== null) {
+    if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt !== null) {
+    if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1263,9 +1264,9 @@ export class FontStyle extends Style {
 
   get path(): string {
     const pathParts: string[] = [];
-    let node: Node | null = this;
-    let lastNode: Node | null = this;
-    while (node !== null) {
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
       pathParts.push(node._pathKey);
       lastNode = node;
       node = node.parent;
@@ -1279,28 +1280,28 @@ export class FontStyle extends Style {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FontType[this.type]}`);
-    if (this.weight !== null) {
+    if (this.weight != null) {
       propertyReprs.push(`weight=${FontWeight[this.weight]}`);
     }
-    if (this.color !== null) {
+    if (this.color != null) {
       propertyReprs.push(`color=${this.color.repr()}`);
     }
-    if (this.size !== null) {
+    if (this.size != null) {
       propertyReprs.push(`size=${FontSize[this.size]}`);
     }
-    if (this.align !== null) {
+    if (this.align != null) {
       propertyReprs.push(`align=${TextAlign[this.align]}`);
     }
-    if (this.lineHeight !== null) {
+    if (this.lineHeight != null) {
       propertyReprs.push(`lineHeight=${this.lineHeight.repr()}`);
     }
-    if (this.letterSpacing !== null) {
+    if (this.letterSpacing != null) {
       propertyReprs.push(`letterSpacing=${this.letterSpacing.repr()}`);
     }
-    if (this.decoration !== null) {
+    if (this.decoration != null) {
       propertyReprs.push(`decoration=${TextDecoration[this.decoration]}`);
     }
-    if (this.transform !== null) {
+    if (this.transform != null) {
       propertyReprs.push(`transform=${TextTransform[this.transform]}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);

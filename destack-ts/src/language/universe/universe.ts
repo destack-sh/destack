@@ -1,5 +1,5 @@
 import type { NodeReference } from "@destack/language/core";
-import { Entity, Node, NodeType } from "@destack/language/core";
+import { Node, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe/space";
 
@@ -10,12 +10,6 @@ import type { Space } from "@destack/language/universe/space";
  */
 export abstract class Universe extends Node {
   static metatype: NodeType = NodeType.UNIVERSE;
-
-  /**
-   * Node.parent
-   */
-  abstract get parent(): Entity | null;
-  declare readonly parentPtr: NodeReference | null;
 
   /**
    * The Space this Node is in.
