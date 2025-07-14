@@ -4,7 +4,7 @@ import { Temporal } from "temporal-polyfill";
 import { v4 as uuidv4 } from "uuid";
 
 // forever constants
-export const VERSION = "2025.07.14.0";
+export const VERSION = "2025.07.14.1";
 export const FLOAT_EPSILON = 1e-6;
 export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00[UTC]");
 

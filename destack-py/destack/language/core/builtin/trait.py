@@ -265,6 +265,7 @@ class IsSourceable(IsOrdered):
         is_managed=True,
         description="The Script that defines this Node.",
     )
+    # source_type: ScriptType?
     # token_range, ...
     key: str | None = builtin_property(
         70,

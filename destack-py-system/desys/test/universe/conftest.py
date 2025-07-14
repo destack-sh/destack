@@ -6,7 +6,7 @@ from destack.grpc import (
 )
 from destack.language import WORLD_ORACLE, DatabaseInfo
 from desys.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER
-from desys.test.simulation.core import SimulatedChannel
+from desys.test.simulation import SimulatedChannel
 
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
