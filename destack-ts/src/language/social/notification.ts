@@ -12,6 +12,7 @@ import type {
   Text,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Event,
@@ -268,12 +269,13 @@ export class NotificationSentEvent extends NotificationEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`NotificationSentEvent has no session`);
+        throw new Error(`NotificationSentEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`NotificationSentEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`NotificationSentEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`NotificationSentEvent.space is required`);
@@ -793,12 +795,13 @@ export class NotificationRescindedEvent extends NotificationEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`NotificationRescindedEvent has no session`);
+        throw new Error(`NotificationRescindedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`NotificationRescindedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`NotificationRescindedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`NotificationRescindedEvent.space is required`);
@@ -1318,12 +1321,13 @@ export class NotificationReadEvent extends NotificationEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`NotificationReadEvent has no session`);
+        throw new Error(`NotificationReadEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`NotificationReadEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`NotificationReadEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`NotificationReadEvent.space is required`);
@@ -1843,12 +1847,13 @@ export class NotificationDismissedEvent extends NotificationEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`NotificationDismissedEvent has no session`);
+        throw new Error(`NotificationDismissedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`NotificationDismissedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`NotificationDismissedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`NotificationDismissedEvent.space is required`);
@@ -2368,12 +2373,13 @@ export class NotificationExpiredEvent extends NotificationEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`NotificationExpiredEvent has no session`);
+        throw new Error(`NotificationExpiredEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`NotificationExpiredEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`NotificationExpiredEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`NotificationExpiredEvent.space is required`);
@@ -2988,12 +2994,13 @@ export class Notification extends Entity implements IsOwnable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Notification has no session`);
+        throw new Error(`Notification has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Notification has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Notification has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Notification.space is required`);

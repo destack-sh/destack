@@ -10,6 +10,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Event,
@@ -262,12 +263,13 @@ export class TimerStartedEvent extends TimerEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`TimerStartedEvent has no session`);
+        throw new Error(`TimerStartedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`TimerStartedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`TimerStartedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`TimerStartedEvent.space is required`);
@@ -787,12 +789,13 @@ export class TimerCompletedEvent extends TimerEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`TimerCompletedEvent has no session`);
+        throw new Error(`TimerCompletedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`TimerCompletedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`TimerCompletedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`TimerCompletedEvent.space is required`);
@@ -1312,12 +1315,13 @@ export class TimerCancelledEvent extends TimerEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`TimerCancelledEvent has no session`);
+        throw new Error(`TimerCancelledEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`TimerCancelledEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`TimerCancelledEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`TimerCancelledEvent.space is required`);
@@ -1901,12 +1905,13 @@ export class Timer extends Entity {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Timer has no session`);
+        throw new Error(`Timer has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Timer has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Timer has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Timer.space is required`);

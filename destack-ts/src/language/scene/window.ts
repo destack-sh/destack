@@ -13,6 +13,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Materialization,
@@ -280,12 +281,13 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Window has no session`);
+        throw new Error(`Window has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Window has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Window has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Window.space is required`);

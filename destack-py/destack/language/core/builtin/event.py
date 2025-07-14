@@ -104,8 +104,8 @@ class Event[N: Node = Node](Node):
         node: Optional["Node"] = builtin_property(101, description="The Node this Event is about.")
 
     @contextmanager
-    def as_cause(self: "Event[Node]") -> Generator["Event[Node]", None, None]:
-        """Get this Event as the cause of another Event."""
+    def active(self: "Event[Node]") -> Generator["Event[Node]", None, None]:
+        """Set this Event as the active Event."""
         token = ACTIVE_EVENT.set(self)
         try:
             ACTIVE_EVENT.set(self)

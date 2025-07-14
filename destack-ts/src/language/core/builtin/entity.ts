@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
 import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
+import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, hasTrait } from "@destack/language/core/builtin/node";
@@ -725,12 +726,13 @@ export class CustomEntityDefinition
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomEntityDefinition has no session`);
+        throw new Error(`CustomEntityDefinition has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomEntityDefinition has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomEntityDefinition has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomEntityDefinition.space is required`);
@@ -1814,12 +1816,13 @@ export class CustomTraitDefinition
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomTraitDefinition has no session`);
+        throw new Error(`CustomTraitDefinition has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomTraitDefinition has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomTraitDefinition has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomTraitDefinition.space is required`);
@@ -3017,12 +3020,13 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Snapshot has no session`);
+        throw new Error(`Snapshot has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Snapshot has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Snapshot has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Snapshot.space is required`);

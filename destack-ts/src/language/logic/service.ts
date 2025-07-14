@@ -20,7 +20,14 @@ import type {
   Supergraph,
   Value,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import type { Script } from "@destack/language/logic/script";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
@@ -349,12 +356,13 @@ export class Service
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Service has no session`);
+        throw new Error(`Service has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Service has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Service has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Service.space is required`);

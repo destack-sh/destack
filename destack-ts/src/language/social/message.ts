@@ -14,7 +14,14 @@ import type {
   Supergraph,
   Text,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Thread } from "@destack/language/social/thread";
 import type { Space } from "@destack/language/universe";
@@ -374,12 +381,13 @@ export class Message extends Entity implements IsOwnable, IsDeletable, IsTaggabl
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Message has no session`);
+        throw new Error(`Message has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Message has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Message has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Message.space is required`);

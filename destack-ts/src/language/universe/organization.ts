@@ -11,6 +11,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Materialization,
@@ -259,12 +260,13 @@ export class Organization extends Entity implements IsSubject, IsJoinable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Organization has no session`);
+        throw new Error(`Organization has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Organization has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Organization has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Organization.space is required`);

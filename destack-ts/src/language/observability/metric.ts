@@ -12,6 +12,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -417,12 +418,13 @@ export class GaugeMetric extends Metric {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`GaugeMetric has no session`);
+        throw new Error(`GaugeMetric has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`GaugeMetric has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`GaugeMetric has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`GaugeMetric.space is required`);
@@ -1055,12 +1057,13 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`GaugeMeasurementEvent has no session`);
+        throw new Error(`GaugeMeasurementEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`GaugeMeasurementEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`GaugeMeasurementEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`GaugeMeasurementEvent.space is required`);
@@ -1679,12 +1682,13 @@ export class CounterMetric extends Metric {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CounterMetric has no session`);
+        throw new Error(`CounterMetric has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CounterMetric has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CounterMetric has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CounterMetric.space is required`);
@@ -2317,12 +2321,13 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CounterMeasurementEvent has no session`);
+        throw new Error(`CounterMeasurementEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CounterMeasurementEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CounterMeasurementEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CounterMeasurementEvent.space is required`);
@@ -2941,12 +2946,13 @@ export class HistogramMetric extends Metric {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`HistogramMetric has no session`);
+        throw new Error(`HistogramMetric has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`HistogramMetric has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`HistogramMetric has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`HistogramMetric.space is required`);
@@ -3579,12 +3585,13 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`HistogramMeasurementEvent has no session`);
+        throw new Error(`HistogramMeasurementEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`HistogramMeasurementEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`HistogramMeasurementEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`HistogramMeasurementEvent.space is required`);

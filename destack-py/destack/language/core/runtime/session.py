@@ -37,7 +37,7 @@ tracer = trace.get_tracer(__name__)
 
 class Session:
     """
-    A managed Session for interacting with Destack.
+    A managed Session for interacting with Spaces on Destack.
     """
 
     __slots__ = (
@@ -47,7 +47,6 @@ class Session:
         "oracle",
         "pending_events",
         "runtime",
-        "space_ptr",
         "store",
         "subject_ptr",
         "supergraph",
@@ -57,12 +56,10 @@ class Session:
         self,
         *,
         oracle: Oracle = WORLD_ORACLE,
-        space_ptr: NodeReference | None = None,
         subject_ptr: NodeReference | None = None,
         store: "EventStore | EntityStore | None" = None,
     ):
         self.oracle: Oracle = oracle
-        self.space_ptr: NodeReference | None = space_ptr
         self.subject_ptr: NodeReference | None = subject_ptr
         self.store: EventStore | EntityStore | None = store
         self.supergraph = Supergraph(self)
@@ -75,8 +72,6 @@ class Session:
 
     def __str__(self) -> str:
         content_parts: list[str] = []
-        if self.space_ptr:
-            content_parts.append(f"space={self.space_ptr!r}")
         if self.subject_ptr is not None:
             content_parts.append(f"subject={self.subject_ptr!r}")
         if self.store is not None:
@@ -113,12 +108,11 @@ class Session:
     def create(self, node: Entity):
         """Creates a new Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         edit = EditEvent(
             type=EditType.CREATE,
             node=node,
             value=to_value(node, node_as_value=True),
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -126,12 +120,11 @@ class Session:
     def upsert(self, node: Entity):
         """Creates or updates an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         edit = EditEvent(
             type=EditType.UPSERT,
             node=node,
             value=to_value(node, node_as_value=True),
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -139,7 +132,6 @@ class Session:
     def update_set_property(self, node: Entity, prop: PropertyDeclaration, new_value: Any):
         """Set a Property on this Node (direct SET/CLEAR operations)."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         old_value = getattr(node, prop.name)
         node_ptr = node.to_ref()
         prop_ptr = prop.to_ref()
@@ -169,7 +161,7 @@ class Session:
             value=new_value,
             reverse_operation=undo_operation,
             reverse_value=old_value,
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
 
@@ -181,62 +173,57 @@ class Session:
     def move(self, node: Entity, parent: Entity):
         """Moves an Entity to a new parent."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         old_parent = node.parent
         edit = EditEvent(
             type=EditType.MOVE,
             node=node,
             value=to_value(parent),
             reverse_value=to_value(old_parent),
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
 
     def archive(self, node: Entity):
         """Archives an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         reverse_value = to_value(node, node_as_value=True)
         edit = EditEvent(
             type=EditType.ARCHIVE,
             node=node,
             reverse_value=reverse_value,
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
 
     def unarchive(self, node: Entity):
         """Unarchives an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         edit = EditEvent(
             type=EditType.UNARCHIVE,
             node=node,
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
 
     def delete(self, node: Entity):
         """Deletes an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         reverse_value = to_value(node, node_as_value=True)
         edit = EditEvent(
             type=EditType.DELETE,
             node=node,
             reverse_value=reverse_value,
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
 
     def restore(self, node: Entity):
         """Restores a deleted Entity."""
         assert self.closed_at is None, f"{self!r} is closed"
-        assert self.space_ptr is not None, f"{self!r} has no space"
         edit = EditEvent(
             type=EditType.RESTORE,
             node=node,
-            space_ptr=self.space_ptr,
+            space_ptr=node.space_ptr,
         )
         self.pending_events.append(edit)
 

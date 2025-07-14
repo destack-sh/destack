@@ -9,7 +9,15 @@ import type {
   Supergraph,
   Vector2f,
 } from "@destack/language/core";
-import { Entity, EnumType, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  EnumType,
+  EventStatus,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { PointerEvent } from "@destack/language/interaction/pointer";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -431,12 +439,13 @@ export class SingleClickEvent extends ClickEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`SingleClickEvent has no session`);
+        throw new Error(`SingleClickEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`SingleClickEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`SingleClickEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`SingleClickEvent.space is required`);
@@ -1116,12 +1125,13 @@ export class DoubleClickEvent extends ClickEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DoubleClickEvent has no session`);
+        throw new Error(`DoubleClickEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DoubleClickEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DoubleClickEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DoubleClickEvent.space is required`);
@@ -1801,12 +1811,13 @@ export class TripleClickEvent extends ClickEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`TripleClickEvent has no session`);
+        throw new Error(`TripleClickEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`TripleClickEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`TripleClickEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`TripleClickEvent.space is required`);
@@ -2492,12 +2503,13 @@ export class WheelEvent extends MouseEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`WheelEvent has no session`);
+        throw new Error(`WheelEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`WheelEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`WheelEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`WheelEvent.space is required`);

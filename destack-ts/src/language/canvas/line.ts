@@ -24,6 +24,7 @@ import type {
   Vector2f,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Align,
   Direction,
   Distribute,
@@ -1041,12 +1042,13 @@ export class LineShape extends Shape {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`LineShape has no session`);
+        throw new Error(`LineShape has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`LineShape has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`LineShape has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`LineShape.space is required`);

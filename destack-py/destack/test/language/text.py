@@ -4,6 +4,7 @@ from destack.language import (
     Aliasing,
     Folder,
     Session,
+    Space,
     Text,
     TextSpan,
     TextSpanType,
@@ -13,7 +14,7 @@ from destack.language import (
 )
 
 
-def test_text_mentions(session: Session):
+def test_text_mentions(session: Session, space: Space):
     Folder1 = Folder(name="Folder1")
     Folder2 = Folder(name="Folder2")
     aliasing = Aliasing.new(session.supergraph, {"Folder1": Folder1, "Folder2": Folder2})

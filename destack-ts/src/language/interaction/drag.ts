@@ -9,7 +9,14 @@ import type {
   Supergraph,
   Vector2f,
 } from "@destack/language/core";
-import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  EventStatus,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
@@ -246,12 +253,13 @@ export class DragStartEvent extends DragEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DragStartEvent has no session`);
+        throw new Error(`DragStartEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DragStartEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DragStartEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DragStartEvent.space is required`);
@@ -792,12 +800,13 @@ export class DragEndEvent extends DragEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DragEndEvent has no session`);
+        throw new Error(`DragEndEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DragEndEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DragEndEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DragEndEvent.space is required`);
@@ -1338,12 +1347,13 @@ export class DragOverEvent extends DragEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DragOverEvent has no session`);
+        throw new Error(`DragOverEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DragOverEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DragOverEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DragOverEvent.space is required`);
@@ -1884,12 +1894,13 @@ export class DragEnterEvent extends DragEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DragEnterEvent has no session`);
+        throw new Error(`DragEnterEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DragEnterEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DragEnterEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DragEnterEvent.space is required`);
@@ -2430,12 +2441,13 @@ export class DragLeaveEvent extends DragEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DragLeaveEvent has no session`);
+        throw new Error(`DragLeaveEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DragLeaveEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DragLeaveEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DragLeaveEvent.space is required`);
@@ -2976,12 +2988,13 @@ export class DropEvent extends DragEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`DropEvent has no session`);
+        throw new Error(`DropEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`DropEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`DropEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`DropEvent.space is required`);

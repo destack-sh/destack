@@ -13,6 +13,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   Event,
   EventStatus,
@@ -241,12 +242,13 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Reaction has no session`);
+        throw new Error(`Reaction has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Reaction has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Reaction has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Reaction.space is required`);
@@ -845,12 +847,13 @@ export class ReactionEvent extends Event {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`ReactionEvent has no session`);
+        throw new Error(`ReactionEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`ReactionEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`ReactionEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`ReactionEvent.space is required`);

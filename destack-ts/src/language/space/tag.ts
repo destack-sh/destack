@@ -13,7 +13,14 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Folder } from "@destack/language/space/folder";
 import type { Space } from "@destack/language/universe";
@@ -224,12 +231,13 @@ export class Tag extends Entity implements IsOrdered, IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Tag has no session`);
+        throw new Error(`Tag has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Tag has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Tag has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Tag.space is required`);
@@ -889,12 +897,13 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Tagging has no session`);
+        throw new Error(`Tagging has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Tagging has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Tagging has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Tagging.space is required`);

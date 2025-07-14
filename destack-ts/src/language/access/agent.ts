@@ -11,7 +11,14 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import type { Cursor } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Folder } from "@destack/language/space";
@@ -248,12 +255,13 @@ export class Agent extends Entity implements IsSubject, IsFollowable, IsDeletabl
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Agent has no session`);
+        throw new Error(`Agent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Agent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Agent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Agent.space is required`);

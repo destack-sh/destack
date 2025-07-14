@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    IndexIn,
     IsDeletable,
     IsFollowable,
     IsJoinable,
@@ -35,10 +34,7 @@ class FolderType(Enum):
     # SERVICE, PLUGIN, WIDGET, TEMPLATE, LIBRARY, ...
 
 
-@builtin_node(
-    NodeType.FOLDER,
-    index=(IndexIn(columns=("space_id", "slug"), is_unique=True),),
-)
+@builtin_node(NodeType.FOLDER)
 class Folder(
     IsTaggable,
     IsOwnable,

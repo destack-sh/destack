@@ -12,6 +12,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Event,
@@ -283,12 +284,13 @@ export class SanctionRequestedEvent extends SanctionEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`SanctionRequestedEvent has no session`);
+        throw new Error(`SanctionRequestedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`SanctionRequestedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`SanctionRequestedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`SanctionRequestedEvent.space is required`);
@@ -849,12 +851,13 @@ export class SanctionGrantedEvent extends SanctionEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`SanctionGrantedEvent has no session`);
+        throw new Error(`SanctionGrantedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`SanctionGrantedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`SanctionGrantedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`SanctionGrantedEvent.space is required`);
@@ -1415,12 +1418,13 @@ export class SanctionRevokedEvent extends SanctionEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`SanctionRevokedEvent has no session`);
+        throw new Error(`SanctionRevokedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`SanctionRevokedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`SanctionRevokedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`SanctionRevokedEvent.space is required`);
@@ -1981,12 +1985,13 @@ export class SanctionExpiredEvent extends SanctionEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`SanctionExpiredEvent has no session`);
+        throw new Error(`SanctionExpiredEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`SanctionExpiredEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`SanctionExpiredEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`SanctionExpiredEvent.space is required`);
@@ -2617,12 +2622,13 @@ export class Sanction extends Entity implements IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Sanction has no session`);
+        throw new Error(`Sanction has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Sanction has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Sanction has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Sanction.space is required`);

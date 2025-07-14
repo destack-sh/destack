@@ -1,5 +1,3 @@
-# ruff: noqa: F405
-
 from .access import *  # noqa: F403
 from .canvas import *  # noqa: F403
 from .core import *  # noqa: F403
@@ -27,7 +25,3 @@ from .universe import *  # noqa: F403
 from .view import *  # noqa: F403
 
 finalize()
-
-# builtin destackes (pointers) :Builtins
-DESTACK_PTR = NodeReference(type=NodeType.SPACE, id=DESTACK_ID, space_id=DESTACK_ID)
-DESTACK_ICON = icon("https://destack.com/favicon.ico")

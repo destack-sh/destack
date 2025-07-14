@@ -12,6 +12,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Event,
@@ -283,12 +284,13 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EntitlementRequestedEvent has no session`);
+        throw new Error(`EntitlementRequestedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EntitlementRequestedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EntitlementRequestedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EntitlementRequestedEvent.space is required`);
@@ -849,12 +851,13 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EntitlementGrantedEvent has no session`);
+        throw new Error(`EntitlementGrantedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EntitlementGrantedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EntitlementGrantedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EntitlementGrantedEvent.space is required`);
@@ -1415,12 +1418,13 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EntitlementRevokedEvent has no session`);
+        throw new Error(`EntitlementRevokedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EntitlementRevokedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EntitlementRevokedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EntitlementRevokedEvent.space is required`);
@@ -1981,12 +1985,13 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EntitlementExpiredEvent has no session`);
+        throw new Error(`EntitlementExpiredEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EntitlementExpiredEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EntitlementExpiredEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EntitlementExpiredEvent.space is required`);
@@ -2617,12 +2622,13 @@ export class Entitlement extends Entity implements IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Entitlement has no session`);
+        throw new Error(`Entitlement has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Entitlement has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Entitlement has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Entitlement.space is required`);

@@ -11,6 +11,7 @@ import {
   TypeCardinality,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
+import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type {
   CustomEntityDefinition,
   CustomTraitDefinition,
@@ -719,12 +720,13 @@ export class CustomProperty
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomProperty has no session`);
+        throw new Error(`CustomProperty has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomProperty has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomProperty has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomProperty.space is required`);
@@ -2104,12 +2106,13 @@ export class CustomPropertyGroup extends Entity implements IsArchivable, IsDelet
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomPropertyGroup has no session`);
+        throw new Error(`CustomPropertyGroup has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`CustomPropertyGroup has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`CustomPropertyGroup has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`CustomPropertyGroup.space is required`);

@@ -12,6 +12,7 @@ import type {
   Vector2i,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Materialization,
@@ -379,12 +380,13 @@ export class EventCursor extends Cursor {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`EventCursor has no session`);
+        throw new Error(`EventCursor has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`EventCursor has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`EventCursor has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`EventCursor.space is required`);
@@ -1085,12 +1087,13 @@ export class ScreenCursor extends Cursor {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`ScreenCursor has no session`);
+        throw new Error(`ScreenCursor has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`ScreenCursor has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`ScreenCursor has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`ScreenCursor.space is required`);
@@ -1803,12 +1806,13 @@ export class ThreadCursor extends Cursor {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`ThreadCursor has no session`);
+        throw new Error(`ThreadCursor has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`ThreadCursor has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`ThreadCursor has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`ThreadCursor.space is required`);

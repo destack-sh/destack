@@ -14,7 +14,14 @@ import type {
   Supergraph,
   Value,
 } from "@destack/language/core";
-import { Entity, Materialization, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  Materialization,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, ScriptProto } from "@destack/proto";
@@ -241,12 +248,13 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Script has no session`);
+        throw new Error(`Script has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Script has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Script has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Script.space is required`);

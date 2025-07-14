@@ -15,6 +15,7 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Event,
@@ -387,12 +388,13 @@ export class Trigger extends Entity {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Trigger has no session`);
+        throw new Error(`Trigger has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Trigger has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Trigger has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Trigger.space is required`);

@@ -40,7 +40,15 @@ from .common import (
     TypeCardinality,
     ValueFactory,
 )
-from .const import ACTIVE_SESSION, EMPTY_DICT, REGION, UNSET
+from .const import (
+    ACTIVE_EVENT,
+    ACTIVE_SESSION,
+    ACTIVE_SNAPSHOT,
+    ACTIVE_SPACE,
+    EMPTY_DICT,
+    REGION,
+    UNSET,
+)
 from .property import (
     _PROPERTY_SPECIFIERS,
     PropertyDeclaration,
@@ -142,6 +150,9 @@ def _generate_init[ObjectT: BuiltinObject](
     # body
     # NOTE: Structs can use direct assignment, Nodes shouldn't (because of custom __setattr__)
     extra_glbls["ACTIVE_SESSION"] = ACTIVE_SESSION
+    extra_glbls["ACTIVE_SPACE"] = ACTIVE_SPACE
+    extra_glbls["ACTIVE_SNAPSHOT"] = ACTIVE_SNAPSHOT
+    extra_glbls["ACTIVE_EVENT"] = ACTIVE_EVENT
     extra_glbls["EMPTY_LIST"] = frozenlist()
     extra_glbls["EMPTY_DICT"] = frozendict()
     extra_glbls["uuid4"] = uuid4
@@ -287,9 +298,10 @@ if {self_name} is None:
                 assert is_node, f"{cls.__name__} is not a Node, cannot use self in {prop!r}"
                 method_body_lines.append(f"""\
 if {self_name} is None:
-    assert self._session is not None, "no session for {cls.__name__}"
-    assert self._session.space_ptr is not None, f"no space for {cls.__name__} in {{self._session!r}}"
-    {self_name} = self._session.space_ptr""")
+    space = ACTIVE_SPACE.get()
+    if space is None:
+        raise RuntimeError("no active Space for {cls.__name__}")
+    {self_name} = space.to_ref()""")
             else:
                 assert_never(prop.default_factory)
 

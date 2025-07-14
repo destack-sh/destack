@@ -1,6 +1,15 @@
 import { ReactiveSession, SessionProvider } from "@destack-web/language";
 import { IndexedDBStore } from "@destack-web/store";
-import { ACTIVE_SESSION, Layer, LineShape, Region, Space, SpaceStatus, StoreKey } from "destack";
+import {
+  ACTIVE_SESSION,
+  ACTIVE_SPACE,
+  Layer,
+  LineShape,
+  Region,
+  Space,
+  SpaceStatus,
+  StoreKey,
+} from "destack";
 import React from "react";
 import LayerView from "./Layer";
 
@@ -30,6 +39,7 @@ if (space == null) {
     Lines: LineShape.search(),
   }).executeOne();
 }
+ACTIVE_SPACE.set(space);
 
 const Destack: React.FC = () => {
   return (

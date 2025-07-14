@@ -6,6 +6,7 @@ from pytest_async_benchmark.plugin import AsyncBenchmarkFixture
 from pytest_lazy_fixtures import lf
 
 from destack.language import (
+    REGION,
     Client,
     ClientType,
     Entity,
@@ -21,6 +22,8 @@ from destack.language import (
     Reaction,
     Session,
     Snapshot,
+    Space,
+    SpaceStatus,
     Star,
     TextView,
     User,
@@ -42,7 +45,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 @given(node=nodes)
 @examples([{"node": node} for node in NODES])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-async def test_roundtrip_create_node(node: Node, session: Session):
+async def test_roundtrip_create_node(node: Node, session: Session, space: Space):
     assert session.store is not None, f"no store in session: {session!r}"
     if node.metatype not in session.store.node_types or not isinstance(node, Entity):
         return  # ignore custom/excluded nodes
@@ -58,7 +61,8 @@ async def test_roundtrip_create_node(node: Node, session: Session):
 async def test_create_user_with_clients(session: Session):
     """Create and update a User with Clients, querying along the way."""
     # create user
-    user = User(status=UserStatus.ACTIVE, name="Floof", slug="floof")
+    space = Space(name="Floof", slug="floof", status=SpaceStatus.ACTIVE, region=REGION)
+    user = User(status=UserStatus.ACTIVE, name="Floof", slug="floof", space=space)
     session.create(user)
     await session.commit()
     # update user
@@ -77,8 +81,8 @@ async def test_create_user_with_clients(session: Session):
     assert user_unpacked.status == UserStatus.ACTIVE
 
     # create clients
-    client_a = Client(type=ClientType.WEB, name="Client A")
-    client_b = Client(type=ClientType.WEB, name="Client B")
+    client_a = Client(type=ClientType.WEB, name="Client A", space=space)
+    client_b = Client(type=ClientType.WEB, name="Client B", space=space)
     user.add_children(client_a, client_b)
     await session.commit()
     # query clients
@@ -105,7 +109,7 @@ async def test_create_user_with_clients(session: Session):
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_create_folders_recursive(session: Session):
+async def test_create_folders_recursive(session: Session, space: Space):
     """Create a Folder with recursive sub-Folders, mutate it, querying along the way."""
 
     NUM_FOLDERS_PER_SUBTREE = 4
@@ -207,7 +211,7 @@ async def test_create_folders_recursive(session: Session):
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_create_layer_with_heterogeneous_views(session: Session):
+async def test_create_layer_with_heterogeneous_views(session: Session, space: Space):
     """Create a Layer with heterogeneous Views, mutate it, querying along the way."""
     # create layer
     layer = Layer(name="Layer")
@@ -265,7 +269,7 @@ async def test_create_layer_with_heterogeneous_views(session: Session):
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_create_star(session: Session):
+async def test_create_star(session: Session, space: Space):
     """Create Stars and query them."""
 
     users = [User(name=f"User{i}", slug=f"user{i}") for i in range(20)]
@@ -286,7 +290,7 @@ async def test_create_star(session: Session):
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
-async def test_create_reaction_groups(session: Session):
+async def test_create_reaction_groups(session: Session, space: Space):
     """Create Reactions and query them."""
 
     users = [User(name=f"User{i}", slug=f"user{i}") for i in range(10)]
@@ -341,7 +345,8 @@ async def test_create_reaction_groups(session: Session):
 async def test_benchmark_create_reactions(session: Session, async_benchmark: AsyncBenchmarkFixture):
     """Benchmark creating reactions without parent."""
 
-    user = User(name="User", slug="user")
+    space = Space(name="Test", slug="test", status=SpaceStatus.ACTIVE, region=REGION)
+    user = User(name="User", slug="user", space=space)
     session.create(user)
     await session.commit()
 
@@ -350,7 +355,7 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
     async def _create_reactions():
         reactions = []
         for _ in range(NUM_REACTIONS):
-            reaction = Reaction(content="👍", owned_by=user)
+            reaction = Reaction(content="👍", owned_by=user, space=space)
             reactions.append(reaction)
             session.create(reaction)
         await session.commit()
@@ -361,9 +366,9 @@ async def test_benchmark_create_reactions(session: Session, async_benchmark: Asy
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
-async def test_move_views(session: Session):
+async def test_move_views(session: Session, space: Space):
     """Move Views around."""
-    layer = Layer(name="Layer")
+    layer = Layer(name="Layer", space=space)
     session.create(layer)
     await session.commit()
 
@@ -418,11 +423,12 @@ async def test_edit_partial_node_in_snapshot(session: Session):
 
     # TODO :Incomplete!: support Entity branching & variants
 
-    user = User(name="Alice", slug="alice")
+    space = Space(name="Test", slug="test", status=SpaceStatus.ACTIVE, region=REGION)
+    user = User(name="Alice", slug="alice", space=space)
     session.create(user)
     await session.commit()
 
-    snapshot = Snapshot(name="My Little Snapshot")
+    snapshot = Snapshot(name="My Little Snapshot", space=space)
     session.create(snapshot)
     await session.commit()
 
@@ -456,10 +462,10 @@ async def test_edit_partial_node_in_snapshot(session: Session):
 
 # @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 @pytest.mark.skip(reason=":Incomplete")
-async def test_edit_partial_graph_in_snapshot(session: Session):
+async def test_edit_partial_graph_in_snapshot(session: Session, space: Space):
     """Create a Snapshot and query it."""
 
-    user = User(name="Alice", slug="alice")
+    user = User(name="Alice", slug="alice", space=space)
     session.create(user)
     await session.commit()
 

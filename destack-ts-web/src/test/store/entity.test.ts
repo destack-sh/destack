@@ -1,9 +1,11 @@
 import { IndexedDBStore } from "@destack-web/store/indexeddb";
 import {
+  ACTIVE_SPACE,
   Client,
   ClientType,
   Folder,
   FolderType,
+  Space,
   FrameView,
   Join,
   JoinType,
@@ -14,7 +16,9 @@ import {
   NodeReference,
   NodeType,
   Reaction,
+  Region,
   Session,
+  SpaceStatus,
   Star,
   StoreKey,
   TextView,
@@ -61,12 +65,21 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   const sessionTest = test.extend<{ session: Session }>({
     session: async ({ task }, use) => {
       const store = await createStore();
-      const session = new Session({
-        store,
-        spacePtr: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
-      });
+      // session
+      const session = new Session({ store });
       await session.open();
+      // space
+      const space = new Space({
+        name: "My Space",
+        slug: "my-space",
+        status: SpaceStatus.ACTIVE,
+        region: Region.ZURICH,
+      });
+      ACTIVE_SPACE.set(space);
+      
       await use(session);
+      
+      // teardown
       await session.close();
       await tearDown(store as any);
     },

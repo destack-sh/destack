@@ -8,7 +8,14 @@ import type {
   Snapshot,
   Supergraph,
 } from "@destack/language/core";
-import { Entity, EventStatus, Node, NodeType, StructType } from "@destack/language/core";
+import {
+  ACTIVE_SPACE,
+  Entity,
+  EventStatus,
+  Node,
+  NodeType,
+  StructType,
+} from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
@@ -319,12 +326,13 @@ export class KeyDownEvent extends KeyboardEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`KeyDownEvent has no session`);
+        throw new Error(`KeyDownEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`KeyDownEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`KeyDownEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`KeyDownEvent.space is required`);
@@ -992,12 +1000,13 @@ export class KeyUpEvent extends KeyboardEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`KeyUpEvent has no session`);
+        throw new Error(`KeyUpEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`KeyUpEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`KeyUpEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`KeyUpEvent.space is required`);
@@ -1665,12 +1674,13 @@ export class KeyPressEvent extends KeyboardEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`KeyPressEvent has no session`);
+        throw new Error(`KeyPressEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`KeyPressEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`KeyPressEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`KeyPressEvent.space is required`);

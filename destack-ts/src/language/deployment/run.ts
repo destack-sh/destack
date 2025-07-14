@@ -14,6 +14,7 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Event,
@@ -291,12 +292,13 @@ export class RunStartedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunStartedEvent has no session`);
+        throw new Error(`RunStartedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunStartedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunStartedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunStartedEvent.space is required`);
@@ -850,12 +852,13 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunPauseRequestedEvent has no session`);
+        throw new Error(`RunPauseRequestedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunPauseRequestedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunPauseRequestedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunPauseRequestedEvent.space is required`);
@@ -1421,12 +1424,13 @@ export class RunPausedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunPausedEvent has no session`);
+        throw new Error(`RunPausedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunPausedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunPausedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunPausedEvent.space is required`);
@@ -1980,12 +1984,13 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunResumeRequestedEvent has no session`);
+        throw new Error(`RunResumeRequestedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunResumeRequestedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunResumeRequestedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunResumeRequestedEvent.space is required`);
@@ -2551,12 +2556,13 @@ export class RunResumedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunResumedEvent has no session`);
+        throw new Error(`RunResumedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunResumedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunResumedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunResumedEvent.space is required`);
@@ -3110,12 +3116,13 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunStopRequestedEvent has no session`);
+        throw new Error(`RunStopRequestedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunStopRequestedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunStopRequestedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunStopRequestedEvent.space is required`);
@@ -3681,12 +3688,13 @@ export class RunFailedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunFailedEvent has no session`);
+        throw new Error(`RunFailedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunFailedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunFailedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunFailedEvent.space is required`);
@@ -4240,12 +4248,13 @@ export class RunCompletedEvent extends RunEvent {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`RunCompletedEvent has no session`);
+        throw new Error(`RunCompletedEvent has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`RunCompletedEvent has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`RunCompletedEvent has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`RunCompletedEvent.space is required`);

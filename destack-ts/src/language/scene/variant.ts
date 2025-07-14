@@ -14,6 +14,7 @@ import type {
   Supergraph,
 } from "@destack/language/core";
 import {
+  ACTIVE_SPACE,
   Entity,
   EnumType,
   Materialization,
@@ -378,12 +379,13 @@ export class Variant extends Entity implements IsOwnable, IsDeletable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Variant has no session`);
+        throw new Error(`Variant has no Session`);
       }
-      if (this._session.spacePtr === null) {
-        throw new Error(`Variant has no space`);
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`Variant has no Space`);
       }
-      _space = this._session.spacePtr;
+      _space = _space.toRef();
     }
     if (_space === null) {
       throw new Error(`Variant.space is required`);

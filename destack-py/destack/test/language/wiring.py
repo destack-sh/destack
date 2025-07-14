@@ -11,6 +11,7 @@ from destack.language import (
     NodeType,
     Query,
     Session,
+    Space,
     Thread,
     ThreadCursor,
     User,
@@ -21,7 +22,7 @@ from destack.test.strategies import builtin_objects, examples
 from destack.utils.uuid import uuid4
 
 
-def test_roundtrip_node_reference():
+def test_roundtrip_node_reference(session: Session, space: Space):
     """Pack and unpack a NodeReference as proto and value."""
     node_ref = NodeReference(
         type=NodeType.FOLDER, id=uuid4(), space_id=uuid4(), definition_id=uuid4()
@@ -52,7 +53,7 @@ def test_roundtrip_node_reference():
     )
 
 
-def test_roundtrip_query_proto(session: Session):
+def test_roundtrip_query_proto(session: Session, space: Space):
     """Pack and unpack a Query as proto."""
     query = Thread.search(
         sort=[Thread.property("created_at").asc()],
@@ -82,7 +83,7 @@ def test_roundtrip_query_proto(session: Session):
     assert unpacked_query.hash() == query.hash(), f"{unpacked_query.hash()} != {query.hash()}"
 
 
-def test_roundtrip_user_proto(session: Session):
+def test_roundtrip_user_proto(session: Session, space: Space):
     """Pack and unpack a User as proto."""
     user = User(
         status=UserStatus.ACTIVE,
@@ -112,7 +113,9 @@ def test_roundtrip_user_proto(session: Session):
 @given(obj=builtin_objects())
 @examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
-def test_roundtrip_builtin_object(obj: BuiltinObject[AnyObjectProto], session: Session):
+def test_roundtrip_builtin_object(
+    obj: BuiltinObject[AnyObjectProto], session: Session, space: Space
+):
     # proto
     packed_obj_data: AnyObjectProto = obj.to_proto()
     packed_bytes = packed_obj_data.SerializeToString()
