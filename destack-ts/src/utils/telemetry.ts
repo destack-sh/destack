@@ -1,7 +1,7 @@
 import { trace } from "@opentelemetry/api";
 
 function setupTelemetry() {
-  // nocheckin
+  // nocheckin: destack-ts telemetry
 }
 
 export function getTracer(name: string) {

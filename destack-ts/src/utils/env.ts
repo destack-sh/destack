@@ -1,5 +1,3 @@
-export const IS_PROD = false;
-
 /** Get a value from the environment (optional) */
 export function getFromEnvMaybe<T>(key: string, typ: "string"): string | undefined;
 export function getFromEnvMaybe<T>(key: string, typ: "number"): number | undefined;
@@ -9,8 +7,7 @@ export function getFromEnvMaybe<T>(
   typ: "string" | "number" | "boolean",
 ): T | undefined {
   const value =
-    typeof process !== "undefined" ? process.env[key] : (import.meta.env as any)[key];
-
+    typeof process !== "undefined" ? process.env[key] : (import.meta as any).env["VITE_" + key];
   if (value === undefined) {
     return undefined;
   }
@@ -39,3 +36,8 @@ export function getFromEnv<T>(key: string, typ: "string" | "number" | "boolean")
   }
   return value as T;
 }
+
+export const IS_PROD = false;
+export const IS_DEV = true;
+export const IS_TEST = false;
+export const IS_WEB = typeof window !== "undefined";

@@ -20,6 +20,7 @@ from destack.language import (
     REGION,
     DatabaseInfo,
     DatabaseType,
+    Region,
     Session,
     Space,
     SpaceStatus,
@@ -28,7 +29,6 @@ from destack.language import (
 )
 from destack.store import MemoryEntityStore, MemoryStore
 from destack.utils.env import get_from_env
-from desys.sharding import get_global_database_from_env
 from desys.store.postgres import (
     POSTGRES_BUILTIN_TABLE_PREFIX,
     PostgresEntityStore,
@@ -45,6 +45,17 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
+
+
+def get_global_database_from_env() -> DatabaseInfo:
+    """Get the default global database configured in the environment"""
+    sql_url = get_from_env("GLOBAL_DATABASE_URL", description="Global database URL")
+    return DatabaseInfo(
+        type=DatabaseType.POSTGRES,
+        connection_url=sql_url,
+        region=Region.ZURICH,
+        external_name="destack-global",
+    )
 
 
 def get_database(name: str) -> DatabaseInfo:

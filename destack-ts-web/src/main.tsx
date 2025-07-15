@@ -1,12 +1,17 @@
 /* eslint-disable no-console */
 import "./polyfills";
 
-import "./assets/index.css";
+import { getLogger } from "@destack/utils/log";
+import { trace } from "@opentelemetry/api";
 import posthog from "posthog-js";
 import React from "react";
 import ReactDOM from "react-dom/client";
+import "./assets/index.css";
 import Destack from "./Destack";
-import { ENV, IS_DEV, UNIVERSE_URL, TELEMETRY, VERSION } from "./utils/globals";
+import { ENV, IS_DEV, TELEMETRY, UNIVERSE_URL, VERSION } from "./utils/globals";
+
+const logger = getLogger("main");
+const tracer = trace.getTracer("destack-ts-web");
 
 async function init() {
   // telemetry
@@ -34,10 +39,14 @@ async function init() {
 
   // dump startup info
   console.group(`%csystem`, "color:yellow");
-  console.info(`%cENV: ${ENV ?? "<unknown>"} (${IS_DEV ? "DEV MODE" : "PROD MODE"})`, "color:yellow");
+  console.info(
+    `%cENV: ${ENV ?? "<unknown>"} (${IS_DEV ? "DEV MODE" : "PROD MODE"})`,
+    "color:yellow",
+  );
   console.info(`%cVERSION: ${VERSION}`, "color:yellow");
   console.info(`%cUNIVERSE_URL: ${UNIVERSE_URL}`, "color:yellow");
   console.groupEnd();
+  logger.info("web.start");
 
   // prevent opening files that are dragged over the window
   window.addEventListener("dragover", (e) => e.preventDefault(), false);
