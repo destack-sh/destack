@@ -37,6 +37,7 @@ export function getFromEnv<T>(key: string, typ: "string" | "number" | "boolean")
   return value as T;
 }
 
+// nocheckin: destack-ts env vars
 export const IS_PROD = false;
 export const IS_DEV = true;
 export const IS_TEST = false;
