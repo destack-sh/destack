@@ -151,10 +151,10 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
   readonly orderKey: string;
 
   /**
-   * Script.name
+   * Entity.name
    */
   /**
-   * Script.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -196,7 +196,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
-    name: string;
+    name?: string;
     code: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -281,7 +281,10 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
       throw new Error(`Script.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Script";
+    }
     if (_name === null) {
       throw new Error(`Script.name is required`);
     }
@@ -324,9 +327,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this._code === other._code)) {
       return false;
     }
@@ -347,6 +347,9 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -359,7 +362,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._code)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt != null) {
@@ -385,6 +387,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -470,7 +473,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     objectValue["110"] = object._code;
     return objectValue;
   }
@@ -528,7 +531,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
         : null;
     return new Script({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       code: objectValue["110"],
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
@@ -540,6 +542,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -628,7 +631,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
               _connection,
             )
           : null,
-      name: objectProto.name,
       code: objectProto.code,
       orderKey: objectProto.orderKey,
       deletedAt:
@@ -677,6 +679,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

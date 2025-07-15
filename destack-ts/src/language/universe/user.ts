@@ -161,10 +161,10 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   _customValues: { readonly [key: string]: Value };
 
   /**
-   * User.name
+   * Entity.name
    */
   /**
-   * User.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -346,7 +346,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     customValues?: { readonly [key: string]: Value };
-    name: string;
+    name?: string;
     slug: string;
     status?: UserStatus;
     lastLoggedInAt?: Temporal.ZonedDateTime | null;
@@ -429,7 +429,10 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "User";
+    }
     if (_name === null) {
       throw new Error(`User.name is required`);
     }
@@ -506,9 +509,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this._slug === other._slug)) {
       return false;
     }
@@ -547,6 +547,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -559,7 +562,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
     if (this._lastLoggedInAt != null) {
@@ -603,6 +605,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -646,9 +649,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${UserStatus[this.status]}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<User "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -686,7 +689,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       }
       objectValue["26"] = packedCustomValues;
     }
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     objectValue["102"] = object._slug;
     objectValue["110"] = object._status;
     if (object._lastLoggedInAt != null) {
@@ -782,7 +785,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
         : null;
     return new User({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       slug: objectValue["102"],
       status: Number(objectValue["110"]),
       lastLoggedInAt: unpackedLastLoggedInAt,
@@ -800,6 +802,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -904,7 +907,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
               _connection,
             )
           : null,
-      name: objectProto.name,
       slug: objectProto.slug,
       status: Number(objectProto.status) as UserStatus,
       lastLoggedInAt:
@@ -979,6 +981,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

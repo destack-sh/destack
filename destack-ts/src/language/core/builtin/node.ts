@@ -25,8 +25,7 @@ import { Graph, QueryConnection, Session, Supergraph } from "@destack/language/c
 import type { NodeTypeMapping, TraitTypeMapping } from "@destack/language/mapping";
 import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/registry";
 import { Casing, toCasing } from "@destack/utils/string";
-import { uuid7 } from "@destack/utils/uuid";
-import { v4 as uuid4 } from "uuid";
+import { uuid4, uuid7 } from "@destack/utils/uuid";
 
 export type NodeFilter = {
   includeDeleted?: boolean;

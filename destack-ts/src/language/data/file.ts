@@ -350,6 +350,22 @@ export class File extends Resource {
   _status: ResourceStatus;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -399,22 +415,6 @@ export class File extends Resource {
     this._type = value;
   }
   _type: FileType;
-
-  /**
-   * File.name
-   */
-  /**
-   * File.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * File.source
@@ -703,10 +703,10 @@ export class File extends Resource {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     status?: ResourceStatus;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type: FileType;
-    name: string;
     source: FileSource;
     mimeType?: string | null;
     format?: FileFormat | null;
@@ -812,6 +812,14 @@ export class File extends Resource {
       throw new Error(`File.status is required`);
     }
     this._status = _status;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "File";
+    }
+    if (_name === null) {
+      throw new Error(`File.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -830,11 +838,6 @@ export class File extends Resource {
       throw new Error(`File.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`File.name is required`);
-    }
-    this._name = _name;
     let _source = options.source;
     if (_source === null) {
       throw new Error(`File.source is required`);
@@ -906,9 +909,6 @@ export class File extends Resource {
       return false;
     }
     if (!(this._type === other._type)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this._source === other._source)) {
@@ -984,6 +984,9 @@ export class File extends Resource {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -1011,7 +1014,6 @@ export class File extends Resource {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + this._source) & 0xffffffff;
     if (this._mimeType != null) {
       h = (h * 31 + hashString(this._mimeType)) & 0xffffffff;
@@ -1083,6 +1085,7 @@ export class File extends Resource {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -1137,7 +1140,6 @@ export class File extends Resource {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FileType[this.type]}`);
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`source=${FileSource[this.source]}`);
     if (this.mimeType != null) {
       propertyReprs.push(`mimeType=${`"${this.mimeType}"`}`);
@@ -1151,6 +1153,7 @@ export class File extends Resource {
     if (this.url != null) {
       propertyReprs.push(`url=${`"${this.url}"`}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<File "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -1195,12 +1198,12 @@ export class File extends Resource {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["40"] = object._status;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     objectValue["110"] = object._source;
     if (object._mimeType != null) {
       objectValue["111"] = object._mimeType;
@@ -1352,7 +1355,6 @@ export class File extends Resource {
     return new File({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       source: Number(objectValue["110"]),
       mimeType: unpackedMimeType,
       format: unpackedFormat,
@@ -1381,6 +1383,7 @@ export class File extends Resource {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -1440,12 +1443,12 @@ export class File extends Resource {
       }
     }
     objectProto.status = Number(object._status) as ResourceStatusProto;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as FileTypeProto;
-    objectProto.name = object._name;
     objectProto.source = Number(object._source) as FileSourceProto;
     if (object._mimeType != null) {
       objectProto.mimeType = object._mimeType;
@@ -1528,7 +1531,6 @@ export class File extends Resource {
             )
           : null,
       type: Number(objectProto.type) as FileType,
-      name: objectProto.name,
       source: Number(objectProto.source) as FileSource,
       mimeType: objectProto.mimeType != undefined ? objectProto.mimeType : null,
       format: objectProto.format != undefined ? (Number(objectProto.format) as FileFormat) : null,
@@ -1606,6 +1608,7 @@ export class File extends Resource {
               _connection,
             )
           : null,
+      name: objectProto.name,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined

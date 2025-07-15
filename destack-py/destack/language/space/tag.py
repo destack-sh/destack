@@ -28,7 +28,6 @@ class Tag(
     """A Tag to tag something."""
 
     parent: Union["Folder", "IsScriptable", None] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
 

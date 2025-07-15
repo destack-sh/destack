@@ -41,7 +41,7 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**
- * An Entity is a versioned, stateful Node.
+ * An Entity is a named, versioned, stateful Node.
  */
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;
@@ -96,6 +96,15 @@ export abstract class Entity extends Node {
    */
   abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
@@ -429,6 +438,15 @@ export abstract class Record
   abstract set ownedByPtr(value: NodeReference | null);
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * The main / root Script of this Node.
    */
   abstract get script(): Script | null;
@@ -538,6 +556,15 @@ export abstract class Resource extends Entity implements IsExtensible, IsDeletab
    */
   abstract get status(): ResourceStatus;
   abstract set status(value: ResourceStatus);
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
 
   /**
    * The main / root Script of this Node.
@@ -698,15 +725,10 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   _ownedByPtr: NodeReference | null;
 
   /**
-   * Snapshot.type
-   */
-  readonly type: SnapshotType;
-
-  /**
-   * Snapshot.name
+   * Entity.name
    */
   /**
-   * Snapshot.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -717,6 +739,11 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     this._name = value;
   }
   _name: string;
+
+  /**
+   * Snapshot.type
+   */
+  readonly type: SnapshotType;
 
   /**
    * Snapshot.status
@@ -748,8 +775,8 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     type?: SnapshotType;
-    name: string;
     status?: SnapshotStatus;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -834,6 +861,14 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Snapshot";
+    }
+    if (_name === null) {
+      throw new Error(`Snapshot.name is required`);
+    }
+    this._name = _name;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* SnapshotType.PARTIAL */;
@@ -842,11 +877,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       throw new Error(`Snapshot.type is required`);
     }
     this.type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Snapshot.name is required`);
-    }
-    this._name = _name;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 10 /* SnapshotStatus.ACTIVE */;
@@ -899,13 +929,13 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (!(this.type === other.type)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this._status === other._status)) {
       return false;
     }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -925,7 +955,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
@@ -944,6 +973,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -987,10 +1017,10 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Snapshot "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -1028,8 +1058,8 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["100"] = object.type;
-    objectValue["101"] = object._name;
     objectValue["110"] = object._status;
     return objectValue;
   }
@@ -1088,7 +1118,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       ),
       predecessor: unpackedPredecessorPtr,
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       status: Number(objectValue["110"]),
       ownedBy: unpackedOwnedByPtr,
       archivedAt: unpackedArchivedAt,
@@ -1098,6 +1127,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1149,8 +1179,8 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.type = Number(object.type) as SnapshotTypeProto;
     objectProto.name = object._name;
+    objectProto.type = Number(object.type) as SnapshotTypeProto;
     objectProto.status = Number(object._status) as SnapshotStatusProto;
     return objectProto as SnapshotProto;
   }
@@ -1192,7 +1222,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
             )
           : null,
       type: Number(objectProto.type) as SnapshotType,
-      name: objectProto.name,
       status: Number(objectProto.status) as SnapshotStatus,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -1231,6 +1260,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1406,6 +1436,15 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable,
   abstract set ownedByPtr(value: NodeReference | null);
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * The main / root Script of this Node.
    */
   abstract get script(): Script | null;
@@ -1420,15 +1459,6 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable,
    * Whether this Node is extensible (whether it can be instanced).
    */
   declare readonly isExtensible: boolean;
-
-  /**
-   * Variant.name
-   */
-  /**
-   * Variant.name
-   */
-  abstract get name(): string;
-  abstract set name(value: string);
 
   /**
    * Variant.icon

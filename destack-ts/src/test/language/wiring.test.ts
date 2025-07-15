@@ -15,7 +15,7 @@ import {
   UserStatus,
 } from "@destack/language";
 import { NodeReferenceProto, QueryProto, UserProto } from "@destack/proto";
-import { v4 as uuid4 } from "uuid";
+import { uuid4 } from "@destack/utils";
 import { expect, test } from "vitest";
 
 const sessionTest = test.extend<{ session: Session }>({

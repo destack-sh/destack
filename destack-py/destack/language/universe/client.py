@@ -29,7 +29,6 @@ class Client(
     # meta
     parent: Optional[IsActor] = builtin_property_parent()
     type: ClientType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
 
     machine: Optional["Machine"] = builtin_property(110)
     user: Optional["User"] = builtin_property(111)

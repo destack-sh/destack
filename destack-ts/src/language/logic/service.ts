@@ -201,6 +201,22 @@ export class Service
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -264,22 +280,6 @@ export class Service
   readonly isExtensible: boolean;
 
   /**
-   * Service.name
-   */
-  /**
-   * Service.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
-  /**
    * Service.icon
    */
   /**
@@ -311,11 +311,11 @@ export class Service
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -410,6 +410,14 @@ export class Service
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Service";
+    }
+    if (_name === null) {
+      throw new Error(`Service.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -430,11 +438,6 @@ export class Service
       throw new Error(`Service.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Service.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -470,9 +473,6 @@ export class Service
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -500,6 +500,9 @@ export class Service
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -523,7 +526,6 @@ export class Service
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -560,6 +562,7 @@ export class Service
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -614,10 +617,10 @@ export class Service
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Service "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -665,6 +668,7 @@ export class Service
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
@@ -675,7 +679,6 @@ export class Service
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -762,7 +765,6 @@ export class Service
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Service({
-      name: objectValue["101"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       ownedBy: unpackedOwnedByPtr,
@@ -778,6 +780,7 @@ export class Service
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
@@ -841,6 +844,7 @@ export class Service
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -851,7 +855,6 @@ export class Service
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -878,7 +881,6 @@ export class Service
       }
     }
     return new Service({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -970,6 +972,7 @@ export class Service
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:

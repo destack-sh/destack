@@ -9,7 +9,6 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    builtin_property,
     builtin_property_parent,
 )
 
@@ -30,5 +29,3 @@ class Route(
     """A Route is a path to something (a Scene, a View in a Scene, an Action, etc.)."""
 
     parent: Union["Folder", "IsScriptable", None] = builtin_property_parent()
-
-    name: str = builtin_property(101, description="The name of the Route.")

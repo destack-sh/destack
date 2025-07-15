@@ -136,7 +136,6 @@ class CustomEvent(
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
     is_abstract: bool = builtin_property(45, default=False)
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
 

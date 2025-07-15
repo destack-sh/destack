@@ -11,15 +11,6 @@ from .scaffold import *  # noqa: F403
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
-# ===============================================
-# breakout/Common [Entity]
-# ===============================================
-
-
-@entity
-class BreakoutService(Service):
-    pass
-
 
 # ===============================================
 # breakout/Game [Entity]
@@ -32,12 +23,32 @@ class BreakoutGame(IsStarable, Record):
 
 
 # ===============================================
+# breakout/Game [Entity]
+# ===============================================
+
+
+@entity
+class BreakoutGameObject(Record):
+    parent: BreakoutGame
+
+
+# ===============================================
+# breakout/Player [Entity]
+# ===============================================
+
+
+@entity
+class BreakoutPlayer(BreakoutGameObject):
+    pass
+
+
+# ===============================================
 # breakout/Paddle [Entity]
 # ===============================================
 
 
 @entity
-class BreakoutPaddle(Record):
+class BreakoutPaddle(BreakoutGameObject):
     pass
 
 
@@ -47,7 +58,7 @@ class BreakoutPaddle(Record):
 
 
 @entity
-class BreakoutBrick(Record):
+class BreakoutBrick(BreakoutGameObject):
     pass
 
 
@@ -57,7 +68,7 @@ class BreakoutBrick(Record):
 
 
 @entity
-class BreakoutBall(Record):
+class BreakoutBall(BreakoutGameObject):
     pass
 
 
@@ -67,5 +78,5 @@ class BreakoutBall(Record):
 
 
 @entity
-class BreakoutWall(Record):
+class BreakoutWall(BreakoutGameObject):
     pass

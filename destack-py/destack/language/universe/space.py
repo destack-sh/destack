@@ -56,7 +56,6 @@ class Space(
     if TYPE_CHECKING:
         space_ptr: Optional[NodeReference] = None
 
-    name: str = builtin_property(101, is_repr=True)
     slug: str = builtin_property(102, is_repr=True)
 
     status: SpaceStatus = builtin_property(110, is_repr=True, can_write=RoleType.SYSTEM)

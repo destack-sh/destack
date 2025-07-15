@@ -57,7 +57,6 @@ class View(
     """A View is a graphical interface."""
 
     parent: Union["Layer", "ContainerView", None] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
 
     # sizing
     position: Optional["Position"] = builtin_property(110)

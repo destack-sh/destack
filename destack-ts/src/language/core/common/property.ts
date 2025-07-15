@@ -177,6 +177,22 @@ export class CustomProperty
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -219,22 +235,6 @@ export class CustomProperty
     this._type = value;
   }
   _type: PropertyType;
-
-  /**
-   * CustomProperty.name
-   */
-  /**
-   * CustomProperty.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * CustomProperty.icon
@@ -621,10 +621,10 @@ export class CustomProperty
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
     type?: PropertyType;
-    name: string;
     icon?: Icon | null;
     cardinality?: TypeCardinality;
     scalarType: ScalarType;
@@ -733,6 +733,14 @@ export class CustomProperty
       throw new Error(`CustomProperty.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "CustomProperty";
+    }
+    if (_name === null) {
+      throw new Error(`CustomProperty.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -748,11 +756,6 @@ export class CustomProperty
       throw new Error(`CustomProperty.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomProperty.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
     let _cardinality = options.cardinality ?? null;
@@ -845,9 +848,6 @@ export class CustomProperty
       return false;
     }
     if (!(this._type === other._type)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (
@@ -950,6 +950,9 @@ export class CustomProperty
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -963,7 +966,6 @@ export class CustomProperty
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -1052,6 +1054,7 @@ export class CustomProperty
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1096,7 +1099,6 @@ export class CustomProperty
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`cardinality=${TypeCardinality[this.cardinality]}`);
     propertyReprs.push(`scalarType=${ScalarType[this.scalarType]}`);
     if (this.primitiveType != null) {
@@ -1117,6 +1119,7 @@ export class CustomProperty
     if (this.keyType != null) {
       propertyReprs.push(`keyType=${this.keyType.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<CustomProperty "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -1154,6 +1157,7 @@ export class CustomProperty
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
@@ -1161,7 +1165,6 @@ export class CustomProperty
       objectValue["70"] = object._key;
     }
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -1378,7 +1381,6 @@ export class CustomProperty
     return new CustomProperty({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       icon: unpackedIcon,
       cardinality: Number(objectValue["110"]),
       scalarType: Number(objectValue["111"]),
@@ -1412,6 +1414,7 @@ export class CustomProperty
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -1464,6 +1467,7 @@ export class CustomProperty
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -1471,7 +1475,6 @@ export class CustomProperty
       objectProto.key = object._key;
     }
     objectProto.type = Number(object._type) as PropertyTypeProto;
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -1572,7 +1575,6 @@ export class CustomProperty
             )
           : null,
       type: Number(objectProto.type) as PropertyType,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -1718,6 +1720,7 @@ export class CustomProperty
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(

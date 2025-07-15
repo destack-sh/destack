@@ -193,6 +193,22 @@ export class Layer
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Layer.type
    */
   /**
@@ -207,22 +223,6 @@ export class Layer
     this._type = value;
   }
   _type: LayerType;
-
-  /**
-   * Layer.name
-   */
-  /**
-   * Layer.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Layer.icon
@@ -350,8 +350,8 @@ export class Layer
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     type?: LayerType;
-    name: string;
     icon?: Icon | null;
     isVisible?: boolean | null;
     opacity?: number | null;
@@ -442,6 +442,14 @@ export class Layer
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Layer";
+    }
+    if (_name === null) {
+      throw new Error(`Layer.name is required`);
+    }
+    this._name = _name;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 1 /* LayerType.GENERAL */;
@@ -450,11 +458,6 @@ export class Layer
       throw new Error(`Layer.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Layer.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
     let _isVisible = options.isVisible ?? null;
@@ -503,9 +506,6 @@ export class Layer
       return false;
     }
     if (!(this._type === other._type)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (
@@ -558,6 +558,9 @@ export class Layer
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -571,7 +574,6 @@ export class Layer
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -614,6 +616,7 @@ export class Layer
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -657,10 +660,10 @@ export class Layer
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Layer "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -698,8 +701,8 @@ export class Layer
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -800,7 +803,6 @@ export class Layer
     return new Layer({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       icon: unpackedIcon,
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
@@ -818,6 +820,7 @@ export class Layer
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -869,8 +872,8 @@ export class Layer
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.type = Number(object._type) as LayerTypeProto;
     objectProto.name = object._name;
+    objectProto.type = Number(object._type) as LayerTypeProto;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -919,7 +922,6 @@ export class Layer
             )
           : null,
       type: Number(objectProto.type) as LayerType,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -995,6 +997,7 @@ export class Layer
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

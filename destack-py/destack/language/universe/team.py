@@ -23,5 +23,4 @@ class Team(IsActor, IsJoinable, Entity):
     """
 
     parent: Optional["Organization"] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
     slug: str = builtin_property(102, is_repr=True)

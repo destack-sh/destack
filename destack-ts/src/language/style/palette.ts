@@ -134,10 +134,10 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
   readonly orderKey: string;
 
   /**
-   * Palette.name
+   * Entity.name
    */
   /**
-   * Palette.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -178,7 +178,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
-    name: string;
+    name?: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -258,7 +258,10 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
       throw new Error(`Palette.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Palette";
+    }
     if (_name === null) {
       throw new Error(`Palette.name is required`);
     }
@@ -298,9 +301,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -313,6 +313,9 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -322,7 +325,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -347,6 +349,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -425,7 +428,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -477,7 +480,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Palette({
-      name: objectValue["101"],
       icon: unpackedIcon,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
@@ -489,6 +491,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -554,7 +557,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Palette({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -615,6 +617,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

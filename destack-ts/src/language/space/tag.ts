@@ -138,6 +138,22 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -164,22 +180,6 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * Tag.name
-   */
-  /**
-   * Tag.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Tag.icon
@@ -210,9 +210,9 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -292,6 +292,14 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
       throw new Error(`Tag.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Tag";
+    }
+    if (_name === null) {
+      throw new Error(`Tag.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -299,11 +307,6 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Tag.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -339,9 +342,6 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -360,6 +360,9 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -372,7 +375,6 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -399,6 +401,7 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -478,13 +481,13 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -544,7 +547,6 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
         : null;
     return new Tag({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -556,6 +558,7 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -605,13 +608,13 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -638,7 +641,6 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
               _connection,
             )
           : null,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -699,6 +701,7 @@ export class Tag extends Entity implements IsSourceable, IsDeletable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -842,6 +845,22 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Tagging.tag
    */
   get tag(): Tag | null {
@@ -884,6 +903,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
+    name?: string;
     tag?: Tag | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -963,6 +983,14 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
       throw new Error(`Tagging.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Tagging";
+    }
+    if (_name === null) {
+      throw new Error(`Tagging.name is required`);
+    }
+    this._name = _name;
     let _tag = options.tag ?? null;
     if (_tag != null && _tag.metatype != StructType.NODE_REFERENCE) {
       _tag = (_tag as Node).toRef();
@@ -1010,6 +1038,9 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -1043,6 +1074,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -1066,7 +1098,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
   }
 
   get _pathKey(): string {
-    return `Tagging[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -1085,7 +1117,9 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
   }
 
   repr(): string {
-    return `<Tagging "${this.path}">`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Tagging "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1119,6 +1153,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object._tagPtr != null) {
       objectValue["110"] = object._tagPtr.toValue();
     }
@@ -1180,6 +1215,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1228,6 +1264,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object._tagPtr != null) {
       objectProto.tagPtr = object._tagPtr.toProto();
     }
@@ -1309,6 +1346,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered, IsDeletabl
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

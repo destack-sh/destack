@@ -127,10 +127,10 @@ export class Environment extends Entity implements IsDeletable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * Environment.name
+   * Entity.name
    */
   /**
-   * Environment.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -170,7 +170,7 @@ export class Environment extends Entity implements IsDeletable {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    name: string;
+    name?: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -242,7 +242,10 @@ export class Environment extends Entity implements IsDeletable {
     this.predecessorPtr = _predecessor;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Environment";
+    }
     if (_name === null) {
       throw new Error(`Environment.name is required`);
     }
@@ -284,9 +287,6 @@ export class Environment extends Entity implements IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -297,6 +297,9 @@ export class Environment extends Entity implements IsDeletable {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -311,7 +314,6 @@ export class Environment extends Entity implements IsDeletable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -332,6 +334,7 @@ export class Environment extends Entity implements IsDeletable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -409,7 +412,7 @@ export class Environment extends Entity implements IsDeletable {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -462,7 +465,6 @@ export class Environment extends Entity implements IsDeletable {
         : null;
     return new Environment({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
@@ -472,6 +474,7 @@ export class Environment extends Entity implements IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -546,7 +549,6 @@ export class Environment extends Entity implements IsDeletable {
               _connection,
             )
           : null,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -596,6 +598,7 @@ export class Environment extends Entity implements IsDeletable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

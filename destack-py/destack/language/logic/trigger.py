@@ -39,7 +39,6 @@ class TriggerType(Enum):
 class Trigger(IsSourceable, Entity):
     """A Trigger is a dynamic event to run something."""
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
     # when

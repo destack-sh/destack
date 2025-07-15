@@ -102,6 +102,15 @@ export abstract class Metric extends Entity implements IsSourceable {
   declare readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * The Script that defines this Node.
    */
   abstract get source(): Script | null;
@@ -115,15 +124,6 @@ export abstract class Metric extends Entity implements IsSourceable {
    */
   abstract get key(): string | null;
   abstract set key(value: string | null);
-
-  /**
-   * Metric.name
-   */
-  /**
-   * Metric.name
-   */
-  abstract get name(): string;
-  abstract set name(value: string);
 
   /**
    * Metric.icon
@@ -306,6 +306,22 @@ export class GaugeMetric extends Metric {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -332,22 +348,6 @@ export class GaugeMetric extends Metric {
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * Metric.name
-   */
-  /**
-   * Metric.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Metric.icon
@@ -377,9 +377,9 @@ export class GaugeMetric extends Metric {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -457,6 +457,14 @@ export class GaugeMetric extends Metric {
       throw new Error(`GaugeMetric.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "GaugeMetric";
+    }
+    if (_name === null) {
+      throw new Error(`GaugeMetric.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -464,11 +472,6 @@ export class GaugeMetric extends Metric {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`GaugeMetric.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -506,9 +509,6 @@ export class GaugeMetric extends Metric {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -527,6 +527,9 @@ export class GaugeMetric extends Metric {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -536,7 +539,6 @@ export class GaugeMetric extends Metric {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -563,6 +565,7 @@ export class GaugeMetric extends Metric {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -639,13 +642,13 @@ export class GaugeMetric extends Metric {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -699,7 +702,6 @@ export class GaugeMetric extends Metric {
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new GaugeMetric({
-      name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -711,6 +713,7 @@ export class GaugeMetric extends Metric {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -757,13 +760,13 @@ export class GaugeMetric extends Metric {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -780,7 +783,6 @@ export class GaugeMetric extends Metric {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new GaugeMetric({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -849,6 +851,7 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -1512,6 +1515,22 @@ export class CounterMetric extends Metric {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -1538,22 +1557,6 @@ export class CounterMetric extends Metric {
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * Metric.name
-   */
-  /**
-   * Metric.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Metric.icon
@@ -1583,9 +1586,9 @@ export class CounterMetric extends Metric {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1663,6 +1666,14 @@ export class CounterMetric extends Metric {
       throw new Error(`CounterMetric.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "CounterMetric";
+    }
+    if (_name === null) {
+      throw new Error(`CounterMetric.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -1670,11 +1681,6 @@ export class CounterMetric extends Metric {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CounterMetric.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -1712,9 +1718,6 @@ export class CounterMetric extends Metric {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -1733,6 +1736,9 @@ export class CounterMetric extends Metric {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -1742,7 +1748,6 @@ export class CounterMetric extends Metric {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -1769,6 +1774,7 @@ export class CounterMetric extends Metric {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1845,13 +1851,13 @@ export class CounterMetric extends Metric {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -1905,7 +1911,6 @@ export class CounterMetric extends Metric {
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CounterMetric({
-      name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -1917,6 +1922,7 @@ export class CounterMetric extends Metric {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -1963,13 +1969,13 @@ export class CounterMetric extends Metric {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -1986,7 +1992,6 @@ export class CounterMetric extends Metric {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new CounterMetric({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -2055,6 +2060,7 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -2718,6 +2724,22 @@ export class HistogramMetric extends Metric {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -2744,22 +2766,6 @@ export class HistogramMetric extends Metric {
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * Metric.name
-   */
-  /**
-   * Metric.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Metric.icon
@@ -2789,9 +2795,9 @@ export class HistogramMetric extends Metric {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -2869,6 +2875,14 @@ export class HistogramMetric extends Metric {
       throw new Error(`HistogramMetric.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "HistogramMetric";
+    }
+    if (_name === null) {
+      throw new Error(`HistogramMetric.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -2876,11 +2890,6 @@ export class HistogramMetric extends Metric {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`HistogramMetric.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -2918,9 +2927,6 @@ export class HistogramMetric extends Metric {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -2939,6 +2945,9 @@ export class HistogramMetric extends Metric {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -2948,7 +2957,6 @@ export class HistogramMetric extends Metric {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -2975,6 +2983,7 @@ export class HistogramMetric extends Metric {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -3051,13 +3060,13 @@ export class HistogramMetric extends Metric {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -3111,7 +3120,6 @@ export class HistogramMetric extends Metric {
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new HistogramMetric({
-      name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -3123,6 +3131,7 @@ export class HistogramMetric extends Metric {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -3169,13 +3178,13 @@ export class HistogramMetric extends Metric {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -3192,7 +3201,6 @@ export class HistogramMetric extends Metric {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new HistogramMetric({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -3261,6 +3269,7 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

@@ -191,8 +191,8 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class StructType(Enum):
     # meta [1-100_000]
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    DATUM_MUTABLE = 2
-    DATUM = 3
+    DATUM = 2
+    DATUM_MUTABLE = 3
     # definitions
     BUILTIN_DEFINITION = 100
     NODE_DEFINITION = 101
@@ -1214,11 +1214,13 @@ class ScalarType(Enum):
 class ValueFactory(Enum):
     """The factory to use for generating values."""
 
-    UUID = 1
-    NOW = 2
-    REGION = 3
-    SELF = 4
-    SPACE = 5
+    UUID4 = 1, "UUID4", "Generate a random UUIDv4"
+    UUID7 = 2, "UUID7", "Generate a random (time-sorted) UUIDv7"
+    NOW = 10, "Now", "Generate a timestamp"
+    REGION = 20, "Region", "Get the current Region"
+    SELF = 30, "Self", "Get the current Node"
+    SPACE = 31, "Space", "Get the current Space"
+    NAME = 40, "Name", "Generate a relevant name"
 
 
 @builtin_enum(EnumType.ROLE_TYPE)

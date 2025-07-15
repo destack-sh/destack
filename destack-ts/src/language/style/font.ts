@@ -803,6 +803,22 @@ export class FontStyle extends Style {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -852,22 +868,6 @@ export class FontStyle extends Style {
     this._type = value;
   }
   _type: FontType;
-
-  /**
-   * Style.name
-   */
-  /**
-   * Style.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * FontStyle.weight
@@ -1012,10 +1012,10 @@ export class FontStyle extends Style {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type?: FontType;
-    name: string;
     weight?: FontWeight | null;
     color?: Fill | null;
     size?: FontSize | null;
@@ -1112,6 +1112,14 @@ export class FontStyle extends Style {
       throw new Error(`FontStyle.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "FontStyle";
+    }
+    if (_name === null) {
+      throw new Error(`FontStyle.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1133,11 +1141,6 @@ export class FontStyle extends Style {
       throw new Error(`FontStyle.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`FontStyle.name is required`);
-    }
-    this._name = _name;
     let _weight = options.weight ?? null;
     if (_weight === null) {
       _weight = 400 /* FontWeight.NORMAL */;
@@ -1240,13 +1243,13 @@ export class FontStyle extends Style {
     if (!(this._transform === other._transform)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1306,7 +1309,6 @@ export class FontStyle extends Style {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1321,6 +1323,7 @@ export class FontStyle extends Style {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1452,12 +1455,12 @@ export class FontStyle extends Style {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._weight != null) {
       objectValue["102"] = object._weight;
     }
@@ -1584,7 +1587,6 @@ export class FontStyle extends Style {
       decoration: unpackedDecoration,
       transform: unpackedTransform,
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1592,6 +1594,7 @@ export class FontStyle extends Style {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       definition: unpackedDefinitionPtr,
@@ -1655,12 +1658,12 @@ export class FontStyle extends Style {
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as FontTypeProto;
-    objectProto.name = object._name;
     if (object._weight != null) {
       objectProto.weight = Number(object._weight) as FontWeightProto;
     }
@@ -1749,7 +1752,6 @@ export class FontStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1793,6 +1795,7 @@ export class FontStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

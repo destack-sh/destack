@@ -45,9 +45,9 @@ export class Action extends Method implements IsRunnable {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     text?: Text | null;
     cardinality?: MethodCardinality;
@@ -66,9 +66,6 @@ export class Action extends Method implements IsRunnable {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
       return false;
     }
     if (
@@ -109,6 +106,9 @@ export class Action extends Method implements IsRunnable {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -121,7 +121,6 @@ export class Action extends Method implements IsRunnable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -159,6 +158,7 @@ export class Action extends Method implements IsRunnable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -244,13 +244,13 @@ export class Action extends Method implements IsRunnable {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -333,7 +333,6 @@ export class Action extends Method implements IsRunnable {
         : null;
     return new Action({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       icon: unpackedIcon,
       text: unpackedText,
       cardinality: Number(objectValue["110"]),
@@ -349,6 +348,7 @@ export class Action extends Method implements IsRunnable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -403,13 +403,13 @@ export class Action extends Method implements IsRunnable {
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -451,7 +451,6 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -519,6 +518,7 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

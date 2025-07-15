@@ -1304,8 +1304,8 @@ enum StructDefinitionTypeProto {
 enum StructTypeProto {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_STRUCT = 1;
-  STRUCT_TYPE_DATUM_MUTABLE = 2;
-  STRUCT_TYPE_DATUM = 3;
+  STRUCT_TYPE_DATUM = 2;
+  STRUCT_TYPE_DATUM_MUTABLE = 3;
   STRUCT_TYPE_BUILTIN_DEFINITION = 100;
   STRUCT_TYPE_NODE_DEFINITION = 101;
   STRUCT_TYPE_TRAIT_DEFINITION = 102;
@@ -1529,11 +1529,13 @@ enum UserStatusProto {
 // The factory to use for generating values.
 enum ValueFactoryProto {
   VALUE_FACTORY_UNSPECIFIED = 0;
-  VALUE_FACTORY_UUID = 1;
-  VALUE_FACTORY_NOW = 2;
-  VALUE_FACTORY_REGION = 3;
-  VALUE_FACTORY_SELF = 4;
-  VALUE_FACTORY_SPACE = 5;
+  VALUE_FACTORY_UUID4 = 1;
+  VALUE_FACTORY_UUID7 = 2;
+  VALUE_FACTORY_NOW = 10;
+  VALUE_FACTORY_REGION = 20;
+  VALUE_FACTORY_SELF = 30;
+  VALUE_FACTORY_SPACE = 31;
+  VALUE_FACTORY_NAME = 40;
 }
 
 enum WindowTypeProto {
@@ -1560,9 +1562,9 @@ message ActionProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
   optional TextProto text = 104;
   MethodCardinalityProto cardinality = 110;
@@ -1600,11 +1602,11 @@ message AnnotationShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -1660,11 +1662,11 @@ message ArrowShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -1738,10 +1740,10 @@ message BorderStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   BorderTypeProto type = 100;
-  string name = 101;
   optional ColorProto color = 200;
   optional InsetsProto width = 201;
   optional NodeReferenceProto style_ptr = 202;
@@ -1762,7 +1764,7 @@ message BranchProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   optional NodeReferenceProto owned_by_ptr = 28;
-  string name = 101;
+  string name = 50;
   optional IconProto icon = 102;
   optional NodeReferenceProto head_ptr = 110;
 }
@@ -1815,8 +1817,8 @@ message ClientProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   optional string browser_version = 44;
+  string name = 50;
   ClientTypeProto type = 100;
-  string name = 101;
   optional NodeReferenceProto machine_ptr = 110;
   optional NodeReferenceProto user_ptr = 111;
   optional string access_token = 120;
@@ -1883,10 +1885,10 @@ message ColorStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   ColorTypeProto type = 100;
-  string name = 101;
   optional ColorHueProto hue = 200;
   optional ColorShadeProto shade = 201;
   optional ColorIntentProto intent = 202;
@@ -1930,11 +1932,11 @@ message ContainerViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -1980,11 +1982,11 @@ message ContentViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -2053,9 +2055,9 @@ message CounterMetricProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -2073,6 +2075,7 @@ message CursorProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
 }
@@ -2093,9 +2096,9 @@ message CustomEnumProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -2117,9 +2120,9 @@ message CustomEventProto {
   optional NodeDefinitionReferenceProto base_type = 40;
   repeated NodeDefinitionReferenceProto base_traits = 41;
   bool is_abstract = 45;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -2138,9 +2141,9 @@ message CustomOptionProto {
   optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -2160,10 +2163,10 @@ message CustomPropertyProto {
   optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   PropertyTypeProto type = 100;
-  string name = 101;
   optional IconProto icon = 102;
   TypeCardinalityProto cardinality = 110;
   ScalarTypeProto scalar_type = 111;
@@ -2206,9 +2209,9 @@ message CustomStructProto {
   string order_key = 27;
   optional StructDefinitionReferenceProto base_type = 41;
   bool is_frozen = 42;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -2247,10 +2250,10 @@ message DatabaseProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   DatabaseTypeProto type = 100;
-  string name = 101;
   optional IconProto icon = 102;
   RegionProto region = 110;
   optional string galaxy_name = 111;
@@ -2507,10 +2510,10 @@ message EffectStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   EffectTypeProto type = 100;
-  string name = 101;
   optional double opacity = 200;
   optional Vector2fProto offset = 201;
   optional double scale = 202;
@@ -2541,6 +2544,7 @@ message EntitlementProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  string name = 50;
   EntitlementTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
   NodeReferenceProto target_ptr = 111;
@@ -2616,7 +2620,7 @@ message EntitlementRevokedEventProto {
   NodeReferenceProto target_ptr = 110;
 }
 
-// An Entity is a versioned, stateful Node.
+// An Entity is a named, versioned, stateful Node.
 message EntityProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -2629,6 +2633,7 @@ message EntityProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  string name = 50;
 }
 
 message EnumDefinitionProto {
@@ -2655,7 +2660,7 @@ message EnvironmentProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
-  string name = 101;
+  string name = 50;
   optional IconProto icon = 102;
 }
 
@@ -2688,6 +2693,7 @@ message EventCursorProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
   optional NodeReferenceProto event_ptr = 120;
@@ -2720,10 +2726,10 @@ message FileProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   FileTypeProto type = 100;
-  string name = 101;
   FileSourceProto source = 110;
   optional string mime_type = 111;
   optional FileFormatProto format = 112;
@@ -2771,10 +2777,10 @@ message FillStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   FillTypeProto type = 100;
-  string name = 101;
   optional ColorProto color = 200;
   optional GradientProto gradient = 201;
   optional NodeReferenceProto image_ptr = 202;
@@ -2852,8 +2858,8 @@ message FolderProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   FolderTypeProto type = 100;
-  string name = 101;
   optional IconProto icon = 102;
   optional string slug = 103;
   optional NodeReferenceProto main_scene_ptr = 110;
@@ -2874,6 +2880,7 @@ message FollowProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
 }
 
 message FollowAddedEventProto {
@@ -2946,10 +2953,10 @@ message FontStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   FontTypeProto type = 100;
-  string name = 101;
   optional FontWeightProto weight = 102;
   optional FillProto color = 103;
   optional FontSizeProto size = 104;
@@ -2977,11 +2984,11 @@ message FrameViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -3053,9 +3060,9 @@ message GaugeMetricProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -3091,10 +3098,10 @@ message GradientStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   GradientTypeProto type = 100;
-  string name = 101;
   optional double angle = 102;
   repeated GradientStopProto stops = 103;
   optional Axis2Proto center_anchor = 104;
@@ -3129,6 +3136,7 @@ message HandleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  string name = 50;
   string slug = 101;
 }
 
@@ -3167,9 +3175,9 @@ message HistogramMetricProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -3219,11 +3227,11 @@ message InputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -3261,11 +3269,11 @@ message InternalViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -3292,6 +3300,7 @@ message InviteProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   NodeReferenceProto member_ptr = 110;
@@ -3513,11 +3522,11 @@ message LabelViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -3562,8 +3571,8 @@ message LayerProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   LayerTypeProto type = 100;
-  string name = 101;
   optional IconProto icon = 102;
   optional bool is_visible = 140;
   optional double opacity = 141;
@@ -3602,11 +3611,11 @@ message LineShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -3672,6 +3681,7 @@ message MachineProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   MachineTypeProto type = 100;
@@ -3721,6 +3731,7 @@ message MembershipProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   NodeReferenceProto member_ptr = 110;
@@ -3795,9 +3806,9 @@ message MethodProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
   optional TextProto text = 104;
   MethodCardinalityProto cardinality = 110;
@@ -3826,9 +3837,9 @@ message MetricProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -3931,11 +3942,12 @@ message NotificationProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
-  NotificationStatusProto status = 40;
-  string title = 50;
-  optional TextProto text = 51;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
+  string title = 101;
+  NotificationStatusProto status = 110;
+  optional TextProto text = 120;
 }
 
 // A Notification was dismissed.
@@ -4049,11 +4061,11 @@ message NumberInputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -4107,6 +4119,7 @@ message OrganizationProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  string name = 50;
   string slug = 101;
   OrganizationStatusProto status = 102;
   optional NodeReferenceProto handle_ptr = 111;
@@ -4127,7 +4140,7 @@ message PaletteProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
-  string name = 101;
+  string name = 50;
   optional IconProto icon = 102;
 }
 
@@ -4164,10 +4177,10 @@ message PermissionProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   PermissionTypeProto type = 100;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -4504,6 +4517,7 @@ message ReactionProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   string content = 101;
 }
 
@@ -4570,6 +4584,7 @@ message RecordProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
 }
@@ -4592,6 +4607,7 @@ message ResourceProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
 }
@@ -4613,10 +4629,10 @@ message RoleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   RoleTypeProto type = 100;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -4681,7 +4697,7 @@ message RouteProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
-  string name = 101;
+  string name = 50;
 }
 
 // Run of a Runnable.
@@ -4698,6 +4714,7 @@ message RunProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   map<string, ValueProto> custom_values = 26;
+  string name = 50;
   optional NodeReferenceProto target_ptr = 111;
   RunStatusProto status = 112;
   optional google.protobuf.Duration duration = 113;
@@ -4857,6 +4874,7 @@ message SanctionProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  string name = 50;
   SanctionTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
   NodeReferenceProto target_ptr = 111;
@@ -4948,7 +4966,7 @@ message SceneProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
-  string name = 101;
+  string name = 50;
   optional IconProto icon = 102;
   optional NodeReferenceProto root_view_ptr = 200;
 }
@@ -5001,6 +5019,7 @@ message ScreenCursorProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
   optional Vector2iProto position = 120;
@@ -5022,7 +5041,7 @@ message ScriptProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  string name = 101;
+  string name = 50;
   string code = 110;
 }
 
@@ -5050,11 +5069,11 @@ message ServiceProto {
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -5087,10 +5106,10 @@ message ShadowStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   ShadowTypeProto type = 100;
-  string name = 101;
   optional ColorProto color = 200;
   ShadowPositionProto position = 201;
   optional Axis2Proto offset = 202;
@@ -5116,11 +5135,11 @@ message ShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -5210,11 +5229,11 @@ message SliderInputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -5247,8 +5266,8 @@ message SnapshotProto {
   optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   SnapshotTypeProto type = 100;
-  string name = 101;
   SnapshotStatusProto status = 110;
 }
 
@@ -5273,7 +5292,7 @@ message SpaceProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional NodeReferenceProto owned_by_ptr = 28;
-  string name = 101;
+  string name = 50;
   string slug = 102;
   SpaceStatusProto status = 110;
   optional NodeReferenceProto handle_ptr = 111;
@@ -5315,11 +5334,11 @@ message SplitViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -5363,6 +5382,7 @@ message StarProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
 }
 
 message StarAddedEventProto {
@@ -5465,10 +5485,10 @@ message StrokeStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   StrokeTypeProto type = 100;
-  string name = 101;
   int64 size = 200 [jstype = JS_NUMBER];
   double thinning = 201;
   double smoothing = 202;
@@ -5524,9 +5544,9 @@ message StyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
 }
 
 // A Tag to tag something.
@@ -5544,9 +5564,9 @@ message TagProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -5565,6 +5585,7 @@ message TaggingProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto tag_ptr = 110;
 }
 
@@ -5581,7 +5602,7 @@ message TeamProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  string name = 101;
+  string name = 50;
   string slug = 102;
 }
 
@@ -5625,11 +5646,11 @@ message TextViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -5660,7 +5681,7 @@ message ThemeProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
-  string name = 101;
+  string name = 50;
 }
 
 // A Timer.
@@ -5677,10 +5698,10 @@ message TimerProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   TimerTypeProto type = 100;
-  string name = 101;
   optional ScheduleProto schedule = 110;
 }
 
@@ -5788,10 +5809,10 @@ message TransitionStyleProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   TransitionTypeProto type = 100;
-  string name = 101;
   optional double delay = 102;
   optional double duration = 103;
   repeated double ease = 104;
@@ -5816,9 +5837,9 @@ message TriggerProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
   optional IconProto icon = 102;
   optional NodeDefinitionReferenceProto event = 110;
   optional ConditionProto where = 111;
@@ -5900,7 +5921,7 @@ message UserProto {
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   map<string, ValueProto> custom_values = 26;
-  string name = 101;
+  string name = 50;
   string slug = 102;
   UserStatusProto status = 110;
   optional google.protobuf.Timestamp last_logged_in_at = 111;
@@ -5935,9 +5956,9 @@ message VariantProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional IconProto icon = 102;
 }
 
@@ -6012,11 +6033,11 @@ message ViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
-  string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
   optional DimensionProto height = 112;
@@ -6082,8 +6103,8 @@ message WindowProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
+  string name = 50;
   WindowTypeProto type = 100;
-  string name = 101;
 }
 
 message SomeNodeProto {

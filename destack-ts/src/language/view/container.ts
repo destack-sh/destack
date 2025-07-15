@@ -113,6 +113,15 @@ export abstract class ContainerView extends View {
   declare readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * The Script that defines this Node.
    */
   abstract get source(): Script | null;
@@ -142,15 +151,6 @@ export abstract class ContainerView extends View {
    * Whether this Node is extensible (whether it can be instanced).
    */
   declare readonly isExtensible: boolean;
-
-  /**
-   * View.name
-   */
-  /**
-   * View.name
-   */
-  abstract get name(): string;
-  abstract set name(value: string);
 
   /**
    * View.position

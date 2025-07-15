@@ -142,6 +142,22 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Organization.slug
    */
   /**
@@ -207,6 +223,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     slug: string;
     status?: OrganizationStatus;
     handle?: Handle | NodeReference | null;
@@ -278,6 +295,14 @@ export class Organization extends Entity implements IsActor, IsJoinable {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Organization";
+    }
+    if (_name === null) {
+      throw new Error(`Organization.name is required`);
+    }
+    this._name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Organization.slug is required`);
@@ -346,6 +371,9 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -377,6 +405,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -400,7 +429,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   }
 
   get _pathKey(): string {
-    return this.slug ?? `Organization[id=${this.id}]`;
+    return this.slug ?? this.name;
   }
 
   get path(): string {
@@ -422,6 +451,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     const propertyReprs: string[] = [];
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${OrganizationStatus[this.status]}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Organization "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -452,6 +482,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["101"] = object._slug;
     objectValue["102"] = object._status;
     if (object._handlePtr != null) {
@@ -510,6 +541,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -554,6 +586,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    objectProto.name = object._name;
     objectProto.slug = object._slug;
     objectProto.status = Number(object._status) as OrganizationStatusProto;
     if (object._handlePtr != null) {
@@ -636,6 +669,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

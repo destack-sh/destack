@@ -184,6 +184,22 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Window.type
    */
   /**
@@ -199,22 +215,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
   }
   _type: WindowType;
 
-  /**
-   * Window.name
-   */
-  /**
-   * Window.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
@@ -229,8 +229,8 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     type: WindowType;
-    name: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -314,16 +314,19 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Window";
+    }
+    if (_name === null) {
+      throw new Error(`Window.name is required`);
+    }
+    this._name = _name;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Window.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Window.name is required`);
-    }
-    this._name = _name;
 
     // identity
     if (options.id == null) {
@@ -360,9 +363,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -370,6 +370,9 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -382,7 +385,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
@@ -407,6 +409,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -451,10 +454,10 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${WindowType[this.type]}`);
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Window "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -492,8 +495,8 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     return objectValue;
   }
 
@@ -542,7 +545,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
         : null;
     return new Window({
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
@@ -554,6 +556,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -605,8 +608,8 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.type = Number(object._type) as WindowTypeProto;
     objectProto.name = object._name;
+    objectProto.type = Number(object._type) as WindowTypeProto;
     return objectProto as WindowProto;
   }
 
@@ -620,7 +623,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Window({
       type: Number(objectProto.type) as WindowType,
-      name: objectProto.name,
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -687,6 +689,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

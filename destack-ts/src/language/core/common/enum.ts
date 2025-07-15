@@ -152,6 +152,22 @@ export class CustomEnum
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -178,22 +194,6 @@ export class CustomEnum
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * CustomEnum.name
-   */
-  /**
-   * CustomEnum.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * CustomEnum.icon
@@ -225,9 +225,9 @@ export class CustomEnum
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -312,6 +312,14 @@ export class CustomEnum
       throw new Error(`CustomEnum.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "CustomEnum";
+    }
+    if (_name === null) {
+      throw new Error(`CustomEnum.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -319,11 +327,6 @@ export class CustomEnum
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomEnum.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -361,9 +364,6 @@ export class CustomEnum
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -393,6 +393,9 @@ export class CustomEnum
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -402,7 +405,6 @@ export class CustomEnum
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -438,6 +440,7 @@ export class CustomEnum
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -524,13 +527,13 @@ export class CustomEnum
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -602,7 +605,6 @@ export class CustomEnum
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CustomEnum({
-      name: objectValue["101"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
@@ -616,6 +618,7 @@ export class CustomEnum
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -671,13 +674,13 @@ export class CustomEnum
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -704,7 +707,6 @@ export class CustomEnum
       }
     }
     return new CustomEnum({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -776,6 +778,7 @@ export class CustomEnum
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
@@ -927,6 +930,22 @@ export class CustomOption
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -953,22 +972,6 @@ export class CustomOption
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * CustomOption.name
-   */
-  /**
-   * CustomOption.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * CustomOption.icon
@@ -1000,9 +1003,9 @@ export class CustomOption
     archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1084,6 +1087,14 @@ export class CustomOption
       throw new Error(`CustomOption.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "CustomOption";
+    }
+    if (_name === null) {
+      throw new Error(`CustomOption.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -1091,11 +1102,6 @@ export class CustomOption
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomOption.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -1133,9 +1139,6 @@ export class CustomOption
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -1154,6 +1157,9 @@ export class CustomOption
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -1166,7 +1172,6 @@ export class CustomOption
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -1196,6 +1201,7 @@ export class CustomOption
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1278,13 +1284,13 @@ export class CustomOption
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -1349,7 +1355,6 @@ export class CustomOption
         : null;
     return new CustomOption({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       icon: unpackedIcon,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
@@ -1362,6 +1367,7 @@ export class CustomOption
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -1414,13 +1420,13 @@ export class CustomOption
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -1447,7 +1453,6 @@ export class CustomOption
               _connection,
             )
           : null,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -1510,6 +1515,7 @@ export class CustomOption
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(

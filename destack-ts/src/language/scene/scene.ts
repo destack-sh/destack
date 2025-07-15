@@ -232,10 +232,10 @@ export class Scene
   _ownedByPtr: NodeReference | null;
 
   /**
-   * Scene.name
+   * Entity.name
    */
   /**
-   * Scene.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -307,7 +307,7 @@ export class Scene
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
-    name: string;
+    name?: string;
     icon?: Icon | null;
     rootView?: ContainerView | NodeReference | null;
     _session?: Session | null;
@@ -393,7 +393,10 @@ export class Scene
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Scene";
+    }
     if (_name === null) {
       throw new Error(`Scene.name is required`);
     }
@@ -441,9 +444,6 @@ export class Scene
     if (!(this._rootViewPtr?.id === other._rootViewPtr?.id)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -457,6 +457,9 @@ export class Scene
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -474,7 +477,6 @@ export class Scene
     if (this._rootViewPtr != null) {
       h = (h * 31 + hashString(this._rootViewPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -499,6 +501,7 @@ export class Scene
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -542,10 +545,10 @@ export class Scene
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Scene "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -583,7 +586,7 @@ export class Scene
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -650,7 +653,6 @@ export class Scene
     return new Scene({
       parent: unpackedParentPtr,
       rootView: unpackedRootViewPtr,
-      name: objectValue["101"],
       icon: unpackedIcon,
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["27"],
@@ -662,6 +664,7 @@ export class Scene
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -753,7 +756,6 @@ export class Scene
               _connection,
             )
           : null,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -814,6 +816,7 @@ export class Scene
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

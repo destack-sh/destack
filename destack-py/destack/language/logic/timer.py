@@ -66,5 +66,4 @@ class Timer(IsSourceable, Entity):
     """A Timer."""
 
     type: TimerType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
     schedule: "Schedule | None" = builtin_property(110)

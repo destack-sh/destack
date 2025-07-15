@@ -938,6 +938,22 @@ export class EffectStyle extends Style {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -987,22 +1003,6 @@ export class EffectStyle extends Style {
     this._type = value;
   }
   _type: EffectType;
-
-  /**
-   * Style.name
-   */
-  /**
-   * Style.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * EffectStyle.opacity
@@ -1243,10 +1243,10 @@ export class EffectStyle extends Style {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type: EffectType;
-    name: string;
     opacity?: number | null;
     offset?: Vector2f | null;
     scale?: number | null;
@@ -1349,6 +1349,14 @@ export class EffectStyle extends Style {
       throw new Error(`EffectStyle.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "EffectStyle";
+    }
+    if (_name === null) {
+      throw new Error(`EffectStyle.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1367,11 +1375,6 @@ export class EffectStyle extends Style {
       throw new Error(`EffectStyle.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`EffectStyle.name is required`);
-    }
-    this._name = _name;
     let _opacity = options.opacity ?? null;
     this._opacity = _opacity;
     let _offset = options.offset ?? null;
@@ -1518,13 +1521,13 @@ export class EffectStyle extends Style {
     ) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1602,7 +1605,6 @@ export class EffectStyle extends Style {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1617,6 +1619,7 @@ export class EffectStyle extends Style {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1766,12 +1769,12 @@ export class EffectStyle extends Style {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._opacity != null) {
       objectValue["200"] = object._opacity;
     }
@@ -1938,7 +1941,6 @@ export class EffectStyle extends Style {
       offscreen: unpackedOffscreen,
       transition: unpackedTransition,
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1946,6 +1948,7 @@ export class EffectStyle extends Style {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       definition: unpackedDefinitionPtr,
@@ -2009,12 +2012,12 @@ export class EffectStyle extends Style {
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as EffectTypeProto;
-    objectProto.name = object._name;
     if (object._opacity != null) {
       objectProto.opacity = object._opacity;
     }
@@ -2128,7 +2131,6 @@ export class EffectStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -2172,6 +2174,7 @@ export class EffectStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

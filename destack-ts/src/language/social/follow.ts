@@ -161,6 +161,22 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   }
   _ownedByPtr: NodeReference;
 
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
   constructor(options: {
     id?: string;
     parent?: (Entity & IsFollowable) | NodeReference | null;
@@ -174,6 +190,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy: (Entity & IsActor) | NodeReference;
+    name?: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -252,6 +269,14 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       throw new Error(`Follow.ownedBy is required`);
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Follow";
+    }
+    if (_name === null) {
+      throw new Error(`Follow.name is required`);
+    }
+    this._name = _name;
 
     // identity
     if (options.id == null) {
@@ -294,6 +319,9 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -324,6 +352,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -347,7 +376,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   }
 
   get _pathKey(): string {
-    return `Follow[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -368,6 +397,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Follow "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -402,6 +432,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["28"] = object._ownedByPtr.toValue();
+    objectValue["50"] = object._name;
     return objectValue;
   }
 
@@ -460,6 +491,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -508,6 +540,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    objectProto.name = object._name;
     return objectProto as FollowProto;
   }
 
@@ -582,6 +615,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

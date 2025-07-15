@@ -26,7 +26,6 @@ class Branch(
 
     parent: Optional["Space"] = builtin_property_parent()
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
     head: Optional["Snapshot"] = builtin_property(110)

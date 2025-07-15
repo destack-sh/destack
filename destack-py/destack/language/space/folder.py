@@ -51,7 +51,6 @@ class Folder(
 
     parent: Union["Space", "Folder", None] = builtin_property_parent()
     type: FolderType = builtin_property(100, is_repr=True, default=FolderType.GENERAL)
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
     slug: str | None = builtin_property(103, is_repr=True)
 
