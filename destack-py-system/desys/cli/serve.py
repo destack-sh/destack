@@ -8,10 +8,9 @@ import structlog
 import typer
 
 from destack.cli.utils import async_to_sync
-from destack.grpc import GrpcServer, Network, RealNetwork, ServiceBase
+from destack.grpc import GrpcServer, Network, ServiceBase
 from destack.language import WORLD_ORACLE
 from destack.utils.env import ENV, IS_DEV
-from destack.utils.telemetry import capture_exception
 from destack.utils.watch import restart_on_file_changes
 
 app = typer.Typer(short_help="run the services")
@@ -80,48 +79,6 @@ async def _do_serve(
             await server.wait_closed()
     finally:
         logger.info("serve.exit", uptime=(time_ns() - start) / 1_000_000)
-
-
-@app.command()
-@async_to_sync
-async def universe(host: str, port: int, watch: bool = False, no_check: bool = False):
-    """Serve the Universe service."""
-    from desys.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
-    from desys.universe import UniverseService
-
-    global_database = get_global_database_from_env()
-    network = RealNetwork()
-    universe = UniverseService(
-        id="destack",
-        global_database=global_database,
-        network=network,
-        oracle=WORLD_ORACLE,
-        galaxy_provider=GALAXY_PROVIDER,
-        database_provider=DATABASE_PROVIDER,
-        on_error=capture_exception,
-    )
-    await _do_serve(handlers=[universe], network=network, host=host, port=port, watch=watch)
-
-
-@app.command()
-@async_to_sync
-async def space(host: str, port: int, watch: bool = False, no_check: bool = False):
-    """Serve the Space service."""
-    from desys.sharding import DATABASE_PROVIDER, GALAXY_PROVIDER, get_global_database_from_env
-    from desys.space import SpaceRouterService
-
-    global_database = get_global_database_from_env()
-    network = RealNetwork()
-    space_router = SpaceRouterService(
-        id="space-router",
-        global_database=global_database,
-        galaxy_provider=GALAXY_PROVIDER,
-        database_provider=DATABASE_PROVIDER,
-        network=network,
-        oracle=WORLD_ORACLE,
-        on_error=capture_exception,
-    )
-    await _do_serve(handlers=[space_router], network=network, host=host, port=port, watch=watch)
 
 
 @app.command()

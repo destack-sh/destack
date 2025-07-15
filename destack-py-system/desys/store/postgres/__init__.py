@@ -24,7 +24,6 @@ from .map import (
     POSTGRES_BUILTIN_TABLE_PREFIX,
     get_builtin_schema,
     map_builtin_node_to_database_table,
-    map_custom_node_to_database_table,
 )
 from .migrate import (
     MIGRATIONS,
@@ -80,7 +79,6 @@ __all__ = [
     "get_postgres_pool",
     "introspect_schema",
     "map_builtin_node_to_database_table",
-    "map_custom_node_to_database_table",
     "postgres_connection",
     "postgres_migrate",
     "postgres_transaction",

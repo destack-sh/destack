@@ -52,7 +52,7 @@ def generate():
     shutil.rmtree(TEMP_TS_DIR, ignore_errors=True)
     Path(TEMP_TS_DIR).mkdir(parents=True, exist_ok=True)
     run_shell_sync(
-        f"bun x protoc --ts_out {TEMP_TS_DIR} --proto_path . {LANGUAGE_PROTO} "
+        f"bun x protoc --ts_out {TEMP_TS_DIR} --ts_opt server_grpc1 --ts_opt client_grpc1 --proto_path . {LANGUAGE_PROTO} "
         f"{' '.join(EXTRA_PROTO_TS_FILES)}",
     )
 
@@ -78,11 +78,14 @@ export type AnyStructProto = {" | ".join(cls.__name__ + "Proto" for cls in STRUC
 export * from './destack-proto/common';
 export * from './destack-proto/language';
 export * from './destack-proto/universe';
-export * from './destack-proto/universe.client';
+export * from './destack-proto/universe.grpc-client';
+export * from './destack-proto/universe.grpc-server';
 export * from './destack-proto/space';
-export * from './destack-proto/space.client';
+export * from './destack-proto/space.grpc-client';
+export * from './destack-proto/space.grpc-server';
 export * from './destack-proto/health';
-export * from './destack-proto/health.client';
+export * from './destack-proto/health.grpc-client';
+export * from './destack-proto/health.grpc-server';
 export * from './destack-proto/google/type/date';
 export * from './destack-proto/google/type/timeofday';
 export * from './destack-proto/google/type/datetime';
