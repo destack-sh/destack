@@ -5,6 +5,7 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
+    Event,
     IsOwnable,
     NodeType,
     Vector2i,
@@ -56,7 +57,7 @@ class EventCursor(Cursor):
     """
 
     # content
-    pass
+    event: Optional[Event] = builtin_property(120)
 
 
 @builtin_node(NodeType.SCREEN_CURSOR)
@@ -67,13 +68,3 @@ class ScreenCursor(Cursor):
 
     # content
     position: Optional[Vector2i] = builtin_property(120)
-
-
-@builtin_node(NodeType.THREAD_CURSOR)
-class ThreadCursor(Cursor):
-    """
-    A ThreadCursor is a cursor corresponding to a Thread.
-    """
-
-    # content
-    pass

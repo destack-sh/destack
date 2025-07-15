@@ -316,6 +316,7 @@ enum EnumTypeProto {
   ENUM_TYPE_EDGE_TYPE = 67;
   ENUM_TYPE_EDGE_DIRECTION = 68;
   ENUM_TYPE_CASCADE_ACTION = 69;
+  ENUM_TYPE_MODE_TYPE = 560000;
   ENUM_TYPE_RESOURCE_STATUS = 1100;
   ENUM_TYPE_SNAPSHOT_TYPE = 1300;
   ENUM_TYPE_SNAPSHOT_STATUS = 1301;
@@ -362,14 +363,10 @@ enum EnumTypeProto {
   ENUM_TYPE_ENVIRONMENT_TYPE = 160000;
   ENUM_TYPE_RUN_STATUS = 170000;
   ENUM_TYPE_LOG_LEVEL = 170300;
-  ENUM_TYPE_THREAD_STATUS = 220000;
   ENUM_TYPE_NOTIFICATION_STATUS = 220500;
   ENUM_TYPE_WINDOW_TYPE = 500000;
   ENUM_TYPE_LAYER_TYPE = 500200;
-  ENUM_TYPE_VARIANT_TYPE = 500300;
-  ENUM_TYPE_VARIANT_STATE_TYPE = 500301;
   ENUM_TYPE_ARROW_HEAD_TYPE = 540300;
-  ENUM_TYPE_MODE_TYPE = 560000;
   ENUM_TYPE_TOOL_TYPE = 560001;
   ENUM_TYPE_MOUSE_BUTTON = 560010;
   ENUM_TYPE_COLOR_TYPE = 600000;
@@ -718,11 +715,8 @@ enum MethodCardinalityProto {
 
 enum ModeTypeProto {
   MODE_TYPE_UNSPECIFIED = 0;
-  MODE_TYPE_EDIT = 1;
-  MODE_TYPE_DEBUG = 2;
-  MODE_TYPE_INSPECT = 3;
-  MODE_TYPE_PREVIEW = 4;
-  MODE_TYPE_USE = 5;
+  MODE_TYPE_ACTIVE = 1;
+  MODE_TYPE_PAUSED = 2;
 }
 
 enum ModelDeveloperProto {
@@ -777,11 +771,9 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_CUSTOM_ENTITY_DEFINITION = 100;
-  NODE_TYPE_CUSTOM_TRAIT_DEFINITION = 101;
-  NODE_TYPE_CUSTOM_EVENT_DEFINITION = 102;
-  NODE_TYPE_CUSTOM_STRUCT_DEFINITION = 103;
-  NODE_TYPE_CUSTOM_ENUM_DEFINITION = 104;
+  NODE_TYPE_CUSTOM_EVENT = 102;
+  NODE_TYPE_CUSTOM_STRUCT = 103;
+  NODE_TYPE_CUSTOM_ENUM = 104;
   NODE_TYPE_CUSTOM_PROPERTY = 110;
   NODE_TYPE_CUSTOM_OPTION = 120;
   NODE_TYPE_RECORD = 1000;
@@ -789,6 +781,7 @@ enum NodeTypeProto {
   NODE_TYPE_METRIC = 1200;
   NODE_TYPE_SNAPSHOT = 1300;
   NODE_TYPE_SERVICE = 1400;
+  NODE_TYPE_VARIANT = 1500;
   NODE_TYPE_SIGNAL = 2000;
   NODE_TYPE_EDIT_EVENT = 2001;
   NODE_TYPE_MEASUREMENT_EVENT = 2010;
@@ -830,7 +823,6 @@ enum NodeTypeProto {
   NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 60503;
   NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 60504;
   NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 60505;
-  NODE_TYPE_AGENT = 60600;
   NODE_TYPE_FILE = 80000;
   NODE_TYPE_SCRIPT = 100000;
   NODE_TYPE_METHOD = 101000;
@@ -842,11 +834,10 @@ enum NodeTypeProto {
   NODE_TYPE_TIMER_STARTED_EVENT = 105102;
   NODE_TYPE_TIMER_COMPLETED_EVENT = 105103;
   NODE_TYPE_TIMER_CANCELLED_EVENT = 105104;
-  NODE_TYPE_CURSOR = 106000;
-  NODE_TYPE_EVENT_CURSOR = 106100;
-  NODE_TYPE_SCREEN_CURSOR = 106200;
-  NODE_TYPE_THREAD_CURSOR = 108300;
   NODE_TYPE_ROUTE = 110000;
+  NODE_TYPE_CURSOR = 112000;
+  NODE_TYPE_EVENT_CURSOR = 112100;
+  NODE_TYPE_SCREEN_CURSOR = 112200;
   NODE_TYPE_DATABASE = 140000;
   NODE_TYPE_MACHINE = 140100;
   NODE_TYPE_ENVIRONMENT = 160000;
@@ -868,20 +859,18 @@ enum NodeTypeProto {
   NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 180101;
   NODE_TYPE_HISTOGRAM_METRIC = 180200;
   NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 180201;
-  NODE_TYPE_THREAD = 220000;
-  NODE_TYPE_MESSAGE = 220100;
-  NODE_TYPE_REACTION = 220200;
-  NODE_TYPE_REACTION_EVENT = 220201;
-  NODE_TYPE_REACTION_ADDED_EVENT = 220202;
-  NODE_TYPE_REACTION_REMOVED_EVENT = 220203;
-  NODE_TYPE_STAR = 220300;
-  NODE_TYPE_STAR_EVENT = 220301;
-  NODE_TYPE_STAR_ADDED_EVENT = 220302;
-  NODE_TYPE_STAR_REMOVED_EVENT = 220303;
-  NODE_TYPE_FOLLOW = 220400;
-  NODE_TYPE_FOLLOW_EVENT = 220401;
-  NODE_TYPE_FOLLOW_ADDED_EVENT = 220402;
-  NODE_TYPE_FOLLOW_REMOVED_EVENT = 220403;
+  NODE_TYPE_REACTION = 220000;
+  NODE_TYPE_REACTION_EVENT = 220001;
+  NODE_TYPE_REACTION_ADDED_EVENT = 220002;
+  NODE_TYPE_REACTION_REMOVED_EVENT = 220003;
+  NODE_TYPE_STAR = 220100;
+  NODE_TYPE_STAR_EVENT = 220101;
+  NODE_TYPE_STAR_ADDED_EVENT = 220102;
+  NODE_TYPE_STAR_REMOVED_EVENT = 220103;
+  NODE_TYPE_FOLLOW = 220200;
+  NODE_TYPE_FOLLOW_EVENT = 220201;
+  NODE_TYPE_FOLLOW_ADDED_EVENT = 220202;
+  NODE_TYPE_FOLLOW_REMOVED_EVENT = 220203;
   NODE_TYPE_NOTIFICATION = 220500;
   NODE_TYPE_NOTIFICATION_EVENT = 220501;
   NODE_TYPE_NOTIFICATION_SENT_EVENT = 220502;
@@ -893,7 +882,6 @@ enum NodeTypeProto {
   NODE_TYPE_SCENE = 500100;
   NODE_TYPE_SCENE_EVENT = 500101;
   NODE_TYPE_LAYER = 500200;
-  NODE_TYPE_VARIANT = 500300;
   NODE_TYPE_VIEW = 520000;
   NODE_TYPE_VIEW_EVENT = 520001;
   NODE_TYPE_CONTAINER_VIEW = 520100;
@@ -1317,7 +1305,8 @@ enum StructDefinitionTypeProto {
 enum StructTypeProto {
   STRUCT_TYPE_UNSPECIFIED = 0;
   STRUCT_TYPE_STRUCT = 1;
-  STRUCT_TYPE_CUSTOM_STRUCT = 2;
+  STRUCT_TYPE_DATUM_MUTABLE = 2;
+  STRUCT_TYPE_DATUM = 3;
   STRUCT_TYPE_BUILTIN_DEFINITION = 100;
   STRUCT_TYPE_NODE_DEFINITION = 101;
   STRUCT_TYPE_TRAIT_DEFINITION = 102;
@@ -1441,12 +1430,6 @@ enum TextTransformProto {
   TEXT_TRANSFORM_CAPITALIZE = 4;
 }
 
-enum ThreadStatusProto {
-  THREAD_STATUS_UNSPECIFIED = 0;
-  THREAD_STATUS_OPEN = 10;
-  THREAD_STATUS_CLOSED = 30;
-}
-
 enum TimerTypeProto {
   TIMER_TYPE_UNSPECIFIED = 0;
   TIMER_TYPE_ONCE = 1;
@@ -1455,8 +1438,12 @@ enum TimerTypeProto {
 
 enum ToolTypeProto {
   TOOL_TYPE_UNSPECIFIED = 0;
-  TOOL_TYPE_SELECT = 1;
-  TOOL_TYPE_DRAG = 2;
+  TOOL_TYPE_EDIT = 1;
+  TOOL_TYPE_DEBUG = 2;
+  TOOL_TYPE_PREVIEW = 4;
+  TOOL_TYPE_USE = 5;
+  TOOL_TYPE_SELECT = 6;
+  TOOL_TYPE_DRAG = 7;
   TOOL_TYPE_INSPECT = 10;
   TOOL_TYPE_ANNOTATE = 11;
 }
@@ -1544,19 +1531,6 @@ enum ValueFactoryProto {
   VALUE_FACTORY_SPACE = 5;
 }
 
-enum VariantStateTypeProto {
-  VARIANT_STATE_TYPE_UNSPECIFIED = 0;
-  VARIANT_STATE_TYPE_LOADING = 10;
-  VARIANT_STATE_TYPE_ERROR = 11;
-}
-
-enum VariantTypeProto {
-  VARIANT_TYPE_UNSPECIFIED = 0;
-  VARIANT_TYPE_DYNAMIC = 1;
-  VARIANT_TYPE_BREAKPOINT = 2;
-  VARIANT_TYPE_PLATFORM = 3;
-}
-
 enum WindowTypeProto {
   WINDOW_TYPE_UNSPECIFIED = 0;
   WINDOW_TYPE_BROWSER = 10;
@@ -1574,7 +1548,6 @@ message ActionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -1599,26 +1572,6 @@ message ActionDefinitionProto {
   repeated PropertyDefinitionProto properties = 104;
 }
 
-// An Agent is an identity for a bot.
-message AgentProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  string name = 101;
-  string slug = 102;
-  optional NodeReferenceProto cursor_ptr = 110;
-}
-
 message AggregationProto {
   StructTypeProto metatype = 1;
   AggregationTypeProto type = 100;
@@ -1632,11 +1585,9 @@ message AnnotationShapeProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -1644,7 +1595,10 @@ message AnnotationShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -1691,11 +1645,9 @@ message ArrowShapeProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -1703,7 +1655,10 @@ message ArrowShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -1767,16 +1722,19 @@ message BorderStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   BorderTypeProto type = 100;
   string name = 101;
   optional ColorProto color = 200;
@@ -1793,7 +1751,6 @@ message BranchProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -1818,12 +1775,16 @@ message ClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -1843,7 +1804,6 @@ message ClientProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -1869,12 +1829,16 @@ message ClipboardEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -1903,16 +1867,19 @@ message ColorStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   ColorTypeProto type = 100;
   string name = 101;
   optional ColorHueProto hue = 200;
@@ -1948,11 +1915,9 @@ message ContainerViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -1960,7 +1925,10 @@ message ContainerViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -1997,11 +1965,9 @@ message ContentViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2009,7 +1975,10 @@ message ContentViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -2028,12 +1997,16 @@ message CopyEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2070,7 +2043,6 @@ message CounterMetricProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2091,7 +2063,6 @@ message CursorProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2101,11 +2072,8 @@ message CursorProto {
   optional google.protobuf.Timestamp active_at = 110;
 }
 
-// A definition for a custom Entity type.
-// Custom Entities are instantiated either as:
-// 1) their respective extensible base type (like ContainerView)
-// 2) plain CustomEntity instance (default if not extending any other type)
-message CustomEntityDefinitionProto {
+// A CustomEnum describes a custom Enum with custom Options.
+message CustomEnumProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -2113,36 +2081,6 @@ message CustomEntityDefinitionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  map<string, ValueProto> custom_values = 26;
-  string order_key = 27;
-  optional NodeReferenceProto owned_by_ptr = 28;
-  NodeDefinitionReferenceProto base_type = 40;
-  repeated NodeDefinitionReferenceProto base_traits = 41;
-  bool is_abstract = 45;
-  optional NodeReferenceProto prototype_ptr = 50;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
-  string name = 101;
-  optional IconProto icon = 102;
-}
-
-// A CustomEnumDefinition describes a custom Enum with Options.
-message CustomEnumDefinitionProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2156,8 +2094,8 @@ message CustomEnumDefinitionProto {
   optional IconProto icon = 102;
 }
 
-// A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
-message CustomEventDefinitionProto {
+// A CustomEvent defines a custom Event with custom Properties.
+message CustomEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -2165,7 +2103,6 @@ message CustomEventDefinitionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2189,7 +2126,6 @@ message CustomOptionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2212,7 +2148,6 @@ message CustomPropertyProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2245,16 +2180,11 @@ message CustomPropertyProto {
   optional bool is_unique = 151;
   optional bool is_computed = 152;
   optional bool is_readonly = 153;
+  optional bool is_root = 154;
 }
 
+// A CustomStruct describes a custom Struct with custom Properties.
 message CustomStructProto {
-  StructTypeProto metatype = 1;
-  NodeReferenceProto definition_ptr = 6;
-  map<string, ValueProto> custom_values = 26;
-}
-
-// A CustomStructDefinition describes a custom Struct with custom Properties.
-message CustomStructDefinitionProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
@@ -2262,7 +2192,6 @@ message CustomStructDefinitionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2270,38 +2199,10 @@ message CustomStructDefinitionProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
-  optional CustomStructProto prototype = 40;
   optional StructDefinitionReferenceProto base_type = 41;
   bool is_frozen = 42;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  string name = 101;
-  optional IconProto icon = 102;
-}
-
-// A CustomTraitDefinition defines a kind of CustomTrait.
-message CustomTraitDefinitionProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  map<string, ValueProto> custom_values = 26;
-  string order_key = 27;
-  optional NodeDefinitionReferenceProto base_type = 40;
-  repeated NodeDefinitionReferenceProto base_traits = 41;
-  bool is_abstract = 45;
-  optional NodeReferenceProto source_ptr = 60;
-  optional string key = 70;
-  optional NodeReferenceProto script_ptr = 80;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -2311,12 +2212,16 @@ message CutEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2327,19 +2232,18 @@ message DatabaseProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  ResourceStatusProto status = 40;
   optional NodeReferenceProto script_ptr = 80;
-  ResourceStatusProto status = 90;
+  bool is_extensible = 90;
   DatabaseTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
@@ -2362,6 +2266,18 @@ message DatabaseInfoProto {
   optional string connection_url = 118;
 }
 
+message DatumProto {
+  StructTypeProto metatype = 1;
+  NodeReferenceProto definition_ptr = 6;
+  map<string, ValueProto> custom_values = 26;
+}
+
+message DatumMutableProto {
+  StructTypeProto metatype = 1;
+  NodeReferenceProto definition_ptr = 6;
+  map<string, ValueProto> custom_values = 26;
+}
+
 message DimensionProto {
   StructTypeProto metatype = 1;
   DimensionTypeProto type = 100;
@@ -2374,12 +2290,16 @@ message DoubleClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -2395,12 +2315,16 @@ message DragEndEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2410,12 +2334,16 @@ message DragEnterEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2425,12 +2353,16 @@ message DragEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2440,12 +2372,16 @@ message DragLeaveEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2455,12 +2391,16 @@ message DragOverEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2470,12 +2410,16 @@ message DragStartEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2485,12 +2429,16 @@ message DropEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
 }
@@ -2543,16 +2491,19 @@ message EffectStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   EffectTypeProto type = 100;
   string name = 101;
   optional double opacity = 200;
@@ -2580,7 +2531,6 @@ message EntitlementProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2670,7 +2620,6 @@ message EntityProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2696,7 +2645,6 @@ message EnvironmentProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2730,7 +2678,6 @@ message EventCursorProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2738,6 +2685,7 @@ message EventCursorProto {
   optional NodeReferenceProto owned_by_ptr = 28;
   CursorStatusProto status = 101;
   optional google.protobuf.Timestamp active_at = 110;
+  optional NodeReferenceProto event_ptr = 120;
 }
 
 message ExpressionProto {
@@ -2757,19 +2705,18 @@ message FileProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  ResourceStatusProto status = 40;
   optional NodeReferenceProto script_ptr = 80;
-  ResourceStatusProto status = 90;
+  bool is_extensible = 90;
   FileTypeProto type = 100;
   string name = 101;
   FileSourceProto source = 110;
@@ -2808,16 +2755,19 @@ message FillStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   FillTypeProto type = 100;
   string name = 101;
   optional ColorProto color = 200;
@@ -2832,12 +2782,16 @@ message FocusEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2846,12 +2800,16 @@ message FocusInEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2860,12 +2818,16 @@ message FocusOutEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -2878,7 +2840,6 @@ message FolderProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2902,7 +2863,6 @@ message FollowProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -2970,16 +2930,19 @@ message FontStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   FontTypeProto type = 100;
   string name = 101;
   optional FontWeightProto weight = 102;
@@ -2999,11 +2962,9 @@ message FrameViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3011,7 +2972,10 @@ message FrameViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3079,7 +3043,6 @@ message GaugeMetricProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3112,16 +3075,19 @@ message GradientStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   GradientTypeProto type = 100;
   string name = 101;
   optional double angle = 102;
@@ -3154,7 +3120,6 @@ message HandleProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3192,7 +3157,6 @@ message HistogramMetricProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3220,12 +3184,16 @@ message InputEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -3236,11 +3204,9 @@ message InputViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3248,7 +3214,10 @@ message InputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3277,11 +3246,9 @@ message InternalViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3289,7 +3256,10 @@ message InternalViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3306,16 +3276,19 @@ message InviteProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   NodeReferenceProto member_ptr = 110;
   optional NodeReferenceProto role_ptr = 111;
   optional RoleTypeProto role_type = 112;
@@ -3419,12 +3392,16 @@ message KeyDownEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3441,12 +3418,16 @@ message KeyEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3463,12 +3444,16 @@ message KeyPressEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3485,12 +3470,16 @@ message KeyUpEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   string key = 110;
   string code = 111;
@@ -3509,11 +3498,9 @@ message LabelViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3521,7 +3508,10 @@ message LabelViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3560,7 +3550,6 @@ message LayerProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3598,11 +3587,9 @@ message LineShapeProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3610,7 +3597,10 @@ message LineShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -3667,19 +3657,18 @@ message MachineProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  ResourceStatusProto status = 40;
   optional NodeReferenceProto script_ptr = 80;
-  ResourceStatusProto status = 90;
+  bool is_extensible = 90;
   MachineTypeProto type = 100;
   string version = 110;
   optional string external_name = 112;
@@ -3716,16 +3705,19 @@ message MembershipProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   NodeReferenceProto member_ptr = 110;
   optional NodeReferenceProto role_ptr = 111;
   optional RoleTypeProto role_type = 112;
@@ -3781,30 +3773,6 @@ message MembershipLeftEventProto {
   NodeReferenceProto member_ptr = 103;
 }
 
-// A Message about something (usually in a Thread or a Channel).
-message MessageProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  optional NodeReferenceProto owned_by_ptr = 28;
-  optional NodeReferenceProto thread_ptr = 35;
-  optional google.protobuf.Timestamp edited_at = 40;
-  optional NodeReferenceProto reply_to_ptr = 50;
-  optional NodeReferenceProto forwarded_from_ptr = 51;
-  optional TextProto text = 61;
-  optional NodeReferenceProto node_ptr = 62;
-}
-
 // An implementation of a unit of work, usually expressed with Code or some tool.
 // May defer to a builtin or some other service in a separate system.
 message MethodProto {
@@ -3815,7 +3783,6 @@ message MethodProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3849,7 +3816,6 @@ message MetricProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -3866,12 +3832,16 @@ message MouseEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -3946,18 +3916,21 @@ message NotificationProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   NotificationStatusProto status = 40;
   string title = 50;
   optional TextProto text = 51;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
 }
 
 // A Notification was dismissed.
@@ -4061,11 +4034,9 @@ message NumberInputViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4073,7 +4044,10 @@ message NumberInputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -4124,7 +4098,6 @@ message OrganizationProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4143,7 +4116,6 @@ message PaletteProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4159,12 +4131,16 @@ message PasteEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -4177,12 +4153,14 @@ message PermissionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   PermissionTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
@@ -4203,12 +4181,16 @@ message PointerDownEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4223,12 +4205,16 @@ message PointerEnterEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4243,12 +4229,16 @@ message PointerEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4263,12 +4253,16 @@ message PointerLeaveEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4283,12 +4277,16 @@ message PointerLongPressEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4303,12 +4301,16 @@ message PointerMoveEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4323,12 +4325,16 @@ message PointerOverEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4343,12 +4349,16 @@ message PointerUpEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -4397,12 +4407,13 @@ message PropertyDefinitionProto {
   bool is_required = 150;
   bool is_unique = 151;
   bool is_readonly = 153;
-  bool is_wired = 155;
-  bool is_stored = 156;
-  bool is_repr = 157;
-  bool is_hash = 158;
-  bool is_eq = 159;
-  bool is_managed = 160;
+  bool is_root = 154;
+  bool is_wired = 160;
+  bool is_stored = 161;
+  bool is_repr = 162;
+  bool is_hash = 163;
+  bool is_eq = 164;
+  bool is_managed = 165;
 }
 
 message PropertyGroupDefinitionProto {
@@ -4482,7 +4493,6 @@ message ReactionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4543,12 +4553,10 @@ message RecordProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4558,6 +4566,7 @@ message RecordProto {
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
 }
 
 // A Resource represents an external asset outside of Destack.
@@ -4568,19 +4577,18 @@ message ResourceProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
+  ResourceStatusProto status = 40;
   optional NodeReferenceProto script_ptr = 80;
-  ResourceStatusProto status = 90;
+  bool is_extensible = 90;
 }
 
 // A Role for Actors to take.
@@ -4589,16 +4597,19 @@ message RoleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   RoleTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
@@ -4658,7 +4669,6 @@ message RouteProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4678,7 +4688,6 @@ message RunProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4838,7 +4847,6 @@ message SanctionProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4928,7 +4936,6 @@ message SceneProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -4984,7 +4991,6 @@ message ScreenCursorProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5004,7 +5010,6 @@ message ScriptProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5029,11 +5034,9 @@ message ServiceProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5045,6 +5048,7 @@ message ServiceProto {
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional IconProto icon = 102;
 }
@@ -5067,16 +5071,19 @@ message ShadowStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   ShadowTypeProto type = 100;
   string name = 101;
   optional ColorProto color = 200;
@@ -5094,11 +5101,9 @@ message ShapeProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5106,7 +5111,10 @@ message ShapeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5137,14 +5145,12 @@ message ShapeProto {
   optional StrokeProto stroke = 180;
 }
 
-// A generic Signal of a CustomEventDefinition.
-// More specific base Event types will be instanced of that base type instead.
+// A generic Event of a CustomEventDefinition.
 message SignalProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
   NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
@@ -5153,6 +5159,7 @@ message SignalProto {
   map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
 }
 
@@ -5161,12 +5168,16 @@ message SingleClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -5184,11 +5195,9 @@ message SliderInputViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5196,7 +5205,10 @@ message SliderInputViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5223,7 +5235,6 @@ message SnapshotProto {
   MaterializationProto materialization = 10;
   NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5252,7 +5263,6 @@ message SpaceProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5290,11 +5300,9 @@ message SplitViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5302,7 +5310,10 @@ message SplitViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5341,7 +5352,6 @@ message StarProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5439,16 +5449,19 @@ message StrokeStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   StrokeTypeProto type = 100;
   string name = 101;
   int64 size = 200 [jstype = JS_NUMBER];
@@ -5495,16 +5508,19 @@ message StyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
 }
 
@@ -5517,7 +5533,6 @@ message TagProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5537,7 +5552,6 @@ message TaggingProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5556,7 +5570,6 @@ message TeamProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5595,11 +5608,9 @@ message TextViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5607,7 +5618,10 @@ message TextViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -5633,7 +5647,6 @@ message ThemeProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5641,46 +5654,6 @@ message ThemeProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   string name = 101;
-}
-
-// A Thread for communicating with Messages.
-// Threads may be nested to organize conversations and work.
-// NOTE :Incomplete: multiple Channels, nested Threads, ThreadType & "monologue" Threads, ...?
-message ThreadProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
-  optional NodeReferenceProto owned_by_ptr = 28;
-  string name = 101;
-}
-
-// A ThreadCursor is a cursor corresponding to a Thread.
-message ThreadCursorProto {
-  NodeTypeProto metatype = 1;
-  string id = 2;
-  optional NodeReferenceProto parent_ptr = 3;
-  NodeReferenceProto space_ptr = 5;
-  MaterializationProto materialization = 10;
-  optional NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
-  google.protobuf.Timestamp created_at = 20;
-  optional NodeReferenceProto created_by_ptr = 21;
-  google.protobuf.Timestamp updated_at = 22;
-  optional NodeReferenceProto updated_by_ptr = 23;
-  optional NodeReferenceProto owned_by_ptr = 28;
-  CursorStatusProto status = 101;
-  optional google.protobuf.Timestamp active_at = 110;
 }
 
 // A Timer.
@@ -5692,7 +5665,6 @@ message TimerProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5798,16 +5770,19 @@ message TransitionStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   TransitionTypeProto type = 100;
   string name = 101;
   optional double delay = 102;
@@ -5829,7 +5804,6 @@ message TriggerProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5864,12 +5838,16 @@ message TripleClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -5891,13 +5869,14 @@ message TypeProto {
   optional StructTypeProto struct_type = 115;
   optional NodeReferenceProto definition_ptr = 116;
   optional TypeProto key_type = 117;
-  optional bool is_required = 118;
   optional ValueProto value = 130;
   optional ValueFactoryProto value_factory = 131;
   optional CollectionConstraintProto collection_constraint = 140;
   optional StringConstraintProto string_constraint = 141;
   optional NumberConstraintProto number_constraint = 142;
   optional NodeConstraintProto node_constraint = 143;
+  optional bool is_required = 150;
+  optional bool is_root = 154;
 }
 
 // The Universe of Destack.
@@ -5918,7 +5897,6 @@ message UserProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -5942,29 +5920,27 @@ message ValueProto {
   optional google.protobuf.Value value = 110;
 }
 
-// A Variant is an alternative presentation of a visual.
+// A Variant is an alternative version of an Entity.
 message VariantProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 25;
+  map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
-  VariantTypeProto type = 100;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional IconProto icon = 102;
-  optional LengthProto max_width = 110;
-  optional LengthProto max_height = 111;
-  optional LengthProto min_width = 112;
-  optional LengthProto min_height = 113;
 }
 
 message VectorProto {
@@ -6028,11 +6004,9 @@ message ViewProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto definition_ptr = 6;
-  optional NodeDefinitionReferenceProto base_type = 7;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -6040,7 +6014,10 @@ message ViewProto {
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
+  optional NodeReferenceProto source_ptr = 60;
+  optional string key = 70;
   optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   string name = 101;
   optional PositionProto position = 110;
   optional DimensionProto width = 111;
@@ -6070,12 +6047,16 @@ message WheelEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   optional NodeReferenceProto client_ptr = 22;
   optional string client_nonce = 23;
+  map<string, ValueProto> custom_values = 26;
   EventStatusProto status = 30;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
   Vector2fProto position = 110;
   optional double pressure = 111;
@@ -6096,7 +6077,6 @@ message WindowProto {
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto predecessor_ptr = 12;
-  optional NodeReferenceProto template_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
@@ -6110,16 +6090,13 @@ message WindowProto {
 
 message SomeNodeProto {
   oneof node {
-    CustomEntityDefinitionProto custom_entity_definition = 100;
-    CustomTraitDefinitionProto custom_trait_definition = 101;
     SnapshotProto snapshot = 1300;
-    CustomEventDefinitionProto custom_event_definition = 102;
+    CustomEventProto custom_event = 102;
     EditEventProto edit_event = 2001;
-    CustomEnumDefinitionProto custom_enum_definition = 104;
+    CustomEnumProto custom_enum = 104;
     CustomOptionProto custom_option = 120;
     CustomPropertyProto custom_property = 110;
-    CustomStructDefinitionProto custom_struct_definition = 103;
-    AgentProto agent = 60600;
+    CustomStructProto custom_struct = 103;
     EntitlementRequestedEventProto entitlement_requested_event = 60502;
     EntitlementGrantedEventProto entitlement_granted_event = 60503;
     EntitlementRevokedEventProto entitlement_revoked_event = 60504;
@@ -6193,9 +6170,8 @@ message SomeNodeProto {
     WheelEventProto wheel_event = 560210;
     MethodProto method = 101000;
     ActionProto action = 101100;
-    EventCursorProto event_cursor = 106100;
-    ScreenCursorProto screen_cursor = 106200;
-    ThreadCursorProto thread_cursor = 108300;
+    EventCursorProto event_cursor = 112100;
+    ScreenCursorProto screen_cursor = 112200;
     ScriptProto script = 100000;
     ServiceProto service = 1400;
     TimerStartedEventProto timer_started_event = 105102;
@@ -6211,28 +6187,25 @@ message SomeNodeProto {
     HistogramMeasurementEventProto histogram_measurement_event = 180201;
     LayerProto layer = 500200;
     SceneProto scene = 500100;
-    VariantProto variant = 500300;
     WindowProto window = 500000;
-    FollowProto follow = 220400;
-    FollowEventProto follow_event = 220401;
-    FollowAddedEventProto follow_added_event = 220402;
-    FollowRemovedEventProto follow_removed_event = 220403;
-    MessageProto message = 220100;
+    FollowProto follow = 220200;
+    FollowEventProto follow_event = 220201;
+    FollowAddedEventProto follow_added_event = 220202;
+    FollowRemovedEventProto follow_removed_event = 220203;
     NotificationSentEventProto notification_sent_event = 220502;
     NotificationRescindedEventProto notification_rescinded_event = 220503;
     NotificationReadEventProto notification_read_event = 220504;
     NotificationDismissedEventProto notification_dismissed_event = 220505;
     NotificationExpiredEventProto notification_expired_event = 220506;
     NotificationProto notification = 220500;
-    ReactionProto reaction = 220200;
-    ReactionEventProto reaction_event = 220201;
-    ReactionAddedEventProto reaction_added_event = 220202;
-    ReactionRemovedEventProto reaction_removed_event = 220203;
-    StarProto star = 220300;
-    StarEventProto star_event = 220301;
-    StarAddedEventProto star_added_event = 220302;
-    StarRemovedEventProto star_removed_event = 220303;
-    ThreadProto thread = 220000;
+    ReactionProto reaction = 220000;
+    ReactionEventProto reaction_event = 220001;
+    ReactionAddedEventProto reaction_added_event = 220002;
+    ReactionRemovedEventProto reaction_removed_event = 220003;
+    StarProto star = 220100;
+    StarEventProto star_event = 220101;
+    StarAddedEventProto star_added_event = 220102;
+    StarRemovedEventProto star_removed_event = 220103;
     BranchProto branch = 45000;
     FolderProto folder = 40000;
     TagProto tag = 41000;
@@ -6259,15 +6232,12 @@ message SomeNodeProto {
 
 message SomeEntityProto {
   oneof node {
-    CustomEntityDefinitionProto custom_entity_definition = 100;
-    CustomTraitDefinitionProto custom_trait_definition = 101;
     SnapshotProto snapshot = 1300;
-    CustomEventDefinitionProto custom_event_definition = 102;
-    CustomEnumDefinitionProto custom_enum_definition = 104;
+    CustomEventProto custom_event = 102;
+    CustomEnumProto custom_enum = 104;
     CustomOptionProto custom_option = 120;
     CustomPropertyProto custom_property = 110;
-    CustomStructDefinitionProto custom_struct_definition = 103;
-    AgentProto agent = 60600;
+    CustomStructProto custom_struct = 103;
     EntitlementProto entitlement = 60500;
     InviteProto invite = 60100;
     MembershipProto membership = 60000;
@@ -6290,9 +6260,8 @@ message SomeEntityProto {
     MachineProto machine = 140100;
     MethodProto method = 101000;
     ActionProto action = 101100;
-    EventCursorProto event_cursor = 106100;
-    ScreenCursorProto screen_cursor = 106200;
-    ThreadCursorProto thread_cursor = 108300;
+    EventCursorProto event_cursor = 112100;
+    ScreenCursorProto screen_cursor = 112200;
     ScriptProto script = 100000;
     ServiceProto service = 1400;
     TimerProto timer = 105100;
@@ -6302,14 +6271,11 @@ message SomeEntityProto {
     HistogramMetricProto histogram_metric = 180200;
     LayerProto layer = 500200;
     SceneProto scene = 500100;
-    VariantProto variant = 500300;
     WindowProto window = 500000;
-    FollowProto follow = 220400;
-    MessageProto message = 220100;
+    FollowProto follow = 220200;
     NotificationProto notification = 220500;
-    ReactionProto reaction = 220200;
-    StarProto star = 220300;
-    ThreadProto thread = 220000;
+    ReactionProto reaction = 220000;
+    StarProto star = 220100;
     BranchProto branch = 45000;
     FolderProto folder = 40000;
     TagProto tag = 41000;
@@ -6394,20 +6360,20 @@ message SomeEventProto {
     GaugeMeasurementEventProto gauge_measurement_event = 180001;
     CounterMeasurementEventProto counter_measurement_event = 180101;
     HistogramMeasurementEventProto histogram_measurement_event = 180201;
-    FollowEventProto follow_event = 220401;
-    FollowAddedEventProto follow_added_event = 220402;
-    FollowRemovedEventProto follow_removed_event = 220403;
+    FollowEventProto follow_event = 220201;
+    FollowAddedEventProto follow_added_event = 220202;
+    FollowRemovedEventProto follow_removed_event = 220203;
     NotificationSentEventProto notification_sent_event = 220502;
     NotificationRescindedEventProto notification_rescinded_event = 220503;
     NotificationReadEventProto notification_read_event = 220504;
     NotificationDismissedEventProto notification_dismissed_event = 220505;
     NotificationExpiredEventProto notification_expired_event = 220506;
-    ReactionEventProto reaction_event = 220201;
-    ReactionAddedEventProto reaction_added_event = 220202;
-    ReactionRemovedEventProto reaction_removed_event = 220203;
-    StarEventProto star_event = 220301;
-    StarAddedEventProto star_added_event = 220302;
-    StarRemovedEventProto star_removed_event = 220303;
+    ReactionEventProto reaction_event = 220001;
+    ReactionAddedEventProto reaction_added_event = 220002;
+    ReactionRemovedEventProto reaction_removed_event = 220003;
+    StarEventProto star_event = 220101;
+    StarAddedEventProto star_added_event = 220102;
+    StarRemovedEventProto star_removed_event = 220103;
   };
 }
 

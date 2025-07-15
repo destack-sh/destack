@@ -5,17 +5,16 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin/common";
-import type {
-  CustomEntityDefinition,
-  CustomTraitDefinition,
-} from "@destack/language/core/builtin/entity";
-import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
+import { Entity } from "@destack/language/core/builtin/entity";
+import type { CustomEvent, CustomEventDefinition } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
+import type { IsExtensible } from "@destack/language/core/builtin/trait";
 import { PropertyDefinition } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import type { CustomStructDefinition } from "@destack/language/core/common/struct";
+import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
@@ -64,16 +63,13 @@ export class NodeDefinitionReference extends StructFrozen {
   /**
    * NodeDefinitionReference.definition
    */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+  get definition(): (Entity & IsExtensible) | CustomEvent | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | CustomEvent | null;
     }
     return null;
   }
@@ -82,7 +78,7 @@ export class NodeDefinitionReference extends StructFrozen {
   constructor(options: {
     type: NodeDefinitionType;
     nodeType: NodeType;
-    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
+    definition?: (Entity & IsExtensible) | CustomEvent | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -420,22 +416,16 @@ export class ObjectDefinitionReference extends StructFrozen {
   /**
    * ObjectDefinitionReference.definition
    */
-  get definition():
-    | CustomEntityDefinition
-    | CustomEventDefinition
-    | CustomTraitDefinition
-    | CustomStructDefinition
-    | null {
+  get definition(): (Entity & IsExtensible) | CustomEvent | CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
       return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | CustomTraitDefinition
-        | CustomStructDefinition
+        | (Entity & IsExtensible)
+        | CustomEvent
+        | CustomStruct
         | null;
     }
     return null;
@@ -447,13 +437,7 @@ export class ObjectDefinitionReference extends StructFrozen {
     nodeType?: NodeType | null;
     traitType?: TraitType | null;
     structType?: StructType | null;
-    definition?:
-      | CustomEntityDefinition
-      | CustomEventDefinition
-      | CustomTraitDefinition
-      | CustomStructDefinition
-      | NodeReference
-      | null;
+    definition?: (Entity & IsExtensible) | CustomEvent | CustomStruct | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1248,13 +1232,13 @@ export class StructDefinitionReference extends StructFrozen {
   /**
    * StructDefinitionReference.definition
    */
-  get definition(): CustomStructDefinition | null {
+  get definition(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as CustomStructDefinition;
+      return this._supergraph.get(nodePtr.id) as CustomStruct;
     }
     return null;
   }
@@ -1263,7 +1247,7 @@ export class StructDefinitionReference extends StructFrozen {
   constructor(options: {
     type: StructDefinitionType;
     structType?: StructType | null;
-    definition: CustomStructDefinition | NodeReference;
+    definition: CustomStruct | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;

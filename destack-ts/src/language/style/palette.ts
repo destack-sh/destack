@@ -90,18 +90,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Palette | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Palette | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
-
-  /**
    * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -184,7 +172,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Palette | NodeReference | null;
-    template?: Palette | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -261,11 +248,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -331,9 +313,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -359,9 +338,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -437,9 +413,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
     }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
-    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -493,11 +466,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -517,7 +485,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -557,9 +524,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -623,16 +587,6 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
         objectProto.predecessorPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.predecessorPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
               _session,
               _supergraph,
               _graph,

@@ -10,7 +10,7 @@ import type {
   NodeReference,
   StructDefinitionReference,
 } from "@destack/language/core/builtin/relation";
-import { Struct } from "@destack/language/core/builtin/struct";
+import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type {
   IsActor,
   IsCustomizable,
@@ -31,8 +31,9 @@ import {
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import {
-  CustomStructDefinitionProto,
   CustomStructProto,
+  DatumMutableProto,
+  DatumProto,
   MaterializationProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -41,13 +42,13 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:103 ==== */
 /**
- * A CustomStructDefinition describes a custom Struct with custom Properties.
+ * A CustomStruct describes a custom Struct with custom Properties.
  */
-export class CustomStructDefinition
+export class CustomStruct
   extends Entity
   implements IsTaggable, IsDeletable, IsSourceable, IsCustomizable
 {
-  static metatype: NodeType = NodeType.CUSTOM_STRUCT_DEFINITION;
+  static metatype: NodeType = NodeType.CUSTOM_STRUCT;
 
   /**
    * Entity.parent
@@ -93,26 +94,14 @@ export class CustomStructDefinition
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): CustomStructDefinition | null {
+  get predecessor(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomStructDefinition | null;
+      return this._supergraph.get(nodePtr.id) as CustomStruct | null;
     }
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): CustomStructDefinition | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomStructDefinition | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -175,26 +164,10 @@ export class CustomStructDefinition
   readonly orderKey: string;
 
   /**
-   * A custom Struct's prototype is the default template new CustomStruct instances are based on.
+   * CustomStruct.baseType
    */
   /**
-   * A custom Struct's prototype is the default template new CustomStruct instances are based on.
-   */
-  get prototype(): CustomStruct | null {
-    return this._prototype;
-  }
-  set prototype(value: CustomStruct | null) {
-    const prop = (this.constructor as NodeClass).__properties__["prototype"];
-    this._session.updateSetProperty(this, prop, value);
-    this._prototype = value;
-  }
-  _prototype: CustomStruct | null;
-
-  /**
-   * CustomStructDefinition.baseType
-   */
-  /**
-   * CustomStructDefinition.baseType
+   * CustomStruct.baseType
    */
   get baseType(): StructDefinitionReference | null {
     return this._baseType;
@@ -207,10 +180,10 @@ export class CustomStructDefinition
   _baseType: StructDefinitionReference | null;
 
   /**
-   * CustomStructDefinition.isFrozen
+   * CustomStruct.isFrozen
    */
   /**
-   * CustomStructDefinition.isFrozen
+   * CustomStruct.isFrozen
    */
   get isFrozen(): boolean {
     return this._isFrozen;
@@ -251,10 +224,10 @@ export class CustomStructDefinition
   _key: string | null;
 
   /**
-   * CustomStructDefinition.name
+   * CustomStruct.name
    */
   /**
-   * CustomStructDefinition.name
+   * CustomStruct.name
    */
   get name(): string {
     return this._name;
@@ -267,10 +240,10 @@ export class CustomStructDefinition
   _name: string;
 
   /**
-   * CustomStructDefinition.icon
+   * CustomStruct.icon
    */
   /**
-   * CustomStructDefinition.icon
+   * CustomStruct.icon
    */
   get icon(): Icon | null {
     return this._icon;
@@ -288,8 +261,7 @@ export class CustomStructDefinition
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: CustomStructDefinition | NodeReference | null;
-    template?: CustomStructDefinition | NodeReference | null;
+    predecessor?: CustomStruct | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -297,7 +269,6 @@ export class CustomStructDefinition
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
-    prototype?: CustomStruct | null;
     baseType?: StructDefinitionReference | null;
     isFrozen?: boolean;
     source?: Script | NodeReference | null;
@@ -342,16 +313,16 @@ export class CustomStructDefinition
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomStructDefinition has no Session`);
+        throw new Error(`CustomStruct has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CustomStructDefinition has no Space`);
+        throw new Error(`CustomStruct has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`CustomStructDefinition.space is required`);
+      throw new Error(`CustomStruct.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -359,7 +330,7 @@ export class CustomStructDefinition
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`CustomStructDefinition.materialization is required`);
+      throw new Error(`CustomStruct.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -372,11 +343,6 @@ export class CustomStructDefinition
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -389,11 +355,9 @@ export class CustomStructDefinition
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`CustomStructDefinition.orderKey is required`);
+      throw new Error(`CustomStruct.orderKey is required`);
     }
     this.orderKey = _orderKey;
-    let _prototype = options.prototype ?? null;
-    this._prototype = _prototype;
     let _baseType = options.baseType ?? null;
     this._baseType = _baseType;
     let _isFrozen = options.isFrozen ?? null;
@@ -401,7 +365,7 @@ export class CustomStructDefinition
       _isFrozen = false;
     }
     if (_isFrozen === null) {
-      throw new Error(`CustomStructDefinition.isFrozen is required`);
+      throw new Error(`CustomStruct.isFrozen is required`);
     }
     this._isFrozen = _isFrozen;
     let _source = options.source ?? null;
@@ -413,7 +377,7 @@ export class CustomStructDefinition
     this._key = _key;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`CustomStructDefinition.name is required`);
+      throw new Error(`CustomStruct.name is required`);
     }
     this._name = _name;
     let _icon = options.icon ?? null;
@@ -429,7 +393,7 @@ export class CustomStructDefinition
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `CustomStructDefinition.createdAt and CustomStructDefinition.updatedAt are required for existing Nodes`,
+          `CustomStruct.createdAt and CustomStruct.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -451,12 +415,6 @@ export class CustomStructDefinition
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (
-      (this._prototype == null) !== (other._prototype == null) ||
-      (this._prototype != null && !this._prototype.equals(other._prototype))
-    ) {
       return false;
     }
     if (
@@ -500,9 +458,6 @@ export class CustomStructDefinition
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -512,9 +467,6 @@ export class CustomStructDefinition
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._prototype != null) {
-      h = (h * 31 + this._prototype.hash()) & 0xffffffff;
-    }
     if (this._baseType != null) {
       h = (h * 31 + this._baseType.hash()) & 0xffffffff;
     }
@@ -547,9 +499,6 @@ export class CustomStructDefinition
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -572,7 +521,7 @@ export class CustomStructDefinition
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.CUSTOM_STRUCT_DEFINITION,
+      type: NodeType.CUSTOM_STRUCT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -603,14 +552,14 @@ export class CustomStructDefinition
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<CustomStructDefinition "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<CustomStruct "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return CustomStructDefinition.__packValue__(this);
+    return CustomStruct.__packValue__(this);
   }
 
-  static __packValue__(object: CustomStructDefinition): { readonly [key: string]: any } {
+  static __packValue__(object: CustomStruct): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 103;
     objectValue["2"] = String(object.id);
@@ -624,9 +573,6 @@ export class CustomStructDefinition
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -647,9 +593,6 @@ export class CustomStructDefinition
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
-    if (object._prototype != null) {
-      objectValue["40"] = object._prototype.toValue();
-    }
     if (object._baseType != null) {
       objectValue["41"] = object._baseType.toValue();
     }
@@ -673,19 +616,13 @@ export class CustomStructDefinition
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStructDefinition {
-    const _CustomStruct = STRUCT_CLASS_BY_TYPE[StructType.CUSTOM_STRUCT] as typeof CustomStruct;
+  ): CustomStruct {
     const _StructDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.STRUCT_DEFINITION_REFERENCE
     ] as typeof StructDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const prototypeValue = objectValue["40"];
-    const unpackedPrototype =
-      prototypeValue != undefined
-        ? _CustomStruct.fromValue(prototypeValue, _session, _supergraph, _graph, _connection)
-        : null;
     const baseTypeValue = objectValue["41"];
     const unpackedBaseType =
       baseTypeValue != undefined
@@ -741,11 +678,6 @@ export class CustomStructDefinition
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -756,8 +688,7 @@ export class CustomStructDefinition
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new CustomStructDefinition({
-      prototype: unpackedPrototype,
+    return new CustomStruct({
       baseType: unpackedBaseType,
       isFrozen: objectValue["42"],
       name: objectValue["101"],
@@ -770,7 +701,6 @@ export class CustomStructDefinition
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -790,22 +720,16 @@ export class CustomStructDefinition
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStructDefinition {
-    return CustomStructDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): CustomStruct {
+    return CustomStruct.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CustomStructDefinitionProto {
-    return CustomStructDefinition.__packProto__(this);
+  toProto(): CustomStructProto {
+    return CustomStruct.__packProto__(this);
   }
 
-  static __packProto__(object: CustomStructDefinition): CustomStructDefinitionProto {
-    const objectProto: Partial<CustomStructDefinitionProto> = { metatype: 103 };
+  static __packProto__(object: CustomStruct): CustomStructProto {
+    const objectProto: Partial<CustomStructProto> = { metatype: 103 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -817,9 +741,6 @@ export class CustomStructDefinition
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -839,9 +760,6 @@ export class CustomStructDefinition
       }
     }
     objectProto.orderKey = object.orderKey;
-    if (object._prototype != null) {
-      objectProto.prototype = object._prototype.toProto();
-    }
     if (object._baseType != null) {
       objectProto.baseType = object._baseType.toProto();
     }
@@ -856,17 +774,16 @@ export class CustomStructDefinition
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
-    return objectProto as CustomStructDefinitionProto;
+    return objectProto as CustomStructProto;
   }
 
   static __unpackProto__(
-    objectProto: CustomStructDefinitionProto,
+    objectProto: CustomStructProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStructDefinition {
-    const _CustomStruct = STRUCT_CLASS_BY_TYPE[StructType.CUSTOM_STRUCT] as typeof CustomStruct;
+  ): CustomStruct {
     const _StructDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.STRUCT_DEFINITION_REFERENCE
     ] as typeof StructDefinitionReference;
@@ -882,17 +799,7 @@ export class CustomStructDefinition
         );
       }
     }
-    return new CustomStructDefinition({
-      prototype:
-        objectProto.prototype != undefined
-          ? _CustomStruct.fromProto(
-              objectProto.prototype!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+    return new CustomStruct({
       baseType:
         objectProto.baseType != undefined
           ? _StructDefinitionReference.fromProto(
@@ -954,16 +861,6 @@ export class CustomStructDefinition
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1002,24 +899,18 @@ export class CustomStructDefinition
   }
 
   static fromProto(
-    objectProto: CustomStructDefinitionProto,
+    objectProto: CustomStructProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStructDefinition {
-    return CustomStructDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): CustomStruct {
+    return CustomStruct.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): CustomStructDefinition {
+  static fromProtoString(packedProtoString: string): CustomStruct {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomStructDefinitionProto.fromBinary(packedProtoBytes);
+    const packedProto = CustomStructProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1027,42 +918,42 @@ export class CustomStructDefinition
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.CUSTOM_STRUCT_DEFINITION, CustomStructDefinition);
+registerNodeClass(NodeType.CUSTOM_STRUCT, CustomStruct);
 /* ==== DESTACK_GENERATED_END:NODE:103 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2 ==== */
 /**
- * A CustomStruct is an instance of a CustomStructDefinition.
+ * A DatumMutable is a mutable instance of a CustomStruct.
  */
-export class CustomStruct extends Struct {
-  static metatype: StructType = StructType.CUSTOM_STRUCT;
+export class DatumMutable extends Struct {
+  static metatype: StructType = StructType.DATUM_MUTABLE;
   static __isFrozen__: boolean = false;
 
   /**
-   * CustomStruct.definition
+   * DatumMutable.definition
    */
-  get definition(): CustomStructDefinition | null {
+  get definition(): CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as CustomStructDefinition;
+      return this._supergraph.get(nodePtr.id) as CustomStruct;
     }
     return null;
   }
-  set definition(value: CustomStructDefinition) {
+  set definition(value: CustomStruct) {
     this.definitionPtr = value.toRef();
   }
   definitionPtr: NodeReference;
 
   /**
-   * CustomStruct.customValues
+   * DatumMutable.customValues
    */
   customValues: { readonly [key: string]: Value };
 
   constructor(options: {
-    definition: CustomStructDefinition | NodeReference;
+    definition: CustomStruct | NodeReference;
     customValues?: { readonly [key: string]: Value };
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1080,7 +971,7 @@ export class CustomStruct extends Struct {
       _definition = (_definition as Node).toRef();
     }
     if (_definition === null) {
-      throw new Error(`CustomStruct.definition is required`);
+      throw new Error(`DatumMutable.definition is required`);
     }
     this.definitionPtr = _definition;
     let _customValues = options.customValues ?? null;
@@ -1115,7 +1006,7 @@ export class CustomStruct extends Struct {
   }
 
   repr(): string {
-    return `<CustomStruct>`;
+    return `<DatumMutable>`;
   }
 
   hash(): number {
@@ -1137,10 +1028,10 @@ export class CustomStruct extends Struct {
   }
 
   toValue(): { readonly [key: string]: any } {
-    return CustomStruct.__packValue__(this);
+    return DatumMutable.__packValue__(this);
   }
 
-  static __packValue__(object: CustomStruct): { readonly [key: string]: any } {
+  static __packValue__(object: DatumMutable): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 2;
     objectValue["6"] = object.definitionPtr.toValue();
@@ -1160,7 +1051,7 @@ export class CustomStruct extends Struct {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStruct {
+  ): DatumMutable {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedCustomValues = {} as any;
@@ -1175,7 +1066,7 @@ export class CustomStruct extends Struct {
         );
       }
     }
-    return new CustomStruct({
+    return new DatumMutable({
       definition: _NodeReference.fromValue(
         objectValue["6"],
         _session,
@@ -1194,16 +1085,16 @@ export class CustomStruct extends Struct {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStruct {
-    return CustomStruct.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): DatumMutable {
+    return DatumMutable.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CustomStructProto {
-    return CustomStruct.__packProto__(this);
+  toProto(): DatumMutableProto {
+    return DatumMutable.__packProto__(this);
   }
 
-  static __packProto__(object: CustomStruct): CustomStructProto {
-    const objectProto: Partial<CustomStructProto> = { metatype: 2 };
+  static __packProto__(object: DatumMutable): DatumMutableProto {
+    const objectProto: Partial<DatumMutableProto> = { metatype: 2 };
     objectProto.definitionPtr = object.definitionPtr.toProto();
     if (object.customValues) {
       objectProto.customValues = {} as any;
@@ -1211,16 +1102,16 @@ export class CustomStruct extends Struct {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
-    return objectProto as CustomStructProto;
+    return objectProto as DatumMutableProto;
   }
 
   static __unpackProto__(
-    objectProto: CustomStructProto,
+    objectProto: DatumMutableProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStruct {
+  ): DatumMutable {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedCustomValues = {} as any;
@@ -1232,7 +1123,7 @@ export class CustomStruct extends Struct {
         );
       }
     }
-    return new CustomStruct({
+    return new DatumMutable({
       definition: _NodeReference.fromProto(
         objectProto.definitionPtr!,
         _session,
@@ -1246,18 +1137,18 @@ export class CustomStruct extends Struct {
   }
 
   static fromProto(
-    objectProto: CustomStructProto,
+    objectProto: DatumMutableProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomStruct {
-    return CustomStruct.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): DatumMutable {
+    return DatumMutable.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): CustomStruct {
+  static fromProtoString(packedProtoString: string): DatumMutable {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomStructProto.fromBinary(packedProtoBytes);
+    const packedProto = DatumMutableProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1265,5 +1156,267 @@ export class CustomStruct extends Struct {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.CUSTOM_STRUCT, CustomStruct);
+registerStructClass(StructType.DATUM_MUTABLE, DatumMutable);
 /* ==== DESTACK_GENERATED_END:STRUCT:2 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:3 ==== */
+/**
+ * A Datum is an immutable instance of a CustomStruct.
+ */
+export class Datum extends StructFrozen {
+  static metatype: StructType = StructType.DATUM;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Datum.definition
+   */
+  get definition(): CustomStruct | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as CustomStruct;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference;
+
+  /**
+   * Datum.customValues
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  constructor(options: {
+    definition: CustomStruct | NodeReference;
+    customValues?: { readonly [key: string]: Value };
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _definition = options.definition;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    if (_definition === null) {
+      throw new Error(`Datum.definition is required`);
+    }
+    this.definitionPtr = _definition;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  repr(): string {
+    return `<Datum>`;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Datum.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Datum): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 3;
+    objectValue["6"] = object.definitionPtr.toValue();
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Datum {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    return new Datum({
+      definition: _NodeReference.fromValue(
+        objectValue["6"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      customValues: unpackedCustomValues,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Datum {
+    return Datum.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): DatumProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Datum.__packProto__(this);
+    }
+    return this._proto as DatumProto;
+  }
+
+  static __packProto__(object: Datum): DatumProto {
+    const objectProto: Partial<DatumProto> = { metatype: 3 };
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
+    return objectProto as DatumProto;
+  }
+
+  static __unpackProto__(
+    objectProto: DatumProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Datum {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new Datum({
+      definition: _NodeReference.fromProto(
+        objectProto.definitionPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      customValues: unpackedCustomValues,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: DatumProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Datum {
+    return Datum.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Datum {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = DatumProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.DATUM, Datum);
+/* ==== DESTACK_GENERATED_END:STRUCT:3 ==== */

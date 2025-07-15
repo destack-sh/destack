@@ -1,6 +1,6 @@
 from hypothesis import HealthCheck, given, settings
 
-from destack.language import BuiltinObject, Folder, Session, Space, Thread
+from destack.language import BuiltinObject, Folder, Session, Space
 from destack.proto import AnyObjectProto
 from destack.test.fixtures import BUILTIN_OBJECTS
 from destack.test.strategies import builtin_objects, examples
@@ -15,7 +15,7 @@ def test_object_slots(obj: BuiltinObject[AnyObjectProto], session: Session, spac
 
 
 def test_repr_query():
-    query = Thread.search(sort=[Thread.property("created_at").asc()], limit=25)
+    query = Folder.search(sort=[Folder.property("created_at").asc()], limit=25)
     query_repr = repr(query)
     print(query_repr)  # noqa: T201
     assert query_repr is repr(query)  # cached (frozen Struct)

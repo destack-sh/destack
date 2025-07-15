@@ -25,7 +25,7 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
   const session = useSession();
   const supergraph = useSupergraph();
   const layer = supergraph.getOrError(layerPtr.id) as Layer;
-  const lines = layer.getDescendants(LineShape);
+  const lines = layer.getChildren(LineShape);
 
   const [currentLine, setCurrentLine] = useState<LineShape | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);

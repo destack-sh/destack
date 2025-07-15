@@ -1,11 +1,6 @@
 import { TraitType } from "@destack/language/core/builtin/common";
-import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import { Entity } from "@destack/language/core/builtin/entity";
-import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
-import type {
-  NodeDefinitionReference,
-  NodeReference,
-} from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { PropertyDefinition, TraitDefinition } from "@destack/language/core/common/definition";
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
@@ -155,13 +150,13 @@ registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
  * A Node that be extended by custom Nodes (i.e. used as a base type).
  */
 export interface IsExtensible extends IsCustomizable, IsScriptable {
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null;
+  get definition(): (Entity & IsExtensible) | null;
   readonly definitionPtr: NodeReference | null;
 
   /**
-   * Inlined base type of this extensible Node (if extended).
+   * Whether this Node is extensible (whether it can be instanced).
    */
-  readonly baseType: NodeDefinitionReference | null;
+  readonly isExtensible: boolean;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

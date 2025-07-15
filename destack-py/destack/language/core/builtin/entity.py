@@ -25,24 +25,18 @@ from .property import (
 from .trait import (
     INTER_ORDER_TYPES,
     IsArchivable,
-    IsCustomizable,
     IsDeletable,
     IsExtensible,
     IsOrdered,
     IsOwnable,
-    IsScriptable,
-    IsSourceable,
-    IsTaggable,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
         EntityGraph,
         EntitySingletonGraph,
-        Folder,
         Icon,
         IsActor,
-        NodeDefinitionReference,
         NodeReference,
         Space,
     )
@@ -73,10 +67,10 @@ class Entity(Node):
     """
 
     __store_domain__ = StoreDomain.ENTITY
-
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
     parent: Optional["Entity"] = builtin_property_parent()
+
     # 10-20: entity materialization
     materialization: Materialization = builtin_property(
         10,
@@ -101,12 +95,6 @@ class Entity(Node):
         node_space_from="self",
         description="The previous Entity this Entity is based on (from another Snapshot).",
     )
-    template: Optional[Self] = builtin_property(
-        13,
-        is_readonly=True,
-        is_managed=True,
-        description="The template this Entity instance is based on (from the template tree).",
-    )
     # instance_root: Optional["Entity"] = builtin_property(
     #     14,
     #     is_readonly=True,
@@ -118,7 +106,6 @@ class Entity(Node):
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None
         predecessor_ptr: Optional["NodeReference"] = None
-        template_ptr: Optional["NodeReference"] = None
         # instance_root_ptr: Optional["NodeReference"] = None
 
     # 20-40: node tracking
@@ -437,59 +424,6 @@ class Entity(Node):
         raise NotImplementedError
 
 
-@builtin_node(NodeType.CUSTOM_ENTITY_DEFINITION)
-class CustomEntityDefinition(
-    IsCustomizable,
-    IsTaggable,
-    IsOwnable,
-    IsDeletable,
-    IsScriptable,
-    IsSourceable,
-    Entity,
-):
-    """
-    A definition for a custom Entity type.
-    Custom Entities are instantiated either as:
-     1) their respective extensible base type (like ContainerView)
-     2) plain CustomEntity instance (default if not extending any other type)
-    """
-
-    parent: Optional["Folder"] = builtin_property_parent()
-
-    base_type: "NodeDefinitionReference" = builtin_property(40)
-    base_traits: list["NodeDefinitionReference"] = builtin_property(41)
-    is_abstract: bool = builtin_property(45, default=False)
-
-    prototype: Optional["Entity"] = builtin_property(
-        50,
-        description="A custom Entity's prototype is the default template new CustomEntity instances are based on.",
-    )
-
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-
-
-@builtin_node(NodeType.CUSTOM_TRAIT_DEFINITION)
-class CustomTraitDefinition(
-    IsSourceable,
-    IsDeletable,
-    IsScriptable,
-    IsCustomizable,
-    Entity,
-):
-    """
-    A CustomTraitDefinition defines a kind of CustomTrait.
-    """
-
-    parent: Optional["Folder"] = builtin_property_parent()
-    base_type: Optional["NodeDefinitionReference"] = builtin_property(40)
-    base_traits: list["NodeDefinitionReference"] = builtin_property(41)
-    is_abstract: bool = builtin_property(45, default=False)
-
-    name: str = builtin_property(101, is_repr=True)
-    icon: "Icon | None" = builtin_property(102)
-
-
 @builtin_node(NodeType.RECORD, is_abstract=True)
 class Record(
     IsExtensible,
@@ -505,24 +439,21 @@ class Record(
     More specific base Entity types will be instanced of that base type instead.
     """
 
-    definition: "CustomEntityDefinition" = builtin_property(
-        6,
-        is_managed=True,
-        is_readonly=True,
-        description="The CustomEntityDefinition this Record is an instance of.",
-    )
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
+    pass
 
 
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
-class Resource(IsDeletable, IsExtensible, Entity):
+class Resource(
+    IsExtensible,
+    IsDeletable,
+    Entity,
+):
     """
     A Resource represents an external asset outside of Destack.
     The lifecycle of a Resource may be managed by some Provisioner (Service).
     """
 
-    status: ResourceStatus = builtin_property(90, default=ResourceStatus.PENDING)
+    status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
 
 
 @builtin_enum(EnumType.SNAPSHOT_TYPE)
@@ -604,3 +535,17 @@ class Snapshot(
         assert self._token is not None, f"not in {self!r}"
         ACTIVE_SNAPSHOT.reset(self._token)
         self._token = None
+
+
+@builtin_node(NodeType.VARIANT, is_abstract=True)
+class Variant(
+    IsExtensible,
+    IsOwnable,
+    IsDeletable,
+    Entity,
+):
+    """A Variant is an alternative version of an Entity."""
+
+    parent: Optional["IsExtensible"] = builtin_property_parent()
+    name: str = builtin_property(101, is_repr=True)
+    icon: "Icon | None" = builtin_property(102)

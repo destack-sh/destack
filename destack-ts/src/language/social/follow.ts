@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:220400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220200 ==== */
 /**
  * A Follow is a relationship between a Actor and an IsFollowable Node.
  */
@@ -95,18 +95,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Follow | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Follow | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -180,7 +168,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Follow | NodeReference | null;
-    template?: Follow | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -255,11 +242,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy;
@@ -312,9 +294,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -336,9 +315,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -401,7 +377,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
 
   static __packValue__(object: Follow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220400;
+    objectValue["1"] = 220200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -413,9 +389,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -460,11 +433,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -488,7 +456,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -516,7 +483,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   }
 
   static __packProto__(object: Follow): FollowProto {
-    const objectProto: Partial<FollowProto> = { metatype: 220400 };
+    const objectProto: Partial<FollowProto> = { metatype: 220200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -528,9 +495,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -596,16 +560,6 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -663,9 +617,9 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW, Follow);
-/* ==== DESTACK_GENERATED_END:NODE:220400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220401 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220201 ==== */
 /**
  * FollowEvent
  */
@@ -942,7 +896,7 @@ export class FollowEvent extends Event {
 
   static __packValue__(object: FollowEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220401;
+    objectValue["1"] = 220201;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1025,7 +979,7 @@ export class FollowEvent extends Event {
   }
 
   static __packProto__(object: FollowEvent): FollowEventProto {
-    const objectProto: Partial<FollowEventProto> = { metatype: 220401 };
+    const objectProto: Partial<FollowEventProto> = { metatype: 220201 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1130,9 +1084,9 @@ export class FollowEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW_EVENT, FollowEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220401 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220402 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220202 ==== */
 /**
  * FollowAddedEvent
  */
@@ -1258,7 +1212,7 @@ export class FollowAddedEvent extends FollowEvent {
 
   static __packValue__(object: FollowAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220402;
+    objectValue["1"] = 220202;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1347,7 +1301,7 @@ export class FollowAddedEvent extends FollowEvent {
   }
 
   static __packProto__(object: FollowAddedEvent): FollowAddedEventProto {
-    const objectProto: Partial<FollowAddedEventProto> = { metatype: 220402 };
+    const objectProto: Partial<FollowAddedEventProto> = { metatype: 220202 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1458,9 +1412,9 @@ export class FollowAddedEvent extends FollowEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW_ADDED_EVENT, FollowAddedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220402 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220403 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220203 ==== */
 /**
  * FollowRemovedEvent
  */
@@ -1586,7 +1540,7 @@ export class FollowRemovedEvent extends FollowEvent {
 
   static __packValue__(object: FollowRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220403;
+    objectValue["1"] = 220203;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1675,7 +1629,7 @@ export class FollowRemovedEvent extends FollowEvent {
   }
 
   static __packProto__(object: FollowRemovedEvent): FollowRemovedEventProto {
-    const objectProto: Partial<FollowRemovedEventProto> = { metatype: 220403 };
+    const objectProto: Partial<FollowRemovedEventProto> = { metatype: 220203 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1786,4 +1740,4 @@ export class FollowRemovedEvent extends FollowEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW_REMOVED_EVENT, FollowRemovedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220403 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220203 ==== */

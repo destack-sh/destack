@@ -8,7 +8,7 @@ from .definition import (
     StructDefinition,
     TraitDefinition,
 )
-from .enum import CustomEnumDefinition, CustomOption
+from .enum import CustomEnum, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
 from .property import CustomProperty
 from .query import (
@@ -35,7 +35,7 @@ from .query import (
     SortMode,
     SortType,
 )
-from .struct import CustomStruct, CustomStructDefinition
+from .struct import CustomStruct, DatumMutable
 from .text import (
     Text,
     TextIn,
@@ -109,11 +109,11 @@ __all__ = [
     "ConstantDefinition",
     "Constraint",
     "Corners",
-    "CustomEnumDefinition",
+    "CustomEnum",
     "CustomOption",
     "CustomProperty",
     "CustomStruct",
-    "CustomStructDefinition",
+    "DatumMutable",
     "Dimension",
     "DimensionType",
     "Direction",

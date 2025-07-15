@@ -1,5 +1,7 @@
 import {
   ACTIVE_SPACE,
+  EventCursor,
+  Folder,
   Join,
   JoinType,
   NodeReference,
@@ -9,8 +11,6 @@ import {
   Session,
   Space,
   SpaceStatus,
-  Thread,
-  ThreadCursor,
   User,
   UserStatus,
 } from "@destack/language";
@@ -63,11 +63,11 @@ sessionTest("roundtrip node reference", ({ session }) => {
 
 sessionTest("roundtrip query", ({ session }) => {
   // pack and unpack a Query as value
-  const query = Thread.search({
-    sort: [Thread.property("created_at").asc()],
+  const query = Folder.search({
+    sort: [Folder.property("created_at").asc()],
     limit: 25,
-    cursor: ThreadCursor.get({
-      join: Join.of(JoinType.LEFT, { on: ThreadCursor.property("ownedBy").eq(5) }),
+    cursor: EventCursor.get({
+      join: Join.of(JoinType.LEFT, { on: EventCursor.property("ownedBy").eq(5) }),
     }),
   });
 

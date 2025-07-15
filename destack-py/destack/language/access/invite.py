@@ -5,6 +5,7 @@ from destack.language.core import (
     Event,
     IsActor,
     IsDeletable,
+    IsExtensible,
     IsJoinable,
     IsOwnable,
     NodeType,
@@ -62,7 +63,12 @@ class InviteRejectedEvent(InviteEvent):
     NodeType.INVITE,
     event_types=(NodeType.INVITE_EVENT,),
 )
-class Invite(IsOwnable, IsDeletable, Entity):
+class Invite(
+    IsOwnable,
+    IsDeletable,
+    IsExtensible,
+    Entity,
+):
     """An Invite to a Joinable."""
 
     parent: Optional["IsJoinable"] = builtin_property_parent()

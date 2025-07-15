@@ -14,6 +14,7 @@ from .common import (
     EdgeType,
     EnumType,
     EnvironmentType,
+    ModeType,
     NodeType,
     OperatingSystem,
     PlatformType,
@@ -70,8 +71,6 @@ from .edit import (
     EditType,
 )
 from .entity import (
-    CustomEntityDefinition,
-    CustomTraitDefinition,
     Entity,
     Materialization,
     Record,
@@ -81,7 +80,7 @@ from .entity import (
     SnapshotType,
 )
 from .enum import Enum, builtin_enum
-from .event import CustomEventDefinition, Event, EventStatus, Signal
+from .event import CustomEvent, Event, EventStatus
 from .node import IndexIn, Node, builtin_node
 from .object import BuiltinObject, _is_finalized
 from .property import (
@@ -159,9 +158,8 @@ __all__ = [
     "ClientType",
     "Cloud",
     "ConstantDeclaration",
-    "CustomEntityDefinition",
-    "CustomEventDefinition",
-    "CustomTraitDefinition",
+    "CustomEvent",
+    "CustomEvent",
     "DestackError",
     "EdgeDirection",
     "EdgeType",
@@ -195,6 +193,7 @@ __all__ = [
     "IsTaggable",
     "IsViewable",
     "Materialization",
+    "ModeType",
     "Node",
     "NodeDefinitionReference",
     "NodeDefinitionType",
@@ -218,7 +217,6 @@ __all__ = [
     "RoleType",
     "RuntimeLanguage",
     "ScalarType",
-    "Signal",
     "Snapshot",
     "SnapshotStatus",
     "SnapshotType",

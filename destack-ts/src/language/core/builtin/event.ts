@@ -27,7 +27,7 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
-import { CustomEventDefinitionProto, MaterializationProto } from "@destack/proto";
+import { CustomEventProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -98,10 +98,10 @@ registerNodeClass(NodeType.EVENT, Event);
 
 /* ==== DESTACK_GENERATED_START:NODE:102 ==== */
 /**
- * A CustomEventDefinition defines a kind of CustomEvent with custom Properties.
+ * A CustomEvent defines a custom Event with custom Properties.
  */
-export class CustomEventDefinition extends Entity implements IsSourceable, IsCustomizable {
-  static metatype: NodeType = NodeType.CUSTOM_EVENT_DEFINITION;
+export class CustomEvent extends Entity implements IsSourceable, IsCustomizable {
+  static metatype: NodeType = NodeType.CUSTOM_EVENT;
 
   /**
    * Entity.parent
@@ -147,26 +147,14 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): CustomEventDefinition | null {
+  get predecessor(): CustomEvent | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEventDefinition | null;
+      return this._supergraph.get(nodePtr.id) as CustomEvent | null;
     }
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): CustomEventDefinition | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEventDefinition | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -224,10 +212,10 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   readonly orderKey: string;
 
   /**
-   * CustomEventDefinition.baseType
+   * CustomEvent.baseType
    */
   /**
-   * CustomEventDefinition.baseType
+   * CustomEvent.baseType
    */
   get baseType(): NodeDefinitionReference | null {
     return this._baseType;
@@ -240,10 +228,10 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   _baseType: NodeDefinitionReference | null;
 
   /**
-   * CustomEventDefinition.baseTraits
+   * CustomEvent.baseTraits
    */
   /**
-   * CustomEventDefinition.baseTraits
+   * CustomEvent.baseTraits
    */
   get baseTraits(): readonly NodeDefinitionReference[] {
     return this._baseTraits;
@@ -256,10 +244,10 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   _baseTraits: readonly NodeDefinitionReference[];
 
   /**
-   * CustomEventDefinition.isAbstract
+   * CustomEvent.isAbstract
    */
   /**
-   * CustomEventDefinition.isAbstract
+   * CustomEvent.isAbstract
    */
   get isAbstract(): boolean {
     return this._isAbstract;
@@ -300,10 +288,10 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   _key: string | null;
 
   /**
-   * CustomEventDefinition.name
+   * CustomEvent.name
    */
   /**
-   * CustomEventDefinition.name
+   * CustomEvent.name
    */
   get name(): string {
     return this._name;
@@ -316,10 +304,10 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   _name: string;
 
   /**
-   * CustomEventDefinition.icon
+   * CustomEvent.icon
    */
   /**
-   * CustomEventDefinition.icon
+   * CustomEvent.icon
    */
   get icon(): Icon | null {
     return this._icon;
@@ -337,8 +325,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: CustomEventDefinition | NodeReference | null;
-    template?: CustomEventDefinition | NodeReference | null;
+    predecessor?: CustomEvent | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -390,16 +377,16 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomEventDefinition has no Session`);
+        throw new Error(`CustomEvent has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CustomEventDefinition has no Space`);
+        throw new Error(`CustomEvent has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`CustomEventDefinition.space is required`);
+      throw new Error(`CustomEvent.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -407,7 +394,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`CustomEventDefinition.materialization is required`);
+      throw new Error(`CustomEvent.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -420,11 +407,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
       _customValues = {};
@@ -435,7 +417,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`CustomEventDefinition.orderKey is required`);
+      throw new Error(`CustomEvent.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _baseType = options.baseType ?? null;
@@ -450,7 +432,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       _isAbstract = false;
     }
     if (_isAbstract === null) {
-      throw new Error(`CustomEventDefinition.isAbstract is required`);
+      throw new Error(`CustomEvent.isAbstract is required`);
     }
     this._isAbstract = _isAbstract;
     let _source = options.source ?? null;
@@ -462,7 +444,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     this._key = _key;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`CustomEventDefinition.name is required`);
+      throw new Error(`CustomEvent.name is required`);
     }
     this._name = _name;
     let _icon = options.icon ?? null;
@@ -478,7 +460,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `CustomEventDefinition.createdAt and CustomEventDefinition.updatedAt are required for existing Nodes`,
+          `CustomEvent.createdAt and CustomEvent.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -551,9 +533,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -597,9 +576,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -622,7 +598,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.CUSTOM_EVENT_DEFINITION,
+      type: NodeType.CUSTOM_EVENT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -653,14 +629,14 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<CustomEventDefinition "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<CustomEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return CustomEventDefinition.__packValue__(this);
+    return CustomEvent.__packValue__(this);
   }
 
-  static __packValue__(object: CustomEventDefinition): { readonly [key: string]: any } {
+  static __packValue__(object: CustomEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 102;
     objectValue["2"] = String(object.id);
@@ -674,9 +650,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -724,7 +697,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEventDefinition {
+  ): CustomEvent {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
@@ -789,11 +762,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -804,7 +772,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new CustomEventDefinition({
+    return new CustomEvent({
       baseType: unpackedBaseType,
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
@@ -817,7 +785,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -837,22 +804,16 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEventDefinition {
-    return CustomEventDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): CustomEvent {
+    return CustomEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CustomEventDefinitionProto {
-    return CustomEventDefinition.__packProto__(this);
+  toProto(): CustomEventProto {
+    return CustomEvent.__packProto__(this);
   }
 
-  static __packProto__(object: CustomEventDefinition): CustomEventDefinitionProto {
-    const objectProto: Partial<CustomEventDefinitionProto> = { metatype: 102 };
+  static __packProto__(object: CustomEvent): CustomEventProto {
+    const objectProto: Partial<CustomEventProto> = { metatype: 102 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -864,9 +825,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -904,16 +862,16 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
-    return objectProto as CustomEventDefinitionProto;
+    return objectProto as CustomEventProto;
   }
 
   static __unpackProto__(
-    objectProto: CustomEventDefinitionProto,
+    objectProto: CustomEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEventDefinition {
+  ): CustomEvent {
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
@@ -937,7 +895,7 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
         );
       }
     }
-    return new CustomEventDefinition({
+    return new CustomEvent({
       baseType:
         objectProto.baseType != undefined
           ? _NodeDefinitionReference.fromProto(
@@ -998,16 +956,6 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -1046,24 +994,18 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   }
 
   static fromProto(
-    objectProto: CustomEventDefinitionProto,
+    objectProto: CustomEventProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEventDefinition {
-    return CustomEventDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): CustomEvent {
+    return CustomEvent.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): CustomEventDefinition {
+  static fromProtoString(packedProtoString: string): CustomEvent {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomEventDefinitionProto.fromBinary(packedProtoBytes);
+    const packedProto = CustomEventProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1071,13 +1013,12 @@ export class CustomEventDefinition extends Entity implements IsSourceable, IsCus
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.CUSTOM_EVENT_DEFINITION, CustomEventDefinition);
+registerNodeClass(NodeType.CUSTOM_EVENT, CustomEvent);
 /* ==== DESTACK_GENERATED_END:NODE:102 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
 /**
- * A generic Signal of a CustomEventDefinition.
- * More specific base Event types will be instanced of that base type instead.
+ * A generic Event of a CustomEventDefinition.
  */
 export abstract class Signal extends Event implements IsExtensible {
   static metatype: NodeType = NodeType.SIGNAL;
@@ -1091,13 +1032,8 @@ export abstract class Signal extends Event implements IsExtensible {
   /**
    * The CustomEventDefinition this Signal is an instance of.
    */
-  abstract get definition(): CustomEventDefinition | null;
+  abstract get definition(): CustomEvent | null;
   declare readonly definitionPtr: NodeReference;
-
-  /**
-   * Inlined base type of this extensible Node (if extended).
-   */
-  declare readonly baseType: NodeDefinitionReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -1142,6 +1078,11 @@ export abstract class Signal extends Event implements IsExtensible {
    */
   abstract get script(): Script | null;
   declare readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * The Node this Event is about.

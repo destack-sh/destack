@@ -9,6 +9,7 @@ from destack.language.core import (
     IsJoinable,
     IsOrdered,
     IsOwnable,
+    IsReactable,
     IsStarable,
     IsTaggable,
     NodeType,
@@ -43,6 +44,7 @@ class Folder(
     IsDeletable,
     IsStarable,
     IsFollowable,
+    IsReactable,
     Entity,
 ):
     """A Folder is a sub-space of a Space."""

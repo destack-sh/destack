@@ -1,4 +1,3 @@
-from .agent import Agent
 from .entitlement import (
     Entitlement,
     EntitlementExpiredEvent,
@@ -27,7 +26,6 @@ from .sanction import (
 )
 
 __all__ = [
-    "Agent",
     "Entitlement",
     "EntitlementExpiredEvent",
     "EntitlementGrantedEvent",

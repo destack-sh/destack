@@ -23,11 +23,10 @@ from .trait import Trait, TraitType
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomEntityDefinition,
-        CustomEventDefinition,
+        CustomEvent,
         CustomProperty,
-        CustomStructDefinition,
-        CustomTraitDefinition,
+        CustomStruct,
+        IsExtensible,
         Node,
         PropertyDefinition,
     )
@@ -50,8 +49,8 @@ class NodeDefinitionReference(StructFrozen):
     type: NodeDefinitionType = builtin_property(100, is_repr=True)
     node_type: NodeType = builtin_property(101, is_repr=True)
     definition: Union[
-        "CustomEntityDefinition",
-        "CustomEventDefinition",
+        "IsExtensible",
+        "CustomEvent",
         None,
     ] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
@@ -102,9 +101,9 @@ class NodeDefinitionReference(StructFrozen):
             if base.definition_id is not None:
                 node_cls = NODE_CLASS_BY_TYPE[base.type]
                 if NodeType.ENTITY in node_cls.__inherits__:
-                    definition_node_type = NodeType.CUSTOM_ENTITY_DEFINITION
+                    definition_node_type = base.type  # same as instance
                 elif NodeType.EVENT in node_cls.__inherits__:
-                    definition_node_type = NodeType.CUSTOM_EVENT_DEFINITION
+                    definition_node_type = NodeType.CUSTOM_EVENT
                 else:
                     raise ValueError(f"unexpected node reference: {base!r}")
                 definition_ptr = NodeReference(
@@ -141,10 +140,9 @@ class ObjectDefinitionReference(StructFrozen):
     trait_type: Optional[TraitType] = builtin_property(102, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(103, is_repr=True)
     definition: Union[
-        "CustomEntityDefinition",
-        "CustomEventDefinition",
-        "CustomTraitDefinition",
-        "CustomStructDefinition",
+        "IsExtensible",
+        "CustomEvent",
+        "CustomStruct",
         None,
     ] = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
@@ -193,13 +191,10 @@ class ObjectDefinitionReference(StructFrozen):
             "type[Node]",
             "type[Trait]",
             "type[Struct]",
-            "CustomEntityDefinition",
-            "CustomEventDefinition",
-            "CustomTraitDefinition",
+            "CustomEvent",
         ],
     ) -> "ObjectDefinitionReference":
-        from .entity import CustomEntityDefinition, CustomTraitDefinition
-        from .event import CustomEventDefinition
+        from .event import CustomEvent
         from .node import Node
 
         if isinstance(base, NodeType):
@@ -226,9 +221,7 @@ class ObjectDefinitionReference(StructFrozen):
                 )
             else:
                 raise ValueError(f"invalid object reference type: {base!r}")
-        elif isinstance(
-            base, (CustomEntityDefinition, CustomEventDefinition, CustomTraitDefinition)
-        ):
+        elif isinstance(base, CustomEvent):
             raise NotImplementedError(f"unexpected object definition reference: {base!r}")
         else:
             assert_never(base)
@@ -248,7 +241,7 @@ class StructDefinitionReference(StructFrozen):
 
     type: StructDefinitionType = builtin_property(100, is_repr=True)
     struct_type: Optional[StructType] = builtin_property(101, is_repr=True)
-    definition: "CustomStructDefinition" = builtin_property(105, is_repr=True)
+    definition: "CustomStruct" = builtin_property(105, is_repr=True)
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
 

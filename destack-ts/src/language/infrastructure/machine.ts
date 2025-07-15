@@ -1,11 +1,9 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
-  CustomEntityDefinition,
-  CustomEventDefinition,
   Graph,
   IsActor,
+  IsExtensible,
   NodeClass,
-  NodeDefinitionReference,
   NodeReference,
   QueryConnection,
   Session,
@@ -93,24 +91,16 @@ export class Machine extends Resource {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definitionthis CustomEntity is an instance of.
+   * The definition this CustomEntity is an instance of.
    */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+  get definition(): (Entity & IsExtensible) | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
     }
     return null;
   }
   readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Inlined base type of this extensible Node (if extended).
-   */
-  readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.materialization
@@ -140,18 +130,6 @@ export class Machine extends Resource {
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Machine | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Machine | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -209,6 +187,22 @@ export class Machine extends Resource {
   _customValues: { readonly [key: string]: Value };
 
   /**
+   * Resource.status
+   */
+  /**
+   * Resource.status
+   */
+  get status(): ResourceStatus {
+    return this._status;
+  }
+  set status(value: ResourceStatus) {
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
+    this._status = value;
+  }
+  _status: ResourceStatus;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -239,20 +233,9 @@ export class Machine extends Resource {
   _scriptPtr: NodeReference | null;
 
   /**
-   * Resource.status
+   * Whether this Node is extensible (whether it can be instanced).
    */
-  /**
-   * Resource.status
-   */
-  get status(): ResourceStatus {
-    return this._status;
-  }
-  set status(value: ResourceStatus) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: ResourceStatus;
+  readonly isExtensible: boolean;
 
   /**
    * Machine.type
@@ -480,20 +463,19 @@ export class Machine extends Resource {
     id?: string;
     parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
-    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
-    baseType?: NodeDefinitionReference | null;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Machine | NodeReference | null;
-    template?: Machine | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
-    script?: Script | NodeReference | null;
     status?: ResourceStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     type?: MachineType;
     version?: string;
     externalName?: string | null;
@@ -562,8 +544,6 @@ export class Machine extends Resource {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
-    let _baseType = options.baseType ?? null;
-    this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 3 /* Materialization.ROOT */;
@@ -582,11 +562,6 @@ export class Machine extends Resource {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -594,11 +569,6 @@ export class Machine extends Resource {
       _customValues = {};
     }
     this._customValues = _customValues;
-    let _script = options.script ?? null;
-    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
-      _script = (_script as Node).toRef();
-    }
-    this._scriptPtr = _script;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* ResourceStatus.PENDING */;
@@ -607,6 +577,19 @@ export class Machine extends Resource {
       throw new Error(`Machine.status is required`);
     }
     this._status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`Machine.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 10 /* MachineType.RUNTIME */;
@@ -756,19 +739,13 @@ export class Machine extends Resource {
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
-    if (
-      (this.baseType == null) !== (other.baseType == null) ||
-      (this.baseType != null && !this.baseType.equals(other.baseType))
-    ) {
+    if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
-      return false;
-    }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -823,23 +800,18 @@ export class Machine extends Resource {
     h = (h * 31 + hashInt(this._height)) & 0xffffffff;
     h = (h * 31 + hashBool(this._isHeadless)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType != null) {
-      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -849,7 +821,6 @@ export class Machine extends Resource {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -859,6 +830,7 @@ export class Machine extends Resource {
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -919,18 +891,12 @@ export class Machine extends Resource {
     if (object.definitionPtr != null) {
       objectValue["6"] = object.definitionPtr.toValue();
     }
-    if (object.baseType != null) {
-      objectValue["7"] = object.baseType.toValue();
-    }
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -950,10 +916,11 @@ export class Machine extends Resource {
       }
       objectValue["26"] = packedCustomValues;
     }
+    objectValue["40"] = object._status;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
-    objectValue["90"] = object._status;
+    objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
     objectValue["110"] = object._version;
     if (object._externalName != null) {
@@ -989,9 +956,6 @@ export class Machine extends Resource {
     _graph?: any | null,
     _connection?: any | null,
   ): Machine {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const parentPtrValue = objectValue["3"];
@@ -1014,26 +978,15 @@ export class Machine extends Resource {
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const definitionPtrValue = objectValue["6"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const baseTypeValue = objectValue["7"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? _NodeDefinitionReference.fromValue(
-            baseTypeValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
+    const deletedAtValue = objectValue["25"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1044,11 +997,6 @@ export class Machine extends Resource {
     const unpackedPredecessorPtr =
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1092,21 +1040,20 @@ export class Machine extends Resource {
       width: Number(objectValue["122"]),
       height: Number(objectValue["123"]),
       isHeadless: objectValue["124"],
-      status: Number(objectValue["90"]),
-      deletedAt: unpackedDeletedAt,
+      status: Number(objectValue["40"]),
       definition: unpackedDefinitionPtr,
-      baseType: unpackedBaseType,
+      isExtensible: objectValue["90"],
+      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
-      id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
+      id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -1138,18 +1085,12 @@ export class Machine extends Resource {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
-    if (object.baseType != null) {
-      objectProto.baseType = object.baseType.toProto();
-    }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1168,10 +1109,11 @@ export class Machine extends Resource {
         objectProto.customValues![String(key)] = value.toProto();
       }
     }
+    objectProto.status = Number(object._status) as ResourceStatusProto;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.status = Number(object._status) as ResourceStatusProto;
+    objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as MachineTypeProto;
     objectProto.version = object._version;
     if (object._externalName != null) {
@@ -1207,9 +1149,6 @@ export class Machine extends Resource {
     _graph?: any | null,
     _connection?: any | null,
   ): Machine {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedCustomValues = {} as any;
@@ -1255,8 +1194,6 @@ export class Machine extends Resource {
       height: Number(objectProto.height),
       isHeadless: objectProto.isHeadless,
       status: Number(objectProto.status) as ResourceStatus,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -1267,16 +1204,9 @@ export class Machine extends Resource {
               _connection,
             )
           : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.baseType!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      isExtensible: objectProto.isExtensible,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1292,16 +1222,6 @@ export class Machine extends Resource {
         objectProto.predecessorPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.predecessorPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
               _session,
               _supergraph,
               _graph,
@@ -1330,7 +1250,6 @@ export class Machine extends Resource {
               _connection,
             )
           : null,
-      id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
@@ -1342,6 +1261,7 @@ export class Machine extends Resource {
               _connection,
             )
           : null,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

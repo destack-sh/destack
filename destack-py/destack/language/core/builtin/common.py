@@ -46,6 +46,8 @@ class EnumType(Enum):
     EDGE_TYPE = 67
     EDGE_DIRECTION = 68
     CASCADE_ACTION = 69
+    MODE_TYPE = 560_000
+
     RESOURCE_STATUS = 1100
     SNAPSHOT_TYPE = 1300
     SNAPSHOT_STATUS = 1301
@@ -118,7 +120,6 @@ class EnumType(Enum):
     # optimization [200_000-220_000]
 
     # social [220_000-240_000]
-    THREAD_STATUS = 220_000
     NOTIFICATION_STATUS = 220_500
 
     # finance [240_000-260_000]
@@ -126,8 +127,6 @@ class EnumType(Enum):
     # scene [500_000-520_000]
     WINDOW_TYPE = 500_000
     LAYER_TYPE = 500_200
-    VARIANT_TYPE = 500_300
-    VARIANT_STATE_TYPE = 500_301
 
     # view [520_000-540_000]
 
@@ -135,7 +134,6 @@ class EnumType(Enum):
     ARROW_HEAD_TYPE = 540_300
 
     # interaction [560_000-580_000]
-    MODE_TYPE = 560_000
     TOOL_TYPE = 560_001
     MOUSE_BUTTON = 560_010
 
@@ -184,7 +182,8 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 class StructType(Enum):
     # meta [1-20_000]
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
-    CUSTOM_STRUCT = 2
+    DATUM_MUTABLE = 2
+    DATUM = 3
     # definitions
     BUILTIN_DEFINITION = 100
     NODE_DEFINITION = 101
@@ -415,21 +414,22 @@ class NodeType(Enum):
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
     # custom
-    CUSTOM_ENTITY_DEFINITION = 100, "Custom Entity Definition", None, "fas fa-table"
-    CUSTOM_TRAIT_DEFINITION = 101, "Custom Trait Definition", None, "fas fa-table"
-    CUSTOM_EVENT_DEFINITION = 102, "Custom Event Definition", None, "fas fa-signal"
-    CUSTOM_STRUCT_DEFINITION = 103, "Custom Struct Definition", None, "fas fa-shapes"
-    CUSTOM_ENUM_DEFINITION = 104, "Custom Enum Definition", None, "fas fa-shapes"
-    CUSTOM_PROPERTY = 110, "Custom Property", None, "fas fa-triangle"
-    CUSTOM_OPTION = 120, "Custom Option", None, "fas fa-circle"
+    CUSTOM_EVENT = 102, "Custom Event", "Custom Event Definition", "fas fa-signal"
+    CUSTOM_STRUCT = 103, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
+    CUSTOM_ENUM = 104, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
+    CUSTOM_PROPERTY = 110, "Custom Property", "Custom Property Definition", "fas fa-triangle"
+    CUSTOM_OPTION = 120, "Custom Option", "Custom Option Definition", "fas fa-circle"
     # entity
-    RECORD = 1000, "Record", "Custom Entity", "fas fa-database"
+    RECORD = 1000, "Record", "Data Entity", "fas fa-database"
     RESOURCE = 1100, "Resource", "External asset outside of Destack", "fas fa-dot"
     METRIC = 1200, "Metric", None, "fas fa-gauge"
     SNAPSHOT = 1300, "Snapshot", "Point in Space-time", "fas fa-save"
     SERVICE = 1400, "Service", None, "fas fa-screwdriver-wrench"
+    VARIANT = 1500, "Variant", "Variant of a Scene", "fas fa-shapes"
+    # LINK, PORTAL, ...
+
     # event
-    SIGNAL = 2000, "Signal", "Custom Event", "fas fa-signal"
+    SIGNAL = 2000, "Custom Event", "Custom Event", "fas fa-signal"
     EDIT_EVENT = 2001, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
     MEASUREMENT_EVENT = 2010, "Measurement of a Metric", None, "fas fa-gauge"
@@ -458,7 +458,7 @@ class NodeType(Enum):
     BRANCH = 45_000, "Branch", None, "fas fa-code-branch"
     # HISTORY, REPLAY, ...
     # FORK, ...
-    # PORTAL, ...
+    # LINK, PORTAL, ...
 
     # access [60_000-80_000]
     MEMBERSHIP = 60_000, "Membership", "Membership to something", "fas fa-user-group"
@@ -488,7 +488,6 @@ class NodeType(Enum):
     ENTITLEMENT_GRANTED_EVENT = 60_503, "Entitlement Granted Event", None, "fas fa-user-check"
     ENTITLEMENT_REVOKED_EVENT = 60_504, "Entitlement Revoked Event", None, "fas fa-user-check"
     ENTITLEMENT_EXPIRED_EVENT = 60_505, "Entitlement Expired Event", None, "fas fa-user-check"
-    AGENT = 60_600, "Agent", None, "fas fa-robot"
     # CHALLENGE, ...
 
     # data [80_000-100_000]
@@ -510,12 +509,10 @@ class NodeType(Enum):
     TIMER_STARTED_EVENT = 105_102, "Timer Started Event", None, "fas fa-clock"
     TIMER_COMPLETED_EVENT = 105_103, "Timer Completed Event", None, "fas fa-clock"
     TIMER_CANCELLED_EVENT = 105_104, "Timer Cancelled Event", None, "fas fa-clock"
-    CURSOR = 106_000, "Cursor", None, "fas fa-mouse-pointer"
-    EVENT_CURSOR = 106_100, "Event Cursor", None, "fas fa-signal"
-    SCREEN_CURSOR = 106_200, "Screen Cursor", None, "fas fa-mouse"
-    THREAD_CURSOR = 108_300, "Thread Cursor", None, "fas fa-magnifying-glass"
-    # QUERY_CURSOR, WEB_CURSOR, ...
     ROUTE = 110_000, "Route", None, "fas fa-route"
+    CURSOR = 112_000, "Cursor", None, "fas fa-cursor"
+    EVENT_CURSOR = 112_100, "Event Cursor", None, "fas fa-cursor"
+    SCREEN_CURSOR = 112_200, "Screen Cursor", None, "fas fa-cursor"
     # BREAKPOINT, ...
     # ROOM, CHANNEL, ...
     # SEMAPHORE, LOCK/LATCH, ...
@@ -524,7 +521,8 @@ class NodeType(Enum):
     # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
     # FIXTURE, MOCK, ...
     # LINT, WARNING, ERROR, ...
-    # STATE_MACHINE, ...
+    # STATE_MACHINE, STATE, STATE_TRANSITION, ...
+    # PLATFORM_VARIANT, STATE_VARIANT, ...
 
     # intelligence [120_000-140_000]
     # MODEL, FINETUNE, ...
@@ -576,20 +574,18 @@ class NodeType(Enum):
     # SEGMENT, EXPERIMENT, ...
 
     # social [220_000-240_000]
-    THREAD = 220_000, "Thread", None, "fas fa-reel"
-    MESSAGE = 220_100, "Message", None, "fas fa-message"
-    REACTION = 220_200, "Reaction", None, "fas fa-heart"
-    REACTION_EVENT = 220_201, "Reaction Event", None, "fas fa-heart"
-    REACTION_ADDED_EVENT = 220_202, "Reaction Added Event", None, "fas fa-heart"
-    REACTION_REMOVED_EVENT = 220_203, "Reaction Removed Event", None, "fas fa-heart"
-    STAR = 220_300, "Star", None, "fas fa-star"
-    STAR_EVENT = 220_301, "Star Event", None, "fas fa-star"
-    STAR_ADDED_EVENT = 220_302, "Star Added Event", None, "fas fa-star"
-    STAR_REMOVED_EVENT = 220_303, "Star Removed Event", None, "fas fa-star"
-    FOLLOW = 220_400, "Follow", None, "fas fa-plus"
-    FOLLOW_EVENT = 220_401, "Follow Event", None, "fas fa-plus"
-    FOLLOW_ADDED_EVENT = 220_402, "Follow Added Event", None, "fas fa-plus"
-    FOLLOW_REMOVED_EVENT = 220_403, "Follow Removed Event", None, "fas fa-plus"
+    REACTION = 220_000, "Reaction", None, "fas fa-heart"
+    REACTION_EVENT = 220_001, "Reaction Event", None, "fas fa-heart"
+    REACTION_ADDED_EVENT = 220_002, "Reaction Added Event", None, "fas fa-heart"
+    REACTION_REMOVED_EVENT = 220_003, "Reaction Removed Event", None, "fas fa-heart"
+    STAR = 220_100, "Star", None, "fas fa-star"
+    STAR_EVENT = 220_101, "Star Event", None, "fas fa-star"
+    STAR_ADDED_EVENT = 220_102, "Star Added Event", None, "fas fa-star"
+    STAR_REMOVED_EVENT = 220_103, "Star Removed Event", None, "fas fa-star"
+    FOLLOW = 220_200, "Follow", None, "fas fa-plus"
+    FOLLOW_EVENT = 220_201, "Follow Event", None, "fas fa-plus"
+    FOLLOW_ADDED_EVENT = 220_202, "Follow Added Event", None, "fas fa-plus"
+    FOLLOW_REMOVED_EVENT = 220_203, "Follow Removed Event", None, "fas fa-plus"
     NOTIFICATION = 220_500, "Notification", None, "fas fa-bell"
     NOTIFICATION_EVENT = 220_501, "Notification Event", None, "fas fa-bell"
     NOTIFICATION_SENT_EVENT = 220_502, "Notification Sent Event", None, "fas fa-bell"
@@ -598,6 +594,7 @@ class NodeType(Enum):
     NOTIFICATION_DISMISSED_EVENT = 220_505, "Notification Dismissed Event", None, "fas fa-bell"
     NOTIFICATION_EXPIRED_EVENT = 220_506, "Notification Expired Event", None, "fas fa-bell"
     # FEED, FEED_ITEM, ...
+    # THREAD, MESSAGE, ...
     # POLL, VOTE, REVIEW, RATING, RANK, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
 
@@ -617,7 +614,7 @@ class NodeType(Enum):
     SCENE = 500_100, "Scene", "Scene of an Application", "fas fa-masks-theater"
     SCENE_EVENT = 500_101, "Scene Event", None, "fas fa-masks-theater"
     LAYER = 500_200, "Layer", "Layer of a Scene", "fas fa-layer-group"
-    VARIANT = 500_300, "Variant", "Variant of a Scene", "fas fa-shapes"
+    # VIEW_VARIANT, BREAKPOINT_VARIANT, ...
     # VIEWPORT, OVERLAY, WIDGET, HUD, ...
     # FORM, MENU, ...
 
@@ -748,8 +745,8 @@ class UniverseCategory(Enum):
     VIEW = 520_000, "View", "View building"
     CANVAS = 540_000, "Canvas", "Drawing and painting"
     INTERACTION = 560_000, "Interaction", "Interaction design"
-    ANIMATION = 580_000, "Animation", "Animate views"
-    STYLE = 600_000, "Style", "Style user interfaces"
+    ANIMATION = 580_000, "Animation", "Motion design"
+    STYLE = 600_000, "Style", "Style views"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)
@@ -834,17 +831,18 @@ class EnvironmentType(Enum):
 
 @builtin_enum(EnumType.MODE_TYPE)
 class ModeType(Enum):
-    EDIT = 1
-    DEBUG = 2
-    INSPECT = 3
-    PREVIEW = 4
-    USE = 5
+    ACTIVE = 1
+    PAUSED = 2
 
 
 @builtin_enum(EnumType.TOOL_TYPE)
 class ToolType(Enum):
-    SELECT = 1
-    DRAG = 2
+    EDIT = 1
+    DEBUG = 2
+    PREVIEW = 4
+    USE = 5
+    SELECT = 6
+    DRAG = 7
     INSPECT = 10
     ANNOTATE = 11
     # ...

@@ -1,10 +1,10 @@
-import { Folder, Thread } from "@destack/language";
+import { Folder } from "@destack/language";
 import { expect, test } from "vitest";
 
 test("repr query", () => {
   // create query with sort and limit
-  const query = Thread.search({
-    sort: [Thread.property("createdAt").asc()],
+  const query = Folder.search({
+    sort: [Folder.property("createdAt").asc()],
     limit: 25,
   });
   const queryRepr = query.repr();

@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:220300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220100 ==== */
 /**
  * A Star is a relationship between a Actor and a Starred Node.
  */
@@ -95,18 +95,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Star | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Star | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -180,7 +168,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Star | NodeReference | null;
-    template?: Star | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -255,11 +242,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy;
@@ -312,9 +294,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -336,9 +315,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -401,7 +377,7 @@ export class Star extends Entity implements IsDeletable, IsOwned {
 
   static __packValue__(object: Star): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220300;
+    objectValue["1"] = 220100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -413,9 +389,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -460,11 +433,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -488,7 +456,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -516,7 +483,7 @@ export class Star extends Entity implements IsDeletable, IsOwned {
   }
 
   static __packProto__(object: Star): StarProto {
-    const objectProto: Partial<StarProto> = { metatype: 220300 };
+    const objectProto: Partial<StarProto> = { metatype: 220100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -528,9 +495,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -596,16 +560,6 @@ export class Star extends Entity implements IsDeletable, IsOwned {
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -663,9 +617,9 @@ export class Star extends Entity implements IsDeletable, IsOwned {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR, Star);
-/* ==== DESTACK_GENERATED_END:NODE:220300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220301 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220101 ==== */
 /**
  * StarEvent
  */
@@ -942,7 +896,7 @@ export class StarEvent extends Event {
 
   static __packValue__(object: StarEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220301;
+    objectValue["1"] = 220101;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1025,7 +979,7 @@ export class StarEvent extends Event {
   }
 
   static __packProto__(object: StarEvent): StarEventProto {
-    const objectProto: Partial<StarEventProto> = { metatype: 220301 };
+    const objectProto: Partial<StarEventProto> = { metatype: 220101 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1130,9 +1084,9 @@ export class StarEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR_EVENT, StarEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220301 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220302 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220102 ==== */
 /**
  * StarAddedEvent
  */
@@ -1258,7 +1212,7 @@ export class StarAddedEvent extends StarEvent {
 
   static __packValue__(object: StarAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220302;
+    objectValue["1"] = 220102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1341,7 +1295,7 @@ export class StarAddedEvent extends StarEvent {
   }
 
   static __packProto__(object: StarAddedEvent): StarAddedEventProto {
-    const objectProto: Partial<StarAddedEventProto> = { metatype: 220302 };
+    const objectProto: Partial<StarAddedEventProto> = { metatype: 220102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1446,9 +1400,9 @@ export class StarAddedEvent extends StarEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR_ADDED_EVENT, StarAddedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220302 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220303 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220103 ==== */
 /**
  * StarRemovedEvent
  */
@@ -1574,7 +1528,7 @@ export class StarRemovedEvent extends StarEvent {
 
   static __packValue__(object: StarRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220303;
+    objectValue["1"] = 220103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1663,7 +1617,7 @@ export class StarRemovedEvent extends StarEvent {
   }
 
   static __packProto__(object: StarRemovedEvent): StarRemovedEventProto {
-    const objectProto: Partial<StarRemovedEventProto> = { metatype: 220303 };
+    const objectProto: Partial<StarRemovedEventProto> = { metatype: 220103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1774,4 +1728,4 @@ export class StarRemovedEvent extends StarEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR_REMOVED_EVENT, StarRemovedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220303 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220103 ==== */

@@ -4,16 +4,14 @@ import type {
   Axis2,
   Axis3,
   Corners,
-  CustomEntityDefinition,
-  CustomEventDefinition,
   Dimension,
   Graph,
   Grid,
   GridSpan,
   Insets,
   IsActor,
+  IsExtensible,
   NodeClass,
-  NodeDefinitionReference,
   NodeReference,
   Position,
   QueryConnection,
@@ -344,24 +342,16 @@ export class LineShape extends Shape {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definitionthis CustomEntity is an instance of.
+   * The definition this CustomEntity is an instance of.
    */
-  get definition(): CustomEntityDefinition | CustomEventDefinition | null {
+  get definition(): (Entity & IsExtensible) | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
     }
     return null;
   }
   readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Inlined base type of this extensible Node (if extended).
-   */
-  readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.materialization
@@ -391,18 +381,6 @@ export class LineShape extends Shape {
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): LineShape | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as LineShape | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -465,6 +443,34 @@ export class LineShape extends Shape {
   readonly orderKey: string;
 
   /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -493,6 +499,11 @@ export class LineShape extends Shape {
     this._scriptPtr = value;
   }
   _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * View.name
@@ -962,12 +973,10 @@ export class LineShape extends Shape {
     id?: string;
     parent?: Layer | ContainerView | NodeReference | null;
     space?: Space | NodeReference;
-    definition?: CustomEntityDefinition | CustomEventDefinition | NodeReference | null;
-    baseType?: NodeDefinitionReference | null;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: LineShape | NodeReference | null;
-    template?: LineShape | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -975,7 +984,10 @@ export class LineShape extends Shape {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     name: string;
     position?: Position | null;
     width?: Dimension | null;
@@ -1060,8 +1072,6 @@ export class LineShape extends Shape {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
-    let _baseType = options.baseType ?? null;
-    this.baseType = _baseType;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 3 /* Materialization.ROOT */;
@@ -1080,11 +1090,6 @@ export class LineShape extends Shape {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -1100,11 +1105,26 @@ export class LineShape extends Shape {
       throw new Error(`LineShape.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`LineShape.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _name = options.name;
     if (_name === null) {
       throw new Error(`LineShape.name is required`);
@@ -1368,19 +1388,19 @@ export class LineShape extends Shape {
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
-    if (
-      (this.baseType == null) !== (other.baseType == null) ||
-      (this.baseType != null && !this.baseType.equals(other.baseType))
-    ) {
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
-      return false;
-    }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -1496,24 +1516,24 @@ export class LineShape extends Shape {
     if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
-    if (this.baseType != null) {
-      h = (h * 31 + this.baseType.hash()) & 0xffffffff;
-    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1533,6 +1553,7 @@ export class LineShape extends Shape {
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -1598,18 +1619,12 @@ export class LineShape extends Shape {
     if (object.definitionPtr != null) {
       objectValue["6"] = object.definitionPtr.toValue();
     }
-    if (object.baseType != null) {
-      objectValue["7"] = object.baseType.toValue();
-    }
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1630,9 +1645,16 @@ export class LineShape extends Shape {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
+    }
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
+    objectValue["90"] = object.isExtensible;
     objectValue["101"] = object._name;
     if (object._position != null) {
       objectValue["110"] = object._position.toValue();
@@ -1732,9 +1754,6 @@ export class LineShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): LineShape {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
@@ -1874,22 +1893,18 @@ export class LineShape extends Shape {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const baseTypeValue = objectValue["7"];
-    const unpackedBaseType =
-      baseTypeValue != undefined
-        ? _NodeDefinitionReference.fromValue(
-            baseTypeValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const sourcePtrValue = objectValue["60"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1899,11 +1914,6 @@ export class LineShape extends Shape {
     const unpackedPredecessorPtr =
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1963,14 +1973,14 @@ export class LineShape extends Shape {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
-      orderKey: objectValue["27"],
       definition: unpackedDefinitionPtr,
-      baseType: unpackedBaseType,
+      isExtensible: objectValue["90"],
       deletedAt: unpackedDeletedAt,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -1978,6 +1988,7 @@ export class LineShape extends Shape {
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
+      orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -2009,18 +2020,12 @@ export class LineShape extends Shape {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
-    if (object.baseType != null) {
-      objectProto.baseType = object.baseType.toProto();
-    }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2040,9 +2045,16 @@ export class LineShape extends Shape {
       }
     }
     objectProto.orderKey = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
+    }
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
+    objectProto.isExtensible = object.isExtensible;
     objectProto.name = object._name;
     if (object._position != null) {
       objectProto.position = object._position.toProto();
@@ -2142,9 +2154,6 @@ export class LineShape extends Shape {
     _graph?: any | null,
     _connection?: any | null,
   ): LineShape {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
@@ -2271,7 +2280,6 @@ export class LineShape extends Shape {
         objectProto.maxHeight != undefined
           ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      orderKey: objectProto.orderKey,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -2282,18 +2290,20 @@ export class LineShape extends Shape {
               _connection,
             )
           : null,
-      baseType:
-        objectProto.baseType != undefined
-          ? _NodeDefinitionReference.fromProto(
-              objectProto.baseType!,
+      isExtensible: objectProto.isExtensible,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -2309,16 +2319,6 @@ export class LineShape extends Shape {
         objectProto.predecessorPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.predecessorPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
               _session,
               _supergraph,
               _graph,
@@ -2359,6 +2359,7 @@ export class LineShape extends Shape {
               _connection,
             )
           : null,
+      orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

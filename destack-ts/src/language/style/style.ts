@@ -1,13 +1,16 @@
 import type {
   IsActor,
   IsDeletable,
+  IsExtensible,
   IsOrdered,
   IsTaggable,
   Materialization,
   NodeReference,
   Snapshot,
+  Value,
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Scene } from "@destack/language/scene";
 import type { Palette } from "@destack/language/style/palette";
@@ -20,7 +23,10 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Style defines a base visual appearance in some context.
  */
-export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsDeletable {
+export abstract class Style
+  extends Entity
+  implements IsOrdered, IsTaggable, IsDeletable, IsExtensible
+{
   static metatype: NodeType = NodeType.STYLE;
 
   /**
@@ -34,6 +40,12 @@ export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsD
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): (Entity & IsExtensible) | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * Entity.materialization
@@ -51,12 +63,6 @@ export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsD
    */
   abstract get predecessor(): Style | null;
   declare readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  abstract get template(): Style | null;
-  declare readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -86,9 +92,34 @@ export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsD
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  abstract get customValues(): { readonly [key: string]: Value };
+  abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   declare readonly orderKey: string;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get script(): Script | null;
+  abstract set script(value: Script | null);
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get scriptPtr(): NodeReference | null;
+  abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * Style.name

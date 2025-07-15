@@ -1,5 +1,5 @@
 from .action import Action
-from .cursor import Cursor, CursorStatus, EventCursor, ScreenCursor, ThreadCursor
+from .cursor import Cursor, CursorStatus, EventCursor, ScreenCursor
 from .method import Method, MethodCardinality
 from .route import Route
 from .schedule import DayOfWeek, Month, Schedule, ScheduleFrequency
@@ -23,7 +23,6 @@ __all__ = [
     "ScreenCursor",
     "Script",
     "Service",
-    "ThreadCursor",
     "Timer",
     "TimerCancelledEvent",
     "TimerCompletedEvent",

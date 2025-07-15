@@ -1,11 +1,9 @@
 import type {
   Align,
-  CustomEntityDefinition,
-  CustomEventDefinition,
   Dimension,
   IsActor,
+  IsExtensible,
   Materialization,
-  NodeDefinitionReference,
   NodeReference,
   Position,
   Snapshot,
@@ -40,15 +38,10 @@ export abstract class ContentView extends View {
   declare readonly spacePtr: NodeReference;
 
   /**
-   * The definitionthis CustomEntity is an instance of.
+   * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): CustomEntityDefinition | CustomEventDefinition | null;
+  abstract get definition(): (Entity & IsExtensible) | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Inlined base type of this extensible Node (if extended).
-   */
-  declare readonly baseType: NodeDefinitionReference | null;
 
   /**
    * Entity.materialization
@@ -66,12 +59,6 @@ export abstract class ContentView extends View {
    */
   abstract get predecessor(): ContentView | null;
   declare readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  abstract get template(): ContentView | null;
-  declare readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -115,6 +102,21 @@ export abstract class ContentView extends View {
   declare readonly orderKey: string;
 
   /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
+
+  /**
    * The main / root Script of this Node.
    */
   abstract get script(): Script | null;
@@ -124,6 +126,11 @@ export abstract class ContentView extends View {
    */
   abstract get scriptPtr(): NodeReference | null;
   abstract set scriptPtr(value: NodeReference | null);
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * View.name
