@@ -18,6 +18,7 @@ from opentelemetry import trace
 from PIL import Image
 
 from destack.language.core import (
+    Entity,
     Enum,
     EnumType,
     NodeType,
@@ -33,15 +34,7 @@ from destack.utils.env import get_from_env
 from destack.utils.func import group_by
 
 if TYPE_CHECKING:
-    from destack.language import (
-        CustomEntityDefinition,
-        File,
-        Folder,
-        Run,
-        Session,
-        Space,
-        Thread,
-    )
+    from destack.language import File, Session, Space
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -822,7 +815,7 @@ async def upload_file(
     mime_type: str | None = None,
     type: FileType | None = None,
     format: FileFormat | str | None = None,
-    parent: Union["Folder", "CustomEntityDefinition", "Thread", "Run", None] = None,
+    parent: Union["Entity", None] = None,
     session: "Session | None" = None,
 ) -> "File":
     """Uploads the given file to the given (or current) session."""

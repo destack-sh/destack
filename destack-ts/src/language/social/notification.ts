@@ -2,6 +2,7 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
+  IsExtensible,
   IsOwnable,
   NodeClass,
   NodeReference,
@@ -10,6 +11,7 @@ import type {
   Snapshot,
   Supergraph,
   Text,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -22,6 +24,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -40,7 +43,7 @@ import {
   NotificationStatusProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:220500 ==== */
@@ -2519,7 +2522,7 @@ registerNodeClass(NodeType.NOTIFICATION_EXPIRED_EVENT, NotificationExpiredEvent)
 /**
  * A Notification is a message about something.
  */
-export class Notification extends Entity implements IsOwnable {
+export class Notification extends Entity implements IsOwnable, IsExtensible {
   static metatype: NodeType = NodeType.NOTIFICATION;
 
   /**
@@ -2545,6 +2548,18 @@ export class Notification extends Entity implements IsOwnable {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * Entity.materialization
@@ -2574,18 +2589,6 @@ export class Notification extends Entity implements IsOwnable {
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Notification | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Notification | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -2620,6 +2623,22 @@ export class Notification extends Entity implements IsOwnable {
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * IsOwnable.ownedBy
@@ -2699,22 +2718,60 @@ export class Notification extends Entity implements IsOwnable {
   }
   _text: Text | null;
 
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
+
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Notification | NodeReference | null;
-    template?: Notification | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    customValues?: { readonly [key: string]: Value };
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     status: NotificationStatus;
     title: string;
     text?: Text | null;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2765,6 +2822,11 @@ export class Notification extends Entity implements IsOwnable {
       throw new Error(`Notification.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 3 /* Materialization.ROOT */;
@@ -2783,11 +2845,11 @@ export class Notification extends Entity implements IsOwnable {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
     }
-    this.templatePtr = _template;
+    this._customValues = _customValues;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -2805,6 +2867,19 @@ export class Notification extends Entity implements IsOwnable {
     this._title = _title;
     let _text = options.text ?? null;
     this._text = _text;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`Notification.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
 
     // identity
     if (options.id == null) {
@@ -2855,13 +2930,30 @@ export class Notification extends Entity implements IsOwnable {
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -2881,6 +2973,10 @@ export class Notification extends Entity implements IsOwnable {
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -2889,9 +2985,6 @@ export class Notification extends Entity implements IsOwnable {
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2902,6 +2995,15 @@ export class Notification extends Entity implements IsOwnable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -2918,6 +3020,7 @@ export class Notification extends Entity implements IsOwnable {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2966,15 +3069,15 @@ export class Notification extends Entity implements IsOwnable {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -2984,6 +3087,13 @@ export class Notification extends Entity implements IsOwnable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
@@ -2992,6 +3102,10 @@ export class Notification extends Entity implements IsOwnable {
     if (object._text != null) {
       objectValue["51"] = object._text.toValue();
     }
+    if (object._scriptPtr != null) {
+      objectValue["80"] = object._scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     return objectValue;
   }
 
@@ -3003,6 +3117,7 @@ export class Notification extends Entity implements IsOwnable {
     _connection?: any | null,
   ): Notification {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const textValue = objectValue["51"];
     const unpackedText =
@@ -3013,6 +3128,11 @@ export class Notification extends Entity implements IsOwnable {
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -3029,11 +3149,6 @@ export class Notification extends Entity implements IsOwnable {
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3044,21 +3159,41 @@ export class Notification extends Entity implements IsOwnable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new Notification({
       status: Number(objectValue["40"]),
       title: objectValue["50"],
       text: unpackedText,
       ownedBy: unpackedOwnedByPtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -3087,15 +3222,15 @@ export class Notification extends Entity implements IsOwnable {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3105,6 +3240,12 @@ export class Notification extends Entity implements IsOwnable {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
@@ -3113,6 +3254,10 @@ export class Notification extends Entity implements IsOwnable {
     if (object._text != null) {
       objectProto.text = object._text.toProto();
     }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     return objectProto as NotificationProto;
   }
 
@@ -3124,7 +3269,17 @@ export class Notification extends Entity implements IsOwnable {
     _connection?: any | null,
   ): Notification {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Notification({
       status: Number(objectProto.status) as NotificationStatus,
       title: objectProto.title,
@@ -3142,6 +3297,17 @@ export class Notification extends Entity implements IsOwnable {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -3173,16 +3339,6 @@ export class Notification extends Entity implements IsOwnable {
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -3206,6 +3362,17 @@ export class Notification extends Entity implements IsOwnable {
             )
           : null,
       id: String(objectProto.id),
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

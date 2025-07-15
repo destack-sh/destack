@@ -3066,6 +3066,11 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly isReadonly: boolean;
 
   /**
+   * PropertyDefinition.isRoot
+   */
+  readonly isRoot: boolean;
+
+  /**
    * PropertyDefinition.isWired
    */
   readonly isWired: boolean;
@@ -3124,6 +3129,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     isRequired: boolean;
     isUnique: boolean;
     isReadonly: boolean;
+    isRoot: boolean;
     isWired: boolean;
     isStored: boolean;
     isRepr: boolean;
@@ -3240,6 +3246,11 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.isReadonly is required`);
     }
     this.isReadonly = _isReadonly;
+    let _isRoot = options.isRoot;
+    if (_isRoot === null) {
+      throw new Error(`PropertyDefinition.isRoot is required`);
+    }
+    this.isRoot = _isRoot;
     let _isWired = options.isWired;
     if (_isWired === null) {
       throw new Error(`PropertyDefinition.isWired is required`);
@@ -3377,6 +3388,9 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (!(this.isReadonly === other.isReadonly)) {
       return false;
     }
+    if (!(this.isRoot === other.isRoot)) {
+      return false;
+    }
     if (!(this.isWired === other.isWired)) {
       return false;
     }
@@ -3511,6 +3525,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isRoot)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isWired)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isStored)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
@@ -3606,12 +3621,13 @@ export class PropertyDefinition extends BuiltinDefinition {
     objectValue["150"] = object.isRequired;
     objectValue["151"] = object.isUnique;
     objectValue["153"] = object.isReadonly;
-    objectValue["155"] = object.isWired;
-    objectValue["156"] = object.isStored;
-    objectValue["157"] = object.isRepr;
-    objectValue["158"] = object.isHash;
-    objectValue["159"] = object.isEq;
-    objectValue["160"] = object.isManaged;
+    objectValue["154"] = object.isRoot;
+    objectValue["160"] = object.isWired;
+    objectValue["161"] = object.isStored;
+    objectValue["162"] = object.isRepr;
+    objectValue["163"] = object.isHash;
+    objectValue["164"] = object.isEq;
+    objectValue["165"] = object.isManaged;
     return objectValue;
   }
 
@@ -3749,12 +3765,13 @@ export class PropertyDefinition extends BuiltinDefinition {
       isRequired: objectValue["150"],
       isUnique: objectValue["151"],
       isReadonly: objectValue["153"],
-      isWired: objectValue["155"],
-      isStored: objectValue["156"],
-      isRepr: objectValue["157"],
-      isHash: objectValue["158"],
-      isEq: objectValue["159"],
-      isManaged: objectValue["160"],
+      isRoot: objectValue["154"],
+      isWired: objectValue["160"],
+      isStored: objectValue["161"],
+      isRepr: objectValue["162"],
+      isHash: objectValue["163"],
+      isEq: objectValue["164"],
+      isManaged: objectValue["165"],
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -3850,6 +3867,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     objectProto.isRequired = object.isRequired;
     objectProto.isUnique = object.isUnique;
     objectProto.isReadonly = object.isReadonly;
+    objectProto.isRoot = object.isRoot;
     objectProto.isWired = object.isWired;
     objectProto.isStored = object.isStored;
     objectProto.isRepr = object.isRepr;
@@ -3974,6 +3992,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       isRequired: objectProto.isRequired,
       isUnique: objectProto.isUnique,
       isReadonly: objectProto.isReadonly,
+      isRoot: objectProto.isRoot,
       isWired: objectProto.isWired,
       isStored: objectProto.isStored,
       isRepr: objectProto.isRepr,

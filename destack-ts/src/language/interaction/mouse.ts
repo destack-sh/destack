@@ -2,11 +2,13 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
+  IsExtensible,
   NodeReference,
   QueryConnection,
   Session,
   Snapshot,
   Supergraph,
+  Value,
   Vector2f,
 } from "@destack/language/core";
 import {
@@ -20,6 +22,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import { PointerEvent } from "@destack/language/interaction/pointer";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -69,6 +72,12 @@ export abstract class MouseEvent extends PointerEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): (Entity & IsExtensible) | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -97,9 +106,25 @@ export abstract class MouseEvent extends PointerEvent {
   declare readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get script(): Script | null;
+  declare readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -163,6 +188,12 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): (Entity & IsExtensible) | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -191,9 +222,25 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get script(): Script | null;
+  declare readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -263,6 +310,18 @@ export class SingleClickEvent extends ClickEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -309,9 +368,31 @@ export class SingleClickEvent extends ClickEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -363,12 +444,16 @@ export class SingleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -418,6 +503,11 @@ export class SingleClickEvent extends ClickEvent {
       throw new Error(`SingleClickEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -430,6 +520,11 @@ export class SingleClickEvent extends ClickEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -438,6 +533,19 @@ export class SingleClickEvent extends ClickEvent {
       throw new Error(`SingleClickEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`SingleClickEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -527,6 +635,12 @@ export class SingleClickEvent extends ClickEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -537,6 +651,20 @@ export class SingleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -560,6 +688,10 @@ export class SingleClickEvent extends ClickEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -574,6 +706,15 @@ export class SingleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -591,6 +732,7 @@ export class SingleClickEvent extends ClickEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -635,6 +777,9 @@ export class SingleClickEvent extends ClickEvent {
     objectValue["1"] = 560202;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -648,7 +793,18 @@ export class SingleClickEvent extends ClickEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -672,6 +828,7 @@ export class SingleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): SingleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -679,6 +836,11 @@ export class SingleClickEvent extends ClickEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -697,6 +859,23 @@ export class SingleClickEvent extends ClickEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new SingleClickEvent({
       button: Number(objectValue["130"]),
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
@@ -706,12 +885,16 @@ export class SingleClickEvent extends ClickEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -744,6 +927,9 @@ export class SingleClickEvent extends ClickEvent {
     const objectProto: Partial<SingleClickEventProto> = { metatype: 560202 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -757,7 +943,17 @@ export class SingleClickEvent extends ClickEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -781,7 +977,17 @@ export class SingleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): SingleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new SingleClickEvent({
       button: Number(objectProto.button) as MouseButton,
       position: _Vector2f.fromProto(
@@ -806,6 +1012,17 @@ export class SingleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -839,6 +1056,17 @@ export class SingleClickEvent extends ClickEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -902,6 +1130,18 @@ export class DoubleClickEvent extends ClickEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -948,9 +1188,31 @@ export class DoubleClickEvent extends ClickEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -1002,12 +1264,16 @@ export class DoubleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -1057,6 +1323,11 @@ export class DoubleClickEvent extends ClickEvent {
       throw new Error(`DoubleClickEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1069,6 +1340,11 @@ export class DoubleClickEvent extends ClickEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -1077,6 +1353,19 @@ export class DoubleClickEvent extends ClickEvent {
       throw new Error(`DoubleClickEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`DoubleClickEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1166,6 +1455,12 @@ export class DoubleClickEvent extends ClickEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1176,6 +1471,20 @@ export class DoubleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -1199,6 +1508,10 @@ export class DoubleClickEvent extends ClickEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1213,6 +1526,15 @@ export class DoubleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -1230,6 +1552,7 @@ export class DoubleClickEvent extends ClickEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1274,6 +1597,9 @@ export class DoubleClickEvent extends ClickEvent {
     objectValue["1"] = 560203;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1287,7 +1613,18 @@ export class DoubleClickEvent extends ClickEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1311,6 +1648,7 @@ export class DoubleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): DoubleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -1318,6 +1656,11 @@ export class DoubleClickEvent extends ClickEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1336,6 +1679,23 @@ export class DoubleClickEvent extends ClickEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new DoubleClickEvent({
       button: Number(objectValue["130"]),
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
@@ -1345,12 +1705,16 @@ export class DoubleClickEvent extends ClickEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1383,6 +1747,9 @@ export class DoubleClickEvent extends ClickEvent {
     const objectProto: Partial<DoubleClickEventProto> = { metatype: 560203 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1396,7 +1763,17 @@ export class DoubleClickEvent extends ClickEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1420,7 +1797,17 @@ export class DoubleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): DoubleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new DoubleClickEvent({
       button: Number(objectProto.button) as MouseButton,
       position: _Vector2f.fromProto(
@@ -1445,6 +1832,17 @@ export class DoubleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1478,6 +1876,17 @@ export class DoubleClickEvent extends ClickEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1541,6 +1950,18 @@ export class TripleClickEvent extends ClickEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1587,9 +2008,31 @@ export class TripleClickEvent extends ClickEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -1641,12 +2084,16 @@ export class TripleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -1696,6 +2143,11 @@ export class TripleClickEvent extends ClickEvent {
       throw new Error(`TripleClickEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1708,6 +2160,11 @@ export class TripleClickEvent extends ClickEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -1716,6 +2173,19 @@ export class TripleClickEvent extends ClickEvent {
       throw new Error(`TripleClickEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`TripleClickEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1805,6 +2275,12 @@ export class TripleClickEvent extends ClickEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1815,6 +2291,20 @@ export class TripleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -1838,6 +2328,10 @@ export class TripleClickEvent extends ClickEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1852,6 +2346,15 @@ export class TripleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -1869,6 +2372,7 @@ export class TripleClickEvent extends ClickEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1913,6 +2417,9 @@ export class TripleClickEvent extends ClickEvent {
     objectValue["1"] = 560204;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1926,7 +2433,18 @@ export class TripleClickEvent extends ClickEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1950,6 +2468,7 @@ export class TripleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): TripleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -1957,6 +2476,11 @@ export class TripleClickEvent extends ClickEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1975,6 +2499,23 @@ export class TripleClickEvent extends ClickEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new TripleClickEvent({
       button: Number(objectValue["130"]),
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
@@ -1984,12 +2525,16 @@ export class TripleClickEvent extends ClickEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2022,6 +2567,9 @@ export class TripleClickEvent extends ClickEvent {
     const objectProto: Partial<TripleClickEventProto> = { metatype: 560204 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2035,7 +2583,17 @@ export class TripleClickEvent extends ClickEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2059,7 +2617,17 @@ export class TripleClickEvent extends ClickEvent {
     _connection?: any | null,
   ): TripleClickEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new TripleClickEvent({
       button: Number(objectProto.button) as MouseButton,
       position: _Vector2f.fromProto(
@@ -2084,6 +2652,17 @@ export class TripleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -2117,6 +2696,17 @@ export class TripleClickEvent extends ClickEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -2180,6 +2770,18 @@ export class WheelEvent extends MouseEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2226,9 +2828,31 @@ export class WheelEvent extends MouseEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -2285,12 +2909,16 @@ export class WheelEvent extends MouseEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -2341,6 +2969,11 @@ export class WheelEvent extends MouseEvent {
       throw new Error(`WheelEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2353,6 +2986,11 @@ export class WheelEvent extends MouseEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -2361,6 +2999,19 @@ export class WheelEvent extends MouseEvent {
       throw new Error(`WheelEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`WheelEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2458,6 +3109,12 @@ export class WheelEvent extends MouseEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2468,6 +3125,20 @@ export class WheelEvent extends MouseEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -2492,6 +3163,10 @@ export class WheelEvent extends MouseEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -2506,6 +3181,15 @@ export class WheelEvent extends MouseEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2523,6 +3207,7 @@ export class WheelEvent extends MouseEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2567,6 +3252,9 @@ export class WheelEvent extends MouseEvent {
     objectValue["1"] = 560210;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2580,7 +3268,18 @@ export class WheelEvent extends MouseEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2605,6 +3304,7 @@ export class WheelEvent extends MouseEvent {
     _connection?: any | null,
   ): WheelEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -2612,6 +3312,11 @@ export class WheelEvent extends MouseEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -2630,6 +3335,23 @@ export class WheelEvent extends MouseEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new WheelEvent({
       delta: _Vector2f.fromValue(objectValue["140"], _session, _supergraph, _graph, _connection),
       button: Number(objectValue["130"]),
@@ -2640,12 +3362,16 @@ export class WheelEvent extends MouseEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2672,6 +3398,9 @@ export class WheelEvent extends MouseEvent {
     const objectProto: Partial<WheelEventProto> = { metatype: 560210 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2685,7 +3414,17 @@ export class WheelEvent extends MouseEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2710,7 +3449,17 @@ export class WheelEvent extends MouseEvent {
     _connection?: any | null,
   ): WheelEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new WheelEvent({
       delta: _Vector2f.fromProto(objectProto.delta!, _session, _supergraph, _graph, _connection),
       button: Number(objectProto.button) as MouseButton,
@@ -2736,6 +3485,17 @@ export class WheelEvent extends MouseEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -2769,6 +3529,17 @@ export class WheelEvent extends MouseEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

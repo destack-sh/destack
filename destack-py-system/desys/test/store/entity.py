@@ -17,7 +17,6 @@ from destack.language import (
     JoinType,
     LabelView,
     Layer,
-    Message,
     Node,
     Reaction,
     Session,
@@ -298,34 +297,32 @@ async def test_create_reaction_groups(session: Session, space: Space):
         session.create(user)
     await session.commit()
 
-    message = Message()
-    session.create(message)
+    folder = Folder(name="Folder")
+    session.create(folder)
     await session.commit()
 
     reactions_content: tuple[str, ...] = ("👍", "👎", "🤷", "🤔", "🤨")
     reactions: list[Reaction] = []
     for user in users:
         for reaction in reactions_content:
-            reaction = Reaction(parent=message, content=reaction, owned_by=user)
+            reaction = Reaction(parent=folder, content=reaction, owned_by=user)
             reactions.append(reaction)
             session.create(reaction)
     await session.commit()
 
     # scalar by group
-    message_tree = await Message.get(
-        where=Message.property("id").eq(message.id),
+    folder_tree = await Folder.get(
+        where=Folder.property("id").eq(folder.id),
         Reactions=Reaction.count(
             sort=[Reaction.property("created_at").asc()],
             group_by=[Reaction.property("content")],
         ),
     ).execute()
-    assert message_tree.get("Reactions").to_scalar_by_group() == dict.fromkeys(
-        reactions_content, 10
-    )
+    assert folder_tree.get("Reactions").to_scalar_by_group() == dict.fromkeys(reactions_content, 10)
 
     # node by group
-    message_tree = await Message.get(
-        where=Message.property("id").eq(message.id),
+    folder_tree = await Folder.get(
+        where=Folder.property("id").eq(folder.id),
         Reactions=Reaction.search(group_by=[Reaction.property("content")]),
         ReactionsTotal=Reaction.count(),
     ).execute()
@@ -333,7 +330,7 @@ async def test_create_reaction_groups(session: Session, space: Space):
         content: [reaction for reaction in reactions if reaction.content == content]
         for content in reactions_content
     }
-    reactions_by_content_unpacked = message_tree.get("Reactions").to_list_by_group()
+    reactions_by_content_unpacked = folder_tree.get("Reactions").to_list_by_group()
     for reaction_content in reactions_content:
         reactions = reactions_by_content[reaction_content]
         reactions_unpacked = reactions_by_content_unpacked[reaction_content]
@@ -421,7 +418,7 @@ async def test_move_views(session: Session, space: Space):
 async def test_edit_partial_node_in_snapshot(session: Session):
     """Create a Snapshot and query it."""
 
-    # TODO :Incomplete!: support Entity branching & variants
+    # nocheckin: support Entity branching & variants
 
     space = Space(name="Test", slug="test", status=SpaceStatus.ACTIVE, region=REGION)
     user = User(name="Alice", slug="alice", space=space)

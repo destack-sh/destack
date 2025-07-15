@@ -36,11 +36,11 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:220200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220000 ==== */
 /**
  * A Reaction is a relationship between a Actor and a Reaction Node.
  */
-export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwned {
+export class Reaction extends Entity implements IsDeletable, IsOwned {
   static metatype: NodeType = NodeType.REACTION;
 
   /**
@@ -95,18 +95,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Reaction | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Reaction | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -196,7 +184,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Reaction | NodeReference | null;
-    template?: Reaction | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -272,11 +259,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy;
@@ -339,9 +321,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -364,9 +343,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -430,7 +406,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
 
   static __packValue__(object: Reaction): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220200;
+    objectValue["1"] = 220000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -442,9 +418,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -490,11 +463,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -519,7 +487,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -547,7 +514,7 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
   }
 
   static __packProto__(object: Reaction): ReactionProto {
-    const objectProto: Partial<ReactionProto> = { metatype: 220200 };
+    const objectProto: Partial<ReactionProto> = { metatype: 220000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -559,9 +526,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -629,16 +593,6 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -696,9 +650,9 @@ export class Reaction extends Entity implements IsReactable, IsDeletable, IsOwne
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION, Reaction);
-/* ==== DESTACK_GENERATED_END:NODE:220200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220201 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220001 ==== */
 /**
  * ReactionEvent
  */
@@ -990,7 +944,7 @@ export class ReactionEvent extends Event {
 
   static __packValue__(object: ReactionEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220201;
+    objectValue["1"] = 220001;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1075,7 +1029,7 @@ export class ReactionEvent extends Event {
   }
 
   static __packProto__(object: ReactionEvent): ReactionEventProto {
-    const objectProto: Partial<ReactionEventProto> = { metatype: 220201 };
+    const objectProto: Partial<ReactionEventProto> = { metatype: 220001 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1182,9 +1136,9 @@ export class ReactionEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION_EVENT, ReactionEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220201 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220202 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220002 ==== */
 /**
  * ReactionAddedEvent
  */
@@ -1315,7 +1269,7 @@ export class ReactionAddedEvent extends ReactionEvent {
 
   static __packValue__(object: ReactionAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220202;
+    objectValue["1"] = 220002;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1406,7 +1360,7 @@ export class ReactionAddedEvent extends ReactionEvent {
   }
 
   static __packProto__(object: ReactionAddedEvent): ReactionAddedEventProto {
-    const objectProto: Partial<ReactionAddedEventProto> = { metatype: 220202 };
+    const objectProto: Partial<ReactionAddedEventProto> = { metatype: 220002 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1519,9 +1473,9 @@ export class ReactionAddedEvent extends ReactionEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION_ADDED_EVENT, ReactionAddedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220202 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220002 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220203 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:220003 ==== */
 /**
  * ReactionRemovedEvent
  */
@@ -1652,7 +1606,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
 
   static __packValue__(object: ReactionRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220203;
+    objectValue["1"] = 220003;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1743,7 +1697,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
   }
 
   static __packProto__(object: ReactionRemovedEvent): ReactionRemovedEventProto {
-    const objectProto: Partial<ReactionRemovedEventProto> = { metatype: 220203 };
+    const objectProto: Partial<ReactionRemovedEventProto> = { metatype: 220003 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1856,4 +1810,4 @@ export class ReactionRemovedEvent extends ReactionEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.REACTION_REMOVED_EVENT, ReactionRemovedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220203 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:220003 ==== */

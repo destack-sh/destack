@@ -5,6 +5,8 @@ from hypothesis import HealthCheck, given, settings
 from destack.grpc import AnyObjectProto
 from destack.language import (
     BuiltinObject,
+    EventCursor,
+    Folder,
     GenericGraph,
     Join,
     JoinType,
@@ -13,8 +15,6 @@ from destack.language import (
     Query,
     Session,
     Space,
-    Thread,
-    ThreadCursor,
     User,
     UserStatus,
 )
@@ -56,11 +56,11 @@ def test_roundtrip_node_reference(session: Session, space: Space):
 
 def test_roundtrip_query_proto(session: Session, space: Space):
     """Pack and unpack a Query as proto."""
-    query = Thread.search(
-        sort=[Thread.property("created_at").asc()],
+    query = Folder.search(
+        sort=[Folder.property("created_at").asc()],
         limit=25,
-        Cursor=ThreadCursor.get(
-            join=Join.of(JoinType.LEFT, on=ThreadCursor.property("owned_by").eq(5)),
+        Cursor=EventCursor.get(
+            join=Join.of(JoinType.LEFT, on=EventCursor.property("owned_by").eq(5)),
         ),
     )
 

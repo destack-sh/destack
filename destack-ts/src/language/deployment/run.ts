@@ -4319,12 +4319,6 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  abstract get template(): Run | null;
-  declare readonly templatePtr: NodeReference | null;
-
-  /**
    * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;

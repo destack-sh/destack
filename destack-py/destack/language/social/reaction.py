@@ -23,12 +23,7 @@ if TYPE_CHECKING:
     NodeType.REACTION,
     index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
 )
-class Reaction(
-    IsReactable,
-    IsDeletable,
-    IsOwned,
-    Entity,
-):
+class Reaction(IsDeletable, IsOwned, Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
 
     parent: Union["IsReactable", None] = builtin_property_parent()

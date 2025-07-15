@@ -1,7 +1,7 @@
 import { Signal, useComputed, useSignal } from "@preact/signals-react";
 import { Node, Query, QueryConnection, activeSession } from "destack";
 
-// nocheckin: reactive TS graphs & querying
+// nocheckin: reactive Queries
 // basic reactive keys (in (Reactive)Graphs):
 //  - get: snapshot_id + node_id
 //  - get_children: snapshot_id + node_id + [node_type]

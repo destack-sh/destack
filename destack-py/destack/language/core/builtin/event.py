@@ -123,13 +123,13 @@ class Event[N: Node = Node](Node):
             ACTIVE_EVENT.reset(token)
 
 
-@builtin_node(NodeType.CUSTOM_EVENT_DEFINITION)
-class CustomEventDefinition(
+@builtin_node(NodeType.CUSTOM_EVENT)
+class CustomEvent(
     IsSourceable,
     IsCustomizable,
     Entity,
 ):
-    """A CustomEventDefinition defines a kind of CustomEvent with custom Properties."""
+    """A CustomEvent defines a custom Event with custom Properties."""
 
     base_type: Optional["NodeDefinitionReference"] = builtin_property(40)
     base_traits: list["NodeDefinitionReference"] = builtin_property(41)
@@ -141,16 +141,15 @@ class CustomEventDefinition(
 
 @builtin_node(
     NodeType.SIGNAL,
-    frozen=True,  # type: ignore (frozen can't inherit from non-frozen usually, but it's fine for us)
+    frozen=True,  # type: ignore (frozen)
     is_abstract=True,
 )
-class Signal(Event, IsExtensible):
+class Signal(IsExtensible, Event):
     """
-    A generic Signal of a CustomEventDefinition.
-    More specific base Event types will be instanced of that base type instead.
+    A generic Event of a CustomEventDefinition.
     """
 
-    definition: "CustomEventDefinition" = builtin_property(
+    definition: "CustomEvent" = builtin_property(
         6,
         is_managed=True,
         is_readonly=True,

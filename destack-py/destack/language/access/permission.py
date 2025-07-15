@@ -6,6 +6,7 @@ from destack.language.core import (
     EnumType,
     IsDeletable,
     IsJoinable,
+    IsSourceable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -29,6 +30,7 @@ class PermissionType(Enum):
 @builtin_node(NodeType.PERMISSION)
 class Permission(
     IsDeletable,
+    IsSourceable,
     Entity,
 ):
     """A Permission for something."""

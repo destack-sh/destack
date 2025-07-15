@@ -1,4 +1,3 @@
-import type { Agent } from "@destack/language/access/agent";
 import type {
   Entitlement,
   EntitlementEvent,
@@ -77,8 +76,6 @@ import type {
 } from "@destack/language/core/builtin/common";
 import type { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import type {
-  CustomEntityDefinition,
-  CustomTraitDefinition,
   Entity,
   Materialization,
   Record,
@@ -86,13 +83,9 @@ import type {
   Snapshot,
   SnapshotStatus,
   SnapshotType,
+  Variant,
 } from "@destack/language/core/builtin/entity";
-import type {
-  CustomEventDefinition,
-  Event,
-  EventStatus,
-  Signal,
-} from "@destack/language/core/builtin/event";
+import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
 import type {
   NodeDefinitionReference,
   NodeDefinitionType,
@@ -139,7 +132,7 @@ import type {
   StructDefinition,
   TraitDefinition,
 } from "@destack/language/core/common/definition";
-import type { CustomEnumDefinition, CustomOption } from "@destack/language/core/common/enum";
+import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type {
@@ -165,7 +158,7 @@ import type {
   SortMode,
   SortType,
 } from "@destack/language/core/common/query";
-import type { CustomStruct, CustomStructDefinition } from "@destack/language/core/common/struct";
+import type { CustomStruct, Datum, DatumMutable } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
   CollectionConstraint,
@@ -286,7 +279,6 @@ import type {
   CursorStatus,
   EventCursor,
   ScreenCursor,
-  ThreadCursor,
 } from "@destack/language/logic/cursor";
 import type { Method, MethodCardinality } from "@destack/language/logic/method";
 import type { Route } from "@destack/language/logic/route";
@@ -319,7 +311,6 @@ import type {
 } from "@destack/language/observability/metric";
 import type { Layer, LayerType } from "@destack/language/scene/layer";
 import type { Scene, SceneEvent } from "@destack/language/scene/scene";
-import type { Variant, VariantStateType, VariantType } from "@destack/language/scene/variant";
 import type { Window, WindowType } from "@destack/language/scene/window";
 import type {
   Follow,
@@ -327,7 +318,6 @@ import type {
   FollowEvent,
   FollowRemovedEvent,
 } from "@destack/language/social/follow";
-import type { Message } from "@destack/language/social/message";
 import type {
   Notification,
   NotificationDismissedEvent,
@@ -350,7 +340,6 @@ import type {
   StarEvent,
   StarRemovedEvent,
 } from "@destack/language/social/star";
-import type { Thread, ThreadStatus } from "@destack/language/social/thread";
 import type { Branch } from "@destack/language/space/branch";
 import type { Folder, FolderType } from "@destack/language/space/folder";
 import type { Tag, Tagging } from "@destack/language/space/tag";
@@ -440,20 +429,18 @@ import type { View, ViewEvent } from "@destack/language/view/view";
 export type NodeTypeMapping = {
   [NodeType.NODE]: Node;
   [NodeType.ENTITY]: Entity;
-  [NodeType.CUSTOM_ENTITY_DEFINITION]: CustomEntityDefinition;
-  [NodeType.CUSTOM_TRAIT_DEFINITION]: CustomTraitDefinition;
   [NodeType.RECORD]: Record;
   [NodeType.RESOURCE]: Resource;
   [NodeType.SNAPSHOT]: Snapshot;
+  [NodeType.VARIANT]: Variant;
   [NodeType.EVENT]: Event;
-  [NodeType.CUSTOM_EVENT_DEFINITION]: CustomEventDefinition;
+  [NodeType.CUSTOM_EVENT]: CustomEvent;
   [NodeType.SIGNAL]: Signal;
   [NodeType.EDIT_EVENT]: EditEvent;
-  [NodeType.CUSTOM_ENUM_DEFINITION]: CustomEnumDefinition;
+  [NodeType.CUSTOM_ENUM]: CustomEnum;
   [NodeType.CUSTOM_OPTION]: CustomOption;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
-  [NodeType.CUSTOM_STRUCT_DEFINITION]: CustomStructDefinition;
-  [NodeType.AGENT]: Agent;
+  [NodeType.CUSTOM_STRUCT]: CustomStruct;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
   [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
   [NodeType.ENTITLEMENT_GRANTED_EVENT]: EntitlementGrantedEvent;
@@ -551,7 +538,6 @@ export type NodeTypeMapping = {
   [NodeType.CURSOR]: Cursor;
   [NodeType.EVENT_CURSOR]: EventCursor;
   [NodeType.SCREEN_CURSOR]: ScreenCursor;
-  [NodeType.THREAD_CURSOR]: ThreadCursor;
   [NodeType.ROUTE]: Route;
   [NodeType.SCRIPT]: Script;
   [NodeType.SERVICE]: Service;
@@ -573,13 +559,11 @@ export type NodeTypeMapping = {
   [NodeType.LAYER]: Layer;
   [NodeType.SCENE_EVENT]: SceneEvent;
   [NodeType.SCENE]: Scene;
-  [NodeType.VARIANT]: Variant;
   [NodeType.WINDOW]: Window;
   [NodeType.FOLLOW]: Follow;
   [NodeType.FOLLOW_EVENT]: FollowEvent;
   [NodeType.FOLLOW_ADDED_EVENT]: FollowAddedEvent;
   [NodeType.FOLLOW_REMOVED_EVENT]: FollowRemovedEvent;
-  [NodeType.MESSAGE]: Message;
   [NodeType.NOTIFICATION_EVENT]: NotificationEvent;
   [NodeType.NOTIFICATION_SENT_EVENT]: NotificationSentEvent;
   [NodeType.NOTIFICATION_RESCINDED_EVENT]: NotificationRescindedEvent;
@@ -595,7 +579,6 @@ export type NodeTypeMapping = {
   [NodeType.STAR_EVENT]: StarEvent;
   [NodeType.STAR_ADDED_EVENT]: StarAddedEvent;
   [NodeType.STAR_REMOVED_EVENT]: StarRemovedEvent;
-  [NodeType.THREAD]: Thread;
   [NodeType.BRANCH]: Branch;
   [NodeType.FOLDER]: Folder;
   [NodeType.TAG]: Tag;
@@ -681,7 +664,8 @@ export type StructTypeMapping = {
   [StructType.QUERY_RESULT]: QueryResult;
   [StructType.QUERY_RESULT_GROUP]: QueryResultGroup;
   [StructType.QUERY_UPDATE]: QueryUpdate;
-  [StructType.CUSTOM_STRUCT]: CustomStruct;
+  [StructType.DATUM_MUTABLE]: DatumMutable;
+  [StructType.DATUM]: Datum;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
   [StructType.VECTOR]: Vector;
@@ -754,12 +738,12 @@ export type EnumTypeMapping = {
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
   [EnumType.MATERIALIZATION]: Materialization;
+  [EnumType.SNAPSHOT_TYPE]: SnapshotType;
+  [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
   [EnumType.PROPERTY_REFERENCE_TYPE]: PropertyReferenceType;
-  [EnumType.SNAPSHOT_TYPE]: SnapshotType;
-  [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
@@ -807,11 +791,8 @@ export type EnumTypeMapping = {
   [EnumType.TIMER_TYPE]: TimerType;
   [EnumType.TRIGGER_TYPE]: TriggerType;
   [EnumType.LAYER_TYPE]: LayerType;
-  [EnumType.VARIANT_TYPE]: VariantType;
-  [EnumType.VARIANT_STATE_TYPE]: VariantStateType;
   [EnumType.WINDOW_TYPE]: WindowType;
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus;
-  [EnumType.THREAD_STATUS]: ThreadStatus;
   [EnumType.FOLDER_TYPE]: FolderType;
   [EnumType.COLOR_TYPE]: ColorType;
   [EnumType.COLOR_HUE]: ColorHue;

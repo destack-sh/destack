@@ -5,7 +5,7 @@ from destack.language.core import (
     Event,
     IsDeletable,
     IsExtensible,
-    IsOrdered,
+    IsSourceable,
     IsTaggable,
     IsViewable,
     NodeType,
@@ -48,10 +48,10 @@ class ViewEvent(Event["View"]):
 )
 class View(
     IsViewable,
-    IsOrdered,
     IsTaggable,
     IsExtensible,
     IsDeletable,
+    IsSourceable,
     Entity,
 ):
     """A View is a graphical interface."""

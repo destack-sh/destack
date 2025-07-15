@@ -60,16 +60,8 @@ def entity(cls, *args, **kwargs):
     return cls
 
 
-def service(cls, *args, **kwargs):
-    return cls
-
-
 def event(cls, *args, **kwargs):
     return cls
-
-
-def signal(func, *args, **kwargs):
-    return func
 
 
 def trigger(func, *args, **kwargs):

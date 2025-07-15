@@ -5,6 +5,7 @@ import type {
   IsActor,
   IsDeletable,
   IsJoinable,
+  IsSourceable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -22,6 +23,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -52,7 +54,7 @@ registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
 /**
  * A Permission for something.
  */
-export class Permission extends Entity implements IsDeletable {
+export class Permission extends Entity implements IsDeletable, IsSourceable {
   static metatype: NodeType = NodeType.PERMISSION;
 
   /**
@@ -109,18 +111,6 @@ export class Permission extends Entity implements IsDeletable {
   readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): Permission | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Permission | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
-
-  /**
    * The time this Entity was created.
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -158,6 +148,39 @@ export class Permission extends Entity implements IsDeletable {
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * The absolute order key of this Node in its parent.
+   */
+  readonly orderKey: string;
+
+  /**
+   * The Script that defines this Node.
+   */
+  get source(): Script | null {
+    const nodePtr: NodeReference | null = this.sourcePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  get key(): string | null {
+    return this._key;
+  }
+  set key(value: string | null) {
+    const prop = (this.constructor as NodeClass).__properties__["key"];
+    this._session.updateSetProperty(this, prop, value);
+    this._key = value;
+  }
+  _key: string | null;
 
   /**
    * Permission.type
@@ -214,12 +237,14 @@ export class Permission extends Entity implements IsDeletable {
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: Permission | NodeReference | null;
-    template?: Permission | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    orderKey?: string;
+    source?: Script | NodeReference | null;
+    key?: string | null;
     type: PermissionType;
     name: string;
     icon?: Icon | null;
@@ -291,13 +316,23 @@ export class Permission extends Entity implements IsDeletable {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _orderKey = options.orderKey ?? null;
+    if (_orderKey === null) {
+      _orderKey = "a0";
+    }
+    if (_orderKey === null) {
+      throw new Error(`Permission.orderKey is required`);
+    }
+    this.orderKey = _orderKey;
+    let _source = options.source ?? null;
+    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
+      _source = (_source as Node).toRef();
+    }
+    this.sourcePtr = _source;
+    let _key = options.key ?? null;
+    this._key = _key;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Permission.type is required`);
@@ -357,13 +392,16 @@ export class Permission extends Entity implements IsDeletable {
     ) {
       return false;
     }
+    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+      return false;
+    }
+    if (!(this._key === other._key)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
-      return false;
-    }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -386,14 +424,17 @@ export class Permission extends Entity implements IsDeletable {
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
+    if (this.sourcePtr != null) {
+      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
+    }
+    if (this._key != null) {
+      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -404,6 +445,7 @@ export class Permission extends Entity implements IsDeletable {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -470,9 +512,6 @@ export class Permission extends Entity implements IsDeletable {
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
     }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
-    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -483,6 +522,13 @@ export class Permission extends Entity implements IsDeletable {
     }
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    objectValue["27"] = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectValue["60"] = object.sourcePtr.toValue();
+    }
+    if (object._key != null) {
+      objectValue["70"] = object._key;
     }
     objectValue["100"] = object._type;
     objectValue["101"] = object._name;
@@ -516,6 +562,13 @@ export class Permission extends Entity implements IsDeletable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const sourcePtrValue = objectValue["60"];
+    const unpackedSourcePtr =
+      sourcePtrValue != undefined
+        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const keyValue = objectValue["70"];
+    const unpackedKey = keyValue != undefined ? keyValue : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -525,11 +578,6 @@ export class Permission extends Entity implements IsDeletable {
     const unpackedPredecessorPtr =
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -547,15 +595,17 @@ export class Permission extends Entity implements IsDeletable {
       name: objectValue["101"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
+      source: unpackedSourcePtr,
+      key: unpackedKey,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
       id: String(objectValue["2"]),
+      orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -591,9 +641,6 @@ export class Permission extends Entity implements IsDeletable {
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
     }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
-    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -604,6 +651,13 @@ export class Permission extends Entity implements IsDeletable {
     }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    objectProto.orderKey = object.orderKey;
+    if (object.sourcePtr != null) {
+      objectProto.sourcePtr = object.sourcePtr.toProto();
+    }
+    if (object._key != null) {
+      objectProto.key = object._key;
     }
     objectProto.type = Number(object._type) as PermissionTypeProto;
     objectProto.name = object._name;
@@ -641,6 +695,17 @@ export class Permission extends Entity implements IsDeletable {
           : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      source:
+        objectProto.sourcePtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.sourcePtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      key: objectProto.key != undefined ? objectProto.key : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -656,16 +721,6 @@ export class Permission extends Entity implements IsDeletable {
         objectProto.predecessorPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.predecessorPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
               _session,
               _supergraph,
               _graph,
@@ -695,6 +750,7 @@ export class Permission extends Entity implements IsDeletable {
             )
           : null,
       id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

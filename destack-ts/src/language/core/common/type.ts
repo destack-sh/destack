@@ -9,16 +9,14 @@ import {
   TypeCardinality,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
-import type {
-  CustomEntityDefinition,
-  CustomTraitDefinition,
-} from "@destack/language/core/builtin/entity";
-import type { CustomEventDefinition } from "@destack/language/core/builtin/event";
+import { Entity } from "@destack/language/core/builtin/entity";
+import type { CustomEvent } from "@destack/language/core/builtin/event";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
-import type { CustomEnumDefinition } from "@destack/language/core/common/enum";
-import type { CustomStructDefinition } from "@destack/language/core/common/struct";
+import type { IsExtensible } from "@destack/language/core/builtin/trait";
+import type { CustomEnum } from "@destack/language/core/common/enum";
+import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Value } from "@destack/language/core/common/value";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -1293,24 +1291,17 @@ export class Type extends StructFrozen {
   /**
    * Type.definition
    */
-  get definition():
-    | CustomEntityDefinition
-    | CustomEventDefinition
-    | CustomEnumDefinition
-    | CustomStructDefinition
-    | CustomTraitDefinition
-    | null {
+  get definition(): (Entity & IsExtensible) | CustomEvent | CustomEnum | CustomStruct | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
       if (this._supergraph === null) {
         return null;
       }
       return this._supergraph.get(nodePtr.id) as
-        | CustomEntityDefinition
-        | CustomEventDefinition
-        | CustomEnumDefinition
-        | CustomStructDefinition
-        | CustomTraitDefinition
+        | (Entity & IsExtensible)
+        | CustomEvent
+        | CustomEnum
+        | CustomStruct
         | null;
     }
     return null;
@@ -1321,11 +1312,6 @@ export class Type extends StructFrozen {
    * Type.keyType
    */
   readonly keyType: Type | null;
-
-  /**
-   * Type.isRequired
-   */
-  readonly isRequired: boolean | null;
 
   /**
    * Type.value
@@ -1357,6 +1343,16 @@ export class Type extends StructFrozen {
    */
   readonly nodeConstraint: NodeConstraint | null;
 
+  /**
+   * Type.isRequired
+   */
+  readonly isRequired: boolean | null;
+
+  /**
+   * Type.isRoot
+   */
+  readonly isRoot: boolean | null;
+
   constructor(options: {
     name?: string | null;
     cardinality?: TypeCardinality;
@@ -1366,21 +1362,21 @@ export class Type extends StructFrozen {
     nodeType?: NodeType | null;
     structType?: StructType | null;
     definition?:
-      | CustomEntityDefinition
-      | CustomEventDefinition
-      | CustomEnumDefinition
-      | CustomStructDefinition
-      | CustomTraitDefinition
+      | (Entity & IsExtensible)
+      | CustomEvent
+      | CustomEnum
+      | CustomStruct
       | NodeReference
       | null;
     keyType?: Type | null;
-    isRequired?: boolean | null;
     value?: Value | null;
     valueFactory?: ValueFactory | null;
     collectionConstraint?: CollectionConstraint | null;
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
+    isRequired?: boolean | null;
+    isRoot?: boolean | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1426,8 +1422,6 @@ export class Type extends StructFrozen {
     this.definitionPtr = _definition;
     let _keyType = options.keyType ?? null;
     this.keyType = _keyType;
-    let _isRequired = options.isRequired ?? null;
-    this.isRequired = _isRequired;
     let _value = options.value ?? null;
     this.value = _value;
     let _valueFactory = options.valueFactory ?? null;
@@ -1440,6 +1434,10 @@ export class Type extends StructFrozen {
     this.numberConstraint = _numberConstraint;
     let _nodeConstraint = options.nodeConstraint ?? null;
     this.nodeConstraint = _nodeConstraint;
+    let _isRequired = options.isRequired ?? null;
+    this.isRequired = _isRequired;
+    let _isRoot = options.isRoot ?? null;
+    this.isRoot = _isRoot;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1486,9 +1484,6 @@ export class Type extends StructFrozen {
     ) {
       return false;
     }
-    if (!(this.isRequired === other.isRequired)) {
-      return false;
-    }
     if (
       (this.value == null) !== (other.value == null) ||
       (this.value != null && !this.value.equals(other.value))
@@ -1521,6 +1516,12 @@ export class Type extends StructFrozen {
       (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
       (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
     ) {
+      return false;
+    }
+    if (!(this.isRequired === other.isRequired)) {
+      return false;
+    }
+    if (!(this.isRoot === other.isRoot)) {
       return false;
     }
     return true;
@@ -1588,9 +1589,6 @@ export class Type extends StructFrozen {
     if (this.keyType != null) {
       h = (h * 31 + this.keyType.hash()) & 0xffffffff;
     }
-    if (this.isRequired != null) {
-      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
-    }
     if (this.value != null) {
       h = (h * 31 + this.value.hash()) & 0xffffffff;
     }
@@ -1608,6 +1606,12 @@ export class Type extends StructFrozen {
     }
     if (this.nodeConstraint != null) {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
+    }
+    if (this.isRequired != null) {
+      h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
+    }
+    if (this.isRoot != null) {
+      h = (h * 31 + hashBool(this.isRoot)) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -1653,9 +1657,6 @@ export class Type extends StructFrozen {
     if (object.keyType != null) {
       objectValue["117"] = object.keyType.toValue();
     }
-    if (object.isRequired != null) {
-      objectValue["118"] = object.isRequired;
-    }
     if (object.value != null) {
       objectValue["130"] = object.value.toValue();
     }
@@ -1673,6 +1674,12 @@ export class Type extends StructFrozen {
     }
     if (object.nodeConstraint != null) {
       objectValue["143"] = object.nodeConstraint.toValue();
+    }
+    if (object.isRequired != null) {
+      objectValue["150"] = object.isRequired;
+    }
+    if (object.isRoot != null) {
+      objectValue["154"] = object.isRoot;
     }
     return objectValue;
   }
@@ -1720,8 +1727,6 @@ export class Type extends StructFrozen {
       keyTypeValue != undefined
         ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const isRequiredValue = objectValue["118"];
-    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
     const valueValue = objectValue["130"];
     const unpackedValue =
       valueValue != undefined
@@ -1767,6 +1772,10 @@ export class Type extends StructFrozen {
       nodeConstraintValue != undefined
         ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
+    const isRequiredValue = objectValue["150"];
+    const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
+    const isRootValue = objectValue["154"];
+    const unpackedIsRoot = isRootValue != undefined ? isRootValue : null;
     return new Type({
       name: unpackedName,
       cardinality: Number(objectValue["110"]),
@@ -1777,13 +1786,14 @@ export class Type extends StructFrozen {
       structType: unpackedStructType,
       definition: unpackedDefinitionPtr,
       keyType: unpackedKeyType,
-      isRequired: unpackedIsRequired,
       value: unpackedValue,
       valueFactory: unpackedValueFactory,
       collectionConstraint: unpackedCollectionConstraint,
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
+      isRequired: unpackedIsRequired,
+      isRoot: unpackedIsRoot,
       _value: objectValue,
       _supergraph,
     });
@@ -1832,9 +1842,6 @@ export class Type extends StructFrozen {
     if (object.keyType != null) {
       objectProto.keyType = object.keyType.toProto();
     }
-    if (object.isRequired != null) {
-      objectProto.isRequired = object.isRequired;
-    }
     if (object.value != null) {
       objectProto.value = object.value.toProto();
     }
@@ -1852,6 +1859,12 @@ export class Type extends StructFrozen {
     }
     if (object.nodeConstraint != null) {
       objectProto.nodeConstraint = object.nodeConstraint.toProto();
+    }
+    if (object.isRequired != null) {
+      objectProto.isRequired = object.isRequired;
+    }
+    if (object.isRoot != null) {
+      objectProto.isRoot = object.isRoot;
     }
     return objectProto as TypeProto;
   }
@@ -1906,7 +1919,6 @@ export class Type extends StructFrozen {
         objectProto.keyType != undefined
           ? _Type.fromProto(objectProto.keyType!, _session, _supergraph, _graph, _connection)
           : null,
-      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
       value:
         objectProto.value != undefined
           ? _Value.fromProto(objectProto.value!, _session, _supergraph, _graph, _connection)
@@ -1955,6 +1967,8 @@ export class Type extends StructFrozen {
               _connection,
             )
           : null,
+      isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
+      isRoot: objectProto.isRoot != undefined ? objectProto.isRoot : null,
       _proto: objectProto,
       _supergraph,
     });

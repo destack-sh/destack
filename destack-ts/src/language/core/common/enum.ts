@@ -23,20 +23,20 @@ import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { CustomEnumDefinitionProto, CustomOptionProto, MaterializationProto } from "@destack/proto";
+import { CustomEnumProto, CustomOptionProto, MaterializationProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:104 ==== */
 /**
- * A CustomEnumDefinition describes a custom Enum with Options.
+ * A CustomEnum describes a custom Enum with custom Options.
  */
-export class CustomEnumDefinition
+export class CustomEnum
   extends Entity
   implements IsTaggable, IsDeletable, IsSourceable, IsCustomizable
 {
-  static metatype: NodeType = NodeType.CUSTOM_ENUM_DEFINITION;
+  static metatype: NodeType = NodeType.CUSTOM_ENUM;
 
   /**
    * Entity.parent
@@ -82,26 +82,14 @@ export class CustomEnumDefinition
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): CustomEnumDefinition | null {
+  get predecessor(): CustomEnum | null {
     const nodePtr: NodeReference | null = this.predecessorPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEnumDefinition | null;
+      return this._supergraph.get(nodePtr.id) as CustomEnum | null;
     }
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): CustomEnumDefinition | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEnumDefinition | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -192,10 +180,10 @@ export class CustomEnumDefinition
   _key: string | null;
 
   /**
-   * CustomEnumDefinition.name
+   * CustomEnum.name
    */
   /**
-   * CustomEnumDefinition.name
+   * CustomEnum.name
    */
   get name(): string {
     return this._name;
@@ -208,10 +196,10 @@ export class CustomEnumDefinition
   _name: string;
 
   /**
-   * CustomEnumDefinition.icon
+   * CustomEnum.icon
    */
   /**
-   * CustomEnumDefinition.icon
+   * CustomEnum.icon
    */
   get icon(): Icon | null {
     return this._icon;
@@ -229,8 +217,7 @@ export class CustomEnumDefinition
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: CustomEnumDefinition | NodeReference | null;
-    template?: CustomEnumDefinition | NodeReference | null;
+    predecessor?: CustomEnum | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -280,16 +267,16 @@ export class CustomEnumDefinition
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomEnumDefinition has no Session`);
+        throw new Error(`CustomEnum has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CustomEnumDefinition has no Space`);
+        throw new Error(`CustomEnum has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`CustomEnumDefinition.space is required`);
+      throw new Error(`CustomEnum.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -297,7 +284,7 @@ export class CustomEnumDefinition
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`CustomEnumDefinition.materialization is required`);
+      throw new Error(`CustomEnum.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -310,11 +297,6 @@ export class CustomEnumDefinition
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -327,7 +309,7 @@ export class CustomEnumDefinition
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`CustomEnumDefinition.orderKey is required`);
+      throw new Error(`CustomEnum.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _source = options.source ?? null;
@@ -339,7 +321,7 @@ export class CustomEnumDefinition
     this._key = _key;
     let _name = options.name;
     if (_name === null) {
-      throw new Error(`CustomEnumDefinition.name is required`);
+      throw new Error(`CustomEnum.name is required`);
     }
     this._name = _name;
     let _icon = options.icon ?? null;
@@ -355,7 +337,7 @@ export class CustomEnumDefinition
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `CustomEnumDefinition.createdAt and CustomEnumDefinition.updatedAt are required for existing Nodes`,
+          `CustomEnum.createdAt and CustomEnum.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -411,9 +393,6 @@ export class CustomEnumDefinition
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -451,9 +430,6 @@ export class CustomEnumDefinition
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
     }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -476,7 +452,7 @@ export class CustomEnumDefinition
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.CUSTOM_ENUM_DEFINITION,
+      type: NodeType.CUSTOM_ENUM,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -507,14 +483,14 @@ export class CustomEnumDefinition
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<CustomEnumDefinition "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<CustomEnum "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return CustomEnumDefinition.__packValue__(this);
+    return CustomEnum.__packValue__(this);
   }
 
-  static __packValue__(object: CustomEnumDefinition): { readonly [key: string]: any } {
+  static __packValue__(object: CustomEnum): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
     objectValue["1"] = 104;
     objectValue["2"] = String(object.id);
@@ -528,9 +504,6 @@ export class CustomEnumDefinition
     }
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
-    }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -570,7 +543,7 @@ export class CustomEnumDefinition
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnumDefinition {
+  ): CustomEnum {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
@@ -618,11 +591,6 @@ export class CustomEnumDefinition
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -633,7 +601,7 @@ export class CustomEnumDefinition
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    return new CustomEnumDefinition({
+    return new CustomEnum({
       name: objectValue["101"],
       icon: unpackedIcon,
       deletedAt: unpackedDeletedAt,
@@ -644,7 +612,6 @@ export class CustomEnumDefinition
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -664,22 +631,16 @@ export class CustomEnumDefinition
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnumDefinition {
-    return CustomEnumDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): CustomEnum {
+    return CustomEnum.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CustomEnumDefinitionProto {
-    return CustomEnumDefinition.__packProto__(this);
+  toProto(): CustomEnumProto {
+    return CustomEnum.__packProto__(this);
   }
 
-  static __packProto__(object: CustomEnumDefinition): CustomEnumDefinitionProto {
-    const objectProto: Partial<CustomEnumDefinitionProto> = { metatype: 104 };
+  static __packProto__(object: CustomEnum): CustomEnumProto {
+    const objectProto: Partial<CustomEnumProto> = { metatype: 104 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -691,9 +652,6 @@ export class CustomEnumDefinition
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -723,16 +681,16 @@ export class CustomEnumDefinition
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
-    return objectProto as CustomEnumDefinitionProto;
+    return objectProto as CustomEnumProto;
   }
 
   static __unpackProto__(
-    objectProto: CustomEnumDefinitionProto,
+    objectProto: CustomEnumProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnumDefinition {
+  ): CustomEnum {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
@@ -745,7 +703,7 @@ export class CustomEnumDefinition
         );
       }
     }
-    return new CustomEnumDefinition({
+    return new CustomEnum({
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
@@ -796,16 +754,6 @@ export class CustomEnumDefinition
               _connection,
             )
           : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
         objectProto.createdByPtr != undefined
@@ -844,24 +792,18 @@ export class CustomEnumDefinition
   }
 
   static fromProto(
-    objectProto: CustomEnumDefinitionProto,
+    objectProto: CustomEnumProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnumDefinition {
-    return CustomEnumDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+  ): CustomEnum {
+    return CustomEnum.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): CustomEnumDefinition {
+  static fromProtoString(packedProtoString: string): CustomEnum {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomEnumDefinitionProto.fromBinary(packedProtoBytes);
+    const packedProto = CustomEnumProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -869,7 +811,7 @@ export class CustomEnumDefinition
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.CUSTOM_ENUM_DEFINITION, CustomEnumDefinition);
+registerNodeClass(NodeType.CUSTOM_ENUM, CustomEnum);
 /* ==== DESTACK_GENERATED_END:NODE:104 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:120 ==== */
@@ -885,10 +827,10 @@ export class CustomOption
   /**
    * CustomOption.parent
    */
-  get parent(): CustomEnumDefinition | null {
+  get parent(): CustomEnum | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEnumDefinition | null;
+      return this._supergraph.get(nodePtr.id) as CustomEnum | null;
     }
     return null;
   }
@@ -934,18 +876,6 @@ export class CustomOption
     return null;
   }
   readonly predecessorPtr: NodeReference | null;
-
-  /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  get template(): CustomOption | null {
-    const nodePtr: NodeReference | null = this.templatePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomOption | null;
-    }
-    return null;
-  }
-  readonly templatePtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -1058,12 +988,11 @@ export class CustomOption
 
   constructor(options: {
     id?: string;
-    parent?: CustomEnumDefinition | NodeReference | null;
+    parent?: CustomEnum | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     predecessor?: CustomOption | NodeReference | null;
-    template?: CustomOption | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1143,11 +1072,6 @@ export class CustomOption
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _template = options.template ?? null;
-    if (_template != null && _template.metatype != StructType.NODE_REFERENCE) {
-      _template = (_template as Node).toRef();
-    }
-    this.templatePtr = _template;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -1230,9 +1154,6 @@ export class CustomOption
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
-    if (!(this.templatePtr?.id === other.templatePtr?.id)) {
-      return false;
-    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -1266,9 +1187,6 @@ export class CustomOption
     }
     if (this.predecessorPtr != null) {
       h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
-    }
-    if (this.templatePtr != null) {
-      h = (h * 31 + hashString(this.templatePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1345,9 +1263,6 @@ export class CustomOption
     if (object.predecessorPtr != null) {
       objectValue["12"] = object.predecessorPtr.toValue();
     }
-    if (object.templatePtr != null) {
-      objectValue["13"] = object.templatePtr.toValue();
-    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1422,11 +1337,6 @@ export class CustomOption
       predecessorPtrValue != undefined
         ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const templatePtrValue = objectValue["13"];
-    const unpackedTemplatePtr =
-      templatePtrValue != undefined
-        ? _NodeReference.fromValue(templatePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1448,7 +1358,6 @@ export class CustomOption
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
-      template: unpackedTemplatePtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -1489,9 +1398,6 @@ export class CustomOption
     }
     if (object.predecessorPtr != null) {
       objectProto.predecessorPtr = object.predecessorPtr.toProto();
-    }
-    if (object.templatePtr != null) {
-      objectProto.templatePtr = object.templatePtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1576,16 +1482,6 @@ export class CustomOption
         objectProto.predecessorPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.predecessorPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      template:
-        objectProto.templatePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.templatePtr!,
               _session,
               _supergraph,
               _graph,

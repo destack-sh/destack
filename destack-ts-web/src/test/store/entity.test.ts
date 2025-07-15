@@ -5,19 +5,18 @@ import {
   ClientType,
   Folder,
   FolderType,
-  Space,
   FrameView,
   Join,
   JoinType,
   LabelView,
   Layer,
   MemoryStore,
-  Message,
   NodeReference,
   NodeType,
   Reaction,
   Region,
   Session,
+  Space,
   SpaceStatus,
   Star,
   StoreKey,
@@ -76,9 +75,9 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
         region: Region.ZURICH,
       });
       ACTIVE_SPACE.set(space);
-      
+
       await use(session);
-      
+
       // teardown
       await session.close();
       await tearDown(store as any);
@@ -203,8 +202,10 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       }
       await session.commit();
     }
-    
-    const rootFolderChildCount = await Folder.count({ where: Folder.property("parent").eq(rootFolder) }).executeCount();
+
+    const rootFolderChildCount = await Folder.count({
+      where: Folder.property("parent").eq(rootFolder),
+    }).executeCount();
     expect(rootFolderChildCount).toBe(NUM_FOLDERS_PER_LEVEL);
 
     // query
@@ -246,15 +247,19 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }).executeCount();
     session.delete(rootFolder);
     await session.commit();
-    
-    const deletedFoldersCount = await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount();
+
+    const deletedFoldersCount = await Folder.count({
+      where: Folder.property("deletedAt").isNull(),
+    }).executeCount();
     expect(deletedFoldersCount).toBe(0);
-    
+
     // restore root folder (should restore all folders)
     session.restore(rootFolder);
     await session.commit();
-    
-    const restoredFoldersCount = await Folder.count({ where: Folder.property("deletedAt").isNull() }).executeCount();
+
+    const restoredFoldersCount = await Folder.count({
+      where: Folder.property("deletedAt").isNull(),
+    }).executeCount();
     expect(restoredFoldersCount).toBe(numTotalFolders);
 
     // delete and restore subfolders one at a time
@@ -262,7 +267,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       // delete just this subfolder (and its descendants)
       session.delete(folder);
       await session.commit();
-      
+
       const connection = await Folder.get({
         where: Folder.property("id").eq(folder.id).and(Folder.property("deletedAt").isNull()),
         Folders: Folder.search({
@@ -281,7 +286,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
       session.restore(folder);
       await session.commit();
-      
+
       const restoredSubfoldersCount = await Folder.count({
         where: Folder.property("deletedAt").isNull(),
       }).executeCount();
@@ -371,9 +376,9 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }
     await session.commit();
 
-    // create message
-    const message = new Message({});
-    session.create(message);
+    // create folder
+    const folder = new Folder({ name: "Folder" });
+    session.create(folder);
     await session.commit();
 
     // create reactions
@@ -381,7 +386,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     const reactions: Reaction[] = [];
     for (const user of users) {
       for (const reactionContent of reactionsContent) {
-        const reaction = new Reaction({ parent: message, content: reactionContent, ownedBy: user });
+        const reaction = new Reaction({ parent: folder, content: reactionContent, ownedBy: user });
         reactions.push(reaction);
         session.create(reaction);
       }
@@ -389,21 +394,21 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     await session.commit();
 
     // scalar by group
-    const messageTree = await Message.get({
-      where: Message.property("id").eq(message.id),
+    const folderTree = await Folder.get({
+      where: Folder.property("id").eq(folder.id),
       Reactions: Reaction.count({
         sort: [Reaction.property("createdAt").asc()],
         groupBy: [Reaction.property("content")],
       }),
     }).execute();
-    const reactionsByGroup = messageTree.get("Reactions").toScalarByGroup();
+    const reactionsByGroup = folderTree.get("Reactions").toScalarByGroup();
     expect(reactionsByGroup).toEqual(
       Object.fromEntries(reactionsContent.map((content) => [content, 10])),
     );
 
     // node by group
-    const messageTree2 = await Message.get({
-      where: Message.property("id").eq(message.id),
+    const folderTree2 = await Folder.get({
+      where: Folder.property("id").eq(folder.id),
       Reactions: Reaction.search({ groupBy: [Reaction.property("content")] }),
       ReactionsTotal: Reaction.count(),
     }).execute();
@@ -413,7 +418,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
         reactions.filter((reaction) => reaction.content === content),
       ]),
     );
-    const reactionsByContentUnpacked = messageTree2.get("Reactions").toListByGroup();
+    const reactionsByContentUnpacked = folderTree2.get("Reactions").toListByGroup();
     for (const reactionContent of reactionsContent) {
       const reactions = reactionsByContent[reactionContent];
       const reactionsUnpacked = reactionsByContentUnpacked[reactionContent];

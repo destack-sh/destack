@@ -54,12 +54,6 @@ export abstract class Route
   declare readonly predecessorPtr: NodeReference | null;
 
   /**
-   * The template this Entity instance is based on (from the template tree).
-   */
-  abstract get template(): Route | null;
-  declare readonly templatePtr: NodeReference | null;
-
-  /**
    * The time this Entity was created.
    */
   declare readonly createdAt: Temporal.ZonedDateTime;

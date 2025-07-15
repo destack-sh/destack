@@ -2,11 +2,13 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
+  IsExtensible,
   NodeReference,
   QueryConnection,
   Session,
   Snapshot,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -18,12 +20,13 @@ import {
   StructType,
 } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
+import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import { EventStatusProto, FocusInEventProto, FocusOutEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:560600 ==== */
@@ -38,6 +41,12 @@ export abstract class FocusEvent extends InputEvent {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): (Entity & IsExtensible) | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -68,9 +77,25 @@ export abstract class FocusEvent extends InputEvent {
   declare readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get script(): Script | null;
+  declare readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -103,6 +128,18 @@ export class FocusInEvent extends FocusEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -151,9 +188,31 @@ export class FocusInEvent extends FocusEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -170,12 +229,16 @@ export class FocusInEvent extends FocusEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -218,6 +281,11 @@ export class FocusInEvent extends FocusEvent {
       throw new Error(`FocusInEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -230,6 +298,11 @@ export class FocusInEvent extends FocusEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -238,6 +311,19 @@ export class FocusInEvent extends FocusEvent {
       throw new Error(`FocusInEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`FocusInEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -270,6 +356,12 @@ export class FocusInEvent extends FocusEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -280,6 +372,20 @@ export class FocusInEvent extends FocusEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -294,6 +400,10 @@ export class FocusInEvent extends FocusEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -308,6 +418,15 @@ export class FocusInEvent extends FocusEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -325,6 +444,7 @@ export class FocusInEvent extends FocusEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -364,6 +484,9 @@ export class FocusInEvent extends FocusEvent {
     objectValue["1"] = 560601;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -377,7 +500,18 @@ export class FocusInEvent extends FocusEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -392,10 +526,16 @@ export class FocusInEvent extends FocusEvent {
     _connection?: any | null,
   ): FocusInEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -414,14 +554,35 @@ export class FocusInEvent extends FocusEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new FocusInEvent({
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -448,6 +609,9 @@ export class FocusInEvent extends FocusEvent {
     const objectProto: Partial<FocusInEventProto> = { metatype: 560601 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -461,7 +625,17 @@ export class FocusInEvent extends FocusEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -476,6 +650,16 @@ export class FocusInEvent extends FocusEvent {
     _connection?: any | null,
   ): FocusInEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new FocusInEvent({
       node:
         objectProto.nodePtr != undefined
@@ -487,6 +671,17 @@ export class FocusInEvent extends FocusEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -520,6 +715,17 @@ export class FocusInEvent extends FocusEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -577,6 +783,18 @@ export class FocusOutEvent extends FocusEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -623,9 +841,31 @@ export class FocusOutEvent extends FocusEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -642,12 +882,16 @@ export class FocusOutEvent extends FocusEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -690,6 +934,11 @@ export class FocusOutEvent extends FocusEvent {
       throw new Error(`FocusOutEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -702,6 +951,11 @@ export class FocusOutEvent extends FocusEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -710,6 +964,19 @@ export class FocusOutEvent extends FocusEvent {
       throw new Error(`FocusOutEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`FocusOutEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -742,6 +1009,12 @@ export class FocusOutEvent extends FocusEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -752,6 +1025,20 @@ export class FocusOutEvent extends FocusEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -766,6 +1053,10 @@ export class FocusOutEvent extends FocusEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -780,6 +1071,15 @@ export class FocusOutEvent extends FocusEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -797,6 +1097,7 @@ export class FocusOutEvent extends FocusEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -836,6 +1137,9 @@ export class FocusOutEvent extends FocusEvent {
     objectValue["1"] = 560602;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -849,7 +1153,18 @@ export class FocusOutEvent extends FocusEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -864,10 +1179,16 @@ export class FocusOutEvent extends FocusEvent {
     _connection?: any | null,
   ): FocusOutEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const nodePtrValue = objectValue["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -886,14 +1207,35 @@ export class FocusOutEvent extends FocusEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new FocusOutEvent({
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -920,6 +1262,9 @@ export class FocusOutEvent extends FocusEvent {
     const objectProto: Partial<FocusOutEventProto> = { metatype: 560602 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -933,7 +1278,17 @@ export class FocusOutEvent extends FocusEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -948,6 +1303,16 @@ export class FocusOutEvent extends FocusEvent {
     _connection?: any | null,
   ): FocusOutEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new FocusOutEvent({
       node:
         objectProto.nodePtr != undefined
@@ -959,6 +1324,17 @@ export class FocusOutEvent extends FocusEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -992,6 +1368,17 @@ export class FocusOutEvent extends FocusEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

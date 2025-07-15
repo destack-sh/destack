@@ -18,15 +18,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.CUSTOM_ENUM_DEFINITION)
-class CustomEnumDefinition(
+@builtin_node(NodeType.CUSTOM_ENUM)
+class CustomEnum(
     IsTaggable,
     IsDeletable,
     IsSourceable,
     IsCustomizable,
     Entity,
 ):
-    """A CustomEnumDefinition describes a custom Enum with Options."""
+    """A CustomEnum describes a custom Enum with custom Options."""
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
@@ -40,7 +40,7 @@ class CustomOption(
     IsSourceable,
     Entity,
 ):
-    parent: Union["CustomEnumDefinition", None] = builtin_property_parent()
+    parent: Union["CustomEnum", None] = builtin_property_parent()
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

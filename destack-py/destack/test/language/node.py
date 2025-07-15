@@ -21,16 +21,8 @@ def test_node_inheritance(session: Session):
     assert EventCursor.__base_type__ == Cursor.metatype
     assert Cursor.__inherits__ == (NodeType.NODE, NodeType.ENTITY)
     assert EventCursor.__inherits__ == (NodeType.NODE, NodeType.ENTITY, NodeType.CURSOR)
-    assert Cursor.__extended_by__ == (
-        NodeType.EVENT_CURSOR,
-        NodeType.SCREEN_CURSOR,
-        NodeType.THREAD_CURSOR,
-    )
-    assert Cursor.__inherited_by__ == (
-        NodeType.EVENT_CURSOR,
-        NodeType.SCREEN_CURSOR,
-        NodeType.THREAD_CURSOR,
-    )
+    assert Cursor.__extended_by__ == (NodeType.EVENT_CURSOR, NodeType.SCREEN_CURSOR)
+    assert Cursor.__inherited_by__ == (NodeType.EVENT_CURSOR, NodeType.SCREEN_CURSOR)
     assert len(Node.__inherited_by__) == len(NodeType) - 1
 
 

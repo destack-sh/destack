@@ -2,11 +2,13 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
+  IsExtensible,
   NodeReference,
   QueryConnection,
   Session,
   Snapshot,
   Supergraph,
+  Value,
   Vector2f,
 } from "@destack/language/core";
 import {
@@ -19,6 +21,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import { InputEvent } from "@destack/language/interaction/input";
+import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Client, Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
@@ -50,6 +53,12 @@ export abstract class PointerEvent extends InputEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): (Entity & IsExtensible) | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -78,9 +87,25 @@ export abstract class PointerEvent extends InputEvent {
   declare readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  declare readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   declare readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  abstract get script(): Script | null;
+  declare readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  declare readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -145,6 +170,18 @@ export class PointerDownEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -191,9 +228,31 @@ export class PointerDownEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -240,12 +299,16 @@ export class PointerDownEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -294,6 +357,11 @@ export class PointerDownEvent extends PointerEvent {
       throw new Error(`PointerDownEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -306,6 +374,11 @@ export class PointerDownEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -314,6 +387,19 @@ export class PointerDownEvent extends PointerEvent {
       throw new Error(`PointerDownEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerDownEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -395,6 +481,12 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -405,6 +497,20 @@ export class PointerDownEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -427,6 +533,10 @@ export class PointerDownEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -441,6 +551,15 @@ export class PointerDownEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -458,6 +577,7 @@ export class PointerDownEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -501,6 +621,9 @@ export class PointerDownEvent extends PointerEvent {
     objectValue["1"] = 560101;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -514,7 +637,18 @@ export class PointerDownEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -537,6 +671,7 @@ export class PointerDownEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -544,6 +679,11 @@ export class PointerDownEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -562,6 +702,23 @@ export class PointerDownEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerDownEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -570,12 +727,16 @@ export class PointerDownEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -608,6 +769,9 @@ export class PointerDownEvent extends PointerEvent {
     const objectProto: Partial<PointerDownEventProto> = { metatype: 560101 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -621,7 +785,17 @@ export class PointerDownEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -644,7 +818,17 @@ export class PointerDownEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerDownEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerDownEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -668,6 +852,17 @@ export class PointerDownEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -701,6 +896,17 @@ export class PointerDownEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -764,6 +970,18 @@ export class PointerUpEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -810,9 +1028,31 @@ export class PointerUpEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -859,12 +1099,16 @@ export class PointerUpEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -913,6 +1157,11 @@ export class PointerUpEvent extends PointerEvent {
       throw new Error(`PointerUpEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -925,6 +1174,11 @@ export class PointerUpEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -933,6 +1187,19 @@ export class PointerUpEvent extends PointerEvent {
       throw new Error(`PointerUpEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerUpEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1014,6 +1281,12 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1024,6 +1297,20 @@ export class PointerUpEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -1046,6 +1333,10 @@ export class PointerUpEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1060,6 +1351,15 @@ export class PointerUpEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -1077,6 +1377,7 @@ export class PointerUpEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1120,6 +1421,9 @@ export class PointerUpEvent extends PointerEvent {
     objectValue["1"] = 560102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1133,7 +1437,18 @@ export class PointerUpEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1156,6 +1471,7 @@ export class PointerUpEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -1163,6 +1479,11 @@ export class PointerUpEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1181,6 +1502,23 @@ export class PointerUpEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerUpEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -1189,12 +1527,16 @@ export class PointerUpEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1221,6 +1563,9 @@ export class PointerUpEvent extends PointerEvent {
     const objectProto: Partial<PointerUpEventProto> = { metatype: 560102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1234,7 +1579,17 @@ export class PointerUpEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1257,7 +1612,17 @@ export class PointerUpEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerUpEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerUpEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -1281,6 +1646,17 @@ export class PointerUpEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1314,6 +1690,17 @@ export class PointerUpEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1371,6 +1758,18 @@ export class PointerMoveEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1417,9 +1816,31 @@ export class PointerMoveEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -1466,12 +1887,16 @@ export class PointerMoveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -1520,6 +1945,11 @@ export class PointerMoveEvent extends PointerEvent {
       throw new Error(`PointerMoveEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1532,6 +1962,11 @@ export class PointerMoveEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -1540,6 +1975,19 @@ export class PointerMoveEvent extends PointerEvent {
       throw new Error(`PointerMoveEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerMoveEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -1621,6 +2069,12 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1631,6 +2085,20 @@ export class PointerMoveEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -1653,6 +2121,10 @@ export class PointerMoveEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1667,6 +2139,15 @@ export class PointerMoveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -1684,6 +2165,7 @@ export class PointerMoveEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1727,6 +2209,9 @@ export class PointerMoveEvent extends PointerEvent {
     objectValue["1"] = 560103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1740,7 +2225,18 @@ export class PointerMoveEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -1763,6 +2259,7 @@ export class PointerMoveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerMoveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -1770,6 +2267,11 @@ export class PointerMoveEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1788,6 +2290,23 @@ export class PointerMoveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerMoveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -1796,12 +2315,16 @@ export class PointerMoveEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1834,6 +2357,9 @@ export class PointerMoveEvent extends PointerEvent {
     const objectProto: Partial<PointerMoveEventProto> = { metatype: 560103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1847,7 +2373,17 @@ export class PointerMoveEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -1870,7 +2406,17 @@ export class PointerMoveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerMoveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerMoveEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -1894,6 +2440,17 @@ export class PointerMoveEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1927,6 +2484,17 @@ export class PointerMoveEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -1990,6 +2558,18 @@ export class PointerEnterEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2036,9 +2616,31 @@ export class PointerEnterEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -2085,12 +2687,16 @@ export class PointerEnterEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -2139,6 +2745,11 @@ export class PointerEnterEvent extends PointerEvent {
       throw new Error(`PointerEnterEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2151,6 +2762,11 @@ export class PointerEnterEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -2159,6 +2775,19 @@ export class PointerEnterEvent extends PointerEvent {
       throw new Error(`PointerEnterEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerEnterEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2240,6 +2869,12 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2250,6 +2885,20 @@ export class PointerEnterEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -2272,6 +2921,10 @@ export class PointerEnterEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -2286,6 +2939,15 @@ export class PointerEnterEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2303,6 +2965,7 @@ export class PointerEnterEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2346,6 +3009,9 @@ export class PointerEnterEvent extends PointerEvent {
     objectValue["1"] = 560104;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2359,7 +3025,18 @@ export class PointerEnterEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -2382,6 +3059,7 @@ export class PointerEnterEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -2389,6 +3067,11 @@ export class PointerEnterEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -2407,6 +3090,23 @@ export class PointerEnterEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerEnterEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -2415,12 +3115,16 @@ export class PointerEnterEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2453,6 +3157,9 @@ export class PointerEnterEvent extends PointerEvent {
     const objectProto: Partial<PointerEnterEventProto> = { metatype: 560104 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2466,7 +3173,17 @@ export class PointerEnterEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -2489,7 +3206,17 @@ export class PointerEnterEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerEnterEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerEnterEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -2513,6 +3240,17 @@ export class PointerEnterEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -2546,6 +3284,17 @@ export class PointerEnterEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -2609,6 +3358,18 @@ export class PointerOverEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2655,9 +3416,31 @@ export class PointerOverEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -2704,12 +3487,16 @@ export class PointerOverEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -2758,6 +3545,11 @@ export class PointerOverEvent extends PointerEvent {
       throw new Error(`PointerOverEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2770,6 +3562,11 @@ export class PointerOverEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -2778,6 +3575,19 @@ export class PointerOverEvent extends PointerEvent {
       throw new Error(`PointerOverEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerOverEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -2859,6 +3669,12 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2869,6 +3685,20 @@ export class PointerOverEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -2891,6 +3721,10 @@ export class PointerOverEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -2905,6 +3739,15 @@ export class PointerOverEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2922,6 +3765,7 @@ export class PointerOverEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -2965,6 +3809,9 @@ export class PointerOverEvent extends PointerEvent {
     objectValue["1"] = 560105;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2978,7 +3825,18 @@ export class PointerOverEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -3001,6 +3859,7 @@ export class PointerOverEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -3008,6 +3867,11 @@ export class PointerOverEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -3026,6 +3890,23 @@ export class PointerOverEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerOverEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -3034,12 +3915,16 @@ export class PointerOverEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -3072,6 +3957,9 @@ export class PointerOverEvent extends PointerEvent {
     const objectProto: Partial<PointerOverEventProto> = { metatype: 560105 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -3085,7 +3973,17 @@ export class PointerOverEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -3108,7 +4006,17 @@ export class PointerOverEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerOverEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerOverEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -3132,6 +4040,17 @@ export class PointerOverEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -3165,6 +4084,17 @@ export class PointerOverEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -3228,6 +4158,18 @@ export class PointerLeaveEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -3274,9 +4216,31 @@ export class PointerLeaveEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -3323,12 +4287,16 @@ export class PointerLeaveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -3377,6 +4345,11 @@ export class PointerLeaveEvent extends PointerEvent {
       throw new Error(`PointerLeaveEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -3389,6 +4362,11 @@ export class PointerLeaveEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -3397,6 +4375,19 @@ export class PointerLeaveEvent extends PointerEvent {
       throw new Error(`PointerLeaveEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerLeaveEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -3478,6 +4469,12 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -3488,6 +4485,20 @@ export class PointerLeaveEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -3510,6 +4521,10 @@ export class PointerLeaveEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -3524,6 +4539,15 @@ export class PointerLeaveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -3541,6 +4565,7 @@ export class PointerLeaveEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -3584,6 +4609,9 @@ export class PointerLeaveEvent extends PointerEvent {
     objectValue["1"] = 560106;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3597,7 +4625,18 @@ export class PointerLeaveEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -3620,6 +4659,7 @@ export class PointerLeaveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -3627,6 +4667,11 @@ export class PointerLeaveEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -3645,6 +4690,23 @@ export class PointerLeaveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerLeaveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -3653,12 +4715,16 @@ export class PointerLeaveEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -3691,6 +4757,9 @@ export class PointerLeaveEvent extends PointerEvent {
     const objectProto: Partial<PointerLeaveEventProto> = { metatype: 560106 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -3704,7 +4773,17 @@ export class PointerLeaveEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -3727,7 +4806,17 @@ export class PointerLeaveEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerLeaveEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerLeaveEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -3751,6 +4840,17 @@ export class PointerLeaveEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -3784,6 +4884,17 @@ export class PointerLeaveEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -3847,6 +4958,18 @@ export class PointerLongPressEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): (Entity & IsExtensible) | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -3893,9 +5016,31 @@ export class PointerLongPressEvent extends PointerEvent {
   readonly clientNonce: string | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  readonly customValues: { readonly [key: string]: Value };
+
+  /**
    * The status of the Event.
    */
   readonly status: EventStatus;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  readonly scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
 
   /**
    * InputEvent.node
@@ -3942,12 +5087,16 @@ export class PointerLongPressEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    definition?: (Entity & IsExtensible) | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     node?: View | NodeReference | null;
     position: Vector2f;
     pressure?: number | null;
@@ -3996,6 +5145,11 @@ export class PointerLongPressEvent extends PointerEvent {
       throw new Error(`PointerLongPressEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -4008,6 +5162,11 @@ export class PointerLongPressEvent extends PointerEvent {
     this.clientPtr = _client;
     let _clientNonce = options.clientNonce ?? null;
     this.clientNonce = _clientNonce;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this.customValues = _customValues;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* EventStatus.PENDING */;
@@ -4016,6 +5175,19 @@ export class PointerLongPressEvent extends PointerEvent {
       throw new Error(`PointerLongPressEvent.status is required`);
     }
     this.status = _status;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this.scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`PointerLongPressEvent.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _node = options.node ?? null;
     if (_node != null && _node.metatype != StructType.NODE_REFERENCE) {
       _node = (_node as Node).toRef();
@@ -4097,6 +5269,12 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -4107,6 +5285,20 @@ export class PointerLongPressEvent extends PointerEvent {
       return false;
     }
     if (!(this.status === other.status)) {
+      return false;
+    }
+    if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
+      return false;
+    }
+    for (const key in this.customValues) {
+      if (!(key in other.customValues)) {
+        return false;
+      }
+      if (!this.customValues[key].equals(other.customValues[key])) {
+        return false;
+      }
+    }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -4129,6 +5321,10 @@ export class PointerLongPressEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -4143,6 +5339,15 @@ export class PointerLongPressEvent extends PointerEvent {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.customValues && Object.keys(this.customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this.customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -4160,6 +5365,7 @@ export class PointerLongPressEvent extends PointerEvent {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -4203,6 +5409,9 @@ export class PointerLongPressEvent extends PointerEvent {
     objectValue["1"] = 560107;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -4216,7 +5425,18 @@ export class PointerLongPressEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectValue["23"] = String(object.clientNonce);
     }
+    if (Object.keys(object.customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["30"] = object.status;
+    if (object.scriptPtr != null) {
+      objectValue["80"] = object.scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object.nodePtr != null) {
       objectValue["101"] = object.nodePtr.toValue();
     }
@@ -4239,6 +5459,7 @@ export class PointerLongPressEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerLongPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const pressureValue = objectValue["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
@@ -4246,6 +5467,11 @@ export class PointerLongPressEvent extends PointerEvent {
     const unpackedNodePtr =
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -4264,6 +5490,23 @@ export class PointerLongPressEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["23"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     return new PointerLongPressEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -4272,12 +5515,16 @@ export class PointerLongPressEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
       status: Number(objectValue["30"]),
+      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -4310,6 +5557,9 @@ export class PointerLongPressEvent extends PointerEvent {
     const objectProto: Partial<PointerLongPressEventProto> = { metatype: 560107 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4323,7 +5573,17 @@ export class PointerLongPressEvent extends PointerEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    if (object.customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object.customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.status = Number(object.status) as EventStatusProto;
+    if (object.scriptPtr != null) {
+      objectProto.scriptPtr = object.scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object.nodePtr != null) {
       objectProto.nodePtr = object.nodePtr.toProto();
     }
@@ -4346,7 +5606,17 @@ export class PointerLongPressEvent extends PointerEvent {
     _connection?: any | null,
   ): PointerLongPressEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new PointerLongPressEvent({
       position: _Vector2f.fromProto(
         objectProto.position!,
@@ -4370,6 +5640,17 @@ export class PointerLongPressEvent extends PointerEvent {
               _connection,
             )
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -4403,6 +5684,17 @@ export class PointerLongPressEvent extends PointerEvent {
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
       status: Number(objectProto.status) as EventStatus,
+      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

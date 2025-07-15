@@ -29,10 +29,7 @@ from .property import (
 
 if TYPE_CHECKING:
     from destack.language import (
-        CustomEntityDefinition,
-        CustomEventDefinition,
         Node,
-        NodeDefinitionReference,
         NodeReference,
         Script,
         Value,
@@ -271,6 +268,7 @@ class IsSourceable(IsOrdered):
         70,
         description="The key to uniquely identify this Node in reconciliation. If not set, name is used.",
     )
+    # aliases: list[str]?
 
     name: str = builtin_property(
         101,
@@ -364,23 +362,25 @@ class IsCustomizable(Trait):
 class IsExtensible(IsCustomizable, IsScriptable):
     """A Node that be extended by custom Nodes (i.e. used as a base type)."""
 
-    definition: Union["CustomEntityDefinition", "CustomEventDefinition", None] = builtin_property(
+    definition: Union["IsExtensible", None] = builtin_property(
         6,
         is_managed=True,
         is_readonly=True,
-        description="The definitionthis CustomEntity is an instance of.",
+        description="The definition this CustomEntity is an instance of.",
     )
-    base_type: Union["NodeDefinitionReference", None] = builtin_property(
-        7,
-        is_readonly=True,
-        is_managed=True,
-        description="Inlined base type of this extensible Node (if extended).",
-    )
-    # base_node_type?
     # inherits?
     # base_traits/base_trait_types?
     if TYPE_CHECKING:
         definition_ptr: Optional[NodeReference] = None
+
+    is_extensible: bool = builtin_property(
+        90,
+        default=False,
+        is_managed=True,
+        is_readonly=True,
+        description="Whether this Node is extensible (whether it can be instanced).",
+    )
+    # is_trait? is_abstract?
 
     @property
     def is_custom(self) -> bool:
