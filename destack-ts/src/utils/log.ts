@@ -4,13 +4,39 @@ import pino from "pino";
 let rootLogger: pino.Logger;
 
 if (IS_WEB) {
-  // log straight to console
+  // log straight to console with colors
   rootLogger = pino({
     level: IS_DEV ? "trace" : "debug",
     browser: {
       asObject: true,
       write: (log: pino.LogDescriptor) => {
-        console.log(`[${pino.levels.labels[log.level]}] ${log.msg}`);
+        const levelLabel = pino.levels.labels[log.level];
+        let colorStart = "";
+        let colorEnd = "\x1b[0m";
+        switch (levelLabel) {
+          case "trace":
+            colorStart = "\x1b[90m"; // gray
+            break;
+          case "debug":
+            colorStart = "\x1b[36m"; // cyan
+            break;
+          case "info":
+            colorStart = "\x1b[32m"; // green
+            break;
+          case "warn":
+            colorStart = "\x1b[33m"; // yellow
+            break;
+          case "error":
+            colorStart = "\x1b[31m"; // red
+            break;
+          case "fatal":
+            colorStart = "\x1b[35m"; // magenta
+            break;
+          default:
+            colorStart = "";
+            colorEnd = "";
+        }
+        console.log(`${colorStart}[${levelLabel}] ${log.msg}${colorEnd}`);
       },
     },
   });
