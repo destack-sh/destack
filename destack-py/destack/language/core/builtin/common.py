@@ -269,7 +269,6 @@ class StructType(Enum):
 
     # infrastructure [1_000_000-1_100_000]
     DATABASE_INFO = 1_000_001
-    GALAXY_INFO = 1_000_101
     # ...
 
     # deployment [1_100_000-1_200_000]
