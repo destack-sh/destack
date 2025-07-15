@@ -1,6 +1,8 @@
 /* eslint-disable no-console */
 import "./polyfills";
 
+import { VERSION } from "@destack/language";
+import { ENV, IS_DEV, TELEMETRY } from "@destack/utils/env";
 import { getLogger } from "@destack/utils/log";
 import { trace } from "@opentelemetry/api";
 import posthog from "posthog-js";
@@ -8,7 +10,6 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import "./assets/index.css";
 import Destack from "./Destack";
-import { ENV, IS_DEV, TELEMETRY, UNIVERSE_URL, VERSION } from "./utils/globals";
 
 const logger = getLogger("main");
 const tracer = trace.getTracer("destack-ts-web");
@@ -44,7 +45,6 @@ async function init() {
     "color:yellow",
   );
   console.info(`%cVERSION: ${VERSION}`, "color:yellow");
-  console.info(`%cUNIVERSE_URL: ${UNIVERSE_URL}`, "color:yellow");
   console.groupEnd();
   logger.info("web.start");
 
