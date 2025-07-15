@@ -412,7 +412,6 @@ import type { Handle } from "@destack/language/universe/handle";
 import type { Organization, OrganizationStatus } from "@destack/language/universe/organization";
 import type { Space, SpaceStatus } from "@destack/language/universe/space";
 import type { Team } from "@destack/language/universe/team";
-import type { Universe } from "@destack/language/universe/universe";
 import type { User, UserStatus } from "@destack/language/universe/user";
 import type { ContainerView } from "@destack/language/view/container";
 import type { ContentView } from "@destack/language/view/content";
@@ -600,7 +599,6 @@ export type NodeTypeMapping = {
   [NodeType.ORGANIZATION]: Organization;
   [NodeType.SPACE]: Space;
   [NodeType.TEAM]: Team;
-  [NodeType.UNIVERSE]: Universe;
   [NodeType.USER]: User;
 };
 

@@ -27,9 +27,9 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:160000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1100000 ==== */
 /**
- * An Environment is a deployment of a Space.
+ * An Environment is a deployment scenario of a Space.
  */
 export class Environment extends Entity implements IsDeletable {
   static metatype: NodeType = NodeType.ENVIRONMENT;
@@ -385,7 +385,7 @@ export class Environment extends Entity implements IsDeletable {
 
   static __packValue__(object: Environment): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 160000;
+    objectValue["1"] = 1100000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -495,7 +495,7 @@ export class Environment extends Entity implements IsDeletable {
   }
 
   static __packProto__(object: Environment): EnvironmentProto {
-    const objectProto: Partial<EnvironmentProto> = { metatype: 160000 };
+    const objectProto: Partial<EnvironmentProto> = { metatype: 1100000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -631,4 +631,4 @@ export class Environment extends Entity implements IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ENVIRONMENT, Environment);
-/* ==== DESTACK_GENERATED_END:NODE:160000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1100000 ==== */

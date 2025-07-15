@@ -52,7 +52,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600200 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100200 ==== */
 /**
  * FontType
  */
@@ -66,9 +66,9 @@ export enum FontType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_TYPE, FontType);
-/* ==== DESTACK_GENERATED_END:ENUM:600200 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100200 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600201 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100201 ==== */
 /**
  * FontWeight
  */
@@ -88,9 +88,9 @@ export enum FontWeight {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_WEIGHT, FontWeight);
-/* ==== DESTACK_GENERATED_END:ENUM:600201 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100201 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600202 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100202 ==== */
 /**
  * FontSize
  */
@@ -112,9 +112,9 @@ export enum FontSize {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FONT_SIZE, FontSize);
-/* ==== DESTACK_GENERATED_END:ENUM:600202 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100202 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600203 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100203 ==== */
 /**
  * TextAlign
  */
@@ -129,9 +129,9 @@ export enum TextAlign {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_ALIGN, TextAlign);
-/* ==== DESTACK_GENERATED_END:ENUM:600203 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100203 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600204 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100204 ==== */
 /**
  * TextDecoration
  */
@@ -145,9 +145,9 @@ export enum TextDecoration {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_DECORATION, TextDecoration);
-/* ==== DESTACK_GENERATED_END:ENUM:600204 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100204 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600205 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100205 ==== */
 /**
  * TextTransform
  */
@@ -162,9 +162,9 @@ export enum TextTransform {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_TRANSFORM, TextTransform);
-/* ==== DESTACK_GENERATED_END:ENUM:600205 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100205 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600500 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100500 ==== */
 /**
  * A font value.
  */
@@ -452,7 +452,7 @@ export class Font extends StructFrozen {
 
   static __packValue__(object: Font): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600500;
+    objectValue["1"] = 2100500;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -559,7 +559,7 @@ export class Font extends StructFrozen {
   }
 
   static __packProto__(object: Font): FontProto {
-    const objectProto: Partial<FontProto> = { metatype: 600500 };
+    const objectProto: Partial<FontProto> = { metatype: 2100500 };
     objectProto.type = Number(object.type) as FontTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -668,9 +668,9 @@ export class Font extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FONT, Font);
-/* ==== DESTACK_GENERATED_END:STRUCT:600500 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100500 ==== */
 /**
  * A font style.
  */
@@ -1417,7 +1417,7 @@ export class FontStyle extends Style {
 
   static __packValue__(object: FontStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600500;
+    objectValue["1"] = 2100500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1621,7 +1621,7 @@ export class FontStyle extends Style {
   }
 
   static __packProto__(object: FontStyle): FontStyleProto {
-    const objectProto: Partial<FontStyleProto> = { metatype: 600500 };
+    const objectProto: Partial<FontStyleProto> = { metatype: 2100500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1853,4 +1853,4 @@ export class FontStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FONT_STYLE, FontStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100500 ==== */

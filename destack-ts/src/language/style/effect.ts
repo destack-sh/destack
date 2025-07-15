@@ -56,7 +56,7 @@ import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@des
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600212 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100212 ==== */
 /**
  * EffectType
  */
@@ -75,9 +75,9 @@ export enum EffectType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
-/* ==== DESTACK_GENERATED_END:ENUM:600212 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100212 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600222 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100222 ==== */
 /**
  * RepeatType
  */
@@ -91,9 +91,9 @@ export enum RepeatType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
-/* ==== DESTACK_GENERATED_END:ENUM:600222 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100222 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600223 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100223 ==== */
 /**
  * TextSplitType
  */
@@ -107,9 +107,9 @@ export enum TextSplitType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TEXT_SPLIT_TYPE, TextSplitType);
-/* ==== DESTACK_GENERATED_END:ENUM:600223 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100223 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600224 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100224 ==== */
 /**
  * OffscreenBehavior
  */
@@ -122,9 +122,9 @@ export enum OffscreenBehavior {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
-/* ==== DESTACK_GENERATED_END:ENUM:600224 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100224 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:6001000 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2101000 ==== */
 /**
  * An effect value.
  */
@@ -522,7 +522,7 @@ export class Effect extends StructFrozen {
 
   static __packValue__(object: Effect): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 6001000;
+    objectValue["1"] = 2101000;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -580,9 +580,9 @@ export class Effect extends StructFrozen {
     _connection?: any | null,
   ): Effect {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const stylePtrValue = objectValue["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
@@ -669,7 +669,7 @@ export class Effect extends StructFrozen {
   }
 
   static __packProto__(object: Effect): EffectProto {
-    const objectProto: Partial<EffectProto> = { metatype: 6001000 };
+    const objectProto: Partial<EffectProto> = { metatype: 2101000 };
     objectProto.type = Number(object.type) as EffectTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -727,9 +727,9 @@ export class Effect extends StructFrozen {
     _connection?: any | null,
   ): Effect {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new Effect({
       type: Number(objectProto.type) as EffectType,
       style:
@@ -803,9 +803,9 @@ export class Effect extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EFFECT, Effect);
-/* ==== DESTACK_GENERATED_END:STRUCT:6001000 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2101000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:6001000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2101000 ==== */
 /**
  * An effect style.
  */
@@ -1731,7 +1731,7 @@ export class EffectStyle extends Style {
 
   static __packValue__(object: EffectStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 6001000;
+    objectValue["1"] = 2101000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1826,9 +1826,9 @@ export class EffectStyle extends Style {
   ): EffectStyle {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const opacityValue = objectValue["200"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectValue["201"];
@@ -1975,7 +1975,7 @@ export class EffectStyle extends Style {
   }
 
   static __packProto__(object: EffectStyle): EffectStyleProto {
-    const objectProto: Partial<EffectStyleProto> = { metatype: 6001000 };
+    const objectProto: Partial<EffectStyleProto> = { metatype: 2101000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2069,9 +2069,9 @@ export class EffectStyle extends Style {
   ): EffectStyle {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2232,4 +2232,4 @@ export class EffectStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EFFECT_STYLE, EffectStyle);
-/* ==== DESTACK_GENERATED_END:NODE:6001000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2101000 ==== */

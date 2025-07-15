@@ -21,7 +21,7 @@ import type { Client, Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view/container";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:520001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1800001 ==== */
 /**
  * A Event regarding a View.
  */
@@ -78,9 +78,9 @@ export abstract class ViewEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VIEW_EVENT, ViewEvent);
-/* ==== DESTACK_GENERATED_END:NODE:520001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1800001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:520000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1800000 ==== */
 /**
  * A View is a graphical interface.
  */
@@ -274,4 +274,4 @@ export abstract class View
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VIEW, View);
-/* ==== DESTACK_GENERATED_END:NODE:520000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1800000 ==== */

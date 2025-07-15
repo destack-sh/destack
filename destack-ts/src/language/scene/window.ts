@@ -33,7 +33,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:500000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1700000 ==== */
 /**
  * WindowType
  */
@@ -47,9 +47,9 @@ export enum WindowType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
-/* ==== DESTACK_GENERATED_END:ENUM:500000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1700000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:500000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1700100 ==== */
 /**
  * A Window for someone to interact with Destack (in a Space).
  */
@@ -464,7 +464,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
 
   static __packValue__(object: Window): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 500000;
+    objectValue["1"] = 1700100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -577,7 +577,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
   }
 
   static __packProto__(object: Window): WindowProto {
-    const objectProto: Partial<WindowProto> = { metatype: 500000 };
+    const objectProto: Partial<WindowProto> = { metatype: 1700100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -722,4 +722,4 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WINDOW, Window);
-/* ==== DESTACK_GENERATED_END:NODE:500000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1700100 ==== */

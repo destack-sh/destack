@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:525100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1805100 ==== */
 /**
  * A (rich) text view.
  */
@@ -913,7 +913,7 @@ export class TextView extends ContentView {
 
   static __packValue__(object: TextView): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 525100;
+    objectValue["1"] = 1805100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1184,7 +1184,7 @@ export class TextView extends ContentView {
   }
 
   static __packProto__(object: TextView): TextViewProto {
-    const objectProto: Partial<TextViewProto> = { metatype: 525100 };
+    const objectProto: Partial<TextViewProto> = { metatype: 1805100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1463,4 +1463,4 @@ export class TextView extends ContentView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TEXT_VIEW, TextView);
-/* ==== DESTACK_GENERATED_END:NODE:525100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1805100 ==== */

@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.ENVIRONMENT)
 class Environment(IsDeletable, Entity):
-    """An Environment is a deployment of a Space."""
+    """An Environment is a deployment scenario of a Space."""
 
     parent: Optional["Space"] = builtin_property_parent()
 

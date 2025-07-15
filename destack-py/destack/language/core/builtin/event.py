@@ -34,6 +34,7 @@ class EventStatus(Enum):
     # client
     PENDING = 1, "Pending", "Pending application on client"
     STAGED = 2, "Staged", "Optimistically staged on client"
+    # PREDICTED, SUPERSEDED, ...
     # system
     APPROVED = 10, "Completed", "Successfully applied in system"
     SKIPPED = 11, "Skipped", "Skipped and ignored in system"

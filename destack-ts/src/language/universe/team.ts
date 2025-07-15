@@ -27,7 +27,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:22100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:122100 ==== */
 /**
  * An Team with Users and Teams.
  */
@@ -371,7 +371,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
 
   static __packValue__(object: Team): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 22100;
+    objectValue["1"] = 122100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -464,7 +464,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
   }
 
   static __packProto__(object: Team): TeamProto {
-    const objectProto: Partial<TeamProto> = { metatype: 22100 };
+    const objectProto: Partial<TeamProto> = { metatype: 122100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -589,4 +589,4 @@ export class Team extends Entity implements IsActor, IsJoinable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TEAM, Team);
-/* ==== DESTACK_GENERATED_END:NODE:22100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:122100 ==== */

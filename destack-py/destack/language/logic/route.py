@@ -1,10 +1,11 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
     IsDeletable,
     IsOrdered,
     IsOwnable,
+    IsScriptable,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -28,6 +29,6 @@ class Route(
 ):
     """A Route is a path to something (a Scene, a View in a Scene, an Action, etc.)."""
 
-    parent: Optional["Folder"] = builtin_property_parent()
+    parent: Union["Folder", "IsScriptable", None] = builtin_property_parent()
 
     name: str = builtin_property(101, description="The name of the Route.")

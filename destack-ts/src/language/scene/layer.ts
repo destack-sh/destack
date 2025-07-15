@@ -40,7 +40,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:500200 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1700200 ==== */
 /**
  * LayerType
  */
@@ -53,9 +53,9 @@ export enum LayerType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LAYER_TYPE, LayerType);
-/* ==== DESTACK_GENERATED_END:ENUM:500200 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1700200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:500200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1700300 ==== */
 /**
  * A Layer is a named container for Views.
  */
@@ -670,7 +670,7 @@ export class Layer
 
   static __packValue__(object: Layer): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 500200;
+    objectValue["1"] = 1700300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -732,10 +732,10 @@ export class Layer
     _connection?: any | null,
   ): Layer {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -841,7 +841,7 @@ export class Layer
   }
 
   static __packProto__(object: Layer): LayerProto {
-    const objectProto: Partial<LayerProto> = { metatype: 500200 };
+    const objectProto: Partial<LayerProto> = { metatype: 1700300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -903,10 +903,10 @@ export class Layer
     _connection?: any | null,
   ): Layer {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new Layer({
       parent:
         objectProto.parentPtr != undefined
@@ -1030,4 +1030,4 @@ export class Layer
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LAYER, Layer);
-/* ==== DESTACK_GENERATED_END:NODE:500200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1700300 ==== */

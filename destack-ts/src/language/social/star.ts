@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:220100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400100 ==== */
 /**
  * A Star is a relationship between a Actor and a Starred Node.
  */
@@ -377,7 +377,7 @@ export class Star extends Entity implements IsDeletable, IsOwned {
 
   static __packValue__(object: Star): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220100;
+    objectValue["1"] = 1400100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -483,7 +483,7 @@ export class Star extends Entity implements IsDeletable, IsOwned {
   }
 
   static __packProto__(object: Star): StarProto {
-    const objectProto: Partial<StarProto> = { metatype: 220100 };
+    const objectProto: Partial<StarProto> = { metatype: 1400100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -617,9 +617,9 @@ export class Star extends Entity implements IsDeletable, IsOwned {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR, Star);
-/* ==== DESTACK_GENERATED_END:NODE:220100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400101 ==== */
 /**
  * StarEvent
  */
@@ -896,7 +896,7 @@ export class StarEvent extends Event {
 
   static __packValue__(object: StarEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220101;
+    objectValue["1"] = 1400101;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -979,7 +979,7 @@ export class StarEvent extends Event {
   }
 
   static __packProto__(object: StarEvent): StarEventProto {
-    const objectProto: Partial<StarEventProto> = { metatype: 220101 };
+    const objectProto: Partial<StarEventProto> = { metatype: 1400101 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1084,9 +1084,9 @@ export class StarEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR_EVENT, StarEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400102 ==== */
 /**
  * StarAddedEvent
  */
@@ -1212,7 +1212,7 @@ export class StarAddedEvent extends StarEvent {
 
   static __packValue__(object: StarAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220102;
+    objectValue["1"] = 1400102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1295,7 +1295,7 @@ export class StarAddedEvent extends StarEvent {
   }
 
   static __packProto__(object: StarAddedEvent): StarAddedEventProto {
-    const objectProto: Partial<StarAddedEventProto> = { metatype: 220102 };
+    const objectProto: Partial<StarAddedEventProto> = { metatype: 1400102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1400,9 +1400,9 @@ export class StarAddedEvent extends StarEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR_ADDED_EVENT, StarAddedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220103 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400103 ==== */
 /**
  * StarRemovedEvent
  */
@@ -1528,7 +1528,7 @@ export class StarRemovedEvent extends StarEvent {
 
   static __packValue__(object: StarRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220103;
+    objectValue["1"] = 1400103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1617,7 +1617,7 @@ export class StarRemovedEvent extends StarEvent {
   }
 
   static __packProto__(object: StarRemovedEvent): StarRemovedEventProto {
-    const objectProto: Partial<StarRemovedEventProto> = { metatype: 220103 };
+    const objectProto: Partial<StarRemovedEventProto> = { metatype: 1400103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1728,4 +1728,4 @@ export class StarRemovedEvent extends StarEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STAR_REMOVED_EVENT, StarRemovedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220103 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400103 ==== */

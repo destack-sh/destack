@@ -35,7 +35,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:500101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1700201 ==== */
 /**
  * A Event regarding a Scene.
  */
@@ -92,9 +92,9 @@ export abstract class SceneEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
-/* ==== DESTACK_GENERATED_END:NODE:500101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1700201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:500100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1700200 ==== */
 /**
  * A Scene is a container for an interaction point.
  */
@@ -555,7 +555,7 @@ export class Scene
 
   static __packValue__(object: Scene): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 500100;
+    objectValue["1"] = 1700200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -685,7 +685,7 @@ export class Scene
   }
 
   static __packProto__(object: Scene): SceneProto {
-    const objectProto: Partial<SceneProto> = { metatype: 500100 };
+    const objectProto: Partial<SceneProto> = { metatype: 1700200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -849,4 +849,4 @@ export class Scene
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SCENE, Scene);
-/* ==== DESTACK_GENERATED_END:NODE:500100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1700200 ==== */

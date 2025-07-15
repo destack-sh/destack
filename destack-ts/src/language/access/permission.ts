@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:60300 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:300300 ==== */
 /**
  * PermissionType
  */
@@ -48,9 +48,9 @@ export enum PermissionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
-/* ==== DESTACK_GENERATED_END:ENUM:60300 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:300300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360300 ==== */
 /**
  * A Permission for something.
  */
@@ -499,7 +499,7 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
 
   static __packValue__(object: Permission): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60300;
+    objectValue["1"] = 360300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -628,7 +628,7 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
   }
 
   static __packProto__(object: Permission): PermissionProto {
-    const objectProto: Partial<PermissionProto> = { metatype: 60300 };
+    const objectProto: Partial<PermissionProto> = { metatype: 360300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -785,4 +785,4 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PERMISSION, Permission);
-/* ==== DESTACK_GENERATED_END:NODE:60300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360300 ==== */

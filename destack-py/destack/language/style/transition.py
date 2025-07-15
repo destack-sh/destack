@@ -34,7 +34,7 @@ class SpringType(Enum):
     """Built-in spring types."""
 
     TIME = 1
-    PHYSICS = 2
+    PHYSICAL = 2
 
 
 @builtin_struct(StructType.TRANSITION, frozen=True)

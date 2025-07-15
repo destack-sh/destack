@@ -40,7 +40,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:140100 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1001000 ==== */
 /**
  * MachineType
  */
@@ -56,9 +56,9 @@ export enum MachineType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MACHINE_TYPE, MachineType);
-/* ==== DESTACK_GENERATED_END:ENUM:140100 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1001000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:140100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1001000 ==== */
 /**
  * A Machine provides physical compute.
  * NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
@@ -67,12 +67,12 @@ export class Machine extends Resource {
   static metatype: NodeType = NodeType.MACHINE;
 
   /**
-   * Machine.parent
+   * Entity.parent
    */
-  get parent(): Space | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -461,7 +461,7 @@ export class Machine extends Resource {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     definition?: (Entity & IsExtensible) | NodeReference | null;
     materialization?: Materialization;
@@ -771,9 +771,6 @@ export class Machine extends Resource {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + hashString(this._version)) & 0xffffffff;
     if (this._externalName != null) {
@@ -806,6 +803,9 @@ export class Machine extends Resource {
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -882,7 +882,7 @@ export class Machine extends Resource {
 
   static __packValue__(object: Machine): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 140100;
+    objectValue["1"] = 1001000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -958,11 +958,6 @@ export class Machine extends Resource {
   ): Machine {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const externalNameValue = objectValue["112"];
     const unpackedExternalName = externalNameValue != undefined ? externalNameValue : null;
     const externalIdValue = objectValue["113"];
@@ -987,6 +982,11 @@ export class Machine extends Resource {
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1026,7 +1026,6 @@ export class Machine extends Resource {
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Machine({
-      parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
       version: objectValue["110"],
       externalName: unpackedExternalName,
@@ -1044,6 +1043,7 @@ export class Machine extends Resource {
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       deletedAt: unpackedDeletedAt,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1076,7 +1076,7 @@ export class Machine extends Resource {
   }
 
   static __packProto__(object: Machine): MachineProto {
-    const objectProto: Partial<MachineProto> = { metatype: 140100 };
+    const objectProto: Partial<MachineProto> = { metatype: 1001000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1161,16 +1161,6 @@ export class Machine extends Resource {
       }
     }
     return new Machine({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       type: Number(objectProto.type) as MachineType,
       version: objectProto.version,
       externalName: objectProto.externalName != undefined ? objectProto.externalName : null,
@@ -1207,6 +1197,16 @@ export class Machine extends Resource {
       isExtensible: objectProto.isExtensible,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1296,4 +1296,4 @@ export class Machine extends Resource {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MACHINE, Machine);
-/* ==== DESTACK_GENERATED_END:NODE:140100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1001000 ==== */

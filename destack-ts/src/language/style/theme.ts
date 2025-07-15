@@ -28,7 +28,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:600000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100000 ==== */
 /**
  * A Theme with common Styles.
  */
@@ -371,7 +371,7 @@ export class Theme extends Entity implements IsOrdered, IsTaggable, IsDeletable 
 
   static __packValue__(object: Theme): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600000;
+    objectValue["1"] = 2100000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -473,7 +473,7 @@ export class Theme extends Entity implements IsOrdered, IsTaggable, IsDeletable 
   }
 
   static __packProto__(object: Theme): ThemeProto {
-    const objectProto: Partial<ThemeProto> = { metatype: 600000 };
+    const objectProto: Partial<ThemeProto> = { metatype: 2100000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -603,4 +603,4 @@ export class Theme extends Entity implements IsOrdered, IsTaggable, IsDeletable 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.THEME, Theme);
-/* ==== DESTACK_GENERATED_END:NODE:600000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100000 ==== */

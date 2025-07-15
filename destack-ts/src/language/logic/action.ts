@@ -23,7 +23,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:101100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:701100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -212,7 +212,7 @@ export class Action extends Method implements IsRunnable {
 
   static __packValue__(object: Action): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 101100;
+    objectValue["1"] = 701100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -372,7 +372,7 @@ export class Action extends Method implements IsRunnable {
   }
 
   static __packProto__(object: Action): ActionProto {
-    const objectProto: Partial<ActionProto> = { metatype: 101100 };
+    const objectProto: Partial<ActionProto> = { metatype: 701100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -554,4 +554,4 @@ export class Action extends Method implements IsRunnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ACTION, Action);
-/* ==== DESTACK_GENERATED_END:NODE:101100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:701100 ==== */

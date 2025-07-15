@@ -28,7 +28,7 @@ import type { Space } from "@destack/language/universe";
 import { ContainerView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:540100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1900000 ==== */
 /**
  * A Shape is a View representing a Shape.
  */
@@ -399,4 +399,4 @@ export abstract class Shape extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SHAPE, Shape);
-/* ==== DESTACK_GENERATED_END:NODE:540100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1900000 ==== */

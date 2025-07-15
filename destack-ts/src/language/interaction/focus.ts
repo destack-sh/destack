@@ -29,7 +29,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:560600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000600 ==== */
 /**
  * A FocusEvent is an InputEvent that corresponds to some direct user input with a focus.
  */
@@ -108,9 +108,9 @@ export abstract class FocusEvent extends InputEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOCUS_EVENT, FocusEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560600 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000600 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560601 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000601 ==== */
 /**
  * A FocusInEvent is a FocusEvent when a focus is gained.
  */
@@ -481,7 +481,7 @@ export class FocusInEvent extends FocusEvent {
 
   static __packValue__(object: FocusInEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560601;
+    objectValue["1"] = 2000601;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -606,7 +606,7 @@ export class FocusInEvent extends FocusEvent {
   }
 
   static __packProto__(object: FocusInEvent): FocusInEventProto {
-    const objectProto: Partial<FocusInEventProto> = { metatype: 560601 };
+    const objectProto: Partial<FocusInEventProto> = { metatype: 2000601 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -761,9 +761,9 @@ export class FocusInEvent extends FocusEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOCUS_IN_EVENT, FocusInEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560601 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000601 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560602 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000602 ==== */
 /**
  * A FocusOutEvent is a FocusEvent when a focus is lost.
  */
@@ -1134,7 +1134,7 @@ export class FocusOutEvent extends FocusEvent {
 
   static __packValue__(object: FocusOutEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560602;
+    objectValue["1"] = 2000602;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -1259,7 +1259,7 @@ export class FocusOutEvent extends FocusEvent {
   }
 
   static __packProto__(object: FocusOutEvent): FocusOutEventProto {
-    const objectProto: Partial<FocusOutEventProto> = { metatype: 560602 };
+    const objectProto: Partial<FocusOutEventProto> = { metatype: 2000602 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1414,4 +1414,4 @@ export class FocusOutEvent extends FocusEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOCUS_OUT_EVENT, FocusOutEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560602 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000602 ==== */

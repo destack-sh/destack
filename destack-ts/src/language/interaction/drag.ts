@@ -38,7 +38,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:560400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000400 ==== */
 /**
  * A DragEvent is an InputEvent that corresponds to some direct user input with a drag.
  */
@@ -122,9 +122,9 @@ export abstract class DragEvent extends InputEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DRAG_EVENT, DragEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560401 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000401 ==== */
 /**
  * A DragStartEvent is a DragEvent when a drag starts.
  */
@@ -511,7 +511,7 @@ export class DragStartEvent extends DragEvent {
 
   static __packValue__(object: DragStartEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560401;
+    objectValue["1"] = 2000401;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -639,7 +639,7 @@ export class DragStartEvent extends DragEvent {
   }
 
   static __packProto__(object: DragStartEvent): DragStartEventProto {
-    const objectProto: Partial<DragStartEventProto> = { metatype: 560401 };
+    const objectProto: Partial<DragStartEventProto> = { metatype: 2000401 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -803,9 +803,9 @@ export class DragStartEvent extends DragEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DRAG_START_EVENT, DragStartEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560401 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000401 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560402 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000402 ==== */
 /**
  * A DragEndEvent is a DragEvent when a drag ends.
  */
@@ -1192,7 +1192,7 @@ export class DragEndEvent extends DragEvent {
 
   static __packValue__(object: DragEndEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560402;
+    objectValue["1"] = 2000402;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -1320,7 +1320,7 @@ export class DragEndEvent extends DragEvent {
   }
 
   static __packProto__(object: DragEndEvent): DragEndEventProto {
-    const objectProto: Partial<DragEndEventProto> = { metatype: 560402 };
+    const objectProto: Partial<DragEndEventProto> = { metatype: 2000402 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1484,9 +1484,9 @@ export class DragEndEvent extends DragEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DRAG_END_EVENT, DragEndEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560402 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000402 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560403 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000403 ==== */
 /**
  * A DragOverEvent is a DragEvent when a drag is over an element.
  */
@@ -1873,7 +1873,7 @@ export class DragOverEvent extends DragEvent {
 
   static __packValue__(object: DragOverEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560403;
+    objectValue["1"] = 2000403;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -2001,7 +2001,7 @@ export class DragOverEvent extends DragEvent {
   }
 
   static __packProto__(object: DragOverEvent): DragOverEventProto {
-    const objectProto: Partial<DragOverEventProto> = { metatype: 560403 };
+    const objectProto: Partial<DragOverEventProto> = { metatype: 2000403 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -2165,9 +2165,9 @@ export class DragOverEvent extends DragEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DRAG_OVER_EVENT, DragOverEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560403 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000403 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560404 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000404 ==== */
 /**
  * A DragEnterEvent is a DragEvent when a drag enters an element.
  */
@@ -2554,7 +2554,7 @@ export class DragEnterEvent extends DragEvent {
 
   static __packValue__(object: DragEnterEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560404;
+    objectValue["1"] = 2000404;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -2682,7 +2682,7 @@ export class DragEnterEvent extends DragEvent {
   }
 
   static __packProto__(object: DragEnterEvent): DragEnterEventProto {
-    const objectProto: Partial<DragEnterEventProto> = { metatype: 560404 };
+    const objectProto: Partial<DragEnterEventProto> = { metatype: 2000404 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -2846,9 +2846,9 @@ export class DragEnterEvent extends DragEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DRAG_ENTER_EVENT, DragEnterEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560404 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000404 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560405 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000405 ==== */
 /**
  * A DragLeaveEvent is a DragEvent when a drag leaves an element.
  */
@@ -3235,7 +3235,7 @@ export class DragLeaveEvent extends DragEvent {
 
   static __packValue__(object: DragLeaveEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560405;
+    objectValue["1"] = 2000405;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -3363,7 +3363,7 @@ export class DragLeaveEvent extends DragEvent {
   }
 
   static __packProto__(object: DragLeaveEvent): DragLeaveEventProto {
-    const objectProto: Partial<DragLeaveEventProto> = { metatype: 560405 };
+    const objectProto: Partial<DragLeaveEventProto> = { metatype: 2000405 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -3527,9 +3527,9 @@ export class DragLeaveEvent extends DragEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DRAG_LEAVE_EVENT, DragLeaveEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560405 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000405 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560406 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000406 ==== */
 /**
  * A DropEvent is a DragEvent when a drag is dropped on an element.
  */
@@ -3916,7 +3916,7 @@ export class DropEvent extends DragEvent {
 
   static __packValue__(object: DropEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560406;
+    objectValue["1"] = 2000406;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -4044,7 +4044,7 @@ export class DropEvent extends DragEvent {
   }
 
   static __packProto__(object: DropEvent): DropEventProto {
-    const objectProto: Partial<DropEventProto> = { metatype: 560406 };
+    const objectProto: Partial<DropEventProto> = { metatype: 2000406 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -4208,4 +4208,4 @@ export class DropEvent extends DragEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DROP_EVENT, DropEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560406 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000406 ==== */

@@ -46,7 +46,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:220500 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1400500 ==== */
 /**
  * NotificationStatus
  */
@@ -62,9 +62,9 @@ export enum NotificationStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.NOTIFICATION_STATUS, NotificationStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:220500 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1400500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220501 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400501 ==== */
 /**
  * A Event regarding a Notification.
  */
@@ -121,9 +121,9 @@ export abstract class NotificationEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_EVENT, NotificationEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220501 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400501 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220502 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400502 ==== */
 /**
  * A Notification was sent.
  */
@@ -400,7 +400,7 @@ export class NotificationSentEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationSentEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220502;
+    objectValue["1"] = 1400502;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -489,7 +489,7 @@ export class NotificationSentEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationSentEvent): NotificationSentEventProto {
-    const objectProto: Partial<NotificationSentEventProto> = { metatype: 220502 };
+    const objectProto: Partial<NotificationSentEventProto> = { metatype: 1400502 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -600,9 +600,9 @@ export class NotificationSentEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_SENT_EVENT, NotificationSentEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220502 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400502 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220503 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400503 ==== */
 /**
  * A Notification was rescinded.
  */
@@ -879,7 +879,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationRescindedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220503;
+    objectValue["1"] = 1400503;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -968,7 +968,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationRescindedEvent): NotificationRescindedEventProto {
-    const objectProto: Partial<NotificationRescindedEventProto> = { metatype: 220503 };
+    const objectProto: Partial<NotificationRescindedEventProto> = { metatype: 1400503 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1079,9 +1079,9 @@ export class NotificationRescindedEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_RESCINDED_EVENT, NotificationRescindedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220503 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400503 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220504 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400504 ==== */
 /**
  * A Notification was read.
  */
@@ -1358,7 +1358,7 @@ export class NotificationReadEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationReadEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220504;
+    objectValue["1"] = 1400504;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1447,7 +1447,7 @@ export class NotificationReadEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationReadEvent): NotificationReadEventProto {
-    const objectProto: Partial<NotificationReadEventProto> = { metatype: 220504 };
+    const objectProto: Partial<NotificationReadEventProto> = { metatype: 1400504 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1558,9 +1558,9 @@ export class NotificationReadEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_READ_EVENT, NotificationReadEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220504 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400504 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220505 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400505 ==== */
 /**
  * A Notification was dismissed.
  */
@@ -1837,7 +1837,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationDismissedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220505;
+    objectValue["1"] = 1400505;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1926,7 +1926,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationDismissedEvent): NotificationDismissedEventProto {
-    const objectProto: Partial<NotificationDismissedEventProto> = { metatype: 220505 };
+    const objectProto: Partial<NotificationDismissedEventProto> = { metatype: 1400505 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -2037,9 +2037,9 @@ export class NotificationDismissedEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_DISMISSED_EVENT, NotificationDismissedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220505 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400505 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220506 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400506 ==== */
 /**
  * A Notification was expired.
  */
@@ -2316,7 +2316,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
 
   static __packValue__(object: NotificationExpiredEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220506;
+    objectValue["1"] = 1400506;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -2405,7 +2405,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   }
 
   static __packProto__(object: NotificationExpiredEvent): NotificationExpiredEventProto {
-    const objectProto: Partial<NotificationExpiredEventProto> = { metatype: 220506 };
+    const objectProto: Partial<NotificationExpiredEventProto> = { metatype: 1400506 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -2516,9 +2516,9 @@ export class NotificationExpiredEvent extends NotificationEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION_EXPIRED_EVENT, NotificationExpiredEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220506 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400506 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400500 ==== */
 /**
  * A Notification is a message about something.
  */
@@ -3063,7 +3063,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
 
   static __packValue__(object: Notification): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220500;
+    objectValue["1"] = 1400500;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -3216,7 +3216,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
   }
 
   static __packProto__(object: Notification): NotificationProto {
-    const objectProto: Partial<NotificationProto> = { metatype: 220500 };
+    const objectProto: Partial<NotificationProto> = { metatype: 1400500 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -3407,4 +3407,4 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NOTIFICATION, Notification);
-/* ==== DESTACK_GENERATED_END:NODE:220500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400500 ==== */

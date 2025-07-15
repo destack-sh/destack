@@ -29,7 +29,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:600100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100100 ==== */
 /**
  * A Palette of Colors.
  */
@@ -400,7 +400,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
 
   static __packValue__(object: Palette): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600100;
+    objectValue["1"] = 2100100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -512,7 +512,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
   }
 
   static __packProto__(object: Palette): PaletteProto {
-    const objectProto: Partial<PaletteProto> = { metatype: 600100 };
+    const objectProto: Partial<PaletteProto> = { metatype: 2100100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -650,4 +650,4 @@ export class Palette extends Entity implements IsOrdered, IsTaggable, IsDeletabl
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PALETTE, Palette);
-/* ==== DESTACK_GENERATED_END:NODE:600100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100100 ==== */

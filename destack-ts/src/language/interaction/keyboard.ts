@@ -34,7 +34,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:560300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000300 ==== */
 /**
  * A KeyEvent is an InputEvent that corresponds to some direct user input with a keyboard.
  */
@@ -153,9 +153,9 @@ export abstract class KeyEvent extends InputEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.KEY_EVENT, KeyEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560301 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000301 ==== */
 /**
  * A KeyDownEvent is a KeyboardEvent when a key is pressed down.
  */
@@ -649,7 +649,7 @@ export class KeyDownEvent extends KeyEvent {
 
   static __packValue__(object: KeyDownEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560301;
+    objectValue["1"] = 2000301;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -790,7 +790,7 @@ export class KeyDownEvent extends KeyEvent {
   }
 
   static __packProto__(object: KeyDownEvent): KeyDownEventProto {
-    const objectProto: Partial<KeyDownEventProto> = { metatype: 560301 };
+    const objectProto: Partial<KeyDownEventProto> = { metatype: 2000301 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -961,9 +961,9 @@ export class KeyDownEvent extends KeyEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.KEY_DOWN_EVENT, KeyDownEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560301 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000301 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560302 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000302 ==== */
 /**
  * A KeyUpEvent is a KeyboardEvent when a key is released.
  */
@@ -1457,7 +1457,7 @@ export class KeyUpEvent extends KeyEvent {
 
   static __packValue__(object: KeyUpEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560302;
+    objectValue["1"] = 2000302;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -1598,7 +1598,7 @@ export class KeyUpEvent extends KeyEvent {
   }
 
   static __packProto__(object: KeyUpEvent): KeyUpEventProto {
-    const objectProto: Partial<KeyUpEventProto> = { metatype: 560302 };
+    const objectProto: Partial<KeyUpEventProto> = { metatype: 2000302 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1769,9 +1769,9 @@ export class KeyUpEvent extends KeyEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.KEY_UP_EVENT, KeyUpEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560302 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000302 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560303 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000303 ==== */
 /**
  * A KeyPressEvent is a KeyboardEvent when a key is pressed.
  */
@@ -2265,7 +2265,7 @@ export class KeyPressEvent extends KeyEvent {
 
   static __packValue__(object: KeyPressEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560303;
+    objectValue["1"] = 2000303;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -2406,7 +2406,7 @@ export class KeyPressEvent extends KeyEvent {
   }
 
   static __packProto__(object: KeyPressEvent): KeyPressEventProto {
-    const objectProto: Partial<KeyPressEventProto> = { metatype: 560303 };
+    const objectProto: Partial<KeyPressEventProto> = { metatype: 2000303 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -2577,4 +2577,4 @@ export class KeyPressEvent extends KeyEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.KEY_PRESS_EVENT, KeyPressEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560303 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000303 ==== */

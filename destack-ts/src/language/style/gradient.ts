@@ -48,7 +48,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600209 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100209 ==== */
 /**
  * GradientType
  */
@@ -62,9 +62,9 @@ export enum GradientType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.GRADIENT_TYPE, GradientType);
-/* ==== DESTACK_GENERATED_END:ENUM:600209 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100209 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600801 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100801 ==== */
 /**
  * A gradient stop with color and position.
  */
@@ -179,7 +179,7 @@ export class GradientStop extends StructFrozen {
 
   static __packValue__(object: GradientStop): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600801;
+    objectValue["1"] = 2100801;
     if (object.color != null) {
       objectValue["101"] = object.color.toValue();
     }
@@ -227,7 +227,7 @@ export class GradientStop extends StructFrozen {
   }
 
   static __packProto__(object: GradientStop): GradientStopProto {
-    const objectProto: Partial<GradientStopProto> = { metatype: 600801 };
+    const objectProto: Partial<GradientStopProto> = { metatype: 2100801 };
     if (object.color != null) {
       objectProto.color = object.color.toProto();
     }
@@ -275,9 +275,9 @@ export class GradientStop extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRADIENT_STOP, GradientStop);
-/* ==== DESTACK_GENERATED_END:STRUCT:600801 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100801 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600800 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100800 ==== */
 /**
  * A gradient value.
  */
@@ -473,7 +473,7 @@ export class Gradient extends StructFrozen {
 
   static __packValue__(object: Gradient): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600800;
+    objectValue["1"] = 2100800;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -554,7 +554,7 @@ export class Gradient extends StructFrozen {
   }
 
   static __packProto__(object: Gradient): GradientProto {
-    const objectProto: Partial<GradientProto> = { metatype: 600800 };
+    const objectProto: Partial<GradientProto> = { metatype: 2100800 };
     objectProto.type = Number(object.type) as GradientTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -637,9 +637,9 @@ export class Gradient extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRADIENT, Gradient);
-/* ==== DESTACK_GENERATED_END:STRUCT:600800 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100800 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600800 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100800 ==== */
 /**
  * A gradient style.
  */
@@ -1267,7 +1267,7 @@ export class GradientStyle extends Style {
 
   static __packValue__(object: GradientStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600800;
+    objectValue["1"] = 2100800;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1455,7 +1455,7 @@ export class GradientStyle extends Style {
   }
 
   static __packProto__(object: GradientStyle): GradientStyleProto {
-    const objectProto: Partial<GradientStyleProto> = { metatype: 600800 };
+    const objectProto: Partial<GradientStyleProto> = { metatype: 2100800 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1669,4 +1669,4 @@ export class GradientStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.GRADIENT_STYLE, GradientStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600800 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100800 ==== */

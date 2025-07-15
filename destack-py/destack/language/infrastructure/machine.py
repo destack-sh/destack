@@ -11,11 +11,10 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
-    from destack.language import Client, Space
+    from destack.language import Client
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -36,7 +35,6 @@ class Machine(Resource):
     NOTE :RichComputing: Machines also need Deployments/Endpoints/...?
     """
 
-    parent: Optional["Space"] = builtin_property_parent()
     type: MachineType = builtin_property(100, default=MachineType.RUNTIME)
 
     version: str = builtin_property(110, default=VERSION)

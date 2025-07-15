@@ -3,6 +3,7 @@ import type {
   IsDeletable,
   IsOrdered,
   IsOwnable,
+  IsScriptable,
   IsTaggable,
   Materialization,
   NodeReference,
@@ -14,7 +15,7 @@ import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:110000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:710000 ==== */
 /**
  * A Route is a path to something (a Scene, a View in a Scene, an Action, etc.).
  */
@@ -27,7 +28,7 @@ export abstract class Route
   /**
    * Route.parent
    */
-  abstract get parent(): Folder | null;
+  abstract get parent(): Folder | (Entity & IsScriptable) | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**
@@ -110,4 +111,4 @@ export abstract class Route
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ROUTE, Route);
-/* ==== DESTACK_GENERATED_END:NODE:110000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:710000 ==== */

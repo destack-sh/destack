@@ -42,7 +42,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:560010 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2000010 ==== */
 /**
  * MouseButton
  */
@@ -56,9 +56,9 @@ export enum MouseButton {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MOUSE_BUTTON, MouseButton);
-/* ==== DESTACK_GENERATED_END:ENUM:560010 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2000010 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000200 ==== */
 /**
  * A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
  */
@@ -172,9 +172,9 @@ export abstract class MouseEvent extends PointerEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MOUSE_EVENT, MouseEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560201 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000201 ==== */
 /**
  * A ClickEvent is an InputEvent that corresponds to some direct user input with a click (left, right, middle).
  */
@@ -288,9 +288,9 @@ export abstract class ClickEvent extends MouseEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CLICK_EVENT, ClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560201 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560202 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000202 ==== */
 /**
  * A SingleClickEvent is a ClickEvent when a pointer is clicked once.
  */
@@ -774,7 +774,7 @@ export class SingleClickEvent extends ClickEvent {
 
   static __packValue__(object: SingleClickEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560202;
+    objectValue["1"] = 2000202;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -924,7 +924,7 @@ export class SingleClickEvent extends ClickEvent {
   }
 
   static __packProto__(object: SingleClickEvent): SingleClickEventProto {
-    const objectProto: Partial<SingleClickEventProto> = { metatype: 560202 };
+    const objectProto: Partial<SingleClickEventProto> = { metatype: 2000202 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1108,9 +1108,9 @@ export class SingleClickEvent extends ClickEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SINGLE_CLICK_EVENT, SingleClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560202 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560203 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000203 ==== */
 /**
  * A DoubleClickEvent is a ClickEvent when a pointer is clicked twice in a short time.
  */
@@ -1594,7 +1594,7 @@ export class DoubleClickEvent extends ClickEvent {
 
   static __packValue__(object: DoubleClickEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560203;
+    objectValue["1"] = 2000203;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -1744,7 +1744,7 @@ export class DoubleClickEvent extends ClickEvent {
   }
 
   static __packProto__(object: DoubleClickEvent): DoubleClickEventProto {
-    const objectProto: Partial<DoubleClickEventProto> = { metatype: 560203 };
+    const objectProto: Partial<DoubleClickEventProto> = { metatype: 2000203 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1928,9 +1928,9 @@ export class DoubleClickEvent extends ClickEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DOUBLE_CLICK_EVENT, DoubleClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560203 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000203 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560204 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000204 ==== */
 /**
  * A TripleClickEvent is a ClickEvent when a pointer is clicked three times in a short time.
  */
@@ -2414,7 +2414,7 @@ export class TripleClickEvent extends ClickEvent {
 
   static __packValue__(object: TripleClickEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560204;
+    objectValue["1"] = 2000204;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -2564,7 +2564,7 @@ export class TripleClickEvent extends ClickEvent {
   }
 
   static __packProto__(object: TripleClickEvent): TripleClickEventProto {
-    const objectProto: Partial<TripleClickEventProto> = { metatype: 560204 };
+    const objectProto: Partial<TripleClickEventProto> = { metatype: 2000204 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -2748,9 +2748,9 @@ export class TripleClickEvent extends ClickEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIPLE_CLICK_EVENT, TripleClickEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560204 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000204 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560210 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000210 ==== */
 /**
  * A WheelEvent is a MouseEvent when a wheel is scrolled.
  */
@@ -3249,7 +3249,7 @@ export class WheelEvent extends MouseEvent {
 
   static __packValue__(object: WheelEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560210;
+    objectValue["1"] = 2000210;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -3395,7 +3395,7 @@ export class WheelEvent extends MouseEvent {
   }
 
   static __packProto__(object: WheelEvent): WheelEventProto {
-    const objectProto: Partial<WheelEventProto> = { metatype: 560210 };
+    const objectProto: Partial<WheelEventProto> = { metatype: 2000210 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -3575,4 +3575,4 @@ export class WheelEvent extends MouseEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.WHEEL_EVENT, WheelEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560210 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000210 ==== */

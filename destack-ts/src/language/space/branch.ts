@@ -28,7 +28,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:45000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:245000 ==== */
 /**
  * A Branch is a version of a Snapshot.
  */
@@ -471,7 +471,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
 
   static __packValue__(object: Branch): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 45000;
+    objectValue["1"] = 245000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -599,7 +599,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
   }
 
   static __packProto__(object: Branch): BranchProto {
-    const objectProto: Partial<BranchProto> = { metatype: 45000 };
+    const objectProto: Partial<BranchProto> = { metatype: 245000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -761,4 +761,4 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BRANCH, Branch);
-/* ==== DESTACK_GENERATED_END:NODE:45000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:245000 ==== */

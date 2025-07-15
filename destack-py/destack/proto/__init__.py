@@ -194,7 +194,6 @@ AnyNodeProto = Union[
     OrganizationProto,
     SpaceProto,
     TeamProto,
-    UniverseProto,
     UserProto,
 ]
 AnyStructProto = Union[

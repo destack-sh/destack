@@ -13,7 +13,7 @@ import type { Client, Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:560000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000000 ==== */
 /**
  * An InputEvent is an Event that corresponds to some direct user input.
  */
@@ -92,4 +92,4 @@ export abstract class InputEvent extends Event implements IsExtensible {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INPUT_EVENT, InputEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000000 ==== */

@@ -29,7 +29,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:560500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000500 ==== */
 /**
  * A ClipboardEvent is an InputEvent that corresponds to some direct user input with a clipboard.
  */
@@ -108,9 +108,9 @@ export abstract class ClipboardEvent extends InputEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CLIPBOARD_EVENT, ClipboardEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560501 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000501 ==== */
 /**
  * A CopyEvent is a ClipboardEvent when a copy is performed.
  */
@@ -481,7 +481,7 @@ export class CopyEvent extends ClipboardEvent {
 
   static __packValue__(object: CopyEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560501;
+    objectValue["1"] = 2000501;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -606,7 +606,7 @@ export class CopyEvent extends ClipboardEvent {
   }
 
   static __packProto__(object: CopyEvent): CopyEventProto {
-    const objectProto: Partial<CopyEventProto> = { metatype: 560501 };
+    const objectProto: Partial<CopyEventProto> = { metatype: 2000501 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -761,9 +761,9 @@ export class CopyEvent extends ClipboardEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COPY_EVENT, CopyEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560501 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000501 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560502 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000502 ==== */
 /**
  * A CutEvent is a ClipboardEvent when a cut is performed.
  */
@@ -1134,7 +1134,7 @@ export class CutEvent extends ClipboardEvent {
 
   static __packValue__(object: CutEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560502;
+    objectValue["1"] = 2000502;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -1259,7 +1259,7 @@ export class CutEvent extends ClipboardEvent {
   }
 
   static __packProto__(object: CutEvent): CutEventProto {
-    const objectProto: Partial<CutEventProto> = { metatype: 560502 };
+    const objectProto: Partial<CutEventProto> = { metatype: 2000502 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -1414,9 +1414,9 @@ export class CutEvent extends ClipboardEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUT_EVENT, CutEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560502 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000502 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:560503 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2000503 ==== */
 /**
  * A PasteEvent is a ClipboardEvent when a paste is performed.
  */
@@ -1787,7 +1787,7 @@ export class PasteEvent extends ClipboardEvent {
 
   static __packValue__(object: PasteEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 560503;
+    objectValue["1"] = 2000503;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.definitionPtr != null) {
@@ -1912,7 +1912,7 @@ export class PasteEvent extends ClipboardEvent {
   }
 
   static __packProto__(object: PasteEvent): PasteEventProto {
-    const objectProto: Partial<PasteEventProto> = { metatype: 560503 };
+    const objectProto: Partial<PasteEventProto> = { metatype: 2000503 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.definitionPtr != null) {
@@ -2067,4 +2067,4 @@ export class PasteEvent extends ClipboardEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.PASTE_EVENT, PasteEvent);
-/* ==== DESTACK_GENERATED_END:NODE:560503 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2000503 ==== */

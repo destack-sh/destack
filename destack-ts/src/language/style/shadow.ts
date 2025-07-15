@@ -48,7 +48,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600207 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100207 ==== */
 /**
  * ShadowType
  */
@@ -61,9 +61,9 @@ export enum ShadowType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SHADOW_TYPE, ShadowType);
-/* ==== DESTACK_GENERATED_END:ENUM:600207 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100207 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600208 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100208 ==== */
 /**
  * ShadowPosition
  */
@@ -76,9 +76,9 @@ export enum ShadowPosition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SHADOW_POSITION, ShadowPosition);
-/* ==== DESTACK_GENERATED_END:ENUM:600208 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100208 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600700 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100700 ==== */
 /**
  * A shadow value.
  */
@@ -320,7 +320,7 @@ export class Shadow extends StructFrozen {
 
   static __packValue__(object: Shadow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600700;
+    objectValue["1"] = 2100700;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -408,7 +408,7 @@ export class Shadow extends StructFrozen {
   }
 
   static __packProto__(object: Shadow): ShadowProto {
-    const objectProto: Partial<ShadowProto> = { metatype: 600700 };
+    const objectProto: Partial<ShadowProto> = { metatype: 2100700 };
     objectProto.type = Number(object.type) as ShadowTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -492,9 +492,9 @@ export class Shadow extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SHADOW, Shadow);
-/* ==== DESTACK_GENERATED_END:STRUCT:600700 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100700 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600700 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100700 ==== */
 /**
  * A shadow style.
  */
@@ -1176,7 +1176,7 @@ export class ShadowStyle extends Style {
 
   static __packValue__(object: ShadowStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600700;
+    objectValue["1"] = 2100700;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1361,7 +1361,7 @@ export class ShadowStyle extends Style {
   }
 
   static __packProto__(object: ShadowStyle): ShadowStyleProto {
-    const objectProto: Partial<ShadowStyleProto> = { metatype: 600700 };
+    const objectProto: Partial<ShadowStyleProto> = { metatype: 2100700 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1568,4 +1568,4 @@ export class ShadowStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SHADOW_STYLE, ShadowStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600700 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100700 ==== */

@@ -58,7 +58,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:540200 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1900100 ==== */
 /**
  * A Line is a list of points.
  */
@@ -186,7 +186,7 @@ export class Line extends StructFrozen {
 
   static __packValue__(object: Line): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 540200;
+    objectValue["1"] = 1900100;
     if (object.stroke != null) {
       objectValue["200"] = object.stroke.toValue();
     }
@@ -207,8 +207,8 @@ export class Line extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Line {
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const strokeValue = objectValue["200"];
     const unpackedStroke =
       strokeValue != undefined
@@ -247,7 +247,7 @@ export class Line extends StructFrozen {
   }
 
   static __packProto__(object: Line): LineProto {
-    const objectProto: Partial<LineProto> = { metatype: 540200 };
+    const objectProto: Partial<LineProto> = { metatype: 1900100 };
     if (object.stroke != null) {
       objectProto.stroke = object.stroke.toProto();
     }
@@ -268,8 +268,8 @@ export class Line extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Line {
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
@@ -308,9 +308,9 @@ export class Line extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.LINE, Line);
-/* ==== DESTACK_GENERATED_END:STRUCT:540200 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1900100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:540200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1900100 ==== */
 /**
  * A LineShape is a shape that represents a line.
  */
@@ -1610,7 +1610,7 @@ export class LineShape extends Shape {
 
   static __packValue__(object: LineShape): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 540200;
+    objectValue["1"] = 1900100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1756,7 +1756,6 @@ export class LineShape extends Shape {
   ): LineShape {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1769,6 +1768,7 @@ export class LineShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedPoints: any[] = [];
     if (objectValue["200"] != undefined) {
       for (const item of objectValue["200"]) {
@@ -2011,7 +2011,7 @@ export class LineShape extends Shape {
   }
 
   static __packProto__(object: LineShape): LineShapeProto {
-    const objectProto: Partial<LineShapeProto> = { metatype: 540200 };
+    const objectProto: Partial<LineShapeProto> = { metatype: 1900100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2156,7 +2156,6 @@ export class LineShape extends Shape {
   ): LineShape {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -2169,6 +2168,7 @@ export class LineShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
@@ -2394,4 +2394,4 @@ export class LineShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LINE_SHAPE, LineShape);
-/* ==== DESTACK_GENERATED_END:NODE:540200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1900100 ==== */

@@ -14,7 +14,7 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashFloat, hashInt } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:700 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400000 ==== */
 /**
  * A vector.
  */
@@ -27,9 +27,9 @@ export abstract class Vector extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR, Vector);
-/* ==== DESTACK_GENERATED_END:STRUCT:700 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400000 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:710 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400010 ==== */
 /**
  * A floating point vector.
  */
@@ -42,9 +42,9 @@ export abstract class Vectorf extends Vector {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTORF, Vectorf);
-/* ==== DESTACK_GENERATED_END:STRUCT:710 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400010 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:720 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400020 ==== */
 /**
  * An integer vector.
  */
@@ -57,9 +57,9 @@ export abstract class Vectori extends Vector {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTORI, Vectori);
-/* ==== DESTACK_GENERATED_END:STRUCT:720 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400020 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:711 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400011 ==== */
 /**
  * A 2D float vector.
  */
@@ -170,7 +170,7 @@ export class Vector2f extends Vectorf {
 
   static __packValue__(object: Vector2f): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 711;
+    objectValue["1"] = 2400011;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     return objectValue;
@@ -210,7 +210,7 @@ export class Vector2f extends Vectorf {
   }
 
   static __packProto__(object: Vector2f): Vector2fProto {
-    const objectProto: Partial<Vector2fProto> = { metatype: 711 };
+    const objectProto: Partial<Vector2fProto> = { metatype: 2400011 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     return objectProto as Vector2fProto;
@@ -410,9 +410,9 @@ export class Vector2f extends Vectorf {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR2F, Vector2f);
-/* ==== DESTACK_GENERATED_END:STRUCT:711 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400011 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:712 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400012 ==== */
 /**
  * A 3D float vector.
  */
@@ -539,7 +539,7 @@ export class Vector3f extends Vectorf {
 
   static __packValue__(object: Vector3f): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 712;
+    objectValue["1"] = 2400012;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -581,7 +581,7 @@ export class Vector3f extends Vectorf {
   }
 
   static __packProto__(object: Vector3f): Vector3fProto {
-    const objectProto: Partial<Vector3fProto> = { metatype: 712 };
+    const objectProto: Partial<Vector3fProto> = { metatype: 2400012 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
@@ -809,9 +809,9 @@ export class Vector3f extends Vectorf {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR3F, Vector3f);
-/* ==== DESTACK_GENERATED_END:STRUCT:712 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400012 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:713 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400013 ==== */
 /**
  * A 4D float vector.
  */
@@ -954,7 +954,7 @@ export class Vector4f extends Vectorf {
 
   static __packValue__(object: Vector4f): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 713;
+    objectValue["1"] = 2400013;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -998,7 +998,7 @@ export class Vector4f extends Vectorf {
   }
 
   static __packProto__(object: Vector4f): Vector4fProto {
-    const objectProto: Partial<Vector4fProto> = { metatype: 713 };
+    const objectProto: Partial<Vector4fProto> = { metatype: 2400013 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
@@ -1244,9 +1244,9 @@ export class Vector4f extends Vectorf {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR4F, Vector4f);
-/* ==== DESTACK_GENERATED_END:STRUCT:713 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400013 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:721 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400021 ==== */
 /**
  * A 2D integer vector.
  */
@@ -1357,7 +1357,7 @@ export class Vector2i extends Vectori {
 
   static __packValue__(object: Vector2i): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 721;
+    objectValue["1"] = 2400021;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     return objectValue;
@@ -1397,7 +1397,7 @@ export class Vector2i extends Vectori {
   }
 
   static __packProto__(object: Vector2i): Vector2iProto {
-    const objectProto: Partial<Vector2iProto> = { metatype: 721 };
+    const objectProto: Partial<Vector2iProto> = { metatype: 2400021 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     return objectProto as Vector2iProto;
@@ -1597,9 +1597,9 @@ export class Vector2i extends Vectori {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR2I, Vector2i);
-/* ==== DESTACK_GENERATED_END:STRUCT:721 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400021 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:722 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400022 ==== */
 /**
  * A 3D integer vector.
  */
@@ -1726,7 +1726,7 @@ export class Vector3i extends Vectori {
 
   static __packValue__(object: Vector3i): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 722;
+    objectValue["1"] = 2400022;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -1768,7 +1768,7 @@ export class Vector3i extends Vectori {
   }
 
   static __packProto__(object: Vector3i): Vector3iProto {
-    const objectProto: Partial<Vector3iProto> = { metatype: 722 };
+    const objectProto: Partial<Vector3iProto> = { metatype: 2400022 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
@@ -1986,9 +1986,9 @@ export class Vector3i extends Vectori {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR3I, Vector3i);
-/* ==== DESTACK_GENERATED_END:STRUCT:722 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400022 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:723 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2400023 ==== */
 /**
  * A 4D integer vector.
  */
@@ -2131,7 +2131,7 @@ export class Vector4i extends Vectori {
 
   static __packValue__(object: Vector4i): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 723;
+    objectValue["1"] = 2400023;
     objectValue["101"] = object.x;
     objectValue["102"] = object.y;
     objectValue["103"] = object.z;
@@ -2175,7 +2175,7 @@ export class Vector4i extends Vectori {
   }
 
   static __packProto__(object: Vector4i): Vector4iProto {
-    const objectProto: Partial<Vector4iProto> = { metatype: 723 };
+    const objectProto: Partial<Vector4iProto> = { metatype: 2400023 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
@@ -2393,4 +2393,4 @@ export class Vector4i extends Vectori {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VECTOR4I, Vector4i);
-/* ==== DESTACK_GENERATED_END:STRUCT:723 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2400023 ==== */

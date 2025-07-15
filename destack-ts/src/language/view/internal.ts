@@ -33,7 +33,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:535000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1815000 ==== */
 /**
  * A content View.
  */
@@ -747,7 +747,7 @@ export class InternalView extends View {
 
   static __packValue__(object: InternalView): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 535000;
+    objectValue["1"] = 1815000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -970,7 +970,7 @@ export class InternalView extends View {
   }
 
   static __packProto__(object: InternalView): InternalViewProto {
-    const objectProto: Partial<InternalViewProto> = { metatype: 535000 };
+    const objectProto: Partial<InternalViewProto> = { metatype: 1815000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1213,4 +1213,4 @@ export class InternalView extends View {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INTERNAL_VIEW, InternalView);
-/* ==== DESTACK_GENERATED_END:NODE:535000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1815000 ==== */

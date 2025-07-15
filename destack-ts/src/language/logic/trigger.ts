@@ -39,7 +39,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:105000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:705000 ==== */
 /**
  * TriggerType
  */
@@ -51,9 +51,9 @@ export enum TriggerType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRIGGER_TYPE, TriggerType);
-/* ==== DESTACK_GENERATED_END:ENUM:105000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:705000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:705001 ==== */
 /**
  * A TriggerEvent is an Event that corresponds to a Trigger.
  */
@@ -110,9 +110,9 @@ export abstract class TriggerEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER_EVENT, TriggerEvent);
-/* ==== DESTACK_GENERATED_END:NODE:105001 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:705001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:105000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:705000 ==== */
 /**
  * A Trigger is a dynamic event to run something.
  */
@@ -658,7 +658,7 @@ export class Trigger extends Entity implements IsSourceable {
 
   static __packValue__(object: Trigger): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 105000;
+    objectValue["1"] = 705000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -828,7 +828,7 @@ export class Trigger extends Entity implements IsSourceable {
   }
 
   static __packProto__(object: Trigger): TriggerProto {
-    const objectProto: Partial<TriggerProto> = { metatype: 105000 };
+    const objectProto: Partial<TriggerProto> = { metatype: 705000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1032,4 +1032,4 @@ export class Trigger extends Entity implements IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRIGGER, Trigger);
-/* ==== DESTACK_GENERATED_END:NODE:105000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:705000 ==== */

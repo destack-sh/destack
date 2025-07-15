@@ -1,9 +1,11 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
     IsDeletable,
     IsOrdered,
+    IsScriptable,
+    IsSourceable,
     IsTaggable,
     NodeType,
     builtin_node,
@@ -19,13 +21,13 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.TAG)
 class Tag(
-    IsOrdered,
+    IsSourceable,
     IsDeletable,
     Entity,
 ):
     """A Tag to tag something."""
 
-    parent: Optional["Folder"] = builtin_property_parent()
+    parent: Union["Folder", "IsScriptable", None] = builtin_property_parent()
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
