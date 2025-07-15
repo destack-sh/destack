@@ -154,7 +154,7 @@ class MeetupResponseType(Enum):
 
 @entity
 class MeetupResponse(IsOwnable, Record):
-    meetup: Meetup
+    parent: Meetup
     user: User
     response_type: MeetupResponseType
 
@@ -174,6 +174,6 @@ class MeetupResponse(IsOwnable, Record):
 
 @event
 class MeetupResponded(Event):
-    meetup: Meetup
+    parent: Meetup
     response_type: MeetupResponseType
     response: MeetupResponse

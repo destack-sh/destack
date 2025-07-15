@@ -1452,6 +1452,22 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -1573,6 +1589,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     member: (Entity & IsActor) | NodeReference;
@@ -1663,6 +1680,14 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Membership";
+    }
+    if (_name === null) {
+      throw new Error(`Membership.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1750,6 +1775,9 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -1807,6 +1835,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -1840,7 +1869,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
   }
 
   get _pathKey(): string {
-    return `Membership[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -1863,11 +1892,8 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    if (propertyReprs.length > 0) {
-      return `<Membership "${this.path}" ${propertyReprs.join(" ")}>`;
-    } else {
-      return `<Membership "${this.path}">`;
-    }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Membership "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -1913,6 +1939,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
@@ -2022,6 +2049,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
@@ -2083,6 +2111,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
@@ -2211,6 +2240,7 @@ export class Membership extends Entity implements IsOwnable, IsDeletable, IsExte
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:

@@ -63,7 +63,7 @@ class Materialization(Enum):
 )
 class Entity(Node):
     """
-    An Entity is a versioned, stateful Node.
+    An Entity is a named, versioned, stateful Node.
     """
 
     __store_domain__ = StoreDomain.ENTITY
@@ -147,6 +147,12 @@ class Entity(Node):
         created_by_ptr: Optional[NodeReference] = None
         updated_by_ptr: Optional[NodeReference] = None
     # revision? epoch?
+
+    name: str = builtin_property(
+        50,
+        is_repr=True,
+        default_factory=ValueFactory.NAME,
+    )
 
     """The specific Graph this Entity is part of."""
     _graph: "EntityGraph | EntitySingletonGraph" = builtin_property_runtime(default=None)
@@ -509,7 +515,6 @@ class Snapshot(
         is_readonly=True,
         default=SnapshotType.PARTIAL,
     )
-    name: str = builtin_property(101, is_repr=True)
 
     status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
 
@@ -547,5 +552,4 @@ class Variant(
     """A Variant is an alternative version of an Entity."""
 
     parent: Optional["IsExtensible"] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

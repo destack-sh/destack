@@ -44,5 +44,4 @@ class Scene(
     root_view: Optional["ContainerView"] = builtin_property(
         200, description="The root view of the Scene."
     )
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

@@ -524,6 +524,22 @@ export class Database extends Resource {
   _status: ResourceStatus;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -573,22 +589,6 @@ export class Database extends Resource {
     this._type = value;
   }
   _type: DatabaseType;
-
-  /**
-   * Database.name
-   */
-  /**
-   * Database.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Database.icon
@@ -717,10 +717,10 @@ export class Database extends Resource {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     status?: ResourceStatus;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type: DatabaseType;
-    name: string;
     icon?: Icon | null;
     region: Region;
     galaxyName?: string | null;
@@ -816,6 +816,14 @@ export class Database extends Resource {
       throw new Error(`Database.status is required`);
     }
     this._status = _status;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Database";
+    }
+    if (_name === null) {
+      throw new Error(`Database.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -834,11 +842,6 @@ export class Database extends Resource {
       throw new Error(`Database.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Database.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
     let _region = options.region;
@@ -900,9 +903,6 @@ export class Database extends Resource {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -945,6 +945,9 @@ export class Database extends Resource {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -968,7 +971,6 @@ export class Database extends Resource {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -1010,6 +1012,7 @@ export class Database extends Resource {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -1063,7 +1066,6 @@ export class Database extends Resource {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`type=${DatabaseType[this.type]}`);
     propertyReprs.push(`region=${Region[this.region]}`);
     if (this.galaxyName != null) {
@@ -1074,6 +1076,7 @@ export class Database extends Resource {
       propertyReprs.push(`customSchemaName=${`"${this.customSchemaName}"`}`);
     }
     propertyReprs.push(`tenancy=${Tenancy[this.tenancy]}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Database "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -1118,12 +1121,12 @@ export class Database extends Resource {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["40"] = object._status;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -1217,7 +1220,6 @@ export class Database extends Resource {
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Database({
-      name: objectValue["101"],
       icon: unpackedIcon,
       type: Number(objectValue["100"]),
       region: Number(objectValue["110"]),
@@ -1238,6 +1240,7 @@ export class Database extends Resource {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -1297,12 +1300,12 @@ export class Database extends Resource {
       }
     }
     objectProto.status = Number(object._status) as ResourceStatusProto;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as DatabaseTypeProto;
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -1341,7 +1344,6 @@ export class Database extends Resource {
       }
     }
     return new Database({
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -1421,6 +1423,7 @@ export class Database extends Resource {
               _connection,
             )
           : null,
+      name: objectProto.name,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined

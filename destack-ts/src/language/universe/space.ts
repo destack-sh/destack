@@ -175,10 +175,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   _ownedByPtr: NodeReference | null;
 
   /**
-   * Space.name
+   * Entity.name
    */
   /**
-   * Space.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -358,7 +358,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
-    name: string;
+    name?: string;
     slug: string;
     status: SpaceStatus;
     handle?: Handle | NodeReference | null;
@@ -433,7 +433,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Space";
+    }
     if (_name === null) {
       throw new Error(`Space.name is required`);
     }
@@ -511,9 +514,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this._slug === other._slug)) {
       return false;
     }
@@ -547,6 +547,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     return true;
   }
 
@@ -554,7 +557,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
     if (this._handlePtr != null) {
@@ -593,6 +595,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
     return h;
@@ -623,12 +626,12 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
     propertyReprs.push(`status=${SpaceStatus[this.status]}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Space "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -662,7 +665,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     objectValue["102"] = object._slug;
     objectValue["110"] = object._status;
     if (object._handlePtr != null) {
@@ -746,7 +749,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         : null;
     return new Space({
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
-      name: objectValue["101"],
       slug: objectValue["102"],
       status: Number(objectValue["110"]),
       handle: unpackedHandlePtr,
@@ -764,6 +766,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       _session,
       _graph,
@@ -848,7 +851,6 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         _graph,
         _connection,
       ),
-      name: objectProto.name,
       slug: objectProto.slug,
       status: Number(objectProto.status) as SpaceStatus,
       handle:
@@ -956,6 +958,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       _session,
       _graph,

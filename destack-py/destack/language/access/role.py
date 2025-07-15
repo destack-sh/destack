@@ -58,5 +58,4 @@ class Role(
 
     parent: Optional["IsJoinable"] = builtin_property_parent()
     type: RoleType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

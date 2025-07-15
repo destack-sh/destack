@@ -1279,6 +1279,22 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -1330,22 +1346,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
   _type: RoleType;
 
   /**
-   * Role.name
-   */
-  /**
-   * Role.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
-  /**
    * Role.icon
    */
   /**
@@ -1376,10 +1376,10 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type: RoleType;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1469,6 +1469,14 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       throw new Error(`Role.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Role";
+    }
+    if (_name === null) {
+      throw new Error(`Role.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1487,11 +1495,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       throw new Error(`Role.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Role.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -1530,9 +1533,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
     if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -1549,6 +1549,9 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -1578,7 +1581,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -1604,6 +1606,7 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -1703,12 +1706,12 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -1785,7 +1788,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
     return new Role({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       icon: unpackedIcon,
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
@@ -1798,6 +1800,7 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
@@ -1857,12 +1860,12 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as RoleTypeProto;
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -1900,7 +1903,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
             )
           : null,
       type: Number(objectProto.type) as RoleType,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -1962,6 +1964,7 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:

@@ -2302,6 +2302,22 @@ export class Entitlement extends Entity implements IsDeletable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Entitlement.type
    */
   /**
@@ -2371,6 +2387,7 @@ export class Entitlement extends Entity implements IsDeletable {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    name?: string;
     type: EntitlementType;
     expiresAt?: Temporal.ZonedDateTime | null;
     target: (Entity & IsActor) | NodeReference;
@@ -2444,6 +2461,14 @@ export class Entitlement extends Entity implements IsDeletable {
     this.predecessorPtr = _predecessor;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Entitlement";
+    }
+    if (_name === null) {
+      throw new Error(`Entitlement.name is required`);
+    }
+    this._name = _name;
     let _type = options.type;
     if (_type === null) {
       throw new Error(`Entitlement.type is required`);
@@ -2509,6 +2534,9 @@ export class Entitlement extends Entity implements IsDeletable {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -2543,6 +2571,7 @@ export class Entitlement extends Entity implements IsDeletable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -2566,7 +2595,7 @@ export class Entitlement extends Entity implements IsDeletable {
   }
 
   get _pathKey(): string {
-    return `Entitlement[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -2585,7 +2614,9 @@ export class Entitlement extends Entity implements IsDeletable {
   }
 
   repr(): string {
-    return `<Entitlement "${this.path}">`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Entitlement "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -2618,6 +2649,7 @@ export class Entitlement extends Entity implements IsDeletable {
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    objectValue["50"] = object._name;
     objectValue["100"] = object._type;
     if (object._expiresAt != null) {
       objectValue["110"] = object._expiresAt.toString({ timeZoneName: "never" });
@@ -2688,6 +2720,7 @@ export class Entitlement extends Entity implements IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2735,6 +2768,7 @@ export class Entitlement extends Entity implements IsDeletable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    objectProto.name = object._name;
     objectProto.type = Number(object._type) as EntitlementTypeProto;
     if (object._expiresAt != null) {
       objectProto.expiresAt = packProtoTimestamp(object._expiresAt);
@@ -2817,6 +2851,7 @@ export class Entitlement extends Entity implements IsDeletable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

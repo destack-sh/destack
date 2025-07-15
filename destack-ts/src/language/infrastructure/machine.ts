@@ -203,6 +203,22 @@ export class Machine extends Resource {
   _status: ResourceStatus;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -474,6 +490,7 @@ export class Machine extends Resource {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     status?: ResourceStatus;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type?: MachineType;
@@ -577,6 +594,14 @@ export class Machine extends Resource {
       throw new Error(`Machine.status is required`);
     }
     this._status = _status;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Machine";
+    }
+    if (_name === null) {
+      throw new Error(`Machine.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -748,6 +773,9 @@ export class Machine extends Resource {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -821,6 +849,7 @@ export class Machine extends Resource {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -854,7 +883,7 @@ export class Machine extends Resource {
   }
 
   get _pathKey(): string {
-    return `Machine[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -873,7 +902,9 @@ export class Machine extends Resource {
   }
 
   repr(): string {
-    return `<Machine "${this.path}">`;
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Machine "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -917,6 +948,7 @@ export class Machine extends Resource {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["40"] = object._status;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
@@ -1051,6 +1083,7 @@ export class Machine extends Resource {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -1110,6 +1143,7 @@ export class Machine extends Resource {
       }
     }
     objectProto.status = Number(object._status) as ResourceStatusProto;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
@@ -1250,6 +1284,7 @@ export class Machine extends Resource {
               _connection,
             )
           : null,
+      name: objectProto.name,
       customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined

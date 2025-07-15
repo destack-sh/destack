@@ -204,6 +204,22 @@ export class Folder
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Folder.type
    */
   /**
@@ -218,22 +234,6 @@ export class Folder
     this._type = value;
   }
   _type: FolderType;
-
-  /**
-   * Folder.name
-   */
-  /**
-   * Folder.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * Folder.icon
@@ -311,8 +311,8 @@ export class Folder
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     type?: FolderType;
-    name: string;
     icon?: Icon | null;
     slug?: string | null;
     mainScene?: Scene | NodeReference | null;
@@ -399,6 +399,14 @@ export class Folder
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Folder";
+    }
+    if (_name === null) {
+      throw new Error(`Folder.name is required`);
+    }
+    this._name = _name;
     let _type = options.type ?? null;
     if (_type === null) {
       _type = 3 /* FolderType.GENERAL */;
@@ -407,11 +415,6 @@ export class Folder
       throw new Error(`Folder.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Folder.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
     let _slug = options.slug ?? null;
@@ -457,9 +460,6 @@ export class Folder
     if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -481,6 +481,9 @@ export class Folder
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -494,7 +497,6 @@ export class Folder
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -525,6 +527,7 @@ export class Folder
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -569,13 +572,13 @@ export class Folder
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`type=${FolderType[this.type]}`);
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.slug != null) {
       propertyReprs.push(`slug=${`"${this.slug}"`}`);
     }
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Folder "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -613,8 +616,8 @@ export class Folder
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -686,7 +689,6 @@ export class Folder
     return new Folder({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       icon: unpackedIcon,
       slug: unpackedSlug,
       mainScene: unpackedMainScenePtr,
@@ -700,6 +702,7 @@ export class Folder
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -751,8 +754,8 @@ export class Folder
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.type = Number(object._type) as FolderTypeProto;
     objectProto.name = object._name;
+    objectProto.type = Number(object._type) as FolderTypeProto;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -786,7 +789,6 @@ export class Folder
             )
           : null,
       type: Number(objectProto.type) as FolderType,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -858,6 +860,7 @@ export class Folder
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

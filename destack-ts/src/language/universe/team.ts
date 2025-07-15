@@ -122,10 +122,10 @@ export class Team extends Entity implements IsActor, IsJoinable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Team.name
+   * Entity.name
    */
   /**
-   * Team.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -164,7 +164,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
-    name: string;
+    name?: string;
     slug: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -234,7 +234,10 @@ export class Team extends Entity implements IsActor, IsJoinable {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Team";
+    }
     if (_name === null) {
       throw new Error(`Team.name is required`);
     }
@@ -277,9 +280,6 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this._slug === other._slug)) {
       return false;
     }
@@ -287,6 +287,9 @@ export class Team extends Entity implements IsActor, IsJoinable {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
@@ -301,7 +304,6 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -317,6 +319,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -360,8 +363,8 @@ export class Team extends Entity implements IsActor, IsJoinable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Team "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -392,7 +395,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     objectValue["102"] = object._slug;
     return objectValue;
   }
@@ -432,7 +435,6 @@ export class Team extends Entity implements IsActor, IsJoinable {
         : null;
     return new Team({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       slug: objectValue["102"],
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -441,6 +443,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -509,7 +512,6 @@ export class Team extends Entity implements IsActor, IsJoinable {
               _connection,
             )
           : null,
-      name: objectProto.name,
       slug: objectProto.slug,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
@@ -554,6 +556,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

@@ -28,7 +28,6 @@ class Script(
     """A Script."""
 
     parent: Union[IsScriptable, "Script", None] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
 
     code: str = builtin_property(110)
     # type, language, code, ...

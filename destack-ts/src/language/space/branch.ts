@@ -158,10 +158,10 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
   _ownedByPtr: NodeReference | null;
 
   /**
-   * Branch.name
+   * Entity.name
    */
   /**
-   * Branch.name
+   * Entity.name
    */
   get name(): string {
     return this._name;
@@ -232,7 +232,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
-    name: string;
+    name?: string;
     icon?: Icon | null;
     head?: Snapshot | NodeReference | null;
     _session?: Session | null;
@@ -310,7 +310,10 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
-    let _name = options.name;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Branch";
+    }
     if (_name === null) {
       throw new Error(`Branch.name is required`);
     }
@@ -355,9 +358,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -376,6 +376,9 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -388,7 +391,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -415,6 +417,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -458,10 +461,10 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Branch "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -498,7 +501,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["101"] = object._name;
+    objectValue["50"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -564,7 +567,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
         : null;
     return new Branch({
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       icon: unpackedIcon,
       head: unpackedHeadPtr,
       ownedBy: unpackedOwnedByPtr,
@@ -576,6 +578,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -656,7 +659,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
               _connection,
             )
           : null,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -726,6 +728,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

@@ -709,6 +709,22 @@ export class TransitionStyle extends Style {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The main / root Script of this Node.
    */
   get script(): Script | null {
@@ -758,22 +774,6 @@ export class TransitionStyle extends Style {
     this._type = value;
   }
   _type: TransitionType;
-
-  /**
-   * Style.name
-   */
-  /**
-   * Style.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * TransitionStyle.delay
@@ -918,10 +918,10 @@ export class TransitionStyle extends Style {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     type?: TransitionType;
-    name: string;
     delay?: number | null;
     duration?: number | null;
     ease?: readonly number[];
@@ -1018,6 +1018,14 @@ export class TransitionStyle extends Style {
       throw new Error(`TransitionStyle.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "TransitionStyle";
+    }
+    if (_name === null) {
+      throw new Error(`TransitionStyle.name is required`);
+    }
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -1039,11 +1047,6 @@ export class TransitionStyle extends Style {
       throw new Error(`TransitionStyle.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`TransitionStyle.name is required`);
-    }
-    this._name = _name;
     let _delay = options.delay ?? null;
     this._delay = _delay;
     let _duration = options.duration ?? null;
@@ -1157,13 +1160,13 @@ export class TransitionStyle extends Style {
     if (!(this._springType === other._springType)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
@@ -1225,7 +1228,6 @@ export class TransitionStyle extends Style {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1240,6 +1242,7 @@ export class TransitionStyle extends Style {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1371,12 +1374,12 @@ export class TransitionStyle extends Style {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._delay != null) {
       objectValue["102"] = object._delay;
     }
@@ -1500,7 +1503,6 @@ export class TransitionStyle extends Style {
       bounce: unpackedBounce,
       springType: unpackedSpringType,
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1508,6 +1510,7 @@ export class TransitionStyle extends Style {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       deletedAt: unpackedDeletedAt,
       definition: unpackedDefinitionPtr,
@@ -1571,12 +1574,12 @@ export class TransitionStyle extends Style {
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
     objectProto.type = Number(object._type) as TransitionTypeProto;
-    objectProto.name = object._name;
     if (object._delay != null) {
       objectProto.delay = object._delay;
     }
@@ -1653,7 +1656,6 @@ export class TransitionStyle extends Style {
               _connection,
             )
           : null,
-      name: objectProto.name,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1697,6 +1699,7 @@ export class TransitionStyle extends Style {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,

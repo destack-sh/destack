@@ -340,7 +340,7 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     """
 
     # meta
-    id: UUID = builtin_property(2, default_factory=ValueFactory.UUID)
+    id: UUID = builtin_property(2, default_factory=ValueFactory.UUID4)
     type: QueryType = builtin_property(100, is_repr=True, description="The type of Query.")
     domain: StoreDomain = builtin_property(
         101, is_repr=True, description="The domain of the Query (Entity or Event)."

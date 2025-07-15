@@ -106,6 +106,15 @@ export abstract class Style
   declare readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * The main / root Script of this Node.
    */
   abstract get script(): Script | null;
@@ -120,15 +129,6 @@ export abstract class Style
    * Whether this Node is extensible (whether it can be instanced).
    */
   declare readonly isExtensible: boolean;
-
-  /**
-   * Style.name
-   */
-  /**
-   * Style.name
-   */
-  abstract get name(): string;
-  abstract set name(value: string);
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

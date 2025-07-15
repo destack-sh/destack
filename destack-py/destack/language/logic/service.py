@@ -37,5 +37,4 @@ class Service(
     Services may be stateful (with custom Properties and runtime only state).
     """
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

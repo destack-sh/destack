@@ -453,7 +453,6 @@ class File(Resource):
 
     parent: Optional["Space"] = builtin_property_parent()
     type: FileType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)
 
     # meta
     source: FileSource = builtin_property(110, is_repr=True)

@@ -39,7 +39,6 @@ class User(
     """A User is a human using Destack."""
 
     parent: Optional["Space"] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)
     slug: str = builtin_property(102, is_repr=True)
 
     status: UserStatus = builtin_property(

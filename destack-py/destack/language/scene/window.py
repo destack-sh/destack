@@ -38,4 +38,3 @@ class Window(
     """
 
     type: WindowType = builtin_property(100, is_repr=True)
-    name: str = builtin_property(101, is_repr=True)

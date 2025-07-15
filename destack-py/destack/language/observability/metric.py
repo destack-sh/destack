@@ -19,7 +19,6 @@ if TYPE_CHECKING:
 class Metric(IsSourceable, Entity):
     """An Entity that represents a Metric."""
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
 

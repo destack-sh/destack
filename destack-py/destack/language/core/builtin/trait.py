@@ -270,12 +270,6 @@ class IsSourceable(IsOrdered):
     )
     # aliases: list[str]?
 
-    name: str = builtin_property(
-        101,
-        is_repr=True,
-        description="The name of this Node.",
-    )
-
 
 @builtin_trait(TraitType.SCRIPTABLE)
 class IsScriptable(Trait):

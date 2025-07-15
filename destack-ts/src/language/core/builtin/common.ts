@@ -135,8 +135,8 @@ registerEnumClass(EnumType.ENUM_TYPE, EnumType);
  */
 export enum StructType {
   STRUCT = 1,
-  DATUM_MUTABLE = 2,
-  DATUM = 3,
+  DATUM = 2,
+  DATUM_MUTABLE = 3,
   BUILTIN_DEFINITION = 100,
   NODE_DEFINITION = 101,
   TRAIT_DEFINITION = 102,
@@ -616,11 +616,13 @@ registerEnumClass(EnumType.SCALAR_TYPE, ScalarType);
  * ValueFactory
  */
 export enum ValueFactory {
-  UUID = 1,
-  NOW = 2,
-  REGION = 3,
-  SELF = 4,
-  SPACE = 5,
+  UUID4 = 1,
+  UUID7 = 2,
+  NOW = 10,
+  REGION = 20,
+  SELF = 30,
+  SPACE = 31,
+  NAME = 40,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...

@@ -260,6 +260,22 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
   _isAbstract: boolean;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -286,22 +302,6 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     this._key = value;
   }
   _key: string | null;
-
-  /**
-   * CustomEvent.name
-   */
-  /**
-   * CustomEvent.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * CustomEvent.icon
@@ -335,9 +335,9 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     baseType?: NodeDefinitionReference | null;
     baseTraits?: readonly NodeDefinitionReference[];
     isAbstract?: boolean;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    name: string;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -435,6 +435,14 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
       throw new Error(`CustomEvent.isAbstract is required`);
     }
     this._isAbstract = _isAbstract;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "CustomEvent";
+    }
+    if (_name === null) {
+      throw new Error(`CustomEvent.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -442,11 +450,6 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`CustomEvent.name is required`);
-    }
-    this._name = _name;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -501,9 +504,6 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     if (!(this._isAbstract === other._isAbstract)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
@@ -533,6 +533,9 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -551,7 +554,6 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
       }
     }
     h = (h * 31 + hashBool(this._isAbstract)) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -584,6 +586,7 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -678,13 +681,13 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
       objectValue["41"] = packedBaseTraits;
     }
     objectValue["45"] = object._isAbstract;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["101"] = object._name;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -776,7 +779,6 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
       baseType: unpackedBaseType,
       baseTraits: unpackedBaseTraits,
       isAbstract: objectValue["45"],
-      name: objectValue["101"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -789,6 +791,7 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -852,13 +855,13 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
       objectProto.baseTraits = packedBaseTraits;
     }
     objectProto.isAbstract = object._isAbstract;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.name = object._name;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -908,7 +911,6 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
           : null,
       baseTraits: unpackedBaseTraits,
       isAbstract: objectProto.isAbstract,
-      name: objectProto.name,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -978,6 +980,7 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

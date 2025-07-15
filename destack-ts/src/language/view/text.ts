@@ -169,6 +169,22 @@ export class TextView extends ContentView {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -230,22 +246,6 @@ export class TextView extends ContentView {
    * Whether this Node is extensible (whether it can be instanced).
    */
   readonly isExtensible: boolean;
-
-  /**
-   * View.name
-   */
-  /**
-   * View.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
 
   /**
    * View.position
@@ -470,11 +470,11 @@ export class TextView extends ContentView {
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
-    name: string;
     position?: Position | null;
     width?: Dimension | null;
     height?: Dimension | null;
@@ -576,6 +576,14 @@ export class TextView extends ContentView {
       throw new Error(`TextView.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "TextView";
+    }
+    if (_name === null) {
+      throw new Error(`TextView.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -596,11 +604,6 @@ export class TextView extends ContentView {
       throw new Error(`TextView.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`TextView.name is required`);
-    }
-    this._name = _name;
     let _position = options.position ?? null;
     this._position = _position;
     let _width = options.width ?? null;
@@ -693,9 +696,6 @@ export class TextView extends ContentView {
     ) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._position == null) !== (other._position == null) ||
       (this._position != null && !this._position.equals(other._position))
@@ -756,6 +756,9 @@ export class TextView extends ContentView {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -800,7 +803,6 @@ export class TextView extends ContentView {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._position != null) {
       h = (h * 31 + this._position.hash()) & 0xffffffff;
     }
@@ -849,6 +851,7 @@ export class TextView extends ContentView {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -948,6 +951,7 @@ export class TextView extends ContentView {
       objectValue["26"] = packedCustomValues;
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
@@ -958,7 +962,6 @@ export class TextView extends ContentView {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
-    objectValue["101"] = object._name;
     if (object._position != null) {
       objectValue["110"] = object._position.toValue();
     }
@@ -1138,7 +1141,6 @@ export class TextView extends ContentView {
       isVisible: unpackedIsVisible,
       opacity: unpackedOpacity,
       parent: unpackedParentPtr,
-      name: objectValue["101"],
       position: unpackedPosition,
       width: unpackedWidth,
       height: unpackedHeight,
@@ -1158,6 +1160,7 @@ export class TextView extends ContentView {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
@@ -1218,6 +1221,7 @@ export class TextView extends ContentView {
       }
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -1228,7 +1232,6 @@ export class TextView extends ContentView {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
-    objectProto.name = object._name;
     if (object._position != null) {
       objectProto.position = object._position.toProto();
     }
@@ -1320,7 +1323,6 @@ export class TextView extends ContentView {
               _connection,
             )
           : null,
-      name: objectProto.name,
       position:
         objectProto.position != undefined
           ? _Position.fromProto(objectProto.position!, _session, _supergraph, _graph, _connection)
@@ -1416,6 +1418,7 @@ export class TextView extends ContentView {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:

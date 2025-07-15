@@ -50,7 +50,6 @@ class Layer(
 
     parent: Union["Scene", None] = builtin_property_parent()
     type: LayerType = builtin_property(100, default=LayerType.GENERAL)
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
     # appearance

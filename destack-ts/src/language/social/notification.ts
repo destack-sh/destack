@@ -2671,52 +2671,20 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
   _ownedByPtr: NodeReference | null;
 
   /**
-   * Notification.status
+   * Entity.name
    */
   /**
-   * Notification.status
+   * Entity.name
    */
-  get status(): NotificationStatus {
-    return this._status;
+  get name(): string {
+    return this._name;
   }
-  set status(value: NotificationStatus) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
     this._session.updateSetProperty(this, prop, value);
-    this._status = value;
+    this._name = value;
   }
-  _status: NotificationStatus;
-
-  /**
-   * Notification.title
-   */
-  /**
-   * Notification.title
-   */
-  get title(): string {
-    return this._title;
-  }
-  set title(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["title"];
-    this._session.updateSetProperty(this, prop, value);
-    this._title = value;
-  }
-  _title: string;
-
-  /**
-   * Notification.text
-   */
-  /**
-   * Notification.text
-   */
-  get text(): Text | null {
-    return this._text;
-  }
-  set text(value: Text | null) {
-    const prop = (this.constructor as NodeClass).__properties__["text"];
-    this._session.updateSetProperty(this, prop, value);
-    this._text = value;
-  }
-  _text: Text | null;
+  _name: string;
 
   /**
    * The main / root Script of this Node.
@@ -2753,6 +2721,54 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
    */
   readonly isExtensible: boolean;
 
+  /**
+   * Notification.title
+   */
+  /**
+   * Notification.title
+   */
+  get title(): string {
+    return this._title;
+  }
+  set title(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["title"];
+    this._session.updateSetProperty(this, prop, value);
+    this._title = value;
+  }
+  _title: string;
+
+  /**
+   * Notification.status
+   */
+  /**
+   * Notification.status
+   */
+  get status(): NotificationStatus {
+    return this._status;
+  }
+  set status(value: NotificationStatus) {
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
+    this._status = value;
+  }
+  _status: NotificationStatus;
+
+  /**
+   * Notification.text
+   */
+  /**
+   * Notification.text
+   */
+  get text(): Text | null {
+    return this._text;
+  }
+  set text(value: Text | null) {
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
+    this._text = value;
+  }
+  _text: Text | null;
+
   constructor(options: {
     id?: string;
     parent?: Entity | NodeReference | null;
@@ -2767,11 +2783,12 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     customValues?: { readonly [key: string]: Value };
     ownedBy?: (Entity & IsActor) | NodeReference | null;
-    status: NotificationStatus;
-    title: string;
-    text?: Text | null;
+    name?: string;
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
+    title: string;
+    status: NotificationStatus;
+    text?: Text | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2855,18 +2872,14 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
-    let _status = options.status;
-    if (_status === null) {
-      throw new Error(`Notification.status is required`);
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Notification";
     }
-    this._status = _status;
-    let _title = options.title;
-    if (_title === null) {
-      throw new Error(`Notification.title is required`);
+    if (_name === null) {
+      throw new Error(`Notification.name is required`);
     }
-    this._title = _title;
-    let _text = options.text ?? null;
-    this._text = _text;
+    this._name = _name;
     let _script = options.script ?? null;
     if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
       _script = (_script as Node).toRef();
@@ -2880,6 +2893,18 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
       throw new Error(`Notification.isExtensible is required`);
     }
     this.isExtensible = _isExtensible;
+    let _title = options.title;
+    if (_title === null) {
+      throw new Error(`Notification.title is required`);
+    }
+    this._title = _title;
+    let _status = options.status;
+    if (_status === null) {
+      throw new Error(`Notification.status is required`);
+    }
+    this._status = _status;
+    let _text = options.text ?? null;
+    this._text = _text;
 
     // identity
     if (options.id == null) {
@@ -2915,10 +2940,10 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._status === other._status)) {
+    if (!(this._title === other._title)) {
       return false;
     }
-    if (!(this._title === other._title)) {
+    if (!(this._status === other._status)) {
       return false;
     }
     if (
@@ -2940,6 +2965,9 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
       return false;
     }
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
       return false;
     }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
@@ -2965,8 +2993,8 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this._status) & 0xffffffff;
     h = (h * 31 + hashString(this._title)) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
     if (this._text != null) {
       h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
@@ -2994,6 +3022,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
@@ -3027,7 +3056,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
   }
 
   get _pathKey(): string {
-    return `Notification[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -3050,11 +3079,8 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
-    if (propertyReprs.length > 0) {
-      return `<Notification "${this.path}" ${propertyReprs.join(" ")}>`;
-    } else {
-      return `<Notification "${this.path}">`;
-    }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Notification "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
@@ -3097,15 +3123,16 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
-    objectValue["40"] = object._status;
-    objectValue["50"] = object._title;
-    if (object._text != null) {
-      objectValue["51"] = object._text.toValue();
-    }
+    objectValue["50"] = object._name;
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
     objectValue["90"] = object.isExtensible;
+    objectValue["101"] = object._title;
+    objectValue["110"] = object._status;
+    if (object._text != null) {
+      objectValue["120"] = object._text.toValue();
+    }
     return objectValue;
   }
 
@@ -3119,7 +3146,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
-    const textValue = objectValue["51"];
+    const textValue = objectValue["120"];
     const unpackedText =
       textValue != undefined
         ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
@@ -3177,8 +3204,8 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Notification({
-      status: Number(objectValue["40"]),
-      title: objectValue["50"],
+      title: objectValue["101"],
+      status: Number(objectValue["110"]),
       text: unpackedText,
       ownedBy: unpackedOwnedByPtr,
       definition: unpackedDefinitionPtr,
@@ -3191,6 +3218,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
@@ -3249,15 +3277,16 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
-    objectProto.status = Number(object._status) as NotificationStatusProto;
-    objectProto.title = object._title;
-    if (object._text != null) {
-      objectProto.text = object._text.toProto();
-    }
+    objectProto.name = object._name;
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
     objectProto.isExtensible = object.isExtensible;
+    objectProto.title = object._title;
+    objectProto.status = Number(object._status) as NotificationStatusProto;
+    if (object._text != null) {
+      objectProto.text = object._text.toProto();
+    }
     return objectProto as NotificationProto;
   }
 
@@ -3281,8 +3310,8 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
       }
     }
     return new Notification({
-      status: Number(objectProto.status) as NotificationStatus,
       title: objectProto.title,
+      status: Number(objectProto.status) as NotificationStatus,
       text:
         objectProto.text != undefined
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
@@ -3361,6 +3390,7 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,
       script:

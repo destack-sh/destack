@@ -4350,6 +4350,15 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   abstract set customValues(value: { readonly [key: string]: Value });
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * Run.target
    */
   abstract get target(): (Entity & IsRunnable) | null;

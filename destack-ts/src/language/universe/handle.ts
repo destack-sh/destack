@@ -120,6 +120,22 @@ export class Handle extends Entity {
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Handle.slug
    */
   /**
@@ -146,6 +162,7 @@ export class Handle extends Entity {
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     slug: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -215,6 +232,14 @@ export class Handle extends Entity {
       _predecessor = (_predecessor as Node).toRef();
     }
     this.predecessorPtr = _predecessor;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Handle";
+    }
+    if (_name === null) {
+      throw new Error(`Handle.name is required`);
+    }
+    this._name = _name;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Handle.slug is required`);
@@ -262,6 +287,9 @@ export class Handle extends Entity {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -289,6 +317,7 @@ export class Handle extends Entity {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -312,7 +341,7 @@ export class Handle extends Entity {
   }
 
   get _pathKey(): string {
-    return this.slug ?? `Handle[id=${this.id}]`;
+    return this.slug ?? this.name;
   }
 
   get path(): string {
@@ -333,6 +362,7 @@ export class Handle extends Entity {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`slug=${`"${this.slug}"`}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Handle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -363,6 +393,7 @@ export class Handle extends Entity {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["101"] = object._slug;
     return objectValue;
   }
@@ -410,6 +441,7 @@ export class Handle extends Entity {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -454,6 +486,7 @@ export class Handle extends Entity {
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
+    objectProto.name = object._name;
     objectProto.slug = object._slug;
     return objectProto as HandleProto;
   }
@@ -521,6 +554,7 @@ export class Handle extends Entity {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

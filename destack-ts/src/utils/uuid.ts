@@ -73,3 +73,21 @@ export function uuid7(): string {
     _byteToHex[b[15]]
   );
 }
+
+export const NANO_ID_LENGTH = 5;
+export const NANO_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
+
+/** Convert a UUID to a nano ID. */
+export function toNanoId(uuid: string): string {
+  let value = parseInt(uuid.slice(-4), 16);
+  if (value === 0) {
+    return NANO_ID_ALPHABET[0].repeat(NANO_ID_LENGTH);
+  }
+  const alphabetLen = NANO_ID_ALPHABET.length;
+  const result = [];
+  for (let i = 0; i < NANO_ID_LENGTH; i++) {
+    result.push(NANO_ID_ALPHABET[value % alphabetLen]);
+    value = Math.floor(value / alphabetLen);
+  }
+  return result.reverse().join("");
+}

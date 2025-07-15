@@ -61,7 +61,6 @@ class DatabaseInfo(StructFrozen):
 class Database(Resource):
     """A primary storage Database of some flavor."""
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
     type: DatabaseType = builtin_property(100, can_write=RoleType.SYSTEM, is_repr=True)

@@ -27,7 +27,7 @@ from destack.utils.frozen import frozendict, frozenlist
 from destack.utils.func import dualmethod, get_superclasses
 from destack.utils.hash import hash_bool, hash_bytes, hash_float, hash_int, hash_string
 from destack.utils.string import Casing, to_casing
-from destack.utils.uuid import UUID, uuid4, uuid7
+from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
 from .common import (
     EdgeType,
@@ -83,7 +83,7 @@ def _set_finalized():
 
 
 def get_tk_b64_from_ck(ck: UUID) -> str:
-    """Gets the stable across templates first 6 bytes of the ck."""
+    """Gets the stable across templates first 4 bytes of the ck."""
     return base64.b64encode(ck.bytes).decode()
 
 
@@ -158,6 +158,7 @@ def _generate_init[ObjectT: BuiltinObject](
     extra_glbls["EMPTY_DICT"] = frozendict()
     extra_glbls["uuid4"] = uuid4
     extra_glbls["uuid7"] = uuid7
+    extra_glbls["to_nano_id"] = to_nano_id
     extra_glbls["REGION"] = REGION
 
     method_body_lines = []
@@ -269,10 +270,14 @@ if {arg_name} is not None:
 
         # init default factory
         if prop.default_factory is not None:
-            if prop.default_factory == ValueFactory.UUID:
+            if prop.default_factory == ValueFactory.UUID4:
                 method_body_lines.append(f"""\
 if {arg_name} is None:
     {arg_name} = uuid4()""")
+            elif prop.default_factory == ValueFactory.UUID7:
+                method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name} = uuid7()""")
             elif prop.default_factory == ValueFactory.NOW:
                 if is_node:
                     method_body_lines.append(f"""\
@@ -303,6 +308,13 @@ if {self_name} is None:
     if space is None:
         raise RuntimeError("no active Space for {cls.__name__}")
     {self_name} = space.to_ref()""")
+            elif prop.default_factory == ValueFactory.NAME:
+                assert is_node, (
+                    f"{cls.__name__} is not a Node, cannot use {prop.default_factory} in {prop!r}"
+                )
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    {self_name} = "{cls.__name__}" """)
             else:
                 assert_never(prop.default_factory)
 

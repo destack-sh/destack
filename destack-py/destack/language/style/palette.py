@@ -25,5 +25,4 @@ class Palette(
 ):
     """A Palette of Colors."""
 
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

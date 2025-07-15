@@ -83,6 +83,8 @@ class Notification(
 ):
     """A Notification is a message about something."""
 
-    status: NotificationStatus = builtin_property(40)
-    title: str = builtin_property(50)
-    text: "Text | None" = builtin_property(51)
+    title: str = builtin_property(101)
+
+    status: NotificationStatus = builtin_property(110)
+
+    text: "Text | None" = builtin_property(120)

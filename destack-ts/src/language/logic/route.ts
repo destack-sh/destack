@@ -98,10 +98,10 @@ export abstract class Route
   abstract set ownedByPtr(value: NodeReference | null);
 
   /**
-   * The name of the Route.
+   * Entity.name
    */
   /**
-   * The name of the Route.
+   * Entity.name
    */
   abstract get name(): string;
   abstract set name(value: string);

@@ -8,7 +8,6 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    builtin_property,
     builtin_property_parent,
 )
 
@@ -29,4 +28,3 @@ class Style(
     """A Style defines a base visual appearance in some context."""
 
     parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent()
-    name: str = builtin_property(101, is_repr=True)

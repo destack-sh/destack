@@ -48,7 +48,7 @@ import {
 import { base64Decode } from "@destack/utils";
 import { assertNever } from "@destack/utils/functools";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
-import { uuid7 } from "@destack/utils/uuid";
+import { uuid4 } from "@destack/utils/uuid";
 
 /* ==== DESTACK_GENERATED_START:STRUCT:501 ==== */
 /**
@@ -2373,7 +2373,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     // properties
     let _id = options.id ?? null;
     if (_id === null) {
-      _id = uuid7();
+      _id = uuid4();
     }
     if (_id === null) {
       throw new Error(`Query.id is required`);

@@ -129,6 +129,15 @@ export abstract class Cursor extends Entity implements IsOwnable {
   abstract set ownedByPtr(value: NodeReference | null);
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
    * Cursor.status
    */
   /**
@@ -278,6 +287,22 @@ export class EventCursor extends Cursor {
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Cursor.status
    */
   /**
@@ -351,6 +376,7 @@ export class EventCursor extends Cursor {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     event?: Event | NodeReference | null;
@@ -427,6 +453,14 @@ export class EventCursor extends Cursor {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "EventCursor";
+    }
+    if (_name === null) {
+      throw new Error(`EventCursor.name is required`);
+    }
+    this._name = _name;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -495,6 +529,9 @@ export class EventCursor extends Cursor {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -531,6 +568,7 @@ export class EventCursor extends Cursor {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -554,7 +592,7 @@ export class EventCursor extends Cursor {
   }
 
   get _pathKey(): string {
-    return `EventCursor[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -578,6 +616,7 @@ export class EventCursor extends Cursor {
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<EventCursor "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -611,6 +650,7 @@ export class EventCursor extends Cursor {
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["101"] = object._status;
     if (object._activeAt != null) {
       objectValue["110"] = object._activeAt.toString({ timeZoneName: "never" });
@@ -682,6 +722,7 @@ export class EventCursor extends Cursor {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -729,6 +770,7 @@ export class EventCursor extends Cursor {
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
+    objectProto.name = object._name;
     objectProto.status = Number(object._status) as CursorStatusProto;
     if (object._activeAt != null) {
       objectProto.activeAt = packProtoTimestamp(object._activeAt);
@@ -824,6 +866,7 @@ export class EventCursor extends Cursor {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -986,6 +1029,22 @@ export class ScreenCursor extends Cursor {
   _ownedByPtr: NodeReference | null;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Cursor.status
    */
   /**
@@ -1045,6 +1104,7 @@ export class ScreenCursor extends Cursor {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
     status?: CursorStatus;
     activeAt?: Temporal.ZonedDateTime | null;
     position?: Vector2i | null;
@@ -1121,6 +1181,14 @@ export class ScreenCursor extends Cursor {
       _ownedBy = (_ownedBy as Node).toRef();
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "ScreenCursor";
+    }
+    if (_name === null) {
+      throw new Error(`ScreenCursor.name is required`);
+    }
+    this._name = _name;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* CursorStatus.CREATED */;
@@ -1189,6 +1257,9 @@ export class ScreenCursor extends Cursor {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -1225,6 +1296,7 @@ export class ScreenCursor extends Cursor {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -1248,7 +1320,7 @@ export class ScreenCursor extends Cursor {
   }
 
   get _pathKey(): string {
-    return `ScreenCursor[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -1272,6 +1344,7 @@ export class ScreenCursor extends Cursor {
     if (this.ownedBy != null) {
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<ScreenCursor "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -1305,6 +1378,7 @@ export class ScreenCursor extends Cursor {
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
     }
+    objectValue["50"] = object._name;
     objectValue["101"] = object._status;
     if (object._activeAt != null) {
       objectValue["110"] = object._activeAt.toString({ timeZoneName: "never" });
@@ -1377,6 +1451,7 @@ export class ScreenCursor extends Cursor {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1424,6 +1499,7 @@ export class ScreenCursor extends Cursor {
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
+    objectProto.name = object._name;
     objectProto.status = Number(object._status) as CursorStatusProto;
     if (object._activeAt != null) {
       objectProto.activeAt = packProtoTimestamp(object._activeAt);
@@ -1514,6 +1590,7 @@ export class ScreenCursor extends Cursor {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,

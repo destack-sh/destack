@@ -58,7 +58,6 @@ class CustomProperty(
 
     parent: Union["IsCustomizable", None] = builtin_property_parent()
     type: PropertyType = builtin_property(100, default=PropertyType.MEMBER)
-    name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)
 
     # scalar

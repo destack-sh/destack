@@ -1653,6 +1653,22 @@ export class Timer extends Entity implements IsSourceable {
   readonly orderKey: string;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * The Script that defines this Node.
    */
   get source(): Script | null {
@@ -1697,22 +1713,6 @@ export class Timer extends Entity implements IsSourceable {
   _type: TimerType;
 
   /**
-   * Timer.name
-   */
-  /**
-   * Timer.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
-  /**
    * Timer.schedule
    */
   /**
@@ -1740,10 +1740,10 @@ export class Timer extends Entity implements IsSourceable {
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     orderKey?: string;
+    name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
     type: TimerType;
-    name: string;
     schedule?: Schedule | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -1821,6 +1821,14 @@ export class Timer extends Entity implements IsSourceable {
       throw new Error(`Timer.orderKey is required`);
     }
     this.orderKey = _orderKey;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Timer";
+    }
+    if (_name === null) {
+      throw new Error(`Timer.name is required`);
+    }
+    this._name = _name;
     let _source = options.source ?? null;
     if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
       _source = (_source as Node).toRef();
@@ -1833,11 +1841,6 @@ export class Timer extends Entity implements IsSourceable {
       throw new Error(`Timer.type is required`);
     }
     this._type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`Timer.name is required`);
-    }
-    this._name = _name;
     let _schedule = options.schedule ?? null;
     this._schedule = _schedule;
 
@@ -1876,9 +1879,6 @@ export class Timer extends Entity implements IsSourceable {
     if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this._name === other._name)) {
-      return false;
-    }
     if (
       (this._schedule == null) !== (other._schedule == null) ||
       (this._schedule != null && !this._schedule.equals(other._schedule))
@@ -1897,6 +1897,9 @@ export class Timer extends Entity implements IsSourceable {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -1907,7 +1910,6 @@ export class Timer extends Entity implements IsSourceable {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._schedule != null) {
       h = (h * 31 + this._schedule.hash()) & 0xffffffff;
     }
@@ -1934,6 +1936,7 @@ export class Timer extends Entity implements IsSourceable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -2011,6 +2014,7 @@ export class Timer extends Entity implements IsSourceable {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     objectValue["27"] = object.orderKey;
+    objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
     }
@@ -2018,7 +2022,6 @@ export class Timer extends Entity implements IsSourceable {
       objectValue["70"] = object._key;
     }
     objectValue["100"] = object._type;
-    objectValue["101"] = object._name;
     if (object._schedule != null) {
       objectValue["110"] = object._schedule.toValue();
     }
@@ -2073,7 +2076,6 @@ export class Timer extends Entity implements IsSourceable {
         : null;
     return new Timer({
       type: Number(objectValue["100"]),
-      name: objectValue["101"],
       schedule: unpackedSchedule,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -2085,6 +2087,7 @@ export class Timer extends Entity implements IsSourceable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -2131,6 +2134,7 @@ export class Timer extends Entity implements IsSourceable {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
     objectProto.orderKey = object.orderKey;
+    objectProto.name = object._name;
     if (object.sourcePtr != null) {
       objectProto.sourcePtr = object.sourcePtr.toProto();
     }
@@ -2138,7 +2142,6 @@ export class Timer extends Entity implements IsSourceable {
       objectProto.key = object._key;
     }
     objectProto.type = Number(object._type) as TimerTypeProto;
-    objectProto.name = object._name;
     if (object._schedule != null) {
       objectProto.schedule = object._schedule.toProto();
     }
@@ -2156,7 +2159,6 @@ export class Timer extends Entity implements IsSourceable {
     const _Schedule = STRUCT_CLASS_BY_TYPE[StructType.SCHEDULE] as typeof Schedule;
     return new Timer({
       type: Number(objectProto.type) as TimerType,
-      name: objectProto.name,
       schedule:
         objectProto.schedule != undefined
           ? _Schedule.fromProto(objectProto.schedule!, _session, _supergraph, _graph, _connection)
@@ -2225,6 +2227,7 @@ export class Timer extends Entity implements IsSourceable {
               _connection,
             )
           : null,
+      name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

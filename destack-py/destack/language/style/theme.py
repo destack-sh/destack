@@ -7,7 +7,6 @@ from destack.language.core import (
     IsTaggable,
     NodeType,
     builtin_node,
-    builtin_property,
 )
 
 if TYPE_CHECKING:
@@ -24,5 +23,3 @@ class Theme(
     Entity,
 ):
     """A Theme with common Styles."""
-
-    name: str = builtin_property(101, is_repr=True)

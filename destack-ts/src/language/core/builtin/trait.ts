@@ -395,15 +395,6 @@ export interface IsSourceable extends IsOrdered {
   get key(): string | null;
   set key(value: string | null);
 
-  /**
-   * The name of this Node.
-   */
-  /**
-   * The name of this Node.
-   */
-  get name(): string;
-  set name(value: string);
-
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */

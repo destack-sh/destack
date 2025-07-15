@@ -162,6 +162,22 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
   _ownedByPtr: NodeReference;
 
   /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
    * Reaction.content
    */
   /**
@@ -190,6 +206,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy: (Entity & IsActor) | NodeReference;
+    name?: string;
     content: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -269,6 +286,14 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       throw new Error(`Reaction.ownedBy is required`);
     }
     this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Reaction";
+    }
+    if (_name === null) {
+      throw new Error(`Reaction.name is required`);
+    }
+    this._name = _name;
     let _content = options.content;
     if (_content === null) {
       throw new Error(`Reaction.content is required`);
@@ -321,6 +346,9 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
     if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
       return false;
     }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
@@ -352,6 +380,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -375,7 +404,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
   }
 
   get _pathKey(): string {
-    return `Reaction[id=${this.id}]`;
+    return this.name;
   }
 
   get path(): string {
@@ -397,6 +426,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
     const propertyReprs: string[] = [];
     propertyReprs.push(`content=${`"${this.content}"`}`);
     propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Reaction "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
@@ -431,6 +461,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["28"] = object._ownedByPtr.toValue();
+    objectValue["50"] = object._name;
     objectValue["101"] = object._content;
     return objectValue;
   }
@@ -491,6 +522,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -539,6 +571,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    objectProto.name = object._name;
     objectProto.content = object._content;
     return objectProto as ReactionProto;
   }
@@ -615,6 +648,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
               _connection,
             )
           : null,
+      name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
