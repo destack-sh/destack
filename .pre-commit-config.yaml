@@ -35,7 +35,7 @@ repos:
           - --force-scope
           - --verbose
           - --scopes
-          - all,language,py,py-system,py-runtime,py-web,ts,ts-runtime,ts-web,infra,proto,scripts
+          - all,language,py,py-system,py-runtime,py-web,ts,ts-system,ts-runtime,ts-web,infra,proto,scripts
           - feat
           - fix
           - chore
