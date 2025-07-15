@@ -52,7 +52,7 @@ import {
 import { hashBool, hashBytes, hashFloat, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:80001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:400001 ==== */
 /**
  * FileSource
  */
@@ -66,9 +66,9 @@ export enum FileSource {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_SOURCE, FileSource);
-/* ==== DESTACK_GENERATED_END:ENUM:80001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:400001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:80000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:400000 ==== */
 /**
  * FileRetentionMode
  */
@@ -82,9 +82,9 @@ export enum FileRetentionMode {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_RETENTION_MODE, FileRetentionMode);
-/* ==== DESTACK_GENERATED_END:ENUM:80000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:400000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:80002 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:400002 ==== */
 /**
  * FileType
  */
@@ -105,9 +105,9 @@ export enum FileType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_TYPE, FileType);
-/* ==== DESTACK_GENERATED_END:ENUM:80002 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:400002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:80003 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:400003 ==== */
 /**
  * FileFormat
  */
@@ -204,9 +204,9 @@ export enum FileFormat {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILE_FORMAT, FileFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:80003 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:400003 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:80000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:480000 ==== */
 /**
  * A File stored somewhere.
  */
@@ -1160,7 +1160,7 @@ export class File extends Resource {
 
   static __packValue__(object: File): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 80000;
+    objectValue["1"] = 480000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1406,7 +1406,7 @@ export class File extends Resource {
   }
 
   static __packProto__(object: File): FileProto {
-    const objectProto: Partial<FileProto> = { metatype: 80000 };
+    const objectProto: Partial<FileProto> = { metatype: 480000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1652,4 +1652,4 @@ export class File extends Resource {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILE, File);
-/* ==== DESTACK_GENERATED_END:NODE:80000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:480000 ==== */

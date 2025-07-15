@@ -19,7 +19,7 @@ import type { Space } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:600200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100200 ==== */
 /**
  * A Style defines a base visual appearance in some context.
  */
@@ -135,4 +135,4 @@ export abstract class Style
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.STYLE, Style);
-/* ==== DESTACK_GENERATED_END:NODE:600200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100200 ==== */

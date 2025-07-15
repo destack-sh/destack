@@ -1,7 +1,7 @@
 import { EnumType } from "@destack/language/core";
 import { registerEnumClass } from "@destack/language/registry";
 
-/* ==== DESTACK_GENERATED_START:ENUM:120000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:920000 ==== */
 /**
  * ModelDeveloper
  */
@@ -16,9 +16,9 @@ export enum ModelDeveloper {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MODEL_DEVELOPER, ModelDeveloper);
-/* ==== DESTACK_GENERATED_END:ENUM:120000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:920000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:120001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:920001 ==== */
 /**
  * ModelProvider
  */
@@ -34,4 +34,4 @@ export enum ModelProvider {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.MODEL_PROVIDER, ModelProvider);
-/* ==== DESTACK_GENERATED_END:ENUM:120001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:920001 ==== */

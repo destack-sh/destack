@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union, assert_never
+from typing import TYPE_CHECKING, Optional, assert_never
 
 from destack.language.core import (
     Enum,
@@ -9,14 +9,13 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
     builtin_struct,
 )
 
 from .style import Style
 
 if TYPE_CHECKING:
-    from destack.language import Palette, Scene, Theme, View
+    pass
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -115,7 +114,6 @@ class Color(StructFrozen):
 class ColorStyle(Style):
     """A color style, with an optional dark variant."""
 
-    parent: Union["Scene", "View", "Theme", "Palette", None] = builtin_property_parent()
     type: ColorType = builtin_property(100, is_repr=True)
     hue: Optional[ColorHue] = builtin_property(200, is_repr=True)
     shade: Optional[ColorShade] = builtin_property(201, is_repr=True)

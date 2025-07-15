@@ -42,7 +42,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:60400 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:300400 ==== */
 /**
  * SanctionType
  */
@@ -55,9 +55,9 @@ export enum SanctionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SANCTION_TYPE, SanctionType);
-/* ==== DESTACK_GENERATED_END:ENUM:60400 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:300400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60401 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360401 ==== */
 /**
  * SanctionEvent
  */
@@ -120,9 +120,9 @@ export abstract class SanctionEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION_EVENT, SanctionEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60401 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360401 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60402 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360402 ==== */
 /**
  * SanctionRequestedEvent
  */
@@ -424,7 +424,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
 
   static __packValue__(object: SanctionRequestedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60402;
+    objectValue["1"] = 360402;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -521,7 +521,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   }
 
   static __packProto__(object: SanctionRequestedEvent): SanctionRequestedEventProto {
-    const objectProto: Partial<SanctionRequestedEventProto> = { metatype: 60402 };
+    const objectProto: Partial<SanctionRequestedEventProto> = { metatype: 360402 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -640,9 +640,9 @@ export class SanctionRequestedEvent extends SanctionEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION_REQUESTED_EVENT, SanctionRequestedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60402 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360402 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60403 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360403 ==== */
 /**
  * SanctionGrantedEvent
  */
@@ -944,7 +944,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
 
   static __packValue__(object: SanctionGrantedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60403;
+    objectValue["1"] = 360403;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1041,7 +1041,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   }
 
   static __packProto__(object: SanctionGrantedEvent): SanctionGrantedEventProto {
-    const objectProto: Partial<SanctionGrantedEventProto> = { metatype: 60403 };
+    const objectProto: Partial<SanctionGrantedEventProto> = { metatype: 360403 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1160,9 +1160,9 @@ export class SanctionGrantedEvent extends SanctionEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION_GRANTED_EVENT, SanctionGrantedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60403 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360403 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60404 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360404 ==== */
 /**
  * SanctionRevokedEvent
  */
@@ -1464,7 +1464,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
 
   static __packValue__(object: SanctionRevokedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60404;
+    objectValue["1"] = 360404;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1561,7 +1561,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   }
 
   static __packProto__(object: SanctionRevokedEvent): SanctionRevokedEventProto {
-    const objectProto: Partial<SanctionRevokedEventProto> = { metatype: 60404 };
+    const objectProto: Partial<SanctionRevokedEventProto> = { metatype: 360404 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1680,9 +1680,9 @@ export class SanctionRevokedEvent extends SanctionEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION_REVOKED_EVENT, SanctionRevokedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60404 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360404 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60405 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360405 ==== */
 /**
  * SanctionExpiredEvent
  */
@@ -1984,7 +1984,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
 
   static __packValue__(object: SanctionExpiredEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60405;
+    objectValue["1"] = 360405;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -2081,7 +2081,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   }
 
   static __packProto__(object: SanctionExpiredEvent): SanctionExpiredEventProto {
-    const objectProto: Partial<SanctionExpiredEventProto> = { metatype: 60405 };
+    const objectProto: Partial<SanctionExpiredEventProto> = { metatype: 360405 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -2200,9 +2200,9 @@ export class SanctionExpiredEvent extends SanctionEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION_EXPIRED_EVENT, SanctionExpiredEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60405 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360405 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360400 ==== */
 /**
  * A Sanction on some Actor.
  */
@@ -2594,7 +2594,7 @@ export class Sanction extends Entity implements IsDeletable {
 
   static __packValue__(object: Sanction): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60400;
+    objectValue["1"] = 360400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -2711,7 +2711,7 @@ export class Sanction extends Entity implements IsDeletable {
   }
 
   static __packProto__(object: Sanction): SanctionProto {
-    const objectProto: Partial<SanctionProto> = { metatype: 60400 };
+    const objectProto: Partial<SanctionProto> = { metatype: 360400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2852,4 +2852,4 @@ export class Sanction extends Entity implements IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SANCTION, Sanction);
-/* ==== DESTACK_GENERATED_END:NODE:60400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360400 ==== */

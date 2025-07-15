@@ -46,7 +46,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600210 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100210 ==== */
 /**
  * TransitionType
  */
@@ -59,24 +59,24 @@ export enum TransitionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRANSITION_TYPE, TransitionType);
-/* ==== DESTACK_GENERATED_END:ENUM:600210 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100210 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600211 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100211 ==== */
 /**
  * SpringType
  */
 export enum SpringType {
   TIME = 1,
-  PHYSICS = 2,
+  PHYSICAL = 2,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SPRING_TYPE, SpringType);
-/* ==== DESTACK_GENERATED_END:ENUM:600211 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100211 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600900 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100900 ==== */
 /**
  * A transition value.
  */
@@ -373,7 +373,7 @@ export class Transition extends StructFrozen {
 
   static __packValue__(object: Transition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600900;
+    objectValue["1"] = 2100900;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -477,7 +477,7 @@ export class Transition extends StructFrozen {
   }
 
   static __packProto__(object: Transition): TransitionProto {
-    const objectProto: Partial<TransitionProto> = { metatype: 600900 };
+    const objectProto: Partial<TransitionProto> = { metatype: 2100900 };
     objectProto.type = Number(object.type) as TransitionTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -574,9 +574,9 @@ export class Transition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRANSITION, Transition);
-/* ==== DESTACK_GENERATED_END:STRUCT:600900 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100900 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600900 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100900 ==== */
 /**
  * A transition style.
  */
@@ -1336,7 +1336,7 @@ export class TransitionStyle extends Style {
 
   static __packValue__(object: TransitionStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600900;
+    objectValue["1"] = 2100900;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1537,7 +1537,7 @@ export class TransitionStyle extends Style {
   }
 
   static __packProto__(object: TransitionStyle): TransitionStyleProto {
-    const objectProto: Partial<TransitionStyleProto> = { metatype: 600900 };
+    const objectProto: Partial<TransitionStyleProto> = { metatype: 2100900 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1757,4 +1757,4 @@ export class TransitionStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TRANSITION_STYLE, TransitionStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600900 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100900 ==== */

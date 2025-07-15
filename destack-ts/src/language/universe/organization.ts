@@ -32,7 +32,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:22500 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:103000 ==== */
 /**
  * OrganizationStatus
  */
@@ -45,9 +45,9 @@ export enum OrganizationStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ORGANIZATION_STATUS, OrganizationStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:22500 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:103000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:22000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:122000 ==== */
 /**
  * An Organization with Users and Teams.
  */
@@ -431,7 +431,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
 
   static __packValue__(object: Organization): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 22000;
+    objectValue["1"] = 122000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -533,7 +533,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   }
 
   static __packProto__(object: Organization): OrganizationProto {
-    const objectProto: Partial<OrganizationProto> = { metatype: 22000 };
+    const objectProto: Partial<OrganizationProto> = { metatype: 122000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -671,4 +671,4 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ORGANIZATION, Organization);
-/* ==== DESTACK_GENERATED_END:NODE:22000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:122000 ==== */

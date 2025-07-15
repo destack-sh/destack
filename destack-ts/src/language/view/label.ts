@@ -51,7 +51,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:520300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1800300 ==== */
 /**
  * A label container View for form-like input views.
  */
@@ -1285,7 +1285,7 @@ export class LabelView extends ContainerView {
 
   static __packValue__(object: LabelView): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 520300;
+    objectValue["1"] = 1800300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1421,7 +1421,6 @@ export class LabelView extends ContainerView {
   ): LabelView {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1433,6 +1432,7 @@ export class LabelView extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const layoutValue = objectValue["120"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectValue["121"];
@@ -1662,7 +1662,7 @@ export class LabelView extends ContainerView {
   }
 
   static __packProto__(object: LabelView): LabelViewProto {
-    const objectProto: Partial<LabelViewProto> = { metatype: 520300 };
+    const objectProto: Partial<LabelViewProto> = { metatype: 1800300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1797,7 +1797,6 @@ export class LabelView extends ContainerView {
   ): LabelView {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1809,6 +1808,7 @@ export class LabelView extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2023,4 +2023,4 @@ export class LabelView extends ContainerView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LABEL_VIEW, LabelView);
-/* ==== DESTACK_GENERATED_END:NODE:520300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1800300 ==== */

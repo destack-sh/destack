@@ -43,7 +43,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:60101 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360101 ==== */
 /**
  * A Event regarding an Invite.
  */
@@ -112,9 +112,9 @@ export abstract class InviteEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_EVENT, InviteEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60101 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360101 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60102 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360102 ==== */
 /**
  * An Invite was sent.
  */
@@ -481,7 +481,7 @@ export class InviteSentEvent extends InviteEvent {
 
   static __packValue__(object: InviteSentEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60102;
+    objectValue["1"] = 360102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -590,7 +590,7 @@ export class InviteSentEvent extends InviteEvent {
   }
 
   static __packProto__(object: InviteSentEvent): InviteSentEventProto {
-    const objectProto: Partial<InviteSentEventProto> = { metatype: 60102 };
+    const objectProto: Partial<InviteSentEventProto> = { metatype: 360102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -721,9 +721,9 @@ export class InviteSentEvent extends InviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_SENT_EVENT, InviteSentEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360102 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60103 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360103 ==== */
 /**
  * An Invite was rescinded.
  */
@@ -1050,7 +1050,7 @@ export class InviteRescindedEvent extends InviteEvent {
 
   static __packValue__(object: InviteRescindedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60103;
+    objectValue["1"] = 360103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1155,7 +1155,7 @@ export class InviteRescindedEvent extends InviteEvent {
   }
 
   static __packProto__(object: InviteRescindedEvent): InviteRescindedEventProto {
-    const objectProto: Partial<InviteRescindedEventProto> = { metatype: 60103 };
+    const objectProto: Partial<InviteRescindedEventProto> = { metatype: 360103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1282,9 +1282,9 @@ export class InviteRescindedEvent extends InviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_RESCINDED_EVENT, InviteRescindedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60103 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360103 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60104 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360104 ==== */
 /**
  * An Invite was accepted.
  */
@@ -1651,7 +1651,7 @@ export class InviteAcceptedEvent extends InviteEvent {
 
   static __packValue__(object: InviteAcceptedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60104;
+    objectValue["1"] = 360104;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1766,7 +1766,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   }
 
   static __packProto__(object: InviteAcceptedEvent): InviteAcceptedEventProto {
-    const objectProto: Partial<InviteAcceptedEventProto> = { metatype: 60104 };
+    const objectProto: Partial<InviteAcceptedEventProto> = { metatype: 360104 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1903,9 +1903,9 @@ export class InviteAcceptedEvent extends InviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_ACCEPTED_EVENT, InviteAcceptedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60104 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360104 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60105 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360105 ==== */
 /**
  * An Invite was rejected.
  */
@@ -2232,7 +2232,7 @@ export class InviteRejectedEvent extends InviteEvent {
 
   static __packValue__(object: InviteRejectedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60105;
+    objectValue["1"] = 360105;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -2337,7 +2337,7 @@ export class InviteRejectedEvent extends InviteEvent {
   }
 
   static __packProto__(object: InviteRejectedEvent): InviteRejectedEventProto {
-    const objectProto: Partial<InviteRejectedEventProto> = { metatype: 60105 };
+    const objectProto: Partial<InviteRejectedEventProto> = { metatype: 360105 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -2464,9 +2464,9 @@ export class InviteRejectedEvent extends InviteEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE_REJECTED_EVENT, InviteRejectedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:60105 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360105 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:60100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:360100 ==== */
 /**
  * An Invite to a Joinable.
  */
@@ -3046,7 +3046,7 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
 
   static __packValue__(object: Invite): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 60100;
+    objectValue["1"] = 360100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -3217,7 +3217,7 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
   }
 
   static __packProto__(object: Invite): InviteProto {
-    const objectProto: Partial<InviteProto> = { metatype: 60100 };
+    const objectProto: Partial<InviteProto> = { metatype: 360100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -3427,4 +3427,4 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.INVITE, Invite);
-/* ==== DESTACK_GENERATED_END:NODE:60100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:360100 ==== */

@@ -28,7 +28,7 @@ import type { Space } from "@destack/language/universe";
 import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:520100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1800100 ==== */
 /**
  * A container View contains other Views.
  * Containers can be laid out as stacks or grids.
@@ -391,4 +391,4 @@ export abstract class ContainerView extends View {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CONTAINER_VIEW, ContainerView);
-/* ==== DESTACK_GENERATED_END:NODE:520100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1800100 ==== */

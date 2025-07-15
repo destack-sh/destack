@@ -47,7 +47,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600206 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100206 ==== */
 /**
  * BorderType
  */
@@ -63,9 +63,9 @@ export enum BorderType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.BORDER_TYPE, BorderType);
-/* ==== DESTACK_GENERATED_END:ENUM:600206 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100206 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600600 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100600 ==== */
 /**
  * A border value.
  */
@@ -233,7 +233,7 @@ export class Border extends StructFrozen {
 
   static __packValue__(object: Border): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600600;
+    objectValue["1"] = 2100600;
     objectValue["100"] = object.type;
     if (object.color != null) {
       objectValue["101"] = object.color.toValue();
@@ -301,7 +301,7 @@ export class Border extends StructFrozen {
   }
 
   static __packProto__(object: Border): BorderProto {
-    const objectProto: Partial<BorderProto> = { metatype: 600600 };
+    const objectProto: Partial<BorderProto> = { metatype: 2100600 };
     objectProto.type = Number(object.type) as BorderTypeProto;
     if (object.color != null) {
       objectProto.color = object.color.toProto();
@@ -371,9 +371,9 @@ export class Border extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.BORDER, Border);
-/* ==== DESTACK_GENERATED_END:STRUCT:600600 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100600 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100600 ==== */
 /**
  * A border style.
  */
@@ -979,7 +979,7 @@ export class BorderStyle extends Style {
 
   static __packValue__(object: BorderStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600600;
+    objectValue["1"] = 2100600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1153,7 +1153,7 @@ export class BorderStyle extends Style {
   }
 
   static __packProto__(object: BorderStyle): BorderStyleProto {
-    const objectProto: Partial<BorderStyleProto> = { metatype: 600600 };
+    const objectProto: Partial<BorderStyleProto> = { metatype: 2100600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1359,4 +1359,4 @@ export class BorderStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.BORDER_STYLE, BorderStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600600 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100600 ==== */

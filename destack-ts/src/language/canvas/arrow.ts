@@ -61,7 +61,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:540300 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1900200 ==== */
 /**
  * ArrowHeadType
  */
@@ -75,9 +75,9 @@ export enum ArrowHeadType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.ARROW_HEAD_TYPE, ArrowHeadType);
-/* ==== DESTACK_GENERATED_END:ENUM:540300 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1900200 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:540300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1900200 ==== */
 /**
  * An Arrow is a shape that represents an arrow.
  */
@@ -211,7 +211,7 @@ export class Arrow extends StructFrozen {
 
   static __packValue__(object: Arrow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 540300;
+    objectValue["1"] = 1900200;
     objectValue["200"] = object.startType;
     objectValue["201"] = object.start.toValue();
     objectValue["210"] = object.endType;
@@ -256,7 +256,7 @@ export class Arrow extends StructFrozen {
   }
 
   static __packProto__(object: Arrow): ArrowProto {
-    const objectProto: Partial<ArrowProto> = { metatype: 540300 };
+    const objectProto: Partial<ArrowProto> = { metatype: 1900200 };
     objectProto.startType = Number(object.startType) as ArrowHeadTypeProto;
     objectProto.start = object.start.toProto();
     objectProto.endType = Number(object.endType) as ArrowHeadTypeProto;
@@ -303,9 +303,9 @@ export class Arrow extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ARROW, Arrow);
-/* ==== DESTACK_GENERATED_END:STRUCT:540300 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1900200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:540300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1900200 ==== */
 /**
  * An ArrowShape is a shape that represents an arrow.
  */
@@ -1674,7 +1674,7 @@ export class ArrowShape extends Shape {
 
   static __packValue__(object: ArrowShape): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 540300;
+    objectValue["1"] = 1900200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1817,7 +1817,6 @@ export class ArrowShape extends Shape {
   ): ArrowShape {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -1830,6 +1829,7 @@ export class ArrowShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const strokeValue = objectValue["180"];
     const unpackedStroke =
       strokeValue != undefined
@@ -2069,7 +2069,7 @@ export class ArrowShape extends Shape {
   }
 
   static __packProto__(object: ArrowShape): ArrowShapeProto {
-    const objectProto: Partial<ArrowShapeProto> = { metatype: 540300 };
+    const objectProto: Partial<ArrowShapeProto> = { metatype: 1900200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -2211,7 +2211,6 @@ export class ArrowShape extends Shape {
   ): ArrowShape {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
     const _Grid = STRUCT_CLASS_BY_TYPE[StructType.GRID] as typeof Grid;
@@ -2224,6 +2223,7 @@ export class ArrowShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2446,4 +2446,4 @@ export class ArrowShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ARROW_SHAPE, ArrowShape);
-/* ==== DESTACK_GENERATED_END:NODE:540300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1900200 ==== */

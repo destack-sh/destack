@@ -30,7 +30,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:21300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:121300 ==== */
 /**
  * A Client to connect with the system.
  */
@@ -711,7 +711,7 @@ export class Client extends Entity implements IsDeletable {
 
   static __packValue__(object: Client): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 21300;
+    objectValue["1"] = 121300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -894,7 +894,7 @@ export class Client extends Entity implements IsDeletable {
   }
 
   static __packProto__(object: Client): ClientProto {
-    const objectProto: Partial<ClientProto> = { metatype: 21300 };
+    const objectProto: Partial<ClientProto> = { metatype: 121300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1097,4 +1097,4 @@ export class Client extends Entity implements IsDeletable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CLIENT, Client);
-/* ==== DESTACK_GENERATED_END:NODE:21300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:121300 ==== */

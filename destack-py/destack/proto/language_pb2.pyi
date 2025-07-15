@@ -316,7 +316,6 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_EDGE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EDGE_DIRECTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CASCADE_ACTION: _ClassVar[EnumTypeProto]
-    ENUM_TYPE_MODE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_RESOURCE_STATUS: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_SNAPSHOT_STATUS: _ClassVar[EnumTypeProto]
@@ -367,6 +366,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_WINDOW_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_LAYER_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_ARROW_HEAD_TYPE: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_MODE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_TOOL_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_MOUSE_BUTTON: _ClassVar[EnumTypeProto]
     ENUM_TYPE_COLOR_TYPE: _ClassVar[EnumTypeProto]
@@ -777,7 +777,6 @@ class NodeTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     NODE_TYPE_SIGNAL: _ClassVar[NodeTypeProto]
     NODE_TYPE_EDIT_EVENT: _ClassVar[NodeTypeProto]
     NODE_TYPE_MEASUREMENT_EVENT: _ClassVar[NodeTypeProto]
-    NODE_TYPE_UNIVERSE: _ClassVar[NodeTypeProto]
     NODE_TYPE_SPACE: _ClassVar[NodeTypeProto]
     NODE_TYPE_HANDLE: _ClassVar[NodeTypeProto]
     NODE_TYPE_USER: _ClassVar[NodeTypeProto]
@@ -1222,7 +1221,7 @@ class SpringTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     SPRING_TYPE_UNSPECIFIED: _ClassVar[SpringTypeProto]
     SPRING_TYPE_TIME: _ClassVar[SpringTypeProto]
-    SPRING_TYPE_PHYSICS: _ClassVar[SpringTypeProto]
+    SPRING_TYPE_PHYSICAL: _ClassVar[SpringTypeProto]
 
 class StoreDomainProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1311,15 +1310,6 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_STRING_CONSTRAINT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_COLLECTION_CONSTRAINT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_NODE_CONSTRAINT: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTORF: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR2F: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR3F: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR4F: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTORI: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR2I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR3I: _ClassVar[StructTypeProto]
-    STRUCT_TYPE_VECTOR4I: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TEXT: _ClassVar[StructTypeProto]
     STRUCT_TYPE_TEXT_SPAN: _ClassVar[StructTypeProto]
     STRUCT_TYPE_ICON: _ClassVar[StructTypeProto]
@@ -1350,6 +1340,15 @@ class StructTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STRUCT_TYPE_STROKE_CAP: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE_PATH: _ClassVar[StructTypeProto]
     STRUCT_TYPE_STROKE_POINT: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTORF: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR2F: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR3F: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR4F: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTORI: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR2I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR3I: _ClassVar[StructTypeProto]
+    STRUCT_TYPE_VECTOR4I: _ClassVar[StructTypeProto]
 
 class TenancyProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1463,21 +1462,27 @@ class UniverseCategoryProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     UNIVERSE_CATEGORY_SPACE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_ACCESS: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_DATA: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_MEDIA: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_LOCALE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_LOGIC: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_QUALITY: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_INTELLIGENCE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_INFRASTRUCTURE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_DEPLOYMENT: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_OBSERVABILITY: _ClassVar[UniverseCategoryProto]
-    UNIVERSE_CATEGORY_OPTIMIZATION: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_EXPERIENCE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_SOCIAL: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_FINANCE: _ClassVar[UniverseCategoryProto]
-    UNIVERSE_CATEGORY_PHYSICS: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_SCENE: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_VIEW: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_CANVAS: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_INTERACTION: _ClassVar[UniverseCategoryProto]
-    UNIVERSE_CATEGORY_ANIMATION: _ClassVar[UniverseCategoryProto]
     UNIVERSE_CATEGORY_STYLE: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_ANIMATION: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_AUDIO: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_GEOMETRY: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_PHYSICS: _ClassVar[UniverseCategoryProto]
+    UNIVERSE_CATEGORY_LIGHTING: _ClassVar[UniverseCategoryProto]
 
 class UserStatusProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1716,7 +1721,6 @@ ENUM_TYPE_PROPERTY_TYPE: EnumTypeProto
 ENUM_TYPE_EDGE_TYPE: EnumTypeProto
 ENUM_TYPE_EDGE_DIRECTION: EnumTypeProto
 ENUM_TYPE_CASCADE_ACTION: EnumTypeProto
-ENUM_TYPE_MODE_TYPE: EnumTypeProto
 ENUM_TYPE_RESOURCE_STATUS: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_TYPE: EnumTypeProto
 ENUM_TYPE_SNAPSHOT_STATUS: EnumTypeProto
@@ -1767,6 +1771,7 @@ ENUM_TYPE_NOTIFICATION_STATUS: EnumTypeProto
 ENUM_TYPE_WINDOW_TYPE: EnumTypeProto
 ENUM_TYPE_LAYER_TYPE: EnumTypeProto
 ENUM_TYPE_ARROW_HEAD_TYPE: EnumTypeProto
+ENUM_TYPE_MODE_TYPE: EnumTypeProto
 ENUM_TYPE_TOOL_TYPE: EnumTypeProto
 ENUM_TYPE_MOUSE_BUTTON: EnumTypeProto
 ENUM_TYPE_COLOR_TYPE: EnumTypeProto
@@ -2081,7 +2086,6 @@ NODE_TYPE_VARIANT: NodeTypeProto
 NODE_TYPE_SIGNAL: NodeTypeProto
 NODE_TYPE_EDIT_EVENT: NodeTypeProto
 NODE_TYPE_MEASUREMENT_EVENT: NodeTypeProto
-NODE_TYPE_UNIVERSE: NodeTypeProto
 NODE_TYPE_SPACE: NodeTypeProto
 NODE_TYPE_HANDLE: NodeTypeProto
 NODE_TYPE_USER: NodeTypeProto
@@ -2424,7 +2428,7 @@ SPACE_STATUS_CREATING: SpaceStatusProto
 SPACE_STATUS_ACTIVE: SpaceStatusProto
 SPRING_TYPE_UNSPECIFIED: SpringTypeProto
 SPRING_TYPE_TIME: SpringTypeProto
-SPRING_TYPE_PHYSICS: SpringTypeProto
+SPRING_TYPE_PHYSICAL: SpringTypeProto
 STORE_DOMAIN_UNSPECIFIED: StoreDomainProto
 STORE_DOMAIN_ENTITY: StoreDomainProto
 STORE_DOMAIN_EVENT: StoreDomainProto
@@ -2492,15 +2496,6 @@ STRUCT_TYPE_NUMBER_CONSTRAINT: StructTypeProto
 STRUCT_TYPE_STRING_CONSTRAINT: StructTypeProto
 STRUCT_TYPE_COLLECTION_CONSTRAINT: StructTypeProto
 STRUCT_TYPE_NODE_CONSTRAINT: StructTypeProto
-STRUCT_TYPE_VECTOR: StructTypeProto
-STRUCT_TYPE_VECTORF: StructTypeProto
-STRUCT_TYPE_VECTOR2F: StructTypeProto
-STRUCT_TYPE_VECTOR3F: StructTypeProto
-STRUCT_TYPE_VECTOR4F: StructTypeProto
-STRUCT_TYPE_VECTORI: StructTypeProto
-STRUCT_TYPE_VECTOR2I: StructTypeProto
-STRUCT_TYPE_VECTOR3I: StructTypeProto
-STRUCT_TYPE_VECTOR4I: StructTypeProto
 STRUCT_TYPE_TEXT: StructTypeProto
 STRUCT_TYPE_TEXT_SPAN: StructTypeProto
 STRUCT_TYPE_ICON: StructTypeProto
@@ -2531,6 +2526,15 @@ STRUCT_TYPE_STROKE: StructTypeProto
 STRUCT_TYPE_STROKE_CAP: StructTypeProto
 STRUCT_TYPE_STROKE_PATH: StructTypeProto
 STRUCT_TYPE_STROKE_POINT: StructTypeProto
+STRUCT_TYPE_VECTOR: StructTypeProto
+STRUCT_TYPE_VECTORF: StructTypeProto
+STRUCT_TYPE_VECTOR2F: StructTypeProto
+STRUCT_TYPE_VECTOR3F: StructTypeProto
+STRUCT_TYPE_VECTOR4F: StructTypeProto
+STRUCT_TYPE_VECTORI: StructTypeProto
+STRUCT_TYPE_VECTOR2I: StructTypeProto
+STRUCT_TYPE_VECTOR3I: StructTypeProto
+STRUCT_TYPE_VECTOR4I: StructTypeProto
 TENANCY_UNSPECIFIED: TenancyProto
 TENANCY_DEDICATED: TenancyProto
 TENANCY_SHARED: TenancyProto
@@ -2605,21 +2609,27 @@ UNIVERSE_CATEGORY_UNIVERSE: UniverseCategoryProto
 UNIVERSE_CATEGORY_SPACE: UniverseCategoryProto
 UNIVERSE_CATEGORY_ACCESS: UniverseCategoryProto
 UNIVERSE_CATEGORY_DATA: UniverseCategoryProto
+UNIVERSE_CATEGORY_MEDIA: UniverseCategoryProto
+UNIVERSE_CATEGORY_LOCALE: UniverseCategoryProto
 UNIVERSE_CATEGORY_LOGIC: UniverseCategoryProto
+UNIVERSE_CATEGORY_QUALITY: UniverseCategoryProto
 UNIVERSE_CATEGORY_INTELLIGENCE: UniverseCategoryProto
 UNIVERSE_CATEGORY_INFRASTRUCTURE: UniverseCategoryProto
 UNIVERSE_CATEGORY_DEPLOYMENT: UniverseCategoryProto
 UNIVERSE_CATEGORY_OBSERVABILITY: UniverseCategoryProto
-UNIVERSE_CATEGORY_OPTIMIZATION: UniverseCategoryProto
+UNIVERSE_CATEGORY_EXPERIENCE: UniverseCategoryProto
 UNIVERSE_CATEGORY_SOCIAL: UniverseCategoryProto
 UNIVERSE_CATEGORY_FINANCE: UniverseCategoryProto
-UNIVERSE_CATEGORY_PHYSICS: UniverseCategoryProto
 UNIVERSE_CATEGORY_SCENE: UniverseCategoryProto
 UNIVERSE_CATEGORY_VIEW: UniverseCategoryProto
 UNIVERSE_CATEGORY_CANVAS: UniverseCategoryProto
 UNIVERSE_CATEGORY_INTERACTION: UniverseCategoryProto
-UNIVERSE_CATEGORY_ANIMATION: UniverseCategoryProto
 UNIVERSE_CATEGORY_STYLE: UniverseCategoryProto
+UNIVERSE_CATEGORY_ANIMATION: UniverseCategoryProto
+UNIVERSE_CATEGORY_AUDIO: UniverseCategoryProto
+UNIVERSE_CATEGORY_GEOMETRY: UniverseCategoryProto
+UNIVERSE_CATEGORY_PHYSICS: UniverseCategoryProto
+UNIVERSE_CATEGORY_LIGHTING: UniverseCategoryProto
 USER_STATUS_UNSPECIFIED: UserStatusProto
 USER_STATUS_CREATING: UserStatusProto
 USER_STATUS_ACTIVE: UserStatusProto
@@ -10401,7 +10411,7 @@ class StyleProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., name: _Optional[str] = ...) -> None: ...
 
 class TagProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "name", "icon")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "source_ptr", "key", "name", "icon")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -10415,6 +10425,8 @@ class TagProto(_message.Message):
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
+    SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
+    KEY_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
@@ -10430,9 +10442,11 @@ class TagProto(_message.Message):
     updated_by_ptr: NodeReferenceProto
     deleted_at: _timestamp_pb2.Timestamp
     order_key: str
+    source_ptr: NodeReferenceProto
+    key: str
     name: str
     icon: IconProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., predecessor_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., name: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
 
 class TaggingProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "deleted_at", "order_key", "tag_ptr")
@@ -11071,18 +11085,6 @@ class TypeProto(_message.Message):
     is_required: bool
     is_root: bool
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., name: _Optional[str] = ..., cardinality: _Optional[_Union[TypeCardinalityProto, str]] = ..., scalar_type: _Optional[_Union[ScalarTypeProto, str]] = ..., primitive_type: _Optional[_Union[PrimitiveTypeProto, str]] = ..., enum_type: _Optional[_Union[EnumTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., struct_type: _Optional[_Union[StructTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key_type: _Optional[_Union[TypeProto, _Mapping]] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ..., value_factory: _Optional[_Union[ValueFactoryProto, str]] = ..., collection_constraint: _Optional[_Union[CollectionConstraintProto, _Mapping]] = ..., string_constraint: _Optional[_Union[StringConstraintProto, _Mapping]] = ..., number_constraint: _Optional[_Union[NumberConstraintProto, _Mapping]] = ..., node_constraint: _Optional[_Union[NodeConstraintProto, _Mapping]] = ..., is_required: bool = ..., is_root: bool = ...) -> None: ...
-
-class UniverseProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr")
-    METATYPE_FIELD_NUMBER: _ClassVar[int]
-    ID_FIELD_NUMBER: _ClassVar[int]
-    PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
-    SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
-    metatype: NodeTypeProto
-    id: str
-    parent_ptr: NodeReferenceProto
-    space_ptr: NodeReferenceProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class UserProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "predecessor_ptr", "created_at", "created_by_ptr", "updated_at", "updated_by_ptr", "custom_values", "name", "slug", "status", "last_logged_in_at", "is_staff", "handle_ptr", "cursor_ptr", "email", "password_salt", "password_hash")

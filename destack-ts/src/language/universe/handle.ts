@@ -25,7 +25,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:20200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:100200 ==== */
 /**
  * A Destack @handle.
  */
@@ -342,7 +342,7 @@ export class Handle extends Entity {
 
   static __packValue__(object: Handle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20200;
+    objectValue["1"] = 100200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -433,7 +433,7 @@ export class Handle extends Entity {
   }
 
   static __packProto__(object: Handle): HandleProto {
-    const objectProto: Partial<HandleProto> = { metatype: 20200 };
+    const objectProto: Partial<HandleProto> = { metatype: 100200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -556,4 +556,4 @@ export class Handle extends Entity {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.HANDLE, Handle);
-/* ==== DESTACK_GENERATED_END:NODE:20200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:100200 ==== */

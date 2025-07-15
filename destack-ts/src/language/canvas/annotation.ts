@@ -53,7 +53,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:540400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1900300 ==== */
 /**
  * An AnnotationShape is a shape that represents an annotation.
  */
@@ -1346,7 +1346,7 @@ export class AnnotationShape extends Shape {
 
   static __packValue__(object: AnnotationShape): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 540400;
+    objectValue["1"] = 1900300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1488,7 +1488,6 @@ export class AnnotationShape extends Shape {
   ): AnnotationShape {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -1502,6 +1501,7 @@ export class AnnotationShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const textValue = objectValue["250"];
     const unpackedText =
       textValue != undefined
@@ -1743,7 +1743,7 @@ export class AnnotationShape extends Shape {
   }
 
   static __packProto__(object: AnnotationShape): AnnotationShapeProto {
-    const objectProto: Partial<AnnotationShapeProto> = { metatype: 540400 };
+    const objectProto: Partial<AnnotationShapeProto> = { metatype: 1900300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1884,7 +1884,6 @@ export class AnnotationShape extends Shape {
   ): AnnotationShape {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Position = STRUCT_CLASS_BY_TYPE[StructType.POSITION] as typeof Position;
     const _Dimension = STRUCT_CLASS_BY_TYPE[StructType.DIMENSION] as typeof Dimension;
@@ -1898,6 +1897,7 @@ export class AnnotationShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
+    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2120,4 +2120,4 @@ export class AnnotationShape extends Shape {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.ANNOTATION_SHAPE, AnnotationShape);
-/* ==== DESTACK_GENERATED_END:NODE:540400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1900300 ==== */

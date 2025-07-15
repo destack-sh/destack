@@ -35,7 +35,7 @@ import { base64Decode, base64Encode } from "@destack/utils";
 import { hashBool, hashBytes, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:21200 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:101000 ==== */
 /**
  * UserStatus
  */
@@ -48,9 +48,9 @@ export enum UserStatus {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.USER_STATUS, UserStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:21200 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:101000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:21000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:121000 ==== */
 /**
  * A User is a human using Destack.
  */
@@ -658,7 +658,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
 
   static __packValue__(object: User): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 21000;
+    objectValue["1"] = 121000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -823,7 +823,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   }
 
   static __packProto__(object: User): UserProto {
-    const objectProto: Partial<UserProto> = { metatype: 21000 };
+    const objectProto: Partial<UserProto> = { metatype: 121000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1014,4 +1014,4 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.USER, User);
-/* ==== DESTACK_GENERATED_END:NODE:21000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:121000 ==== */

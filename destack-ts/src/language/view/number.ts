@@ -33,7 +33,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:530100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1810100 ==== */
 /**
  * A general number input View.
  */
@@ -855,7 +855,7 @@ export class NumberInputView extends InputView {
 
   static __packValue__(object: NumberInputView): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 530100;
+    objectValue["1"] = 1810100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1102,7 +1102,7 @@ export class NumberInputView extends InputView {
   }
 
   static __packProto__(object: NumberInputView): NumberInputViewProto {
-    const objectProto: Partial<NumberInputViewProto> = { metatype: 530100 };
+    const objectProto: Partial<NumberInputViewProto> = { metatype: 1810100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1361,4 +1361,4 @@ export class NumberInputView extends InputView {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.NUMBER_INPUT_VIEW, NumberInputView);
-/* ==== DESTACK_GENERATED_END:NODE:530100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1810100 ==== */

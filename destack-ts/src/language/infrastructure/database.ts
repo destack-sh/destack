@@ -48,7 +48,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:140005 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1000005 ==== */
 /**
  * DatabaseType
  */
@@ -60,9 +60,9 @@ export enum DatabaseType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.DATABASE_TYPE, DatabaseType);
-/* ==== DESTACK_GENERATED_END:ENUM:140005 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1000005 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:140001 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1000001 ==== */
 /**
  * DatabaseInfo
  */
@@ -256,7 +256,7 @@ export class DatabaseInfo extends StructFrozen {
 
   static __packValue__(object: DatabaseInfo): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 140001;
+    objectValue["1"] = 1000001;
     objectValue["100"] = object.type;
     objectValue["110"] = object.region;
     if (object.galaxyName != null) {
@@ -319,7 +319,7 @@ export class DatabaseInfo extends StructFrozen {
   }
 
   static __packProto__(object: DatabaseInfo): DatabaseInfoProto {
-    const objectProto: Partial<DatabaseInfoProto> = { metatype: 140001 };
+    const objectProto: Partial<DatabaseInfoProto> = { metatype: 1000001 };
     objectProto.type = Number(object.type) as DatabaseTypeProto;
     objectProto.region = Number(object.region) as RegionProto;
     if (object.galaxyName != null) {
@@ -378,9 +378,9 @@ export class DatabaseInfo extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.DATABASE_INFO, DatabaseInfo);
-/* ==== DESTACK_GENERATED_END:STRUCT:140001 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1000001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:140000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1000000 ==== */
 /**
  * A primary storage Database of some flavor.
  */
@@ -388,12 +388,12 @@ export class Database extends Resource {
   static metatype: NodeType = NodeType.DATABASE;
 
   /**
-   * Database.parent
+   * Entity.parent
    */
-  get parent(): Space | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -704,7 +704,7 @@ export class Database extends Resource {
 
   constructor(options: {
     id?: string;
-    parent?: Space | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     definition?: (Entity & IsExtensible) | NodeReference | null;
     materialization?: Materialization;
@@ -968,9 +968,6 @@ export class Database extends Resource {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
@@ -995,6 +992,9 @@ export class Database extends Resource {
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -1083,7 +1083,7 @@ export class Database extends Resource {
 
   static __packValue__(object: Database): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 140000;
+    objectValue["1"] = 1000000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1152,11 +1152,6 @@ export class Database extends Resource {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -1178,6 +1173,11 @@ export class Database extends Resource {
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1217,7 +1217,6 @@ export class Database extends Resource {
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Database({
-      parent: unpackedParentPtr,
       name: objectValue["101"],
       icon: unpackedIcon,
       type: Number(objectValue["100"]),
@@ -1231,6 +1230,7 @@ export class Database extends Resource {
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       deletedAt: unpackedDeletedAt,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       predecessor: unpackedPredecessorPtr,
@@ -1263,7 +1263,7 @@ export class Database extends Resource {
   }
 
   static __packProto__(object: Database): DatabaseProto {
-    const objectProto: Partial<DatabaseProto> = { metatype: 140000 };
+    const objectProto: Partial<DatabaseProto> = { metatype: 1000000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1341,16 +1341,6 @@ export class Database extends Resource {
       }
     }
     return new Database({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       name: objectProto.name,
       icon:
         objectProto.icon != undefined
@@ -1378,6 +1368,16 @@ export class Database extends Resource {
       isExtensible: objectProto.isExtensible,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1467,4 +1467,4 @@ export class Database extends Resource {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.DATABASE, Database);
-/* ==== DESTACK_GENERATED_END:NODE:140000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1000000 ==== */

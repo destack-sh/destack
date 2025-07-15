@@ -3988,7 +3988,7 @@ export interface EnumDefinitionProto {
     options: OptionDefinitionProto[];
 }
 /**
- * An Environment is a deployment of a Space.
+ * An Environment is a deployment scenario of a Space.
  *
  * @generated from protobuf message symbol.destack.EnvironmentProto
  */
@@ -14345,6 +14345,14 @@ export interface TagProto {
      */
     orderKey: string;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto source_ptr = 60
+     */
+    sourcePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional string key = 70
+     */
+    key?: string;
+    /**
      * @generated from protobuf field: string name = 101
      */
     name: string;
@@ -15554,30 +15562,6 @@ export interface TypeProto {
     isRoot?: boolean;
 }
 /**
- * The Universe of Destack.
- * An abstract container for useful constants.
- *
- * @generated from protobuf message symbol.destack.UniverseProto
- */
-export interface UniverseProto {
-    /**
-     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
-     */
-    metatype: NodeTypeProto;
-    /**
-     * @generated from protobuf field: string id = 2
-     */
-    id: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
-     */
-    parentPtr?: NodeReferenceProto;
-    /**
-     * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
-     */
-    spacePtr?: NodeReferenceProto;
-}
-/**
  * A User is a human using Destack.
  *
  * @generated from protobuf message symbol.destack.UserProto
@@ -16313,457 +16297,457 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "entitlementRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 60502
+         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 360502
          */
         entitlementRequestedEvent: EntitlementRequestedEventProto;
     } | {
         oneofKind: "entitlementGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 60503
+         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 360503
          */
         entitlementGrantedEvent: EntitlementGrantedEventProto;
     } | {
         oneofKind: "entitlementRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 60504
+         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 360504
          */
         entitlementRevokedEvent: EntitlementRevokedEventProto;
     } | {
         oneofKind: "entitlementExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 60505
+         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 360505
          */
         entitlementExpiredEvent: EntitlementExpiredEventProto;
     } | {
         oneofKind: "entitlement";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 60500
+         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 360500
          */
         entitlement: EntitlementProto;
     } | {
         oneofKind: "inviteSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 60102
+         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 360102
          */
         inviteSentEvent: InviteSentEventProto;
     } | {
         oneofKind: "inviteRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 60103
+         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 360103
          */
         inviteRescindedEvent: InviteRescindedEventProto;
     } | {
         oneofKind: "inviteAcceptedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 60104
+         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 360104
          */
         inviteAcceptedEvent: InviteAcceptedEventProto;
     } | {
         oneofKind: "inviteRejectedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 60105
+         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 360105
          */
         inviteRejectedEvent: InviteRejectedEventProto;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbol.destack.InviteProto invite = 60100
+         * @generated from protobuf field: symbol.destack.InviteProto invite = 360100
          */
         invite: InviteProto;
     } | {
         oneofKind: "membershipJoinedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 60002
+         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 360002
          */
         membershipJoinedEvent: MembershipJoinedEventProto;
     } | {
         oneofKind: "membershipLeftEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 60003
+         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 360003
          */
         membershipLeftEvent: MembershipLeftEventProto;
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipProto membership = 60000
+         * @generated from protobuf field: symbol.destack.MembershipProto membership = 360000
          */
         membership: MembershipProto;
     } | {
         oneofKind: "permission";
         /**
-         * @generated from protobuf field: symbol.destack.PermissionProto permission = 60300
+         * @generated from protobuf field: symbol.destack.PermissionProto permission = 360300
          */
         permission: PermissionProto;
     } | {
         oneofKind: "roleAssignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 60202
+         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 360202
          */
         roleAssignedEvent: RoleAssignedEventProto;
     } | {
         oneofKind: "roleUnassignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 60203
+         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 360203
          */
         roleUnassignedEvent: RoleUnassignedEventProto;
     } | {
         oneofKind: "role";
         /**
-         * @generated from protobuf field: symbol.destack.RoleProto role = 60200
+         * @generated from protobuf field: symbol.destack.RoleProto role = 360200
          */
         role: RoleProto;
     } | {
         oneofKind: "sanctionRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 60402
+         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 360402
          */
         sanctionRequestedEvent: SanctionRequestedEventProto;
     } | {
         oneofKind: "sanctionGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 60403
+         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 360403
          */
         sanctionGrantedEvent: SanctionGrantedEventProto;
     } | {
         oneofKind: "sanctionRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 60404
+         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 360404
          */
         sanctionRevokedEvent: SanctionRevokedEventProto;
     } | {
         oneofKind: "sanctionExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 60405
+         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 360405
          */
         sanctionExpiredEvent: SanctionExpiredEventProto;
     } | {
         oneofKind: "sanction";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 60400
+         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 360400
          */
         sanction: SanctionProto;
     } | {
         oneofKind: "frameView";
         /**
-         * @generated from protobuf field: symbol.destack.FrameViewProto frame_view = 520200
+         * @generated from protobuf field: symbol.destack.FrameViewProto frame_view = 1800200
          */
         frameView: FrameViewProto;
     } | {
         oneofKind: "internalView";
         /**
-         * @generated from protobuf field: symbol.destack.InternalViewProto internal_view = 535000
+         * @generated from protobuf field: symbol.destack.InternalViewProto internal_view = 1815000
          */
         internalView: InternalViewProto;
     } | {
         oneofKind: "labelView";
         /**
-         * @generated from protobuf field: symbol.destack.LabelViewProto label_view = 520300
+         * @generated from protobuf field: symbol.destack.LabelViewProto label_view = 1800300
          */
         labelView: LabelViewProto;
     } | {
         oneofKind: "numberInputView";
         /**
-         * @generated from protobuf field: symbol.destack.NumberInputViewProto number_input_view = 530100
+         * @generated from protobuf field: symbol.destack.NumberInputViewProto number_input_view = 1810100
          */
         numberInputView: NumberInputViewProto;
     } | {
         oneofKind: "sliderInputView";
         /**
-         * @generated from protobuf field: symbol.destack.SliderInputViewProto slider_input_view = 530200
+         * @generated from protobuf field: symbol.destack.SliderInputViewProto slider_input_view = 1810200
          */
         sliderInputView: SliderInputViewProto;
     } | {
         oneofKind: "splitView";
         /**
-         * @generated from protobuf field: symbol.destack.SplitViewProto split_view = 520400
+         * @generated from protobuf field: symbol.destack.SplitViewProto split_view = 1800400
          */
         splitView: SplitViewProto;
     } | {
         oneofKind: "textView";
         /**
-         * @generated from protobuf field: symbol.destack.TextViewProto text_view = 525100
+         * @generated from protobuf field: symbol.destack.TextViewProto text_view = 1805100
          */
         textView: TextViewProto;
     } | {
         oneofKind: "annotationShape";
         /**
-         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 540400
+         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 1900300
          */
         annotationShape: AnnotationShapeProto;
     } | {
         oneofKind: "arrowShape";
         /**
-         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 540300
+         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 1900200
          */
         arrowShape: ArrowShapeProto;
     } | {
         oneofKind: "lineShape";
         /**
-         * @generated from protobuf field: symbol.destack.LineShapeProto line_shape = 540200
+         * @generated from protobuf field: symbol.destack.LineShapeProto line_shape = 1900100
          */
         lineShape: LineShapeProto;
     } | {
         oneofKind: "file";
         /**
-         * @generated from protobuf field: symbol.destack.FileProto file = 80000
+         * @generated from protobuf field: symbol.destack.FileProto file = 480000
          */
         file: FileProto;
     } | {
         oneofKind: "environment";
         /**
-         * @generated from protobuf field: symbol.destack.EnvironmentProto environment = 160000
+         * @generated from protobuf field: symbol.destack.EnvironmentProto environment = 1100000
          */
         environment: EnvironmentProto;
     } | {
         oneofKind: "logEvent";
         /**
-         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 170301
+         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 1110011
          */
         logEvent: LogEventProto;
     } | {
         oneofKind: "runStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunStartedEventProto run_started_event = 170002
+         * @generated from protobuf field: symbol.destack.RunStartedEventProto run_started_event = 1110002
          */
         runStartedEvent: RunStartedEventProto;
     } | {
         oneofKind: "runPauseRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 170003
+         * @generated from protobuf field: symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 1110003
          */
         runPauseRequestedEvent: RunPauseRequestedEventProto;
     } | {
         oneofKind: "runPausedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunPausedEventProto run_paused_event = 170004
+         * @generated from protobuf field: symbol.destack.RunPausedEventProto run_paused_event = 1110004
          */
         runPausedEvent: RunPausedEventProto;
     } | {
         oneofKind: "runResumeRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 170005
+         * @generated from protobuf field: symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 1110005
          */
         runResumeRequestedEvent: RunResumeRequestedEventProto;
     } | {
         oneofKind: "runResumedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunResumedEventProto run_resumed_event = 170006
+         * @generated from protobuf field: symbol.destack.RunResumedEventProto run_resumed_event = 1110006
          */
         runResumedEvent: RunResumedEventProto;
     } | {
         oneofKind: "runStopRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 170007
+         * @generated from protobuf field: symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 1110007
          */
         runStopRequestedEvent: RunStopRequestedEventProto;
     } | {
         oneofKind: "runFailedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunFailedEventProto run_failed_event = 170008
+         * @generated from protobuf field: symbol.destack.RunFailedEventProto run_failed_event = 1110008
          */
         runFailedEvent: RunFailedEventProto;
     } | {
         oneofKind: "runCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunCompletedEventProto run_completed_event = 170009
+         * @generated from protobuf field: symbol.destack.RunCompletedEventProto run_completed_event = 1110009
          */
         runCompletedEvent: RunCompletedEventProto;
     } | {
         oneofKind: "spanEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 170101
+         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 1110010
          */
         spanEvent: SpanEventProto;
     } | {
         oneofKind: "database";
         /**
-         * @generated from protobuf field: symbol.destack.DatabaseProto database = 140000
+         * @generated from protobuf field: symbol.destack.DatabaseProto database = 1000000
          */
         database: DatabaseProto;
     } | {
         oneofKind: "machine";
         /**
-         * @generated from protobuf field: symbol.destack.MachineProto machine = 140100
+         * @generated from protobuf field: symbol.destack.MachineProto machine = 1001000
          */
         machine: MachineProto;
     } | {
         oneofKind: "copyEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CopyEventProto copy_event = 560501
+         * @generated from protobuf field: symbol.destack.CopyEventProto copy_event = 2000501
          */
         copyEvent: CopyEventProto;
     } | {
         oneofKind: "cutEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CutEventProto cut_event = 560502
+         * @generated from protobuf field: symbol.destack.CutEventProto cut_event = 2000502
          */
         cutEvent: CutEventProto;
     } | {
         oneofKind: "pasteEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PasteEventProto paste_event = 560503
+         * @generated from protobuf field: symbol.destack.PasteEventProto paste_event = 2000503
          */
         pasteEvent: PasteEventProto;
     } | {
         oneofKind: "dragStartEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragStartEventProto drag_start_event = 560401
+         * @generated from protobuf field: symbol.destack.DragStartEventProto drag_start_event = 2000401
          */
         dragStartEvent: DragStartEventProto;
     } | {
         oneofKind: "dragEndEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragEndEventProto drag_end_event = 560402
+         * @generated from protobuf field: symbol.destack.DragEndEventProto drag_end_event = 2000402
          */
         dragEndEvent: DragEndEventProto;
     } | {
         oneofKind: "dragOverEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragOverEventProto drag_over_event = 560403
+         * @generated from protobuf field: symbol.destack.DragOverEventProto drag_over_event = 2000403
          */
         dragOverEvent: DragOverEventProto;
     } | {
         oneofKind: "dragEnterEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragEnterEventProto drag_enter_event = 560404
+         * @generated from protobuf field: symbol.destack.DragEnterEventProto drag_enter_event = 2000404
          */
         dragEnterEvent: DragEnterEventProto;
     } | {
         oneofKind: "dragLeaveEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragLeaveEventProto drag_leave_event = 560405
+         * @generated from protobuf field: symbol.destack.DragLeaveEventProto drag_leave_event = 2000405
          */
         dragLeaveEvent: DragLeaveEventProto;
     } | {
         oneofKind: "dropEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DropEventProto drop_event = 560406
+         * @generated from protobuf field: symbol.destack.DropEventProto drop_event = 2000406
          */
         dropEvent: DropEventProto;
     } | {
         oneofKind: "focusInEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FocusInEventProto focus_in_event = 560601
+         * @generated from protobuf field: symbol.destack.FocusInEventProto focus_in_event = 2000601
          */
         focusInEvent: FocusInEventProto;
     } | {
         oneofKind: "focusOutEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FocusOutEventProto focus_out_event = 560602
+         * @generated from protobuf field: symbol.destack.FocusOutEventProto focus_out_event = 2000602
          */
         focusOutEvent: FocusOutEventProto;
     } | {
         oneofKind: "keyDownEvent";
         /**
-         * @generated from protobuf field: symbol.destack.KeyDownEventProto key_down_event = 560301
+         * @generated from protobuf field: symbol.destack.KeyDownEventProto key_down_event = 2000301
          */
         keyDownEvent: KeyDownEventProto;
     } | {
         oneofKind: "keyUpEvent";
         /**
-         * @generated from protobuf field: symbol.destack.KeyUpEventProto key_up_event = 560302
+         * @generated from protobuf field: symbol.destack.KeyUpEventProto key_up_event = 2000302
          */
         keyUpEvent: KeyUpEventProto;
     } | {
         oneofKind: "keyPressEvent";
         /**
-         * @generated from protobuf field: symbol.destack.KeyPressEventProto key_press_event = 560303
+         * @generated from protobuf field: symbol.destack.KeyPressEventProto key_press_event = 2000303
          */
         keyPressEvent: KeyPressEventProto;
     } | {
         oneofKind: "pointerDownEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerDownEventProto pointer_down_event = 560101
+         * @generated from protobuf field: symbol.destack.PointerDownEventProto pointer_down_event = 2000101
          */
         pointerDownEvent: PointerDownEventProto;
     } | {
         oneofKind: "pointerUpEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerUpEventProto pointer_up_event = 560102
+         * @generated from protobuf field: symbol.destack.PointerUpEventProto pointer_up_event = 2000102
          */
         pointerUpEvent: PointerUpEventProto;
     } | {
         oneofKind: "pointerMoveEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerMoveEventProto pointer_move_event = 560103
+         * @generated from protobuf field: symbol.destack.PointerMoveEventProto pointer_move_event = 2000103
          */
         pointerMoveEvent: PointerMoveEventProto;
     } | {
         oneofKind: "pointerEnterEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerEnterEventProto pointer_enter_event = 560104
+         * @generated from protobuf field: symbol.destack.PointerEnterEventProto pointer_enter_event = 2000104
          */
         pointerEnterEvent: PointerEnterEventProto;
     } | {
         oneofKind: "pointerOverEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerOverEventProto pointer_over_event = 560105
+         * @generated from protobuf field: symbol.destack.PointerOverEventProto pointer_over_event = 2000105
          */
         pointerOverEvent: PointerOverEventProto;
     } | {
         oneofKind: "pointerLeaveEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerLeaveEventProto pointer_leave_event = 560106
+         * @generated from protobuf field: symbol.destack.PointerLeaveEventProto pointer_leave_event = 2000106
          */
         pointerLeaveEvent: PointerLeaveEventProto;
     } | {
         oneofKind: "pointerLongPressEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerLongPressEventProto pointer_long_press_event = 560107
+         * @generated from protobuf field: symbol.destack.PointerLongPressEventProto pointer_long_press_event = 2000107
          */
         pointerLongPressEvent: PointerLongPressEventProto;
     } | {
         oneofKind: "singleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SingleClickEventProto single_click_event = 560202
+         * @generated from protobuf field: symbol.destack.SingleClickEventProto single_click_event = 2000202
          */
         singleClickEvent: SingleClickEventProto;
     } | {
         oneofKind: "doubleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 560203
+         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 2000203
          */
         doubleClickEvent: DoubleClickEventProto;
     } | {
         oneofKind: "tripleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TripleClickEventProto triple_click_event = 560204
+         * @generated from protobuf field: symbol.destack.TripleClickEventProto triple_click_event = 2000204
          */
         tripleClickEvent: TripleClickEventProto;
     } | {
         oneofKind: "wheelEvent";
         /**
-         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 560210
+         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 2000210
          */
         wheelEvent: WheelEventProto;
     } | {
         oneofKind: "method";
         /**
-         * @generated from protobuf field: symbol.destack.MethodProto method = 101000
+         * @generated from protobuf field: symbol.destack.MethodProto method = 701000
          */
         method: MethodProto;
     } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbol.destack.ActionProto action = 101100
+         * @generated from protobuf field: symbol.destack.ActionProto action = 701100
          */
         action: ActionProto;
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 112100
+         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 712100
          */
         eventCursor: EventCursorProto;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 112200
+         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 712200
          */
         screenCursor: ScreenCursorProto;
     } | {
         oneofKind: "script";
         /**
-         * @generated from protobuf field: symbol.destack.ScriptProto script = 100000
+         * @generated from protobuf field: symbol.destack.ScriptProto script = 700000
          */
         script: ScriptProto;
     } | {
@@ -16775,319 +16759,319 @@ export interface SomeNodeProto {
     } | {
         oneofKind: "timerStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 105102
+         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 705102
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 105103
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 705103
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerProto timer = 105100
+         * @generated from protobuf field: symbol.destack.TimerProto timer = 705100
          */
         timer: TimerProto;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 105000
+         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 705000
          */
         trigger: TriggerProto;
     } | {
         oneofKind: "gaugeMetric";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 180000
+         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 1200000
          */
         gaugeMetric: GaugeMetricProto;
     } | {
         oneofKind: "gaugeMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 180001
+         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 1200001
          */
         gaugeMeasurementEvent: GaugeMeasurementEventProto;
     } | {
         oneofKind: "counterMetric";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 180100
+         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 1200100
          */
         counterMetric: CounterMetricProto;
     } | {
         oneofKind: "counterMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 180101
+         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 1200101
          */
         counterMeasurementEvent: CounterMeasurementEventProto;
     } | {
         oneofKind: "histogramMetric";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 180200
+         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 1200200
          */
         histogramMetric: HistogramMetricProto;
     } | {
         oneofKind: "histogramMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 180201
+         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 1200201
          */
         histogramMeasurementEvent: HistogramMeasurementEventProto;
     } | {
         oneofKind: "layer";
         /**
-         * @generated from protobuf field: symbol.destack.LayerProto layer = 500200
+         * @generated from protobuf field: symbol.destack.LayerProto layer = 1700300
          */
         layer: LayerProto;
     } | {
         oneofKind: "scene";
         /**
-         * @generated from protobuf field: symbol.destack.SceneProto scene = 500100
+         * @generated from protobuf field: symbol.destack.SceneProto scene = 1700200
          */
         scene: SceneProto;
     } | {
         oneofKind: "window";
         /**
-         * @generated from protobuf field: symbol.destack.WindowProto window = 500000
+         * @generated from protobuf field: symbol.destack.WindowProto window = 1700100
          */
         window: WindowProto;
     } | {
         oneofKind: "follow";
         /**
-         * @generated from protobuf field: symbol.destack.FollowProto follow = 220200
+         * @generated from protobuf field: symbol.destack.FollowProto follow = 1400200
          */
         follow: FollowProto;
     } | {
         oneofKind: "followEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FollowEventProto follow_event = 220201
+         * @generated from protobuf field: symbol.destack.FollowEventProto follow_event = 1400201
          */
         followEvent: FollowEventProto;
     } | {
         oneofKind: "followAddedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FollowAddedEventProto follow_added_event = 220202
+         * @generated from protobuf field: symbol.destack.FollowAddedEventProto follow_added_event = 1400202
          */
         followAddedEvent: FollowAddedEventProto;
     } | {
         oneofKind: "followRemovedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FollowRemovedEventProto follow_removed_event = 220203
+         * @generated from protobuf field: symbol.destack.FollowRemovedEventProto follow_removed_event = 1400203
          */
         followRemovedEvent: FollowRemovedEventProto;
     } | {
         oneofKind: "notificationSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationSentEventProto notification_sent_event = 220502
+         * @generated from protobuf field: symbol.destack.NotificationSentEventProto notification_sent_event = 1400502
          */
         notificationSentEvent: NotificationSentEventProto;
     } | {
         oneofKind: "notificationRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 220503
+         * @generated from protobuf field: symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 1400503
          */
         notificationRescindedEvent: NotificationRescindedEventProto;
     } | {
         oneofKind: "notificationReadEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationReadEventProto notification_read_event = 220504
+         * @generated from protobuf field: symbol.destack.NotificationReadEventProto notification_read_event = 1400504
          */
         notificationReadEvent: NotificationReadEventProto;
     } | {
         oneofKind: "notificationDismissedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 220505
+         * @generated from protobuf field: symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 1400505
          */
         notificationDismissedEvent: NotificationDismissedEventProto;
     } | {
         oneofKind: "notificationExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationExpiredEventProto notification_expired_event = 220506
+         * @generated from protobuf field: symbol.destack.NotificationExpiredEventProto notification_expired_event = 1400506
          */
         notificationExpiredEvent: NotificationExpiredEventProto;
     } | {
         oneofKind: "notification";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationProto notification = 220500
+         * @generated from protobuf field: symbol.destack.NotificationProto notification = 1400500
          */
         notification: NotificationProto;
     } | {
         oneofKind: "reaction";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionProto reaction = 220000
+         * @generated from protobuf field: symbol.destack.ReactionProto reaction = 1400000
          */
         reaction: ReactionProto;
     } | {
         oneofKind: "reactionEvent";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionEventProto reaction_event = 220001
+         * @generated from protobuf field: symbol.destack.ReactionEventProto reaction_event = 1400001
          */
         reactionEvent: ReactionEventProto;
     } | {
         oneofKind: "reactionAddedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionAddedEventProto reaction_added_event = 220002
+         * @generated from protobuf field: symbol.destack.ReactionAddedEventProto reaction_added_event = 1400002
          */
         reactionAddedEvent: ReactionAddedEventProto;
     } | {
         oneofKind: "reactionRemovedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220003
+         * @generated from protobuf field: symbol.destack.ReactionRemovedEventProto reaction_removed_event = 1400003
          */
         reactionRemovedEvent: ReactionRemovedEventProto;
     } | {
         oneofKind: "star";
         /**
-         * @generated from protobuf field: symbol.destack.StarProto star = 220100
+         * @generated from protobuf field: symbol.destack.StarProto star = 1400100
          */
         star: StarProto;
     } | {
         oneofKind: "starEvent";
         /**
-         * @generated from protobuf field: symbol.destack.StarEventProto star_event = 220101
+         * @generated from protobuf field: symbol.destack.StarEventProto star_event = 1400101
          */
         starEvent: StarEventProto;
     } | {
         oneofKind: "starAddedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.StarAddedEventProto star_added_event = 220102
+         * @generated from protobuf field: symbol.destack.StarAddedEventProto star_added_event = 1400102
          */
         starAddedEvent: StarAddedEventProto;
     } | {
         oneofKind: "starRemovedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.StarRemovedEventProto star_removed_event = 220103
+         * @generated from protobuf field: symbol.destack.StarRemovedEventProto star_removed_event = 1400103
          */
         starRemovedEvent: StarRemovedEventProto;
     } | {
         oneofKind: "branch";
         /**
-         * @generated from protobuf field: symbol.destack.BranchProto branch = 45000
+         * @generated from protobuf field: symbol.destack.BranchProto branch = 245000
          */
         branch: BranchProto;
     } | {
         oneofKind: "folder";
         /**
-         * @generated from protobuf field: symbol.destack.FolderProto folder = 40000
+         * @generated from protobuf field: symbol.destack.FolderProto folder = 240000
          */
         folder: FolderProto;
     } | {
         oneofKind: "tag";
         /**
-         * @generated from protobuf field: symbol.destack.TagProto tag = 41000
+         * @generated from protobuf field: symbol.destack.TagProto tag = 241000
          */
         tag: TagProto;
     } | {
         oneofKind: "tagging";
         /**
-         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 41100
+         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 241100
          */
         tagging: TaggingProto;
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 600300
+         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
          */
         colorStyle: ColorStyleProto;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 600600
+         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 2100600
          */
         borderStyle: BorderStyleProto;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 600900
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
          */
         transitionStyle: TransitionStyleProto;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 6001000
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
          */
         effectStyle: EffectStyleProto;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 600800
+         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 2100800
          */
         gradientStyle: GradientStyleProto;
     } | {
         oneofKind: "fillStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 600400
+         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 2100400
          */
         fillStyle: FillStyleProto;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 600500
+         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 2100500
          */
         fontStyle: FontStyleProto;
     } | {
         oneofKind: "palette";
         /**
-         * @generated from protobuf field: symbol.destack.PaletteProto palette = 600100
+         * @generated from protobuf field: symbol.destack.PaletteProto palette = 2100100
          */
         palette: PaletteProto;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 600700
+         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 2100700
          */
         shadowStyle: ShadowStyleProto;
     } | {
         oneofKind: "strokeStyle";
         /**
-         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 6001100
+         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2101100
          */
         strokeStyle: StrokeStyleProto;
     } | {
         oneofKind: "theme";
         /**
-         * @generated from protobuf field: symbol.destack.ThemeProto theme = 600000
+         * @generated from protobuf field: symbol.destack.ThemeProto theme = 2100000
          */
         theme: ThemeProto;
     } | {
         oneofKind: "client";
         /**
-         * @generated from protobuf field: symbol.destack.ClientProto client = 21300
+         * @generated from protobuf field: symbol.destack.ClientProto client = 121300
          */
         client: ClientProto;
     } | {
         oneofKind: "handle";
         /**
-         * @generated from protobuf field: symbol.destack.HandleProto handle = 20200
+         * @generated from protobuf field: symbol.destack.HandleProto handle = 100200
          */
         handle: HandleProto;
     } | {
         oneofKind: "organization";
         /**
-         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 22000
+         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 122000
          */
         organization: OrganizationProto;
     } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbol.destack.SpaceProto space = 20100
+         * @generated from protobuf field: symbol.destack.SpaceProto space = 100100
          */
         space: SpaceProto;
     } | {
         oneofKind: "team";
         /**
-         * @generated from protobuf field: symbol.destack.TeamProto team = 22100
+         * @generated from protobuf field: symbol.destack.TeamProto team = 122100
          */
         team: TeamProto;
     } | {
         oneofKind: "user";
         /**
-         * @generated from protobuf field: symbol.destack.UserProto user = 21000
+         * @generated from protobuf field: symbol.destack.UserProto user = 121000
          */
         user: UserProto;
     } | {
@@ -17140,151 +17124,151 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "entitlement";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 60500
+         * @generated from protobuf field: symbol.destack.EntitlementProto entitlement = 360500
          */
         entitlement: EntitlementProto;
     } | {
         oneofKind: "invite";
         /**
-         * @generated from protobuf field: symbol.destack.InviteProto invite = 60100
+         * @generated from protobuf field: symbol.destack.InviteProto invite = 360100
          */
         invite: InviteProto;
     } | {
         oneofKind: "membership";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipProto membership = 60000
+         * @generated from protobuf field: symbol.destack.MembershipProto membership = 360000
          */
         membership: MembershipProto;
     } | {
         oneofKind: "permission";
         /**
-         * @generated from protobuf field: symbol.destack.PermissionProto permission = 60300
+         * @generated from protobuf field: symbol.destack.PermissionProto permission = 360300
          */
         permission: PermissionProto;
     } | {
         oneofKind: "role";
         /**
-         * @generated from protobuf field: symbol.destack.RoleProto role = 60200
+         * @generated from protobuf field: symbol.destack.RoleProto role = 360200
          */
         role: RoleProto;
     } | {
         oneofKind: "sanction";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 60400
+         * @generated from protobuf field: symbol.destack.SanctionProto sanction = 360400
          */
         sanction: SanctionProto;
     } | {
         oneofKind: "frameView";
         /**
-         * @generated from protobuf field: symbol.destack.FrameViewProto frame_view = 520200
+         * @generated from protobuf field: symbol.destack.FrameViewProto frame_view = 1800200
          */
         frameView: FrameViewProto;
     } | {
         oneofKind: "internalView";
         /**
-         * @generated from protobuf field: symbol.destack.InternalViewProto internal_view = 535000
+         * @generated from protobuf field: symbol.destack.InternalViewProto internal_view = 1815000
          */
         internalView: InternalViewProto;
     } | {
         oneofKind: "labelView";
         /**
-         * @generated from protobuf field: symbol.destack.LabelViewProto label_view = 520300
+         * @generated from protobuf field: symbol.destack.LabelViewProto label_view = 1800300
          */
         labelView: LabelViewProto;
     } | {
         oneofKind: "numberInputView";
         /**
-         * @generated from protobuf field: symbol.destack.NumberInputViewProto number_input_view = 530100
+         * @generated from protobuf field: symbol.destack.NumberInputViewProto number_input_view = 1810100
          */
         numberInputView: NumberInputViewProto;
     } | {
         oneofKind: "sliderInputView";
         /**
-         * @generated from protobuf field: symbol.destack.SliderInputViewProto slider_input_view = 530200
+         * @generated from protobuf field: symbol.destack.SliderInputViewProto slider_input_view = 1810200
          */
         sliderInputView: SliderInputViewProto;
     } | {
         oneofKind: "splitView";
         /**
-         * @generated from protobuf field: symbol.destack.SplitViewProto split_view = 520400
+         * @generated from protobuf field: symbol.destack.SplitViewProto split_view = 1800400
          */
         splitView: SplitViewProto;
     } | {
         oneofKind: "textView";
         /**
-         * @generated from protobuf field: symbol.destack.TextViewProto text_view = 525100
+         * @generated from protobuf field: symbol.destack.TextViewProto text_view = 1805100
          */
         textView: TextViewProto;
     } | {
         oneofKind: "annotationShape";
         /**
-         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 540400
+         * @generated from protobuf field: symbol.destack.AnnotationShapeProto annotation_shape = 1900300
          */
         annotationShape: AnnotationShapeProto;
     } | {
         oneofKind: "arrowShape";
         /**
-         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 540300
+         * @generated from protobuf field: symbol.destack.ArrowShapeProto arrow_shape = 1900200
          */
         arrowShape: ArrowShapeProto;
     } | {
         oneofKind: "lineShape";
         /**
-         * @generated from protobuf field: symbol.destack.LineShapeProto line_shape = 540200
+         * @generated from protobuf field: symbol.destack.LineShapeProto line_shape = 1900100
          */
         lineShape: LineShapeProto;
     } | {
         oneofKind: "file";
         /**
-         * @generated from protobuf field: symbol.destack.FileProto file = 80000
+         * @generated from protobuf field: symbol.destack.FileProto file = 480000
          */
         file: FileProto;
     } | {
         oneofKind: "environment";
         /**
-         * @generated from protobuf field: symbol.destack.EnvironmentProto environment = 160000
+         * @generated from protobuf field: symbol.destack.EnvironmentProto environment = 1100000
          */
         environment: EnvironmentProto;
     } | {
         oneofKind: "database";
         /**
-         * @generated from protobuf field: symbol.destack.DatabaseProto database = 140000
+         * @generated from protobuf field: symbol.destack.DatabaseProto database = 1000000
          */
         database: DatabaseProto;
     } | {
         oneofKind: "machine";
         /**
-         * @generated from protobuf field: symbol.destack.MachineProto machine = 140100
+         * @generated from protobuf field: symbol.destack.MachineProto machine = 1001000
          */
         machine: MachineProto;
     } | {
         oneofKind: "method";
         /**
-         * @generated from protobuf field: symbol.destack.MethodProto method = 101000
+         * @generated from protobuf field: symbol.destack.MethodProto method = 701000
          */
         method: MethodProto;
     } | {
         oneofKind: "action";
         /**
-         * @generated from protobuf field: symbol.destack.ActionProto action = 101100
+         * @generated from protobuf field: symbol.destack.ActionProto action = 701100
          */
         action: ActionProto;
     } | {
         oneofKind: "eventCursor";
         /**
-         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 112100
+         * @generated from protobuf field: symbol.destack.EventCursorProto event_cursor = 712100
          */
         eventCursor: EventCursorProto;
     } | {
         oneofKind: "screenCursor";
         /**
-         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 112200
+         * @generated from protobuf field: symbol.destack.ScreenCursorProto screen_cursor = 712200
          */
         screenCursor: ScreenCursorProto;
     } | {
         oneofKind: "script";
         /**
-         * @generated from protobuf field: symbol.destack.ScriptProto script = 100000
+         * @generated from protobuf field: symbol.destack.ScriptProto script = 700000
          */
         script: ScriptProto;
     } | {
@@ -17296,199 +17280,199 @@ export interface SomeEntityProto {
     } | {
         oneofKind: "timer";
         /**
-         * @generated from protobuf field: symbol.destack.TimerProto timer = 105100
+         * @generated from protobuf field: symbol.destack.TimerProto timer = 705100
          */
         timer: TimerProto;
     } | {
         oneofKind: "trigger";
         /**
-         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 105000
+         * @generated from protobuf field: symbol.destack.TriggerProto trigger = 705000
          */
         trigger: TriggerProto;
     } | {
         oneofKind: "gaugeMetric";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 180000
+         * @generated from protobuf field: symbol.destack.GaugeMetricProto gauge_metric = 1200000
          */
         gaugeMetric: GaugeMetricProto;
     } | {
         oneofKind: "counterMetric";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 180100
+         * @generated from protobuf field: symbol.destack.CounterMetricProto counter_metric = 1200100
          */
         counterMetric: CounterMetricProto;
     } | {
         oneofKind: "histogramMetric";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 180200
+         * @generated from protobuf field: symbol.destack.HistogramMetricProto histogram_metric = 1200200
          */
         histogramMetric: HistogramMetricProto;
     } | {
         oneofKind: "layer";
         /**
-         * @generated from protobuf field: symbol.destack.LayerProto layer = 500200
+         * @generated from protobuf field: symbol.destack.LayerProto layer = 1700300
          */
         layer: LayerProto;
     } | {
         oneofKind: "scene";
         /**
-         * @generated from protobuf field: symbol.destack.SceneProto scene = 500100
+         * @generated from protobuf field: symbol.destack.SceneProto scene = 1700200
          */
         scene: SceneProto;
     } | {
         oneofKind: "window";
         /**
-         * @generated from protobuf field: symbol.destack.WindowProto window = 500000
+         * @generated from protobuf field: symbol.destack.WindowProto window = 1700100
          */
         window: WindowProto;
     } | {
         oneofKind: "follow";
         /**
-         * @generated from protobuf field: symbol.destack.FollowProto follow = 220200
+         * @generated from protobuf field: symbol.destack.FollowProto follow = 1400200
          */
         follow: FollowProto;
     } | {
         oneofKind: "notification";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationProto notification = 220500
+         * @generated from protobuf field: symbol.destack.NotificationProto notification = 1400500
          */
         notification: NotificationProto;
     } | {
         oneofKind: "reaction";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionProto reaction = 220000
+         * @generated from protobuf field: symbol.destack.ReactionProto reaction = 1400000
          */
         reaction: ReactionProto;
     } | {
         oneofKind: "star";
         /**
-         * @generated from protobuf field: symbol.destack.StarProto star = 220100
+         * @generated from protobuf field: symbol.destack.StarProto star = 1400100
          */
         star: StarProto;
     } | {
         oneofKind: "branch";
         /**
-         * @generated from protobuf field: symbol.destack.BranchProto branch = 45000
+         * @generated from protobuf field: symbol.destack.BranchProto branch = 245000
          */
         branch: BranchProto;
     } | {
         oneofKind: "folder";
         /**
-         * @generated from protobuf field: symbol.destack.FolderProto folder = 40000
+         * @generated from protobuf field: symbol.destack.FolderProto folder = 240000
          */
         folder: FolderProto;
     } | {
         oneofKind: "tag";
         /**
-         * @generated from protobuf field: symbol.destack.TagProto tag = 41000
+         * @generated from protobuf field: symbol.destack.TagProto tag = 241000
          */
         tag: TagProto;
     } | {
         oneofKind: "tagging";
         /**
-         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 41100
+         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 241100
          */
         tagging: TaggingProto;
     } | {
         oneofKind: "colorStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 600300
+         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
          */
         colorStyle: ColorStyleProto;
     } | {
         oneofKind: "borderStyle";
         /**
-         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 600600
+         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 2100600
          */
         borderStyle: BorderStyleProto;
     } | {
         oneofKind: "transitionStyle";
         /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 600900
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
          */
         transitionStyle: TransitionStyleProto;
     } | {
         oneofKind: "effectStyle";
         /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 6001000
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
          */
         effectStyle: EffectStyleProto;
     } | {
         oneofKind: "gradientStyle";
         /**
-         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 600800
+         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 2100800
          */
         gradientStyle: GradientStyleProto;
     } | {
         oneofKind: "fillStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 600400
+         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 2100400
          */
         fillStyle: FillStyleProto;
     } | {
         oneofKind: "fontStyle";
         /**
-         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 600500
+         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 2100500
          */
         fontStyle: FontStyleProto;
     } | {
         oneofKind: "palette";
         /**
-         * @generated from protobuf field: symbol.destack.PaletteProto palette = 600100
+         * @generated from protobuf field: symbol.destack.PaletteProto palette = 2100100
          */
         palette: PaletteProto;
     } | {
         oneofKind: "shadowStyle";
         /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 600700
+         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 2100700
          */
         shadowStyle: ShadowStyleProto;
     } | {
         oneofKind: "strokeStyle";
         /**
-         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 6001100
+         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2101100
          */
         strokeStyle: StrokeStyleProto;
     } | {
         oneofKind: "theme";
         /**
-         * @generated from protobuf field: symbol.destack.ThemeProto theme = 600000
+         * @generated from protobuf field: symbol.destack.ThemeProto theme = 2100000
          */
         theme: ThemeProto;
     } | {
         oneofKind: "client";
         /**
-         * @generated from protobuf field: symbol.destack.ClientProto client = 21300
+         * @generated from protobuf field: symbol.destack.ClientProto client = 121300
          */
         client: ClientProto;
     } | {
         oneofKind: "handle";
         /**
-         * @generated from protobuf field: symbol.destack.HandleProto handle = 20200
+         * @generated from protobuf field: symbol.destack.HandleProto handle = 100200
          */
         handle: HandleProto;
     } | {
         oneofKind: "organization";
         /**
-         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 22000
+         * @generated from protobuf field: symbol.destack.OrganizationProto organization = 122000
          */
         organization: OrganizationProto;
     } | {
         oneofKind: "space";
         /**
-         * @generated from protobuf field: symbol.destack.SpaceProto space = 20100
+         * @generated from protobuf field: symbol.destack.SpaceProto space = 100100
          */
         space: SpaceProto;
     } | {
         oneofKind: "team";
         /**
-         * @generated from protobuf field: symbol.destack.TeamProto team = 22100
+         * @generated from protobuf field: symbol.destack.TeamProto team = 122100
          */
         team: TeamProto;
     } | {
         oneofKind: "user";
         /**
-         * @generated from protobuf field: symbol.destack.UserProto user = 21000
+         * @generated from protobuf field: symbol.destack.UserProto user = 121000
          */
         user: UserProto;
     } | {
@@ -17511,427 +17495,427 @@ export interface SomeEventProto {
     } | {
         oneofKind: "entitlementRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 60502
+         * @generated from protobuf field: symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 360502
          */
         entitlementRequestedEvent: EntitlementRequestedEventProto;
     } | {
         oneofKind: "entitlementGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 60503
+         * @generated from protobuf field: symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 360503
          */
         entitlementGrantedEvent: EntitlementGrantedEventProto;
     } | {
         oneofKind: "entitlementRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 60504
+         * @generated from protobuf field: symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 360504
          */
         entitlementRevokedEvent: EntitlementRevokedEventProto;
     } | {
         oneofKind: "entitlementExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 60505
+         * @generated from protobuf field: symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 360505
          */
         entitlementExpiredEvent: EntitlementExpiredEventProto;
     } | {
         oneofKind: "inviteSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 60102
+         * @generated from protobuf field: symbol.destack.InviteSentEventProto invite_sent_event = 360102
          */
         inviteSentEvent: InviteSentEventProto;
     } | {
         oneofKind: "inviteRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 60103
+         * @generated from protobuf field: symbol.destack.InviteRescindedEventProto invite_rescinded_event = 360103
          */
         inviteRescindedEvent: InviteRescindedEventProto;
     } | {
         oneofKind: "inviteAcceptedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 60104
+         * @generated from protobuf field: symbol.destack.InviteAcceptedEventProto invite_accepted_event = 360104
          */
         inviteAcceptedEvent: InviteAcceptedEventProto;
     } | {
         oneofKind: "inviteRejectedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 60105
+         * @generated from protobuf field: symbol.destack.InviteRejectedEventProto invite_rejected_event = 360105
          */
         inviteRejectedEvent: InviteRejectedEventProto;
     } | {
         oneofKind: "membershipJoinedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 60002
+         * @generated from protobuf field: symbol.destack.MembershipJoinedEventProto membership_joined_event = 360002
          */
         membershipJoinedEvent: MembershipJoinedEventProto;
     } | {
         oneofKind: "membershipLeftEvent";
         /**
-         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 60003
+         * @generated from protobuf field: symbol.destack.MembershipLeftEventProto membership_left_event = 360003
          */
         membershipLeftEvent: MembershipLeftEventProto;
     } | {
         oneofKind: "roleAssignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 60202
+         * @generated from protobuf field: symbol.destack.RoleAssignedEventProto role_assigned_event = 360202
          */
         roleAssignedEvent: RoleAssignedEventProto;
     } | {
         oneofKind: "roleUnassignedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 60203
+         * @generated from protobuf field: symbol.destack.RoleUnassignedEventProto role_unassigned_event = 360203
          */
         roleUnassignedEvent: RoleUnassignedEventProto;
     } | {
         oneofKind: "sanctionRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 60402
+         * @generated from protobuf field: symbol.destack.SanctionRequestedEventProto sanction_requested_event = 360402
          */
         sanctionRequestedEvent: SanctionRequestedEventProto;
     } | {
         oneofKind: "sanctionGrantedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 60403
+         * @generated from protobuf field: symbol.destack.SanctionGrantedEventProto sanction_granted_event = 360403
          */
         sanctionGrantedEvent: SanctionGrantedEventProto;
     } | {
         oneofKind: "sanctionRevokedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 60404
+         * @generated from protobuf field: symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 360404
          */
         sanctionRevokedEvent: SanctionRevokedEventProto;
     } | {
         oneofKind: "sanctionExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 60405
+         * @generated from protobuf field: symbol.destack.SanctionExpiredEventProto sanction_expired_event = 360405
          */
         sanctionExpiredEvent: SanctionExpiredEventProto;
     } | {
         oneofKind: "logEvent";
         /**
-         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 170301
+         * @generated from protobuf field: symbol.destack.LogEventProto log_event = 1110011
          */
         logEvent: LogEventProto;
     } | {
         oneofKind: "runStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunStartedEventProto run_started_event = 170002
+         * @generated from protobuf field: symbol.destack.RunStartedEventProto run_started_event = 1110002
          */
         runStartedEvent: RunStartedEventProto;
     } | {
         oneofKind: "runPauseRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 170003
+         * @generated from protobuf field: symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 1110003
          */
         runPauseRequestedEvent: RunPauseRequestedEventProto;
     } | {
         oneofKind: "runPausedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunPausedEventProto run_paused_event = 170004
+         * @generated from protobuf field: symbol.destack.RunPausedEventProto run_paused_event = 1110004
          */
         runPausedEvent: RunPausedEventProto;
     } | {
         oneofKind: "runResumeRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 170005
+         * @generated from protobuf field: symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 1110005
          */
         runResumeRequestedEvent: RunResumeRequestedEventProto;
     } | {
         oneofKind: "runResumedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunResumedEventProto run_resumed_event = 170006
+         * @generated from protobuf field: symbol.destack.RunResumedEventProto run_resumed_event = 1110006
          */
         runResumedEvent: RunResumedEventProto;
     } | {
         oneofKind: "runStopRequestedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 170007
+         * @generated from protobuf field: symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 1110007
          */
         runStopRequestedEvent: RunStopRequestedEventProto;
     } | {
         oneofKind: "runFailedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunFailedEventProto run_failed_event = 170008
+         * @generated from protobuf field: symbol.destack.RunFailedEventProto run_failed_event = 1110008
          */
         runFailedEvent: RunFailedEventProto;
     } | {
         oneofKind: "runCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.RunCompletedEventProto run_completed_event = 170009
+         * @generated from protobuf field: symbol.destack.RunCompletedEventProto run_completed_event = 1110009
          */
         runCompletedEvent: RunCompletedEventProto;
     } | {
         oneofKind: "spanEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 170101
+         * @generated from protobuf field: symbol.destack.SpanEventProto span_event = 1110010
          */
         spanEvent: SpanEventProto;
     } | {
         oneofKind: "copyEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CopyEventProto copy_event = 560501
+         * @generated from protobuf field: symbol.destack.CopyEventProto copy_event = 2000501
          */
         copyEvent: CopyEventProto;
     } | {
         oneofKind: "cutEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CutEventProto cut_event = 560502
+         * @generated from protobuf field: symbol.destack.CutEventProto cut_event = 2000502
          */
         cutEvent: CutEventProto;
     } | {
         oneofKind: "pasteEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PasteEventProto paste_event = 560503
+         * @generated from protobuf field: symbol.destack.PasteEventProto paste_event = 2000503
          */
         pasteEvent: PasteEventProto;
     } | {
         oneofKind: "dragStartEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragStartEventProto drag_start_event = 560401
+         * @generated from protobuf field: symbol.destack.DragStartEventProto drag_start_event = 2000401
          */
         dragStartEvent: DragStartEventProto;
     } | {
         oneofKind: "dragEndEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragEndEventProto drag_end_event = 560402
+         * @generated from protobuf field: symbol.destack.DragEndEventProto drag_end_event = 2000402
          */
         dragEndEvent: DragEndEventProto;
     } | {
         oneofKind: "dragOverEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragOverEventProto drag_over_event = 560403
+         * @generated from protobuf field: symbol.destack.DragOverEventProto drag_over_event = 2000403
          */
         dragOverEvent: DragOverEventProto;
     } | {
         oneofKind: "dragEnterEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragEnterEventProto drag_enter_event = 560404
+         * @generated from protobuf field: symbol.destack.DragEnterEventProto drag_enter_event = 2000404
          */
         dragEnterEvent: DragEnterEventProto;
     } | {
         oneofKind: "dragLeaveEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DragLeaveEventProto drag_leave_event = 560405
+         * @generated from protobuf field: symbol.destack.DragLeaveEventProto drag_leave_event = 2000405
          */
         dragLeaveEvent: DragLeaveEventProto;
     } | {
         oneofKind: "dropEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DropEventProto drop_event = 560406
+         * @generated from protobuf field: symbol.destack.DropEventProto drop_event = 2000406
          */
         dropEvent: DropEventProto;
     } | {
         oneofKind: "focusInEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FocusInEventProto focus_in_event = 560601
+         * @generated from protobuf field: symbol.destack.FocusInEventProto focus_in_event = 2000601
          */
         focusInEvent: FocusInEventProto;
     } | {
         oneofKind: "focusOutEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FocusOutEventProto focus_out_event = 560602
+         * @generated from protobuf field: symbol.destack.FocusOutEventProto focus_out_event = 2000602
          */
         focusOutEvent: FocusOutEventProto;
     } | {
         oneofKind: "keyDownEvent";
         /**
-         * @generated from protobuf field: symbol.destack.KeyDownEventProto key_down_event = 560301
+         * @generated from protobuf field: symbol.destack.KeyDownEventProto key_down_event = 2000301
          */
         keyDownEvent: KeyDownEventProto;
     } | {
         oneofKind: "keyUpEvent";
         /**
-         * @generated from protobuf field: symbol.destack.KeyUpEventProto key_up_event = 560302
+         * @generated from protobuf field: symbol.destack.KeyUpEventProto key_up_event = 2000302
          */
         keyUpEvent: KeyUpEventProto;
     } | {
         oneofKind: "keyPressEvent";
         /**
-         * @generated from protobuf field: symbol.destack.KeyPressEventProto key_press_event = 560303
+         * @generated from protobuf field: symbol.destack.KeyPressEventProto key_press_event = 2000303
          */
         keyPressEvent: KeyPressEventProto;
     } | {
         oneofKind: "pointerDownEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerDownEventProto pointer_down_event = 560101
+         * @generated from protobuf field: symbol.destack.PointerDownEventProto pointer_down_event = 2000101
          */
         pointerDownEvent: PointerDownEventProto;
     } | {
         oneofKind: "pointerUpEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerUpEventProto pointer_up_event = 560102
+         * @generated from protobuf field: symbol.destack.PointerUpEventProto pointer_up_event = 2000102
          */
         pointerUpEvent: PointerUpEventProto;
     } | {
         oneofKind: "pointerMoveEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerMoveEventProto pointer_move_event = 560103
+         * @generated from protobuf field: symbol.destack.PointerMoveEventProto pointer_move_event = 2000103
          */
         pointerMoveEvent: PointerMoveEventProto;
     } | {
         oneofKind: "pointerEnterEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerEnterEventProto pointer_enter_event = 560104
+         * @generated from protobuf field: symbol.destack.PointerEnterEventProto pointer_enter_event = 2000104
          */
         pointerEnterEvent: PointerEnterEventProto;
     } | {
         oneofKind: "pointerOverEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerOverEventProto pointer_over_event = 560105
+         * @generated from protobuf field: symbol.destack.PointerOverEventProto pointer_over_event = 2000105
          */
         pointerOverEvent: PointerOverEventProto;
     } | {
         oneofKind: "pointerLeaveEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerLeaveEventProto pointer_leave_event = 560106
+         * @generated from protobuf field: symbol.destack.PointerLeaveEventProto pointer_leave_event = 2000106
          */
         pointerLeaveEvent: PointerLeaveEventProto;
     } | {
         oneofKind: "pointerLongPressEvent";
         /**
-         * @generated from protobuf field: symbol.destack.PointerLongPressEventProto pointer_long_press_event = 560107
+         * @generated from protobuf field: symbol.destack.PointerLongPressEventProto pointer_long_press_event = 2000107
          */
         pointerLongPressEvent: PointerLongPressEventProto;
     } | {
         oneofKind: "singleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.SingleClickEventProto single_click_event = 560202
+         * @generated from protobuf field: symbol.destack.SingleClickEventProto single_click_event = 2000202
          */
         singleClickEvent: SingleClickEventProto;
     } | {
         oneofKind: "doubleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 560203
+         * @generated from protobuf field: symbol.destack.DoubleClickEventProto double_click_event = 2000203
          */
         doubleClickEvent: DoubleClickEventProto;
     } | {
         oneofKind: "tripleClickEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TripleClickEventProto triple_click_event = 560204
+         * @generated from protobuf field: symbol.destack.TripleClickEventProto triple_click_event = 2000204
          */
         tripleClickEvent: TripleClickEventProto;
     } | {
         oneofKind: "wheelEvent";
         /**
-         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 560210
+         * @generated from protobuf field: symbol.destack.WheelEventProto wheel_event = 2000210
          */
         wheelEvent: WheelEventProto;
     } | {
         oneofKind: "timerStartedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 105102
+         * @generated from protobuf field: symbol.destack.TimerStartedEventProto timer_started_event = 705102
          */
         timerStartedEvent: TimerStartedEventProto;
     } | {
         oneofKind: "timerCompletedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 105103
+         * @generated from protobuf field: symbol.destack.TimerCompletedEventProto timer_completed_event = 705103
          */
         timerCompletedEvent: TimerCompletedEventProto;
     } | {
         oneofKind: "timerCancelledEvent";
         /**
-         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104
+         * @generated from protobuf field: symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104
          */
         timerCancelledEvent: TimerCancelledEventProto;
     } | {
         oneofKind: "gaugeMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 180001
+         * @generated from protobuf field: symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 1200001
          */
         gaugeMeasurementEvent: GaugeMeasurementEventProto;
     } | {
         oneofKind: "counterMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 180101
+         * @generated from protobuf field: symbol.destack.CounterMeasurementEventProto counter_measurement_event = 1200101
          */
         counterMeasurementEvent: CounterMeasurementEventProto;
     } | {
         oneofKind: "histogramMeasurementEvent";
         /**
-         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 180201
+         * @generated from protobuf field: symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 1200201
          */
         histogramMeasurementEvent: HistogramMeasurementEventProto;
     } | {
         oneofKind: "followEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FollowEventProto follow_event = 220201
+         * @generated from protobuf field: symbol.destack.FollowEventProto follow_event = 1400201
          */
         followEvent: FollowEventProto;
     } | {
         oneofKind: "followAddedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FollowAddedEventProto follow_added_event = 220202
+         * @generated from protobuf field: symbol.destack.FollowAddedEventProto follow_added_event = 1400202
          */
         followAddedEvent: FollowAddedEventProto;
     } | {
         oneofKind: "followRemovedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.FollowRemovedEventProto follow_removed_event = 220203
+         * @generated from protobuf field: symbol.destack.FollowRemovedEventProto follow_removed_event = 1400203
          */
         followRemovedEvent: FollowRemovedEventProto;
     } | {
         oneofKind: "notificationSentEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationSentEventProto notification_sent_event = 220502
+         * @generated from protobuf field: symbol.destack.NotificationSentEventProto notification_sent_event = 1400502
          */
         notificationSentEvent: NotificationSentEventProto;
     } | {
         oneofKind: "notificationRescindedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 220503
+         * @generated from protobuf field: symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 1400503
          */
         notificationRescindedEvent: NotificationRescindedEventProto;
     } | {
         oneofKind: "notificationReadEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationReadEventProto notification_read_event = 220504
+         * @generated from protobuf field: symbol.destack.NotificationReadEventProto notification_read_event = 1400504
          */
         notificationReadEvent: NotificationReadEventProto;
     } | {
         oneofKind: "notificationDismissedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 220505
+         * @generated from protobuf field: symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 1400505
          */
         notificationDismissedEvent: NotificationDismissedEventProto;
     } | {
         oneofKind: "notificationExpiredEvent";
         /**
-         * @generated from protobuf field: symbol.destack.NotificationExpiredEventProto notification_expired_event = 220506
+         * @generated from protobuf field: symbol.destack.NotificationExpiredEventProto notification_expired_event = 1400506
          */
         notificationExpiredEvent: NotificationExpiredEventProto;
     } | {
         oneofKind: "reactionEvent";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionEventProto reaction_event = 220001
+         * @generated from protobuf field: symbol.destack.ReactionEventProto reaction_event = 1400001
          */
         reactionEvent: ReactionEventProto;
     } | {
         oneofKind: "reactionAddedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionAddedEventProto reaction_added_event = 220002
+         * @generated from protobuf field: symbol.destack.ReactionAddedEventProto reaction_added_event = 1400002
          */
         reactionAddedEvent: ReactionAddedEventProto;
     } | {
         oneofKind: "reactionRemovedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220003
+         * @generated from protobuf field: symbol.destack.ReactionRemovedEventProto reaction_removed_event = 1400003
          */
         reactionRemovedEvent: ReactionRemovedEventProto;
     } | {
         oneofKind: "starEvent";
         /**
-         * @generated from protobuf field: symbol.destack.StarEventProto star_event = 220101
+         * @generated from protobuf field: symbol.destack.StarEventProto star_event = 1400101
          */
         starEvent: StarEventProto;
     } | {
         oneofKind: "starAddedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.StarAddedEventProto star_added_event = 220102
+         * @generated from protobuf field: symbol.destack.StarAddedEventProto star_added_event = 1400102
          */
         starAddedEvent: StarAddedEventProto;
     } | {
         oneofKind: "starRemovedEvent";
         /**
-         * @generated from protobuf field: symbol.destack.StarRemovedEventProto star_removed_event = 220103
+         * @generated from protobuf field: symbol.destack.StarRemovedEventProto star_removed_event = 1400103
          */
         starRemovedEvent: StarRemovedEventProto;
     } | {
@@ -18962,10 +18946,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_CASCADE_ACTION = 69,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODE_TYPE = 560000;
-     */
-    ENUM_TYPE_MODE_TYPE = 560000,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_RESOURCE_STATUS = 1100;
      */
     ENUM_TYPE_RESOURCE_STATUS = 1100,
@@ -19014,297 +18994,301 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_QUERY_UPDATE_TYPE = 10121,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPACE_STATUS = 20001;
+     * @generated from protobuf enum value: ENUM_TYPE_SPACE_STATUS = 100000;
      */
-    ENUM_TYPE_SPACE_STATUS = 20001,
+    ENUM_TYPE_SPACE_STATUS = 100000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 21200;
+     * @generated from protobuf enum value: ENUM_TYPE_USER_STATUS = 101000;
      */
-    ENUM_TYPE_USER_STATUS = 21200,
+    ENUM_TYPE_USER_STATUS = 101000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 22500;
+     * @generated from protobuf enum value: ENUM_TYPE_ORGANIZATION_STATUS = 103000;
      */
-    ENUM_TYPE_ORGANIZATION_STATUS = 22500,
+    ENUM_TYPE_ORGANIZATION_STATUS = 103000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 21700;
+     * @generated from protobuf enum value: ENUM_TYPE_CLIENT_TYPE = 102000;
      */
-    ENUM_TYPE_CLIENT_TYPE = 21700,
+    ENUM_TYPE_CLIENT_TYPE = 102000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FOLDER_TYPE = 40000;
+     * @generated from protobuf enum value: ENUM_TYPE_FOLDER_TYPE = 200000;
      */
-    ENUM_TYPE_FOLDER_TYPE = 40000,
+    ENUM_TYPE_FOLDER_TYPE = 200000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ROLE_TYPE = 60200;
+     * @generated from protobuf enum value: ENUM_TYPE_ROLE_TYPE = 300200;
      */
-    ENUM_TYPE_ROLE_TYPE = 60200,
+    ENUM_TYPE_ROLE_TYPE = 300200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_PERMISSION_TYPE = 60300;
+     * @generated from protobuf enum value: ENUM_TYPE_PERMISSION_TYPE = 300300;
      */
-    ENUM_TYPE_PERMISSION_TYPE = 60300,
+    ENUM_TYPE_PERMISSION_TYPE = 300300,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SANCTION_TYPE = 60400;
+     * @generated from protobuf enum value: ENUM_TYPE_SANCTION_TYPE = 300400;
      */
-    ENUM_TYPE_SANCTION_TYPE = 60400,
+    ENUM_TYPE_SANCTION_TYPE = 300400,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENTITLEMENT_TYPE = 60500;
+     * @generated from protobuf enum value: ENUM_TYPE_ENTITLEMENT_TYPE = 300500;
      */
-    ENUM_TYPE_ENTITLEMENT_TYPE = 60500,
+    ENUM_TYPE_ENTITLEMENT_TYPE = 300500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 80000;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_RETENTION_MODE = 400000;
      */
-    ENUM_TYPE_FILE_RETENTION_MODE = 80000,
+    ENUM_TYPE_FILE_RETENTION_MODE = 400000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 80001;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_SOURCE = 400001;
      */
-    ENUM_TYPE_FILE_SOURCE = 80001,
+    ENUM_TYPE_FILE_SOURCE = 400001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 80002;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_TYPE = 400002;
      */
-    ENUM_TYPE_FILE_TYPE = 80002,
+    ENUM_TYPE_FILE_TYPE = 400002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 80003;
+     * @generated from protobuf enum value: ENUM_TYPE_FILE_FORMAT = 400003;
      */
-    ENUM_TYPE_FILE_FORMAT = 80003,
+    ENUM_TYPE_FILE_FORMAT = 400003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 80004;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPAN_TYPE = 400004;
      */
-    ENUM_TYPE_TEXT_SPAN_TYPE = 80004,
+    ENUM_TYPE_TEXT_SPAN_TYPE = 400004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 80005;
+     * @generated from protobuf enum value: ENUM_TYPE_ICON_TYPE = 400005;
      */
-    ENUM_TYPE_ICON_TYPE = 80005,
+    ENUM_TYPE_ICON_TYPE = 400005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_METHOD_CARDINALITY = 102001;
+     * @generated from protobuf enum value: ENUM_TYPE_METHOD_CARDINALITY = 701001;
      */
-    ENUM_TYPE_METHOD_CARDINALITY = 102001,
+    ENUM_TYPE_METHOD_CARDINALITY = 701001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 105000;
+     * @generated from protobuf enum value: ENUM_TYPE_TRIGGER_TYPE = 705000;
      */
-    ENUM_TYPE_TRIGGER_TYPE = 105000,
+    ENUM_TYPE_TRIGGER_TYPE = 705000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 105100;
+     * @generated from protobuf enum value: ENUM_TYPE_TIMER_TYPE = 705100;
      */
-    ENUM_TYPE_TIMER_TYPE = 105100,
+    ENUM_TYPE_TIMER_TYPE = 705100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 105101;
+     * @generated from protobuf enum value: ENUM_TYPE_DAY_OF_WEEK = 705101;
      */
-    ENUM_TYPE_DAY_OF_WEEK = 105101,
+    ENUM_TYPE_DAY_OF_WEEK = 705101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 105102;
+     * @generated from protobuf enum value: ENUM_TYPE_MONTH = 705102;
      */
-    ENUM_TYPE_MONTH = 105102,
+    ENUM_TYPE_MONTH = 705102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 105103;
+     * @generated from protobuf enum value: ENUM_TYPE_SCHEDULE_FREQUENCY = 705103;
      */
-    ENUM_TYPE_SCHEDULE_FREQUENCY = 105103,
+    ENUM_TYPE_SCHEDULE_FREQUENCY = 705103,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 105501;
+     * @generated from protobuf enum value: ENUM_TYPE_CURSOR_STATUS = 712001;
      */
-    ENUM_TYPE_CURSOR_STATUS = 105501,
+    ENUM_TYPE_CURSOR_STATUS = 712001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 120000;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_DEVELOPER = 920000;
      */
-    ENUM_TYPE_MODEL_DEVELOPER = 120000,
+    ENUM_TYPE_MODEL_DEVELOPER = 920000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 120001;
+     * @generated from protobuf enum value: ENUM_TYPE_MODEL_PROVIDER = 920001;
      */
-    ENUM_TYPE_MODEL_PROVIDER = 120001,
+    ENUM_TYPE_MODEL_PROVIDER = 920001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 140000;
+     * @generated from protobuf enum value: ENUM_TYPE_CLOUD = 1000000;
      */
-    ENUM_TYPE_CLOUD = 140000,
+    ENUM_TYPE_CLOUD = 1000000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION = 140001;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION = 1000001;
      */
-    ENUM_TYPE_REGION = 140001,
+    ENUM_TYPE_REGION = 1000001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 140002;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_AREA = 1000002;
      */
-    ENUM_TYPE_REGION_AREA = 140002,
+    ENUM_TYPE_REGION_AREA = 1000002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REGION_CONTINENT = 140003;
+     * @generated from protobuf enum value: ENUM_TYPE_REGION_CONTINENT = 1000003;
      */
-    ENUM_TYPE_REGION_CONTINENT = 140003,
+    ENUM_TYPE_REGION_CONTINENT = 1000003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 140004;
+     * @generated from protobuf enum value: ENUM_TYPE_TENANCY = 1000004;
      */
-    ENUM_TYPE_TENANCY = 140004,
+    ENUM_TYPE_TENANCY = 1000004,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 140005;
+     * @generated from protobuf enum value: ENUM_TYPE_DATABASE_TYPE = 1000005;
      */
-    ENUM_TYPE_DATABASE_TYPE = 140005,
+    ENUM_TYPE_DATABASE_TYPE = 1000005,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 140100;
+     * @generated from protobuf enum value: ENUM_TYPE_MACHINE_TYPE = 1001000;
      */
-    ENUM_TYPE_MACHINE_TYPE = 140100,
+    ENUM_TYPE_MACHINE_TYPE = 1001000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ENVIRONMENT_TYPE = 160000;
+     * @generated from protobuf enum value: ENUM_TYPE_ENVIRONMENT_TYPE = 1100000;
      */
-    ENUM_TYPE_ENVIRONMENT_TYPE = 160000,
+    ENUM_TYPE_ENVIRONMENT_TYPE = 1100000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 170000;
+     * @generated from protobuf enum value: ENUM_TYPE_RUN_STATUS = 1110000;
      */
-    ENUM_TYPE_RUN_STATUS = 170000,
+    ENUM_TYPE_RUN_STATUS = 1110000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 170300;
+     * @generated from protobuf enum value: ENUM_TYPE_LOG_LEVEL = 1110300;
      */
-    ENUM_TYPE_LOG_LEVEL = 170300,
+    ENUM_TYPE_LOG_LEVEL = 1110300,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 220500;
+     * @generated from protobuf enum value: ENUM_TYPE_NOTIFICATION_STATUS = 1400500;
      */
-    ENUM_TYPE_NOTIFICATION_STATUS = 220500,
+    ENUM_TYPE_NOTIFICATION_STATUS = 1400500,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_WINDOW_TYPE = 500000;
+     * @generated from protobuf enum value: ENUM_TYPE_WINDOW_TYPE = 1700000;
      */
-    ENUM_TYPE_WINDOW_TYPE = 500000,
+    ENUM_TYPE_WINDOW_TYPE = 1700000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LAYER_TYPE = 500200;
+     * @generated from protobuf enum value: ENUM_TYPE_LAYER_TYPE = 1700200;
      */
-    ENUM_TYPE_LAYER_TYPE = 500200,
+    ENUM_TYPE_LAYER_TYPE = 1700200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ARROW_HEAD_TYPE = 540300;
+     * @generated from protobuf enum value: ENUM_TYPE_ARROW_HEAD_TYPE = 1900200;
      */
-    ENUM_TYPE_ARROW_HEAD_TYPE = 540300,
+    ENUM_TYPE_ARROW_HEAD_TYPE = 1900200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TOOL_TYPE = 560001;
+     * @generated from protobuf enum value: ENUM_TYPE_MODE_TYPE = 2000000;
      */
-    ENUM_TYPE_TOOL_TYPE = 560001,
+    ENUM_TYPE_MODE_TYPE = 2000000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_MOUSE_BUTTON = 560010;
+     * @generated from protobuf enum value: ENUM_TYPE_TOOL_TYPE = 2000001;
      */
-    ENUM_TYPE_MOUSE_BUTTON = 560010,
+    ENUM_TYPE_TOOL_TYPE = 2000001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 600000;
+     * @generated from protobuf enum value: ENUM_TYPE_MOUSE_BUTTON = 2000010;
      */
-    ENUM_TYPE_COLOR_TYPE = 600000,
+    ENUM_TYPE_MOUSE_BUTTON = 2000010,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 600001;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_TYPE = 2100000;
      */
-    ENUM_TYPE_COLOR_SHADE = 600001,
+    ENUM_TYPE_COLOR_TYPE = 2100000,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_HUE = 600002;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_SHADE = 2100001;
      */
-    ENUM_TYPE_COLOR_HUE = 600002,
+    ENUM_TYPE_COLOR_SHADE = 2100001,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_COLOR_INTENT = 600003;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_HUE = 2100002;
      */
-    ENUM_TYPE_COLOR_INTENT = 600003,
+    ENUM_TYPE_COLOR_HUE = 2100002,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_TYPE = 600100;
+     * @generated from protobuf enum value: ENUM_TYPE_COLOR_INTENT = 2100003;
      */
-    ENUM_TYPE_FILL_TYPE = 600100,
+    ENUM_TYPE_COLOR_INTENT = 2100003,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_POSITION = 600101;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_TYPE = 2100100;
      */
-    ENUM_TYPE_FILL_POSITION = 600101,
+    ENUM_TYPE_FILL_TYPE = 2100100,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FILL_SIZE = 600102;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_POSITION = 2100101;
      */
-    ENUM_TYPE_FILL_SIZE = 600102,
+    ENUM_TYPE_FILL_POSITION = 2100101,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 600200;
+     * @generated from protobuf enum value: ENUM_TYPE_FILL_SIZE = 2100102;
      */
-    ENUM_TYPE_FONT_TYPE = 600200,
+    ENUM_TYPE_FILL_SIZE = 2100102,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 600201;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_TYPE = 2100200;
      */
-    ENUM_TYPE_FONT_WEIGHT = 600201,
+    ENUM_TYPE_FONT_TYPE = 2100200,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 600202;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_WEIGHT = 2100201;
      */
-    ENUM_TYPE_FONT_SIZE = 600202,
+    ENUM_TYPE_FONT_WEIGHT = 2100201,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 600203;
+     * @generated from protobuf enum value: ENUM_TYPE_FONT_SIZE = 2100202;
      */
-    ENUM_TYPE_TEXT_ALIGN = 600203,
+    ENUM_TYPE_FONT_SIZE = 2100202,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_DECORATION = 600204;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_ALIGN = 2100203;
      */
-    ENUM_TYPE_TEXT_DECORATION = 600204,
+    ENUM_TYPE_TEXT_ALIGN = 2100203,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TRANSFORM = 600205;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_DECORATION = 2100204;
      */
-    ENUM_TYPE_TEXT_TRANSFORM = 600205,
+    ENUM_TYPE_TEXT_DECORATION = 2100204,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_BORDER_TYPE = 600206;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_TRANSFORM = 2100205;
      */
-    ENUM_TYPE_BORDER_TYPE = 600206,
+    ENUM_TYPE_TEXT_TRANSFORM = 2100205,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_TYPE = 600207;
+     * @generated from protobuf enum value: ENUM_TYPE_BORDER_TYPE = 2100206;
      */
-    ENUM_TYPE_SHADOW_TYPE = 600207,
+    ENUM_TYPE_BORDER_TYPE = 2100206,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_POSITION = 600208;
+     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_TYPE = 2100207;
      */
-    ENUM_TYPE_SHADOW_POSITION = 600208,
+    ENUM_TYPE_SHADOW_TYPE = 2100207,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_GRADIENT_TYPE = 600209;
+     * @generated from protobuf enum value: ENUM_TYPE_SHADOW_POSITION = 2100208;
      */
-    ENUM_TYPE_GRADIENT_TYPE = 600209,
+    ENUM_TYPE_SHADOW_POSITION = 2100208,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 600210;
+     * @generated from protobuf enum value: ENUM_TYPE_GRADIENT_TYPE = 2100209;
      */
-    ENUM_TYPE_TRANSITION_TYPE = 600210,
+    ENUM_TYPE_GRADIENT_TYPE = 2100209,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 600211;
+     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 2100210;
      */
-    ENUM_TYPE_SPRING_TYPE = 600211,
+    ENUM_TYPE_TRANSITION_TYPE = 2100210,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 600212;
+     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 2100211;
      */
-    ENUM_TYPE_EFFECT_TYPE = 600212,
+    ENUM_TYPE_SPRING_TYPE = 2100211,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_STROKE_TYPE = 600213;
+     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 2100212;
      */
-    ENUM_TYPE_STROKE_TYPE = 600213,
+    ENUM_TYPE_EFFECT_TYPE = 2100212,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_POSITION_TYPE = 600214;
+     * @generated from protobuf enum value: ENUM_TYPE_STROKE_TYPE = 2100213;
      */
-    ENUM_TYPE_POSITION_TYPE = 600214,
+    ENUM_TYPE_STROKE_TYPE = 2100213,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LENGTH_UNIT = 600215;
+     * @generated from protobuf enum value: ENUM_TYPE_POSITION_TYPE = 2100214;
      */
-    ENUM_TYPE_LENGTH_UNIT = 600215,
+    ENUM_TYPE_POSITION_TYPE = 2100214,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_LAYOUT = 600216;
+     * @generated from protobuf enum value: ENUM_TYPE_LENGTH_UNIT = 2100215;
      */
-    ENUM_TYPE_LAYOUT = 600216,
+    ENUM_TYPE_LENGTH_UNIT = 2100215,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DISTRIBUTE = 600217;
+     * @generated from protobuf enum value: ENUM_TYPE_LAYOUT = 2100216;
      */
-    ENUM_TYPE_DISTRIBUTE = 600217,
+    ENUM_TYPE_LAYOUT = 2100216,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_ALIGN = 600218;
+     * @generated from protobuf enum value: ENUM_TYPE_DISTRIBUTE = 2100217;
      */
-    ENUM_TYPE_ALIGN = 600218,
+    ENUM_TYPE_DISTRIBUTE = 2100217,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DIRECTION = 600219;
+     * @generated from protobuf enum value: ENUM_TYPE_ALIGN = 2100218;
      */
-    ENUM_TYPE_DIRECTION = 600219,
+    ENUM_TYPE_ALIGN = 2100218,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OVERFLOW = 600220;
+     * @generated from protobuf enum value: ENUM_TYPE_DIRECTION = 2100219;
      */
-    ENUM_TYPE_OVERFLOW = 600220,
+    ENUM_TYPE_DIRECTION = 2100219,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 600221;
+     * @generated from protobuf enum value: ENUM_TYPE_OVERFLOW = 2100220;
      */
-    ENUM_TYPE_DIMENSION_TYPE = 600221,
+    ENUM_TYPE_OVERFLOW = 2100220,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 600222;
+     * @generated from protobuf enum value: ENUM_TYPE_DIMENSION_TYPE = 2100221;
      */
-    ENUM_TYPE_REPEAT_TYPE = 600222,
+    ENUM_TYPE_DIMENSION_TYPE = 2100221,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPLIT_TYPE = 600223;
+     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 2100222;
      */
-    ENUM_TYPE_TEXT_SPLIT_TYPE = 600223,
+    ENUM_TYPE_REPEAT_TYPE = 2100222,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_OFFSCREEN_BEHAVIOR = 600224;
+     * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223;
      */
-    ENUM_TYPE_OFFSCREEN_BEHAVIOR = 600224,
+    ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_EASING = 600225;
+     * @generated from protobuf enum value: ENUM_TYPE_OFFSCREEN_BEHAVIOR = 2100224;
      */
-    ENUM_TYPE_EASING = 600225
+    ENUM_TYPE_OFFSCREEN_BEHAVIOR = 2100224,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EASING = 2100225;
+     */
+    ENUM_TYPE_EASING = 2100225
 }
 /**
  * @generated from protobuf enum symbol.destack.EnvironmentTypeProto
@@ -20598,637 +20582,633 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_MEASUREMENT_EVENT = 2010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_UNIVERSE = 20000;
+     * @generated from protobuf enum value: NODE_TYPE_SPACE = 100100;
      */
-    NODE_TYPE_UNIVERSE = 20000,
+    NODE_TYPE_SPACE = 100100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPACE = 20100;
+     * @generated from protobuf enum value: NODE_TYPE_HANDLE = 100200;
      */
-    NODE_TYPE_SPACE = 20100,
+    NODE_TYPE_HANDLE = 100200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HANDLE = 20200;
+     * @generated from protobuf enum value: NODE_TYPE_USER = 121000;
      */
-    NODE_TYPE_HANDLE = 20200,
+    NODE_TYPE_USER = 121000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_USER = 21000;
+     * @generated from protobuf enum value: NODE_TYPE_CLIENT = 121300;
      */
-    NODE_TYPE_USER = 21000,
+    NODE_TYPE_CLIENT = 121300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CLIENT = 21300;
+     * @generated from protobuf enum value: NODE_TYPE_ORGANIZATION = 122000;
      */
-    NODE_TYPE_CLIENT = 21300,
+    NODE_TYPE_ORGANIZATION = 122000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ORGANIZATION = 22000;
+     * @generated from protobuf enum value: NODE_TYPE_TEAM = 122100;
      */
-    NODE_TYPE_ORGANIZATION = 22000,
+    NODE_TYPE_TEAM = 122100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TEAM = 22100;
+     * @generated from protobuf enum value: NODE_TYPE_FOLDER = 240000;
      */
-    NODE_TYPE_TEAM = 22100,
+    NODE_TYPE_FOLDER = 240000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLDER = 40000;
+     * @generated from protobuf enum value: NODE_TYPE_TAG = 241000;
      */
-    NODE_TYPE_FOLDER = 40000,
+    NODE_TYPE_TAG = 241000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TAG = 41000;
+     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 241100;
      */
-    NODE_TYPE_TAG = 41000,
+    NODE_TYPE_TAGGING = 241100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 41100;
+     * @generated from protobuf enum value: NODE_TYPE_BRANCH = 245000;
      */
-    NODE_TYPE_TAGGING = 41100,
+    NODE_TYPE_BRANCH = 245000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BRANCH = 45000;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 360000;
      */
-    NODE_TYPE_BRANCH = 45000,
+    NODE_TYPE_MEMBERSHIP = 360000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP = 60000;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_EVENT = 360001;
      */
-    NODE_TYPE_MEMBERSHIP = 60000,
+    NODE_TYPE_MEMBERSHIP_EVENT = 360001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_EVENT = 60001;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 360002;
      */
-    NODE_TYPE_MEMBERSHIP_EVENT = 60001,
+    NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 360002,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 60002;
+     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 360003;
      */
-    NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 60002,
+    NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 360003,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 60003;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE = 360100;
      */
-    NODE_TYPE_MEMBERSHIP_LEFT_EVENT = 60003,
+    NODE_TYPE_INVITE = 360100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE = 60100;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_EVENT = 360101;
      */
-    NODE_TYPE_INVITE = 60100,
+    NODE_TYPE_INVITE_EVENT = 360101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_EVENT = 60101;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_SENT_EVENT = 360102;
      */
-    NODE_TYPE_INVITE_EVENT = 60101,
+    NODE_TYPE_INVITE_SENT_EVENT = 360102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_SENT_EVENT = 60102;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_RESCINDED_EVENT = 360103;
      */
-    NODE_TYPE_INVITE_SENT_EVENT = 60102,
+    NODE_TYPE_INVITE_RESCINDED_EVENT = 360103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_RESCINDED_EVENT = 60103;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_ACCEPTED_EVENT = 360104;
      */
-    NODE_TYPE_INVITE_RESCINDED_EVENT = 60103,
+    NODE_TYPE_INVITE_ACCEPTED_EVENT = 360104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_ACCEPTED_EVENT = 60104;
+     * @generated from protobuf enum value: NODE_TYPE_INVITE_REJECTED_EVENT = 360105;
      */
-    NODE_TYPE_INVITE_ACCEPTED_EVENT = 60104,
+    NODE_TYPE_INVITE_REJECTED_EVENT = 360105,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INVITE_REJECTED_EVENT = 60105;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE = 360200;
      */
-    NODE_TYPE_INVITE_REJECTED_EVENT = 60105,
+    NODE_TYPE_ROLE = 360200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE = 60200;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_EVENT = 360201;
      */
-    NODE_TYPE_ROLE = 60200,
+    NODE_TYPE_ROLE_EVENT = 360201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_EVENT = 60201;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_ASSIGNED_EVENT = 360202;
      */
-    NODE_TYPE_ROLE_EVENT = 60201,
+    NODE_TYPE_ROLE_ASSIGNED_EVENT = 360202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_ASSIGNED_EVENT = 60202;
+     * @generated from protobuf enum value: NODE_TYPE_ROLE_UNASSIGNED_EVENT = 360203;
      */
-    NODE_TYPE_ROLE_ASSIGNED_EVENT = 60202,
+    NODE_TYPE_ROLE_UNASSIGNED_EVENT = 360203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROLE_UNASSIGNED_EVENT = 60203;
+     * @generated from protobuf enum value: NODE_TYPE_PERMISSION = 360300;
      */
-    NODE_TYPE_ROLE_UNASSIGNED_EVENT = 60203,
+    NODE_TYPE_PERMISSION = 360300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PERMISSION = 60300;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION = 360400;
      */
-    NODE_TYPE_PERMISSION = 60300,
+    NODE_TYPE_SANCTION = 360400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION = 60400;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EVENT = 360401;
      */
-    NODE_TYPE_SANCTION = 60400,
+    NODE_TYPE_SANCTION_EVENT = 360401,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EVENT = 60401;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REQUESTED_EVENT = 360402;
      */
-    NODE_TYPE_SANCTION_EVENT = 60401,
+    NODE_TYPE_SANCTION_REQUESTED_EVENT = 360402,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REQUESTED_EVENT = 60402;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_GRANTED_EVENT = 360403;
      */
-    NODE_TYPE_SANCTION_REQUESTED_EVENT = 60402,
+    NODE_TYPE_SANCTION_GRANTED_EVENT = 360403,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_GRANTED_EVENT = 60403;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REVOKED_EVENT = 360404;
      */
-    NODE_TYPE_SANCTION_GRANTED_EVENT = 60403,
+    NODE_TYPE_SANCTION_REVOKED_EVENT = 360404,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_REVOKED_EVENT = 60404;
+     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EXPIRED_EVENT = 360405;
      */
-    NODE_TYPE_SANCTION_REVOKED_EVENT = 60404,
+    NODE_TYPE_SANCTION_EXPIRED_EVENT = 360405,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SANCTION_EXPIRED_EVENT = 60405;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT = 360500;
      */
-    NODE_TYPE_SANCTION_EXPIRED_EVENT = 60405,
+    NODE_TYPE_ENTITLEMENT = 360500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT = 60500;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EVENT = 360501;
      */
-    NODE_TYPE_ENTITLEMENT = 60500,
+    NODE_TYPE_ENTITLEMENT_EVENT = 360501,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EVENT = 60501;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 360502;
      */
-    NODE_TYPE_ENTITLEMENT_EVENT = 60501,
+    NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 360502,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 60502;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 360503;
      */
-    NODE_TYPE_ENTITLEMENT_REQUESTED_EVENT = 60502,
+    NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 360503,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 60503;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 360504;
      */
-    NODE_TYPE_ENTITLEMENT_GRANTED_EVENT = 60503,
+    NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 360504,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 60504;
+     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 360505;
      */
-    NODE_TYPE_ENTITLEMENT_REVOKED_EVENT = 60504,
+    NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 360505,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 60505;
+     * @generated from protobuf enum value: NODE_TYPE_FILE = 480000;
      */
-    NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 60505,
+    NODE_TYPE_FILE = 480000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILE = 80000;
+     * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 700000;
      */
-    NODE_TYPE_FILE = 80000,
+    NODE_TYPE_SCRIPT = 700000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCRIPT = 100000;
+     * @generated from protobuf enum value: NODE_TYPE_METHOD = 701000;
      */
-    NODE_TYPE_SCRIPT = 100000,
+    NODE_TYPE_METHOD = 701000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_METHOD = 101000;
+     * @generated from protobuf enum value: NODE_TYPE_ACTION = 701100;
      */
-    NODE_TYPE_METHOD = 101000,
+    NODE_TYPE_ACTION = 701100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ACTION = 101100;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 705000;
      */
-    NODE_TYPE_ACTION = 101100,
+    NODE_TYPE_TRIGGER = 705000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER = 105000;
+     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 705001;
      */
-    NODE_TYPE_TRIGGER = 105000,
+    NODE_TYPE_TRIGGER_EVENT = 705001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIGGER_EVENT = 105001;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER = 705100;
      */
-    NODE_TYPE_TRIGGER_EVENT = 105001,
+    NODE_TYPE_TIMER = 705100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER = 105100;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 705101;
      */
-    NODE_TYPE_TIMER = 105100,
+    NODE_TYPE_TIMER_EVENT = 705101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_EVENT = 105101;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_STARTED_EVENT = 705102;
      */
-    NODE_TYPE_TIMER_EVENT = 105101,
+    NODE_TYPE_TIMER_STARTED_EVENT = 705102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_STARTED_EVENT = 105102;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 705103;
      */
-    NODE_TYPE_TIMER_STARTED_EVENT = 105102,
+    NODE_TYPE_TIMER_COMPLETED_EVENT = 705103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_COMPLETED_EVENT = 105103;
+     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 705104;
      */
-    NODE_TYPE_TIMER_COMPLETED_EVENT = 105103,
+    NODE_TYPE_TIMER_CANCELLED_EVENT = 705104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TIMER_CANCELLED_EVENT = 105104;
+     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 710000;
      */
-    NODE_TYPE_TIMER_CANCELLED_EVENT = 105104,
+    NODE_TYPE_ROUTE = 710000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ROUTE = 110000;
+     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 712000;
      */
-    NODE_TYPE_ROUTE = 110000,
+    NODE_TYPE_CURSOR = 712000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CURSOR = 112000;
+     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 712100;
      */
-    NODE_TYPE_CURSOR = 112000,
+    NODE_TYPE_EVENT_CURSOR = 712100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EVENT_CURSOR = 112100;
+     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 712200;
      */
-    NODE_TYPE_EVENT_CURSOR = 112100,
+    NODE_TYPE_SCREEN_CURSOR = 712200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCREEN_CURSOR = 112200;
+     * @generated from protobuf enum value: NODE_TYPE_DATABASE = 1000000;
      */
-    NODE_TYPE_SCREEN_CURSOR = 112200,
+    NODE_TYPE_DATABASE = 1000000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DATABASE = 140000;
+     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 1001000;
      */
-    NODE_TYPE_DATABASE = 140000,
+    NODE_TYPE_MACHINE = 1001000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MACHINE = 140100;
+     * @generated from protobuf enum value: NODE_TYPE_ENVIRONMENT = 1100000;
      */
-    NODE_TYPE_MACHINE = 140100,
+    NODE_TYPE_ENVIRONMENT = 1100000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ENVIRONMENT = 160000;
+     * @generated from protobuf enum value: NODE_TYPE_RUN = 1110000;
      */
-    NODE_TYPE_ENVIRONMENT = 160000,
+    NODE_TYPE_RUN = 1110000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN = 170000;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_EVENT = 1110001;
      */
-    NODE_TYPE_RUN = 170000,
+    NODE_TYPE_RUN_EVENT = 1110001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_EVENT = 170001;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_STARTED_EVENT = 1110002;
      */
-    NODE_TYPE_RUN_EVENT = 170001,
+    NODE_TYPE_RUN_STARTED_EVENT = 1110002,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_STARTED_EVENT = 170002;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_PAUSE_REQUESTED_EVENT = 1110003;
      */
-    NODE_TYPE_RUN_STARTED_EVENT = 170002,
+    NODE_TYPE_RUN_PAUSE_REQUESTED_EVENT = 1110003,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_PAUSE_REQUESTED_EVENT = 170003;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_PAUSED_EVENT = 1110004;
      */
-    NODE_TYPE_RUN_PAUSE_REQUESTED_EVENT = 170003,
+    NODE_TYPE_RUN_PAUSED_EVENT = 1110004,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_PAUSED_EVENT = 170004;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_RESUME_REQUESTED_EVENT = 1110005;
      */
-    NODE_TYPE_RUN_PAUSED_EVENT = 170004,
+    NODE_TYPE_RUN_RESUME_REQUESTED_EVENT = 1110005,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_RESUME_REQUESTED_EVENT = 170005;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_RESUMED_EVENT = 1110006;
      */
-    NODE_TYPE_RUN_RESUME_REQUESTED_EVENT = 170005,
+    NODE_TYPE_RUN_RESUMED_EVENT = 1110006,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_RESUMED_EVENT = 170006;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_STOP_REQUESTED_EVENT = 1110007;
      */
-    NODE_TYPE_RUN_RESUMED_EVENT = 170006,
+    NODE_TYPE_RUN_STOP_REQUESTED_EVENT = 1110007,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_STOP_REQUESTED_EVENT = 170007;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_FAILED_EVENT = 1110008;
      */
-    NODE_TYPE_RUN_STOP_REQUESTED_EVENT = 170007,
+    NODE_TYPE_RUN_FAILED_EVENT = 1110008,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_FAILED_EVENT = 170008;
+     * @generated from protobuf enum value: NODE_TYPE_RUN_COMPLETED_EVENT = 1110009;
      */
-    NODE_TYPE_RUN_FAILED_EVENT = 170008,
+    NODE_TYPE_RUN_COMPLETED_EVENT = 1110009,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_RUN_COMPLETED_EVENT = 170009;
+     * @generated from protobuf enum value: NODE_TYPE_SPAN_EVENT = 1110010;
      */
-    NODE_TYPE_RUN_COMPLETED_EVENT = 170009,
+    NODE_TYPE_SPAN_EVENT = 1110010,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPAN_EVENT = 170101;
+     * @generated from protobuf enum value: NODE_TYPE_LOG_EVENT = 1110011;
      */
-    NODE_TYPE_SPAN_EVENT = 170101,
+    NODE_TYPE_LOG_EVENT = 1110011,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LOG_EVENT = 170301;
+     * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 1200000;
      */
-    NODE_TYPE_LOG_EVENT = 170301,
+    NODE_TYPE_GAUGE_METRIC = 1200000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GAUGE_METRIC = 180000;
+     * @generated from protobuf enum value: NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 1200001;
      */
-    NODE_TYPE_GAUGE_METRIC = 180000,
+    NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 1200001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 180001;
+     * @generated from protobuf enum value: NODE_TYPE_COUNTER_METRIC = 1200100;
      */
-    NODE_TYPE_GAUGE_MEASUREMENT_EVENT = 180001,
+    NODE_TYPE_COUNTER_METRIC = 1200100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COUNTER_METRIC = 180100;
+     * @generated from protobuf enum value: NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 1200101;
      */
-    NODE_TYPE_COUNTER_METRIC = 180100,
+    NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 1200101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 180101;
+     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_METRIC = 1200200;
      */
-    NODE_TYPE_COUNTER_MEASUREMENT_EVENT = 180101,
+    NODE_TYPE_HISTOGRAM_METRIC = 1200200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_METRIC = 180200;
+     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 1200201;
      */
-    NODE_TYPE_HISTOGRAM_METRIC = 180200,
+    NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 1200201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 180201;
+     * @generated from protobuf enum value: NODE_TYPE_REACTION = 1400000;
      */
-    NODE_TYPE_HISTOGRAM_MEASUREMENT_EVENT = 180201,
+    NODE_TYPE_REACTION = 1400000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_REACTION = 220000;
+     * @generated from protobuf enum value: NODE_TYPE_REACTION_EVENT = 1400001;
      */
-    NODE_TYPE_REACTION = 220000,
+    NODE_TYPE_REACTION_EVENT = 1400001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_REACTION_EVENT = 220001;
+     * @generated from protobuf enum value: NODE_TYPE_REACTION_ADDED_EVENT = 1400002;
      */
-    NODE_TYPE_REACTION_EVENT = 220001,
+    NODE_TYPE_REACTION_ADDED_EVENT = 1400002,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_REACTION_ADDED_EVENT = 220002;
+     * @generated from protobuf enum value: NODE_TYPE_REACTION_REMOVED_EVENT = 1400003;
      */
-    NODE_TYPE_REACTION_ADDED_EVENT = 220002,
+    NODE_TYPE_REACTION_REMOVED_EVENT = 1400003,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_REACTION_REMOVED_EVENT = 220003;
+     * @generated from protobuf enum value: NODE_TYPE_STAR = 1400100;
      */
-    NODE_TYPE_REACTION_REMOVED_EVENT = 220003,
+    NODE_TYPE_STAR = 1400100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STAR = 220100;
+     * @generated from protobuf enum value: NODE_TYPE_STAR_EVENT = 1400101;
      */
-    NODE_TYPE_STAR = 220100,
+    NODE_TYPE_STAR_EVENT = 1400101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STAR_EVENT = 220101;
+     * @generated from protobuf enum value: NODE_TYPE_STAR_ADDED_EVENT = 1400102;
      */
-    NODE_TYPE_STAR_EVENT = 220101,
+    NODE_TYPE_STAR_ADDED_EVENT = 1400102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STAR_ADDED_EVENT = 220102;
+     * @generated from protobuf enum value: NODE_TYPE_STAR_REMOVED_EVENT = 1400103;
      */
-    NODE_TYPE_STAR_ADDED_EVENT = 220102,
+    NODE_TYPE_STAR_REMOVED_EVENT = 1400103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STAR_REMOVED_EVENT = 220103;
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW = 1400200;
      */
-    NODE_TYPE_STAR_REMOVED_EVENT = 220103,
+    NODE_TYPE_FOLLOW = 1400200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLLOW = 220200;
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_EVENT = 1400201;
      */
-    NODE_TYPE_FOLLOW = 220200,
+    NODE_TYPE_FOLLOW_EVENT = 1400201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_EVENT = 220201;
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_ADDED_EVENT = 1400202;
      */
-    NODE_TYPE_FOLLOW_EVENT = 220201,
+    NODE_TYPE_FOLLOW_ADDED_EVENT = 1400202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_ADDED_EVENT = 220202;
+     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_REMOVED_EVENT = 1400203;
      */
-    NODE_TYPE_FOLLOW_ADDED_EVENT = 220202,
+    NODE_TYPE_FOLLOW_REMOVED_EVENT = 1400203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOLLOW_REMOVED_EVENT = 220203;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION = 1400500;
      */
-    NODE_TYPE_FOLLOW_REMOVED_EVENT = 220203,
+    NODE_TYPE_NOTIFICATION = 1400500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION = 220500;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EVENT = 1400501;
      */
-    NODE_TYPE_NOTIFICATION = 220500,
+    NODE_TYPE_NOTIFICATION_EVENT = 1400501,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EVENT = 220501;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_SENT_EVENT = 1400502;
      */
-    NODE_TYPE_NOTIFICATION_EVENT = 220501,
+    NODE_TYPE_NOTIFICATION_SENT_EVENT = 1400502,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_SENT_EVENT = 220502;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_RESCINDED_EVENT = 1400503;
      */
-    NODE_TYPE_NOTIFICATION_SENT_EVENT = 220502,
+    NODE_TYPE_NOTIFICATION_RESCINDED_EVENT = 1400503,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_RESCINDED_EVENT = 220503;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_READ_EVENT = 1400504;
      */
-    NODE_TYPE_NOTIFICATION_RESCINDED_EVENT = 220503,
+    NODE_TYPE_NOTIFICATION_READ_EVENT = 1400504,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_READ_EVENT = 220504;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 1400505;
      */
-    NODE_TYPE_NOTIFICATION_READ_EVENT = 220504,
+    NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 1400505,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 220505;
+     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 1400506;
      */
-    NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 220505,
+    NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 1400506,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 220506;
+     * @generated from protobuf enum value: NODE_TYPE_WINDOW = 1700100;
      */
-    NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 220506,
+    NODE_TYPE_WINDOW = 1700100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_WINDOW = 500000;
+     * @generated from protobuf enum value: NODE_TYPE_SCENE = 1700200;
      */
-    NODE_TYPE_WINDOW = 500000,
+    NODE_TYPE_SCENE = 1700200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCENE = 500100;
+     * @generated from protobuf enum value: NODE_TYPE_SCENE_EVENT = 1700201;
      */
-    NODE_TYPE_SCENE = 500100,
+    NODE_TYPE_SCENE_EVENT = 1700201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SCENE_EVENT = 500101;
+     * @generated from protobuf enum value: NODE_TYPE_LAYER = 1700300;
      */
-    NODE_TYPE_SCENE_EVENT = 500101,
+    NODE_TYPE_LAYER = 1700300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LAYER = 500200;
+     * @generated from protobuf enum value: NODE_TYPE_VIEW = 1800000;
      */
-    NODE_TYPE_LAYER = 500200,
+    NODE_TYPE_VIEW = 1800000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW = 520000;
+     * @generated from protobuf enum value: NODE_TYPE_VIEW_EVENT = 1800001;
      */
-    NODE_TYPE_VIEW = 520000,
+    NODE_TYPE_VIEW_EVENT = 1800001,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_VIEW_EVENT = 520001;
+     * @generated from protobuf enum value: NODE_TYPE_CONTAINER_VIEW = 1800100;
      */
-    NODE_TYPE_VIEW_EVENT = 520001,
+    NODE_TYPE_CONTAINER_VIEW = 1800100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CONTAINER_VIEW = 520100;
+     * @generated from protobuf enum value: NODE_TYPE_FRAME_VIEW = 1800200;
      */
-    NODE_TYPE_CONTAINER_VIEW = 520100,
+    NODE_TYPE_FRAME_VIEW = 1800200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FRAME_VIEW = 520200;
+     * @generated from protobuf enum value: NODE_TYPE_LABEL_VIEW = 1800300;
      */
-    NODE_TYPE_FRAME_VIEW = 520200,
+    NODE_TYPE_LABEL_VIEW = 1800300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LABEL_VIEW = 520300;
+     * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 1800400;
      */
-    NODE_TYPE_LABEL_VIEW = 520300,
+    NODE_TYPE_SPLIT_VIEW = 1800400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SPLIT_VIEW = 520400;
+     * @generated from protobuf enum value: NODE_TYPE_CONTENT_VIEW = 1805000;
      */
-    NODE_TYPE_SPLIT_VIEW = 520400,
+    NODE_TYPE_CONTENT_VIEW = 1805000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CONTENT_VIEW = 525000;
+     * @generated from protobuf enum value: NODE_TYPE_TEXT_VIEW = 1805100;
      */
-    NODE_TYPE_CONTENT_VIEW = 525000,
+    NODE_TYPE_TEXT_VIEW = 1805100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TEXT_VIEW = 525100;
+     * @generated from protobuf enum value: NODE_TYPE_INPUT_VIEW = 1810000;
      */
-    NODE_TYPE_TEXT_VIEW = 525100,
+    NODE_TYPE_INPUT_VIEW = 1810000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INPUT_VIEW = 530000;
+     * @generated from protobuf enum value: NODE_TYPE_NUMBER_INPUT_VIEW = 1810100;
      */
-    NODE_TYPE_INPUT_VIEW = 530000,
+    NODE_TYPE_NUMBER_INPUT_VIEW = 1810100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_NUMBER_INPUT_VIEW = 530100;
+     * @generated from protobuf enum value: NODE_TYPE_SLIDER_INPUT_VIEW = 1810200;
      */
-    NODE_TYPE_NUMBER_INPUT_VIEW = 530100,
+    NODE_TYPE_SLIDER_INPUT_VIEW = 1810200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SLIDER_INPUT_VIEW = 530200;
+     * @generated from protobuf enum value: NODE_TYPE_INTERNAL_VIEW = 1815000;
      */
-    NODE_TYPE_SLIDER_INPUT_VIEW = 530200,
+    NODE_TYPE_INTERNAL_VIEW = 1815000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INTERNAL_VIEW = 535000;
+     * @generated from protobuf enum value: NODE_TYPE_SHAPE = 1900000;
      */
-    NODE_TYPE_INTERNAL_VIEW = 535000,
+    NODE_TYPE_SHAPE = 1900000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHAPE = 540100;
+     * @generated from protobuf enum value: NODE_TYPE_LINE_SHAPE = 1900100;
      */
-    NODE_TYPE_SHAPE = 540100,
+    NODE_TYPE_LINE_SHAPE = 1900100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_LINE_SHAPE = 540200;
+     * @generated from protobuf enum value: NODE_TYPE_ARROW_SHAPE = 1900200;
      */
-    NODE_TYPE_LINE_SHAPE = 540200,
+    NODE_TYPE_ARROW_SHAPE = 1900200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ARROW_SHAPE = 540300;
+     * @generated from protobuf enum value: NODE_TYPE_ANNOTATION_SHAPE = 1900300;
      */
-    NODE_TYPE_ARROW_SHAPE = 540300,
+    NODE_TYPE_ANNOTATION_SHAPE = 1900300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_ANNOTATION_SHAPE = 540400;
+     * @generated from protobuf enum value: NODE_TYPE_INPUT_EVENT = 2000000;
      */
-    NODE_TYPE_ANNOTATION_SHAPE = 540400,
+    NODE_TYPE_INPUT_EVENT = 2000000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_INPUT_EVENT = 560000;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_EVENT = 2000100;
      */
-    NODE_TYPE_INPUT_EVENT = 560000,
+    NODE_TYPE_POINTER_EVENT = 2000100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_EVENT = 560100;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_DOWN_EVENT = 2000101;
      */
-    NODE_TYPE_POINTER_EVENT = 560100,
+    NODE_TYPE_POINTER_DOWN_EVENT = 2000101,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_DOWN_EVENT = 560101;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_UP_EVENT = 2000102;
      */
-    NODE_TYPE_POINTER_DOWN_EVENT = 560101,
+    NODE_TYPE_POINTER_UP_EVENT = 2000102,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_UP_EVENT = 560102;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_MOVE_EVENT = 2000103;
      */
-    NODE_TYPE_POINTER_UP_EVENT = 560102,
+    NODE_TYPE_POINTER_MOVE_EVENT = 2000103,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_MOVE_EVENT = 560103;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_ENTER_EVENT = 2000104;
      */
-    NODE_TYPE_POINTER_MOVE_EVENT = 560103,
+    NODE_TYPE_POINTER_ENTER_EVENT = 2000104,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_ENTER_EVENT = 560104;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_OVER_EVENT = 2000105;
      */
-    NODE_TYPE_POINTER_ENTER_EVENT = 560104,
+    NODE_TYPE_POINTER_OVER_EVENT = 2000105,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_OVER_EVENT = 560105;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_LEAVE_EVENT = 2000106;
      */
-    NODE_TYPE_POINTER_OVER_EVENT = 560105,
+    NODE_TYPE_POINTER_LEAVE_EVENT = 2000106,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_LEAVE_EVENT = 560106;
+     * @generated from protobuf enum value: NODE_TYPE_POINTER_LONG_PRESS_EVENT = 2000107;
      */
-    NODE_TYPE_POINTER_LEAVE_EVENT = 560106,
+    NODE_TYPE_POINTER_LONG_PRESS_EVENT = 2000107,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_POINTER_LONG_PRESS_EVENT = 560107;
+     * @generated from protobuf enum value: NODE_TYPE_MOUSE_EVENT = 2000200;
      */
-    NODE_TYPE_POINTER_LONG_PRESS_EVENT = 560107,
+    NODE_TYPE_MOUSE_EVENT = 2000200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_MOUSE_EVENT = 560200;
+     * @generated from protobuf enum value: NODE_TYPE_CLICK_EVENT = 2000201;
      */
-    NODE_TYPE_MOUSE_EVENT = 560200,
+    NODE_TYPE_CLICK_EVENT = 2000201,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CLICK_EVENT = 560201;
+     * @generated from protobuf enum value: NODE_TYPE_SINGLE_CLICK_EVENT = 2000202;
      */
-    NODE_TYPE_CLICK_EVENT = 560201,
+    NODE_TYPE_SINGLE_CLICK_EVENT = 2000202,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SINGLE_CLICK_EVENT = 560202;
+     * @generated from protobuf enum value: NODE_TYPE_DOUBLE_CLICK_EVENT = 2000203;
      */
-    NODE_TYPE_SINGLE_CLICK_EVENT = 560202,
+    NODE_TYPE_DOUBLE_CLICK_EVENT = 2000203,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DOUBLE_CLICK_EVENT = 560203;
+     * @generated from protobuf enum value: NODE_TYPE_TRIPLE_CLICK_EVENT = 2000204;
      */
-    NODE_TYPE_DOUBLE_CLICK_EVENT = 560203,
+    NODE_TYPE_TRIPLE_CLICK_EVENT = 2000204,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRIPLE_CLICK_EVENT = 560204;
+     * @generated from protobuf enum value: NODE_TYPE_WHEEL_EVENT = 2000210;
      */
-    NODE_TYPE_TRIPLE_CLICK_EVENT = 560204,
+    NODE_TYPE_WHEEL_EVENT = 2000210,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_WHEEL_EVENT = 560210;
+     * @generated from protobuf enum value: NODE_TYPE_KEY_EVENT = 2000300;
      */
-    NODE_TYPE_WHEEL_EVENT = 560210,
+    NODE_TYPE_KEY_EVENT = 2000300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_KEY_EVENT = 560300;
+     * @generated from protobuf enum value: NODE_TYPE_KEY_DOWN_EVENT = 2000301;
      */
-    NODE_TYPE_KEY_EVENT = 560300,
+    NODE_TYPE_KEY_DOWN_EVENT = 2000301,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_KEY_DOWN_EVENT = 560301;
+     * @generated from protobuf enum value: NODE_TYPE_KEY_UP_EVENT = 2000302;
      */
-    NODE_TYPE_KEY_DOWN_EVENT = 560301,
+    NODE_TYPE_KEY_UP_EVENT = 2000302,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_KEY_UP_EVENT = 560302;
+     * @generated from protobuf enum value: NODE_TYPE_KEY_PRESS_EVENT = 2000303;
      */
-    NODE_TYPE_KEY_UP_EVENT = 560302,
+    NODE_TYPE_KEY_PRESS_EVENT = 2000303,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_KEY_PRESS_EVENT = 560303;
+     * @generated from protobuf enum value: NODE_TYPE_DRAG_EVENT = 2000400;
      */
-    NODE_TYPE_KEY_PRESS_EVENT = 560303,
+    NODE_TYPE_DRAG_EVENT = 2000400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRAG_EVENT = 560400;
+     * @generated from protobuf enum value: NODE_TYPE_DRAG_START_EVENT = 2000401;
      */
-    NODE_TYPE_DRAG_EVENT = 560400,
+    NODE_TYPE_DRAG_START_EVENT = 2000401,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRAG_START_EVENT = 560401;
+     * @generated from protobuf enum value: NODE_TYPE_DRAG_END_EVENT = 2000402;
      */
-    NODE_TYPE_DRAG_START_EVENT = 560401,
+    NODE_TYPE_DRAG_END_EVENT = 2000402,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRAG_END_EVENT = 560402;
+     * @generated from protobuf enum value: NODE_TYPE_DRAG_OVER_EVENT = 2000403;
      */
-    NODE_TYPE_DRAG_END_EVENT = 560402,
+    NODE_TYPE_DRAG_OVER_EVENT = 2000403,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRAG_OVER_EVENT = 560403;
+     * @generated from protobuf enum value: NODE_TYPE_DRAG_ENTER_EVENT = 2000404;
      */
-    NODE_TYPE_DRAG_OVER_EVENT = 560403,
+    NODE_TYPE_DRAG_ENTER_EVENT = 2000404,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRAG_ENTER_EVENT = 560404;
+     * @generated from protobuf enum value: NODE_TYPE_DRAG_LEAVE_EVENT = 2000405;
      */
-    NODE_TYPE_DRAG_ENTER_EVENT = 560404,
+    NODE_TYPE_DRAG_LEAVE_EVENT = 2000405,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DRAG_LEAVE_EVENT = 560405;
+     * @generated from protobuf enum value: NODE_TYPE_DROP_EVENT = 2000406;
      */
-    NODE_TYPE_DRAG_LEAVE_EVENT = 560405,
+    NODE_TYPE_DROP_EVENT = 2000406,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_DROP_EVENT = 560406;
+     * @generated from protobuf enum value: NODE_TYPE_CLIPBOARD_EVENT = 2000500;
      */
-    NODE_TYPE_DROP_EVENT = 560406,
+    NODE_TYPE_CLIPBOARD_EVENT = 2000500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CLIPBOARD_EVENT = 560500;
+     * @generated from protobuf enum value: NODE_TYPE_COPY_EVENT = 2000501;
      */
-    NODE_TYPE_CLIPBOARD_EVENT = 560500,
+    NODE_TYPE_COPY_EVENT = 2000501,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COPY_EVENT = 560501;
+     * @generated from protobuf enum value: NODE_TYPE_CUT_EVENT = 2000502;
      */
-    NODE_TYPE_COPY_EVENT = 560501,
+    NODE_TYPE_CUT_EVENT = 2000502,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_CUT_EVENT = 560502;
+     * @generated from protobuf enum value: NODE_TYPE_PASTE_EVENT = 2000503;
      */
-    NODE_TYPE_CUT_EVENT = 560502,
+    NODE_TYPE_PASTE_EVENT = 2000503,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PASTE_EVENT = 560503;
+     * @generated from protobuf enum value: NODE_TYPE_FOCUS_EVENT = 2000600;
      */
-    NODE_TYPE_PASTE_EVENT = 560503,
+    NODE_TYPE_FOCUS_EVENT = 2000600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOCUS_EVENT = 560600;
+     * @generated from protobuf enum value: NODE_TYPE_FOCUS_IN_EVENT = 2000601;
      */
-    NODE_TYPE_FOCUS_EVENT = 560600,
+    NODE_TYPE_FOCUS_IN_EVENT = 2000601,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOCUS_IN_EVENT = 560601;
+     * @generated from protobuf enum value: NODE_TYPE_FOCUS_OUT_EVENT = 2000602;
      */
-    NODE_TYPE_FOCUS_IN_EVENT = 560601,
+    NODE_TYPE_FOCUS_OUT_EVENT = 2000602,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FOCUS_OUT_EVENT = 560602;
+     * @generated from protobuf enum value: NODE_TYPE_THEME = 2100000;
      */
-    NODE_TYPE_FOCUS_OUT_EVENT = 560602,
+    NODE_TYPE_THEME = 2100000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_THEME = 600000;
+     * @generated from protobuf enum value: NODE_TYPE_PALETTE = 2100100;
      */
-    NODE_TYPE_THEME = 600000,
+    NODE_TYPE_PALETTE = 2100100,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_PALETTE = 600100;
+     * @generated from protobuf enum value: NODE_TYPE_STYLE = 2100200;
      */
-    NODE_TYPE_PALETTE = 600100,
+    NODE_TYPE_STYLE = 2100200,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_STYLE = 600200;
+     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 2100300;
      */
-    NODE_TYPE_STYLE = 600200,
+    NODE_TYPE_COLOR_STYLE = 2100300,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_COLOR_STYLE = 600300;
+     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 2100400;
      */
-    NODE_TYPE_COLOR_STYLE = 600300,
+    NODE_TYPE_FILL_STYLE = 2100400,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FILL_STYLE = 600400;
+     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 2100500;
      */
-    NODE_TYPE_FILL_STYLE = 600400,
+    NODE_TYPE_FONT_STYLE = 2100500,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_FONT_STYLE = 600500;
+     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 2100600;
      */
-    NODE_TYPE_FONT_STYLE = 600500,
+    NODE_TYPE_BORDER_STYLE = 2100600,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_BORDER_STYLE = 600600;
+     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 2100700;
      */
-    NODE_TYPE_BORDER_STYLE = 600600,
+    NODE_TYPE_SHADOW_STYLE = 2100700,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_SHADOW_STYLE = 600700;
+     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 2100800;
      */
-    NODE_TYPE_SHADOW_STYLE = 600700,
+    NODE_TYPE_GRADIENT_STYLE = 2100800,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_GRADIENT_STYLE = 600800;
+     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 2100900;
      */
-    NODE_TYPE_GRADIENT_STYLE = 600800,
+    NODE_TYPE_TRANSITION_STYLE = 2100900,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_TRANSITION_STYLE = 600900;
+     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 2101000;
      */
-    NODE_TYPE_TRANSITION_STYLE = 600900,
+    NODE_TYPE_EFFECT_STYLE = 2101000,
     /**
-     * @generated from protobuf enum value: NODE_TYPE_EFFECT_STYLE = 6001000;
+     * @generated from protobuf enum value: NODE_TYPE_STROKE_STYLE = 2101100;
      */
-    NODE_TYPE_EFFECT_STYLE = 6001000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_STROKE_STYLE = 6001100;
-     */
-    NODE_TYPE_STROKE_STYLE = 6001100
+    NODE_TYPE_STROKE_STYLE = 2101100
 }
 /**
  * A Status of a Notification.
@@ -22180,9 +22160,9 @@ export enum SpringTypeProto {
      */
     SPRING_TYPE_TIME = 1,
     /**
-     * @generated from protobuf enum value: SPRING_TYPE_PHYSICS = 2;
+     * @generated from protobuf enum value: SPRING_TYPE_PHYSICAL = 2;
      */
-    SPRING_TYPE_PHYSICS = 2
+    SPRING_TYPE_PHYSICAL = 2
 }
 /**
  * The domain of a Store.
@@ -22495,161 +22475,161 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_NODE_CONSTRAINT = 653,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR = 700;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 400020;
      */
-    STRUCT_TYPE_VECTOR = 700,
+    STRUCT_TYPE_TEXT = 400020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTORF = 710;
+     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 400021;
      */
-    STRUCT_TYPE_VECTORF = 710,
+    STRUCT_TYPE_TEXT_SPAN = 400021,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2F = 711;
+     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 400031;
      */
-    STRUCT_TYPE_VECTOR2F = 711,
+    STRUCT_TYPE_ICON = 400031,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3F = 712;
+     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 700001;
      */
-    STRUCT_TYPE_VECTOR3F = 712,
+    STRUCT_TYPE_SCHEDULE = 700001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4F = 713;
+     * @generated from protobuf enum value: STRUCT_TYPE_DATABASE_INFO = 1000001;
      */
-    STRUCT_TYPE_VECTOR4F = 713,
+    STRUCT_TYPE_DATABASE_INFO = 1000001,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTORI = 720;
+     * @generated from protobuf enum value: STRUCT_TYPE_GALAXY_INFO = 1000101;
      */
-    STRUCT_TYPE_VECTORI = 720,
+    STRUCT_TYPE_GALAXY_INFO = 1000101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 721;
+     * @generated from protobuf enum value: STRUCT_TYPE_LINE = 1900100;
      */
-    STRUCT_TYPE_VECTOR2I = 721,
+    STRUCT_TYPE_LINE = 1900100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 722;
+     * @generated from protobuf enum value: STRUCT_TYPE_ARROW = 1900200;
      */
-    STRUCT_TYPE_VECTOR3I = 722,
+    STRUCT_TYPE_ARROW = 1900200,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 723;
+     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 2100018;
      */
-    STRUCT_TYPE_VECTOR4I = 723,
+    STRUCT_TYPE_LENGTH = 2100018,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT = 80020;
+     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 2100020;
      */
-    STRUCT_TYPE_TEXT = 80020,
+    STRUCT_TYPE_POSITION = 2100020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TEXT_SPAN = 80021;
+     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 2100022;
      */
-    STRUCT_TYPE_TEXT_SPAN = 80021,
+    STRUCT_TYPE_DIMENSION = 2100022,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ICON = 80031;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 2100026;
      */
-    STRUCT_TYPE_ICON = 80031,
+    STRUCT_TYPE_GRID = 2100026,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SCHEDULE = 100001;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 2100028;
      */
-    STRUCT_TYPE_SCHEDULE = 100001,
+    STRUCT_TYPE_GRID_SPAN = 2100028,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DATABASE_INFO = 140001;
+     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 2100030;
      */
-    STRUCT_TYPE_DATABASE_INFO = 140001,
+    STRUCT_TYPE_INSETS = 2100030,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GALAXY_INFO = 140101;
+     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 2100032;
      */
-    STRUCT_TYPE_GALAXY_INFO = 140101,
+    STRUCT_TYPE_CORNERS = 2100032,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LINE = 540200;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 2100034;
      */
-    STRUCT_TYPE_LINE = 540200,
+    STRUCT_TYPE_AXIS2 = 2100034,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_ARROW = 540300;
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 2100036;
      */
-    STRUCT_TYPE_ARROW = 540300,
+    STRUCT_TYPE_AXIS3 = 2100036,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 600018;
+     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 2100300;
      */
-    STRUCT_TYPE_LENGTH = 600018,
+    STRUCT_TYPE_COLOR = 2100300,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 600020;
+     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 2100400;
      */
-    STRUCT_TYPE_POSITION = 600020,
+    STRUCT_TYPE_FILL = 2100400,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 600022;
+     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 2100500;
      */
-    STRUCT_TYPE_DIMENSION = 600022,
+    STRUCT_TYPE_FONT = 2100500,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 600026;
+     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 2100600;
      */
-    STRUCT_TYPE_GRID = 600026,
+    STRUCT_TYPE_BORDER = 2100600,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 600028;
+     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 2100700;
      */
-    STRUCT_TYPE_GRID_SPAN = 600028,
+    STRUCT_TYPE_SHADOW = 2100700,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 600030;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 2100800;
      */
-    STRUCT_TYPE_INSETS = 600030,
+    STRUCT_TYPE_GRADIENT = 2100800,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 600032;
+     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 2100801;
      */
-    STRUCT_TYPE_CORNERS = 600032,
+    STRUCT_TYPE_GRADIENT_STOP = 2100801,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 600034;
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 2100900;
      */
-    STRUCT_TYPE_AXIS2 = 600034,
+    STRUCT_TYPE_TRANSITION = 2100900,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 600036;
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 2101000;
      */
-    STRUCT_TYPE_AXIS3 = 600036,
+    STRUCT_TYPE_EFFECT = 2101000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 600300;
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE = 2101100;
      */
-    STRUCT_TYPE_COLOR = 600300,
+    STRUCT_TYPE_STROKE = 2101100,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FILL = 600400;
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_CAP = 2101101;
      */
-    STRUCT_TYPE_FILL = 600400,
+    STRUCT_TYPE_STROKE_CAP = 2101101,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_FONT = 600500;
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_PATH = 2101102;
      */
-    STRUCT_TYPE_FONT = 600500,
+    STRUCT_TYPE_STROKE_PATH = 2101102,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_BORDER = 600600;
+     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_POINT = 2101103;
      */
-    STRUCT_TYPE_BORDER = 600600,
+    STRUCT_TYPE_STROKE_POINT = 2101103,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_SHADOW = 600700;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR = 2400000;
      */
-    STRUCT_TYPE_SHADOW = 600700,
+    STRUCT_TYPE_VECTOR = 2400000,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT = 600800;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTORF = 2400010;
      */
-    STRUCT_TYPE_GRADIENT = 600800,
+    STRUCT_TYPE_VECTORF = 2400010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRADIENT_STOP = 600801;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2F = 2400011;
      */
-    STRUCT_TYPE_GRADIENT_STOP = 600801,
+    STRUCT_TYPE_VECTOR2F = 2400011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 600900;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3F = 2400012;
      */
-    STRUCT_TYPE_TRANSITION = 600900,
+    STRUCT_TYPE_VECTOR3F = 2400012,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 6001000;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4F = 2400013;
      */
-    STRUCT_TYPE_EFFECT = 6001000,
+    STRUCT_TYPE_VECTOR4F = 2400013,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE = 6001100;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTORI = 2400020;
      */
-    STRUCT_TYPE_STROKE = 6001100,
+    STRUCT_TYPE_VECTORI = 2400020,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_CAP = 6001101;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2I = 2400021;
      */
-    STRUCT_TYPE_STROKE_CAP = 6001101,
+    STRUCT_TYPE_VECTOR2I = 2400021,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_PATH = 6001102;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3I = 2400022;
      */
-    STRUCT_TYPE_STROKE_PATH = 6001102,
+    STRUCT_TYPE_VECTOR3I = 2400022,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_STROKE_POINT = 6001103;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4I = 2400023;
      */
-    STRUCT_TYPE_STROKE_POINT = 6001103
+    STRUCT_TYPE_VECTOR4I = 2400023
 }
 /**
  * @generated from protobuf enum symbol.destack.TenancyProto
@@ -22884,53 +22864,53 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_IRREVERSIBLE = 120,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_TAGGABLE = 40000;
+     * @generated from protobuf enum value: TRAIT_TYPE_TAGGABLE = 201000;
      */
-    TRAIT_TYPE_TAGGABLE = 40000,
+    TRAIT_TYPE_TAGGABLE = 201000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 60000;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 300000;
      */
-    TRAIT_TYPE_OWNABLE = 60000,
+    TRAIT_TYPE_OWNABLE = 300000,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_OWNED = 60001;
+     * @generated from protobuf enum value: TRAIT_TYPE_OWNED = 300001;
      */
-    TRAIT_TYPE_OWNED = 60001,
+    TRAIT_TYPE_OWNED = 300001,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 60003;
+     * @generated from protobuf enum value: TRAIT_TYPE_JOINABLE = 300003;
      */
-    TRAIT_TYPE_JOINABLE = 60003,
+    TRAIT_TYPE_JOINABLE = 300003,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_ACTOR = 60004;
+     * @generated from protobuf enum value: TRAIT_TYPE_ACTOR = 300004;
      */
-    TRAIT_TYPE_ACTOR = 60004,
+    TRAIT_TYPE_ACTOR = 300004,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 100001;
+     * @generated from protobuf enum value: TRAIT_TYPE_RUNNABLE = 700001;
      */
-    TRAIT_TYPE_RUNNABLE = 100001,
+    TRAIT_TYPE_RUNNABLE = 700001,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SCRIPTABLE = 100002;
+     * @generated from protobuf enum value: TRAIT_TYPE_SCRIPTABLE = 700002;
      */
-    TRAIT_TYPE_SCRIPTABLE = 100002,
+    TRAIT_TYPE_SCRIPTABLE = 700002,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_SOURCEABLE = 100003;
+     * @generated from protobuf enum value: TRAIT_TYPE_SOURCEABLE = 700003;
      */
-    TRAIT_TYPE_SOURCEABLE = 100003,
+    TRAIT_TYPE_SOURCEABLE = 700003,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_STARABLE = 220030;
+     * @generated from protobuf enum value: TRAIT_TYPE_STARABLE = 1400030;
      */
-    TRAIT_TYPE_STARABLE = 220030,
+    TRAIT_TYPE_STARABLE = 1400030,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_REACTABLE = 220032;
+     * @generated from protobuf enum value: TRAIT_TYPE_REACTABLE = 1400032;
      */
-    TRAIT_TYPE_REACTABLE = 220032,
+    TRAIT_TYPE_REACTABLE = 1400032,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_FOLLOWABLE = 220034;
+     * @generated from protobuf enum value: TRAIT_TYPE_FOLLOWABLE = 1400034;
      */
-    TRAIT_TYPE_FOLLOWABLE = 220034,
+    TRAIT_TYPE_FOLLOWABLE = 1400034,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_VIEWABLE = 540000;
+     * @generated from protobuf enum value: TRAIT_TYPE_VIEWABLE = 1800000;
      */
-    TRAIT_TYPE_VIEWABLE = 540000
+    TRAIT_TYPE_VIEWABLE = 1800000
 }
 /**
  * Built-in transition types.
@@ -23002,81 +22982,105 @@ export enum UniverseCategoryProto {
      */
     UNIVERSE_CATEGORY_META = 1,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_UNIVERSE = 20000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_UNIVERSE = 100000;
      */
-    UNIVERSE_CATEGORY_UNIVERSE = 20000,
+    UNIVERSE_CATEGORY_UNIVERSE = 100000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_SPACE = 40000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_SPACE = 200000;
      */
-    UNIVERSE_CATEGORY_SPACE = 40000,
+    UNIVERSE_CATEGORY_SPACE = 200000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_ACCESS = 60000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_ACCESS = 300000;
      */
-    UNIVERSE_CATEGORY_ACCESS = 60000,
+    UNIVERSE_CATEGORY_ACCESS = 300000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_DATA = 80000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_DATA = 400000;
      */
-    UNIVERSE_CATEGORY_DATA = 80000,
+    UNIVERSE_CATEGORY_DATA = 400000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_LOGIC = 100000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_MEDIA = 500000;
      */
-    UNIVERSE_CATEGORY_LOGIC = 100000,
+    UNIVERSE_CATEGORY_MEDIA = 500000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_INTELLIGENCE = 120000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_LOCALE = 600000;
      */
-    UNIVERSE_CATEGORY_INTELLIGENCE = 120000,
+    UNIVERSE_CATEGORY_LOCALE = 600000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_INFRASTRUCTURE = 140000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_LOGIC = 700000;
      */
-    UNIVERSE_CATEGORY_INFRASTRUCTURE = 140000,
+    UNIVERSE_CATEGORY_LOGIC = 700000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_DEPLOYMENT = 160000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_QUALITY = 800000;
      */
-    UNIVERSE_CATEGORY_DEPLOYMENT = 160000,
+    UNIVERSE_CATEGORY_QUALITY = 800000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_OBSERVABILITY = 180000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_INTELLIGENCE = 900000;
      */
-    UNIVERSE_CATEGORY_OBSERVABILITY = 180000,
+    UNIVERSE_CATEGORY_INTELLIGENCE = 900000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_OPTIMIZATION = 200000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_INFRASTRUCTURE = 1000000;
      */
-    UNIVERSE_CATEGORY_OPTIMIZATION = 200000,
+    UNIVERSE_CATEGORY_INFRASTRUCTURE = 1000000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_SOCIAL = 220000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_DEPLOYMENT = 1100000;
      */
-    UNIVERSE_CATEGORY_SOCIAL = 220000,
+    UNIVERSE_CATEGORY_DEPLOYMENT = 1100000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_FINANCE = 240000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_OBSERVABILITY = 1200000;
      */
-    UNIVERSE_CATEGORY_FINANCE = 240000,
+    UNIVERSE_CATEGORY_OBSERVABILITY = 1200000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_PHYSICS = 260000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_EXPERIENCE = 1300000;
      */
-    UNIVERSE_CATEGORY_PHYSICS = 260000,
+    UNIVERSE_CATEGORY_EXPERIENCE = 1300000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_SCENE = 500000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_SOCIAL = 1400000;
      */
-    UNIVERSE_CATEGORY_SCENE = 500000,
+    UNIVERSE_CATEGORY_SOCIAL = 1400000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_VIEW = 520000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_FINANCE = 1500000;
      */
-    UNIVERSE_CATEGORY_VIEW = 520000,
+    UNIVERSE_CATEGORY_FINANCE = 1500000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_CANVAS = 540000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_SCENE = 1700000;
      */
-    UNIVERSE_CATEGORY_CANVAS = 540000,
+    UNIVERSE_CATEGORY_SCENE = 1700000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_INTERACTION = 560000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_VIEW = 1800000;
      */
-    UNIVERSE_CATEGORY_INTERACTION = 560000,
+    UNIVERSE_CATEGORY_VIEW = 1800000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_ANIMATION = 580000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_CANVAS = 1900000;
      */
-    UNIVERSE_CATEGORY_ANIMATION = 580000,
+    UNIVERSE_CATEGORY_CANVAS = 1900000,
     /**
-     * @generated from protobuf enum value: UNIVERSE_CATEGORY_STYLE = 600000;
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_INTERACTION = 2000000;
      */
-    UNIVERSE_CATEGORY_STYLE = 600000
+    UNIVERSE_CATEGORY_INTERACTION = 2000000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_STYLE = 2100000;
+     */
+    UNIVERSE_CATEGORY_STYLE = 2100000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_ANIMATION = 2200000;
+     */
+    UNIVERSE_CATEGORY_ANIMATION = 2200000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_AUDIO = 2300000;
+     */
+    UNIVERSE_CATEGORY_AUDIO = 2300000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_GEOMETRY = 2400000;
+     */
+    UNIVERSE_CATEGORY_GEOMETRY = 2400000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_PHYSICS = 2500000;
+     */
+    UNIVERSE_CATEGORY_PHYSICS = 2500000,
+    /**
+     * @generated from protobuf enum value: UNIVERSE_CATEGORY_LIGHTING = 2600000;
+     */
+    UNIVERSE_CATEGORY_LIGHTING = 2600000
 }
 /**
  * @generated from protobuf enum symbol.destack.UserStatusProto
@@ -56739,6 +56743,8 @@ class TagProto$Type extends MessageType<TagProto> {
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 70, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto }
         ]);
@@ -56798,6 +56804,12 @@ class TagProto$Type extends MessageType<TagProto> {
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
                     break;
+                case /* optional symbol.destack.NodeReferenceProto source_ptr */ 60:
+                    message.sourcePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.sourcePtr);
+                    break;
+                case /* optional string key */ 70:
+                    message.key = reader.string();
+                    break;
                 case /* string name */ 101:
                     message.name = reader.string();
                     break;
@@ -56855,6 +56867,12 @@ class TagProto$Type extends MessageType<TagProto> {
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.destack.NodeReferenceProto source_ptr = 60; */
+        if (message.sourcePtr)
+            NodeReferenceProto.internalBinaryWrite(message.sourcePtr, writer.tag(60, WireType.LengthDelimited).fork(), options).join();
+        /* optional string key = 70; */
+        if (message.key !== undefined)
+            writer.tag(70, WireType.LengthDelimited).string(message.key);
         /* string name = 101; */
         if (message.name !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.name);
@@ -59674,75 +59692,6 @@ class TypeProto$Type extends MessageType<TypeProto> {
  */
 export const TypeProto = new TypeProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class UniverseProto$Type extends MessageType<UniverseProto> {
-    constructor() {
-        super("symbol.destack.UniverseProto", [
-            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto }
-        ]);
-    }
-    create(value?: PartialMessage<UniverseProto>): UniverseProto {
-        const message = globalThis.Object.create((this.messagePrototype!));
-        message.metatype = 0;
-        message.id = "";
-        if (value !== undefined)
-            reflectionMergePartial<UniverseProto>(this, message, value);
-        return message;
-    }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: UniverseProto): UniverseProto {
-        let message = target ?? this.create(), end = reader.pos + length;
-        while (reader.pos < end) {
-            let [fieldNo, wireType] = reader.tag();
-            switch (fieldNo) {
-                case /* symbol.destack.NodeTypeProto metatype */ 1:
-                    message.metatype = reader.int32();
-                    break;
-                case /* string id */ 2:
-                    message.id = reader.string();
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
-                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
-                    break;
-                case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
-                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
-                    break;
-                default:
-                    let u = options.readUnknownField;
-                    if (u === "throw")
-                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
-                    let d = reader.skip(wireType);
-                    if (u !== false)
-                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
-            }
-        }
-        return message;
-    }
-    internalBinaryWrite(message: UniverseProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
-        /* symbol.destack.NodeTypeProto metatype = 1; */
-        if (message.metatype !== 0)
-            writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* string id = 2; */
-        if (message.id !== "")
-            writer.tag(2, WireType.LengthDelimited).string(message.id);
-        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
-        if (message.parentPtr)
-            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NodeReferenceProto space_ptr = 5; */
-        if (message.spacePtr)
-            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
-        let u = options.writeUnknownFields;
-        if (u !== false)
-            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
-        return writer;
-    }
-}
-/**
- * @generated MessageType for protobuf message symbol.destack.UniverseProto
- */
-export const UniverseProto = new UniverseProto$Type();
-// @generated message type with reflection information, may provide speed optimized methods
 class UserProto$Type extends MessageType<UserProto> {
     constructor() {
         super("symbol.destack.UserProto", [
@@ -61547,136 +61496,136 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 120, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
             { no: 110, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 103, name: "custom_struct", kind: "message", oneof: "node", T: () => CustomStructProto },
-            { no: 60502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
-            { no: 60503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
-            { no: 60504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
-            { no: 60505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
-            { no: 60500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
-            { no: 60102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
-            { no: 60103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
-            { no: 60104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
-            { no: 60105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
-            { no: 60100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
-            { no: 60002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
-            { no: 60003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
-            { no: 60000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
-            { no: 60300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
-            { no: 60202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
-            { no: 60203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
-            { no: 60200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
-            { no: 60402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
-            { no: 60403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
-            { no: 60404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
-            { no: 60405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
-            { no: 60400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
-            { no: 520200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
-            { no: 535000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
-            { no: 520300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
-            { no: 530100, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewProto },
-            { no: 530200, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewProto },
-            { no: 520400, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewProto },
-            { no: 525100, name: "text_view", kind: "message", oneof: "node", T: () => TextViewProto },
-            { no: 540400, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
-            { no: 540300, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
-            { no: 540200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
-            { no: 80000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
-            { no: 160000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
-            { no: 170301, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
-            { no: 170002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
-            { no: 170003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
-            { no: 170004, name: "run_paused_event", kind: "message", oneof: "node", T: () => RunPausedEventProto },
-            { no: 170005, name: "run_resume_requested_event", kind: "message", oneof: "node", T: () => RunResumeRequestedEventProto },
-            { no: 170006, name: "run_resumed_event", kind: "message", oneof: "node", T: () => RunResumedEventProto },
-            { no: 170007, name: "run_stop_requested_event", kind: "message", oneof: "node", T: () => RunStopRequestedEventProto },
-            { no: 170008, name: "run_failed_event", kind: "message", oneof: "node", T: () => RunFailedEventProto },
-            { no: 170009, name: "run_completed_event", kind: "message", oneof: "node", T: () => RunCompletedEventProto },
-            { no: 170101, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
-            { no: 140000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
-            { no: 140100, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
-            { no: 560501, name: "copy_event", kind: "message", oneof: "node", T: () => CopyEventProto },
-            { no: 560502, name: "cut_event", kind: "message", oneof: "node", T: () => CutEventProto },
-            { no: 560503, name: "paste_event", kind: "message", oneof: "node", T: () => PasteEventProto },
-            { no: 560401, name: "drag_start_event", kind: "message", oneof: "node", T: () => DragStartEventProto },
-            { no: 560402, name: "drag_end_event", kind: "message", oneof: "node", T: () => DragEndEventProto },
-            { no: 560403, name: "drag_over_event", kind: "message", oneof: "node", T: () => DragOverEventProto },
-            { no: 560404, name: "drag_enter_event", kind: "message", oneof: "node", T: () => DragEnterEventProto },
-            { no: 560405, name: "drag_leave_event", kind: "message", oneof: "node", T: () => DragLeaveEventProto },
-            { no: 560406, name: "drop_event", kind: "message", oneof: "node", T: () => DropEventProto },
-            { no: 560601, name: "focus_in_event", kind: "message", oneof: "node", T: () => FocusInEventProto },
-            { no: 560602, name: "focus_out_event", kind: "message", oneof: "node", T: () => FocusOutEventProto },
-            { no: 560301, name: "key_down_event", kind: "message", oneof: "node", T: () => KeyDownEventProto },
-            { no: 560302, name: "key_up_event", kind: "message", oneof: "node", T: () => KeyUpEventProto },
-            { no: 560303, name: "key_press_event", kind: "message", oneof: "node", T: () => KeyPressEventProto },
-            { no: 560101, name: "pointer_down_event", kind: "message", oneof: "node", T: () => PointerDownEventProto },
-            { no: 560102, name: "pointer_up_event", kind: "message", oneof: "node", T: () => PointerUpEventProto },
-            { no: 560103, name: "pointer_move_event", kind: "message", oneof: "node", T: () => PointerMoveEventProto },
-            { no: 560104, name: "pointer_enter_event", kind: "message", oneof: "node", T: () => PointerEnterEventProto },
-            { no: 560105, name: "pointer_over_event", kind: "message", oneof: "node", T: () => PointerOverEventProto },
-            { no: 560106, name: "pointer_leave_event", kind: "message", oneof: "node", T: () => PointerLeaveEventProto },
-            { no: 560107, name: "pointer_long_press_event", kind: "message", oneof: "node", T: () => PointerLongPressEventProto },
-            { no: 560202, name: "single_click_event", kind: "message", oneof: "node", T: () => SingleClickEventProto },
-            { no: 560203, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
-            { no: 560204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
-            { no: 560210, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
-            { no: 101000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
-            { no: 101100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
-            { no: 112100, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
-            { no: 112200, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 100000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
+            { no: 360502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
+            { no: 360503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
+            { no: 360504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
+            { no: 360505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
+            { no: 360500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
+            { no: 360102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
+            { no: 360103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
+            { no: 360104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
+            { no: 360105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
+            { no: 360100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
+            { no: 360002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
+            { no: 360003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
+            { no: 360000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
+            { no: 360300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
+            { no: 360202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
+            { no: 360203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
+            { no: 360200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
+            { no: 360402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
+            { no: 360403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
+            { no: 360404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
+            { no: 360405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
+            { no: 360400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
+            { no: 1800200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
+            { no: 1815000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
+            { no: 1800300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
+            { no: 1810100, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewProto },
+            { no: 1810200, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewProto },
+            { no: 1800400, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewProto },
+            { no: 1805100, name: "text_view", kind: "message", oneof: "node", T: () => TextViewProto },
+            { no: 1900300, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
+            { no: 1900200, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
+            { no: 1900100, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
+            { no: 480000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
+            { no: 1100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
+            { no: 1110011, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
+            { no: 1110002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
+            { no: 1110003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
+            { no: 1110004, name: "run_paused_event", kind: "message", oneof: "node", T: () => RunPausedEventProto },
+            { no: 1110005, name: "run_resume_requested_event", kind: "message", oneof: "node", T: () => RunResumeRequestedEventProto },
+            { no: 1110006, name: "run_resumed_event", kind: "message", oneof: "node", T: () => RunResumedEventProto },
+            { no: 1110007, name: "run_stop_requested_event", kind: "message", oneof: "node", T: () => RunStopRequestedEventProto },
+            { no: 1110008, name: "run_failed_event", kind: "message", oneof: "node", T: () => RunFailedEventProto },
+            { no: 1110009, name: "run_completed_event", kind: "message", oneof: "node", T: () => RunCompletedEventProto },
+            { no: 1110010, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
+            { no: 1000000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
+            { no: 1001000, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
+            { no: 2000501, name: "copy_event", kind: "message", oneof: "node", T: () => CopyEventProto },
+            { no: 2000502, name: "cut_event", kind: "message", oneof: "node", T: () => CutEventProto },
+            { no: 2000503, name: "paste_event", kind: "message", oneof: "node", T: () => PasteEventProto },
+            { no: 2000401, name: "drag_start_event", kind: "message", oneof: "node", T: () => DragStartEventProto },
+            { no: 2000402, name: "drag_end_event", kind: "message", oneof: "node", T: () => DragEndEventProto },
+            { no: 2000403, name: "drag_over_event", kind: "message", oneof: "node", T: () => DragOverEventProto },
+            { no: 2000404, name: "drag_enter_event", kind: "message", oneof: "node", T: () => DragEnterEventProto },
+            { no: 2000405, name: "drag_leave_event", kind: "message", oneof: "node", T: () => DragLeaveEventProto },
+            { no: 2000406, name: "drop_event", kind: "message", oneof: "node", T: () => DropEventProto },
+            { no: 2000601, name: "focus_in_event", kind: "message", oneof: "node", T: () => FocusInEventProto },
+            { no: 2000602, name: "focus_out_event", kind: "message", oneof: "node", T: () => FocusOutEventProto },
+            { no: 2000301, name: "key_down_event", kind: "message", oneof: "node", T: () => KeyDownEventProto },
+            { no: 2000302, name: "key_up_event", kind: "message", oneof: "node", T: () => KeyUpEventProto },
+            { no: 2000303, name: "key_press_event", kind: "message", oneof: "node", T: () => KeyPressEventProto },
+            { no: 2000101, name: "pointer_down_event", kind: "message", oneof: "node", T: () => PointerDownEventProto },
+            { no: 2000102, name: "pointer_up_event", kind: "message", oneof: "node", T: () => PointerUpEventProto },
+            { no: 2000103, name: "pointer_move_event", kind: "message", oneof: "node", T: () => PointerMoveEventProto },
+            { no: 2000104, name: "pointer_enter_event", kind: "message", oneof: "node", T: () => PointerEnterEventProto },
+            { no: 2000105, name: "pointer_over_event", kind: "message", oneof: "node", T: () => PointerOverEventProto },
+            { no: 2000106, name: "pointer_leave_event", kind: "message", oneof: "node", T: () => PointerLeaveEventProto },
+            { no: 2000107, name: "pointer_long_press_event", kind: "message", oneof: "node", T: () => PointerLongPressEventProto },
+            { no: 2000202, name: "single_click_event", kind: "message", oneof: "node", T: () => SingleClickEventProto },
+            { no: 2000203, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
+            { no: 2000204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
+            { no: 2000210, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
+            { no: 701000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
+            { no: 701100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
+            { no: 712100, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
+            { no: 712200, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
+            { no: 700000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 1400, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
-            { no: 105102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 105103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 105104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
-            { no: 105100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
-            { no: 105000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
-            { no: 180000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
-            { no: 180001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
-            { no: 180100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
-            { no: 180101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
-            { no: 180200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
-            { no: 180201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
-            { no: 500200, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
-            { no: 500100, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
-            { no: 500000, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
-            { no: 220200, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
-            { no: 220201, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
-            { no: 220202, name: "follow_added_event", kind: "message", oneof: "node", T: () => FollowAddedEventProto },
-            { no: 220203, name: "follow_removed_event", kind: "message", oneof: "node", T: () => FollowRemovedEventProto },
-            { no: 220502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
-            { no: 220503, name: "notification_rescinded_event", kind: "message", oneof: "node", T: () => NotificationRescindedEventProto },
-            { no: 220504, name: "notification_read_event", kind: "message", oneof: "node", T: () => NotificationReadEventProto },
-            { no: 220505, name: "notification_dismissed_event", kind: "message", oneof: "node", T: () => NotificationDismissedEventProto },
-            { no: 220506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
-            { no: 220500, name: "notification", kind: "message", oneof: "node", T: () => NotificationProto },
-            { no: 220000, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
-            { no: 220001, name: "reaction_event", kind: "message", oneof: "node", T: () => ReactionEventProto },
-            { no: 220002, name: "reaction_added_event", kind: "message", oneof: "node", T: () => ReactionAddedEventProto },
-            { no: 220003, name: "reaction_removed_event", kind: "message", oneof: "node", T: () => ReactionRemovedEventProto },
-            { no: 220100, name: "star", kind: "message", oneof: "node", T: () => StarProto },
-            { no: 220101, name: "star_event", kind: "message", oneof: "node", T: () => StarEventProto },
-            { no: 220102, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
-            { no: 220103, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto },
-            { no: 45000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
-            { no: 40000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 41000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
-            { no: 41100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
-            { no: 600300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
-            { no: 600600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
-            { no: 600900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 6001000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
-            { no: 600800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
-            { no: 600400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
-            { no: 600500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
-            { no: 600100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
-            { no: 600700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
-            { no: 6001100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
-            { no: 600000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
-            { no: 21300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
-            { no: 20200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
-            { no: 22000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
-            { no: 20100, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
-            { no: 22100, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
-            { no: 21000, name: "user", kind: "message", oneof: "node", T: () => UserProto }
+            { no: 705102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
+            { no: 705103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 705104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 705100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
+            { no: 705000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
+            { no: 1200000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
+            { no: 1200001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
+            { no: 1200100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
+            { no: 1200101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
+            { no: 1200200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
+            { no: 1200201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
+            { no: 1700300, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
+            { no: 1700200, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
+            { no: 1700100, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
+            { no: 1400200, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
+            { no: 1400201, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
+            { no: 1400202, name: "follow_added_event", kind: "message", oneof: "node", T: () => FollowAddedEventProto },
+            { no: 1400203, name: "follow_removed_event", kind: "message", oneof: "node", T: () => FollowRemovedEventProto },
+            { no: 1400502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
+            { no: 1400503, name: "notification_rescinded_event", kind: "message", oneof: "node", T: () => NotificationRescindedEventProto },
+            { no: 1400504, name: "notification_read_event", kind: "message", oneof: "node", T: () => NotificationReadEventProto },
+            { no: 1400505, name: "notification_dismissed_event", kind: "message", oneof: "node", T: () => NotificationDismissedEventProto },
+            { no: 1400506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
+            { no: 1400500, name: "notification", kind: "message", oneof: "node", T: () => NotificationProto },
+            { no: 1400000, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
+            { no: 1400001, name: "reaction_event", kind: "message", oneof: "node", T: () => ReactionEventProto },
+            { no: 1400002, name: "reaction_added_event", kind: "message", oneof: "node", T: () => ReactionAddedEventProto },
+            { no: 1400003, name: "reaction_removed_event", kind: "message", oneof: "node", T: () => ReactionRemovedEventProto },
+            { no: 1400100, name: "star", kind: "message", oneof: "node", T: () => StarProto },
+            { no: 1400101, name: "star_event", kind: "message", oneof: "node", T: () => StarEventProto },
+            { no: 1400102, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
+            { no: 1400103, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto },
+            { no: 245000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
+            { no: 240000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
+            { no: 241000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
+            { no: 241100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
+            { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
+            { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
+            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
+            { no: 2100800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
+            { no: 2100400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
+            { no: 2100500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
+            { no: 2100100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
+            { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
+            { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
+            { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
+            { no: 121300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
+            { no: 100200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
+            { no: 122000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
+            { no: 100100, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
+            { no: 122100, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
+            { no: 121000, name: "user", kind: "message", oneof: "node", T: () => UserProto }
         ]);
     }
     create(value?: PartialMessage<SomeNodeProto>): SomeNodeProto {
@@ -61733,457 +61682,457 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         customStruct: CustomStructProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customStruct)
                     };
                     break;
-                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 60502:
+                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 360502:
                     message.node = {
                         oneofKind: "entitlementRequestedEvent",
                         entitlementRequestedEvent: EntitlementRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 60503:
+                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 360503:
                     message.node = {
                         oneofKind: "entitlementGrantedEvent",
                         entitlementGrantedEvent: EntitlementGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 60504:
+                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 360504:
                     message.node = {
                         oneofKind: "entitlementRevokedEvent",
                         entitlementRevokedEvent: EntitlementRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 60505:
+                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 360505:
                     message.node = {
                         oneofKind: "entitlementExpiredEvent",
                         entitlementExpiredEvent: EntitlementExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementProto entitlement */ 60500:
+                case /* symbol.destack.EntitlementProto entitlement */ 360500:
                     message.node = {
                         oneofKind: "entitlement",
                         entitlement: EntitlementProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlement)
                     };
                     break;
-                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 60102:
+                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 360102:
                     message.node = {
                         oneofKind: "inviteSentEvent",
                         inviteSentEvent: InviteSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteSentEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 60103:
+                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 360103:
                     message.node = {
                         oneofKind: "inviteRescindedEvent",
                         inviteRescindedEvent: InviteRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 60104:
+                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 360104:
                     message.node = {
                         oneofKind: "inviteAcceptedEvent",
                         inviteAcceptedEvent: InviteAcceptedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteAcceptedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 60105:
+                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 360105:
                     message.node = {
                         oneofKind: "inviteRejectedEvent",
                         inviteRejectedEvent: InviteRejectedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRejectedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteProto invite */ 60100:
+                case /* symbol.destack.InviteProto invite */ 360100:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 60002:
+                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 360002:
                     message.node = {
                         oneofKind: "membershipJoinedEvent",
                         membershipJoinedEvent: MembershipJoinedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipJoinedEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 60003:
+                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 360003:
                     message.node = {
                         oneofKind: "membershipLeftEvent",
                         membershipLeftEvent: MembershipLeftEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipLeftEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipProto membership */ 60000:
+                case /* symbol.destack.MembershipProto membership */ 360000:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbol.destack.PermissionProto permission */ 60300:
+                case /* symbol.destack.PermissionProto permission */ 360300:
                     message.node = {
                         oneofKind: "permission",
                         permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
-                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 60202:
+                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 360202:
                     message.node = {
                         oneofKind: "roleAssignedEvent",
                         roleAssignedEvent: RoleAssignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleAssignedEvent)
                     };
                     break;
-                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 60203:
+                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 360203:
                     message.node = {
                         oneofKind: "roleUnassignedEvent",
                         roleUnassignedEvent: RoleUnassignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleUnassignedEvent)
                     };
                     break;
-                case /* symbol.destack.RoleProto role */ 60200:
+                case /* symbol.destack.RoleProto role */ 360200:
                     message.node = {
                         oneofKind: "role",
                         role: RoleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 60402:
+                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 360402:
                     message.node = {
                         oneofKind: "sanctionRequestedEvent",
                         sanctionRequestedEvent: SanctionRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 60403:
+                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 360403:
                     message.node = {
                         oneofKind: "sanctionGrantedEvent",
                         sanctionGrantedEvent: SanctionGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 60404:
+                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 360404:
                     message.node = {
                         oneofKind: "sanctionRevokedEvent",
                         sanctionRevokedEvent: SanctionRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 60405:
+                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 360405:
                     message.node = {
                         oneofKind: "sanctionExpiredEvent",
                         sanctionExpiredEvent: SanctionExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionProto sanction */ 60400:
+                case /* symbol.destack.SanctionProto sanction */ 360400:
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
                     };
                     break;
-                case /* symbol.destack.FrameViewProto frame_view */ 520200:
+                case /* symbol.destack.FrameViewProto frame_view */ 1800200:
                     message.node = {
                         oneofKind: "frameView",
                         frameView: FrameViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).frameView)
                     };
                     break;
-                case /* symbol.destack.InternalViewProto internal_view */ 535000:
+                case /* symbol.destack.InternalViewProto internal_view */ 1815000:
                     message.node = {
                         oneofKind: "internalView",
                         internalView: InternalViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).internalView)
                     };
                     break;
-                case /* symbol.destack.LabelViewProto label_view */ 520300:
+                case /* symbol.destack.LabelViewProto label_view */ 1800300:
                     message.node = {
                         oneofKind: "labelView",
                         labelView: LabelViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).labelView)
                     };
                     break;
-                case /* symbol.destack.NumberInputViewProto number_input_view */ 530100:
+                case /* symbol.destack.NumberInputViewProto number_input_view */ 1810100:
                     message.node = {
                         oneofKind: "numberInputView",
                         numberInputView: NumberInputViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).numberInputView)
                     };
                     break;
-                case /* symbol.destack.SliderInputViewProto slider_input_view */ 530200:
+                case /* symbol.destack.SliderInputViewProto slider_input_view */ 1810200:
                     message.node = {
                         oneofKind: "sliderInputView",
                         sliderInputView: SliderInputViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sliderInputView)
                     };
                     break;
-                case /* symbol.destack.SplitViewProto split_view */ 520400:
+                case /* symbol.destack.SplitViewProto split_view */ 1800400:
                     message.node = {
                         oneofKind: "splitView",
                         splitView: SplitViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).splitView)
                     };
                     break;
-                case /* symbol.destack.TextViewProto text_view */ 525100:
+                case /* symbol.destack.TextViewProto text_view */ 1805100:
                     message.node = {
                         oneofKind: "textView",
                         textView: TextViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).textView)
                     };
                     break;
-                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 540400:
+                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 1900300:
                     message.node = {
                         oneofKind: "annotationShape",
                         annotationShape: AnnotationShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).annotationShape)
                     };
                     break;
-                case /* symbol.destack.ArrowShapeProto arrow_shape */ 540300:
+                case /* symbol.destack.ArrowShapeProto arrow_shape */ 1900200:
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
                     };
                     break;
-                case /* symbol.destack.LineShapeProto line_shape */ 540200:
+                case /* symbol.destack.LineShapeProto line_shape */ 1900100:
                     message.node = {
                         oneofKind: "lineShape",
                         lineShape: LineShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).lineShape)
                     };
                     break;
-                case /* symbol.destack.FileProto file */ 80000:
+                case /* symbol.destack.FileProto file */ 480000:
                     message.node = {
                         oneofKind: "file",
                         file: FileProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
                     };
                     break;
-                case /* symbol.destack.EnvironmentProto environment */ 160000:
+                case /* symbol.destack.EnvironmentProto environment */ 1100000:
                     message.node = {
                         oneofKind: "environment",
                         environment: EnvironmentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).environment)
                     };
                     break;
-                case /* symbol.destack.LogEventProto log_event */ 170301:
+                case /* symbol.destack.LogEventProto log_event */ 1110011:
                     message.node = {
                         oneofKind: "logEvent",
                         logEvent: LogEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).logEvent)
                     };
                     break;
-                case /* symbol.destack.RunStartedEventProto run_started_event */ 170002:
+                case /* symbol.destack.RunStartedEventProto run_started_event */ 1110002:
                     message.node = {
                         oneofKind: "runStartedEvent",
                         runStartedEvent: RunStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runStartedEvent)
                     };
                     break;
-                case /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event */ 170003:
+                case /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event */ 1110003:
                     message.node = {
                         oneofKind: "runPauseRequestedEvent",
                         runPauseRequestedEvent: RunPauseRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runPauseRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.RunPausedEventProto run_paused_event */ 170004:
+                case /* symbol.destack.RunPausedEventProto run_paused_event */ 1110004:
                     message.node = {
                         oneofKind: "runPausedEvent",
                         runPausedEvent: RunPausedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runPausedEvent)
                     };
                     break;
-                case /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event */ 170005:
+                case /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event */ 1110005:
                     message.node = {
                         oneofKind: "runResumeRequestedEvent",
                         runResumeRequestedEvent: RunResumeRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runResumeRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.RunResumedEventProto run_resumed_event */ 170006:
+                case /* symbol.destack.RunResumedEventProto run_resumed_event */ 1110006:
                     message.node = {
                         oneofKind: "runResumedEvent",
                         runResumedEvent: RunResumedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runResumedEvent)
                     };
                     break;
-                case /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event */ 170007:
+                case /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event */ 1110007:
                     message.node = {
                         oneofKind: "runStopRequestedEvent",
                         runStopRequestedEvent: RunStopRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runStopRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.RunFailedEventProto run_failed_event */ 170008:
+                case /* symbol.destack.RunFailedEventProto run_failed_event */ 1110008:
                     message.node = {
                         oneofKind: "runFailedEvent",
                         runFailedEvent: RunFailedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runFailedEvent)
                     };
                     break;
-                case /* symbol.destack.RunCompletedEventProto run_completed_event */ 170009:
+                case /* symbol.destack.RunCompletedEventProto run_completed_event */ 1110009:
                     message.node = {
                         oneofKind: "runCompletedEvent",
                         runCompletedEvent: RunCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.SpanEventProto span_event */ 170101:
+                case /* symbol.destack.SpanEventProto span_event */ 1110010:
                     message.node = {
                         oneofKind: "spanEvent",
                         spanEvent: SpanEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).spanEvent)
                     };
                     break;
-                case /* symbol.destack.DatabaseProto database */ 140000:
+                case /* symbol.destack.DatabaseProto database */ 1000000:
                     message.node = {
                         oneofKind: "database",
                         database: DatabaseProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
                     };
                     break;
-                case /* symbol.destack.MachineProto machine */ 140100:
+                case /* symbol.destack.MachineProto machine */ 1001000:
                     message.node = {
                         oneofKind: "machine",
                         machine: MachineProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
                     };
                     break;
-                case /* symbol.destack.CopyEventProto copy_event */ 560501:
+                case /* symbol.destack.CopyEventProto copy_event */ 2000501:
                     message.node = {
                         oneofKind: "copyEvent",
                         copyEvent: CopyEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).copyEvent)
                     };
                     break;
-                case /* symbol.destack.CutEventProto cut_event */ 560502:
+                case /* symbol.destack.CutEventProto cut_event */ 2000502:
                     message.node = {
                         oneofKind: "cutEvent",
                         cutEvent: CutEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cutEvent)
                     };
                     break;
-                case /* symbol.destack.PasteEventProto paste_event */ 560503:
+                case /* symbol.destack.PasteEventProto paste_event */ 2000503:
                     message.node = {
                         oneofKind: "pasteEvent",
                         pasteEvent: PasteEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pasteEvent)
                     };
                     break;
-                case /* symbol.destack.DragStartEventProto drag_start_event */ 560401:
+                case /* symbol.destack.DragStartEventProto drag_start_event */ 2000401:
                     message.node = {
                         oneofKind: "dragStartEvent",
                         dragStartEvent: DragStartEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragStartEvent)
                     };
                     break;
-                case /* symbol.destack.DragEndEventProto drag_end_event */ 560402:
+                case /* symbol.destack.DragEndEventProto drag_end_event */ 2000402:
                     message.node = {
                         oneofKind: "dragEndEvent",
                         dragEndEvent: DragEndEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragEndEvent)
                     };
                     break;
-                case /* symbol.destack.DragOverEventProto drag_over_event */ 560403:
+                case /* symbol.destack.DragOverEventProto drag_over_event */ 2000403:
                     message.node = {
                         oneofKind: "dragOverEvent",
                         dragOverEvent: DragOverEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragOverEvent)
                     };
                     break;
-                case /* symbol.destack.DragEnterEventProto drag_enter_event */ 560404:
+                case /* symbol.destack.DragEnterEventProto drag_enter_event */ 2000404:
                     message.node = {
                         oneofKind: "dragEnterEvent",
                         dragEnterEvent: DragEnterEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragEnterEvent)
                     };
                     break;
-                case /* symbol.destack.DragLeaveEventProto drag_leave_event */ 560405:
+                case /* symbol.destack.DragLeaveEventProto drag_leave_event */ 2000405:
                     message.node = {
                         oneofKind: "dragLeaveEvent",
                         dragLeaveEvent: DragLeaveEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragLeaveEvent)
                     };
                     break;
-                case /* symbol.destack.DropEventProto drop_event */ 560406:
+                case /* symbol.destack.DropEventProto drop_event */ 2000406:
                     message.node = {
                         oneofKind: "dropEvent",
                         dropEvent: DropEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dropEvent)
                     };
                     break;
-                case /* symbol.destack.FocusInEventProto focus_in_event */ 560601:
+                case /* symbol.destack.FocusInEventProto focus_in_event */ 2000601:
                     message.node = {
                         oneofKind: "focusInEvent",
                         focusInEvent: FocusInEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).focusInEvent)
                     };
                     break;
-                case /* symbol.destack.FocusOutEventProto focus_out_event */ 560602:
+                case /* symbol.destack.FocusOutEventProto focus_out_event */ 2000602:
                     message.node = {
                         oneofKind: "focusOutEvent",
                         focusOutEvent: FocusOutEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).focusOutEvent)
                     };
                     break;
-                case /* symbol.destack.KeyDownEventProto key_down_event */ 560301:
+                case /* symbol.destack.KeyDownEventProto key_down_event */ 2000301:
                     message.node = {
                         oneofKind: "keyDownEvent",
                         keyDownEvent: KeyDownEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).keyDownEvent)
                     };
                     break;
-                case /* symbol.destack.KeyUpEventProto key_up_event */ 560302:
+                case /* symbol.destack.KeyUpEventProto key_up_event */ 2000302:
                     message.node = {
                         oneofKind: "keyUpEvent",
                         keyUpEvent: KeyUpEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).keyUpEvent)
                     };
                     break;
-                case /* symbol.destack.KeyPressEventProto key_press_event */ 560303:
+                case /* symbol.destack.KeyPressEventProto key_press_event */ 2000303:
                     message.node = {
                         oneofKind: "keyPressEvent",
                         keyPressEvent: KeyPressEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).keyPressEvent)
                     };
                     break;
-                case /* symbol.destack.PointerDownEventProto pointer_down_event */ 560101:
+                case /* symbol.destack.PointerDownEventProto pointer_down_event */ 2000101:
                     message.node = {
                         oneofKind: "pointerDownEvent",
                         pointerDownEvent: PointerDownEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerDownEvent)
                     };
                     break;
-                case /* symbol.destack.PointerUpEventProto pointer_up_event */ 560102:
+                case /* symbol.destack.PointerUpEventProto pointer_up_event */ 2000102:
                     message.node = {
                         oneofKind: "pointerUpEvent",
                         pointerUpEvent: PointerUpEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerUpEvent)
                     };
                     break;
-                case /* symbol.destack.PointerMoveEventProto pointer_move_event */ 560103:
+                case /* symbol.destack.PointerMoveEventProto pointer_move_event */ 2000103:
                     message.node = {
                         oneofKind: "pointerMoveEvent",
                         pointerMoveEvent: PointerMoveEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerMoveEvent)
                     };
                     break;
-                case /* symbol.destack.PointerEnterEventProto pointer_enter_event */ 560104:
+                case /* symbol.destack.PointerEnterEventProto pointer_enter_event */ 2000104:
                     message.node = {
                         oneofKind: "pointerEnterEvent",
                         pointerEnterEvent: PointerEnterEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerEnterEvent)
                     };
                     break;
-                case /* symbol.destack.PointerOverEventProto pointer_over_event */ 560105:
+                case /* symbol.destack.PointerOverEventProto pointer_over_event */ 2000105:
                     message.node = {
                         oneofKind: "pointerOverEvent",
                         pointerOverEvent: PointerOverEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerOverEvent)
                     };
                     break;
-                case /* symbol.destack.PointerLeaveEventProto pointer_leave_event */ 560106:
+                case /* symbol.destack.PointerLeaveEventProto pointer_leave_event */ 2000106:
                     message.node = {
                         oneofKind: "pointerLeaveEvent",
                         pointerLeaveEvent: PointerLeaveEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerLeaveEvent)
                     };
                     break;
-                case /* symbol.destack.PointerLongPressEventProto pointer_long_press_event */ 560107:
+                case /* symbol.destack.PointerLongPressEventProto pointer_long_press_event */ 2000107:
                     message.node = {
                         oneofKind: "pointerLongPressEvent",
                         pointerLongPressEvent: PointerLongPressEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerLongPressEvent)
                     };
                     break;
-                case /* symbol.destack.SingleClickEventProto single_click_event */ 560202:
+                case /* symbol.destack.SingleClickEventProto single_click_event */ 2000202:
                     message.node = {
                         oneofKind: "singleClickEvent",
                         singleClickEvent: SingleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).singleClickEvent)
                     };
                     break;
-                case /* symbol.destack.DoubleClickEventProto double_click_event */ 560203:
+                case /* symbol.destack.DoubleClickEventProto double_click_event */ 2000203:
                     message.node = {
                         oneofKind: "doubleClickEvent",
                         doubleClickEvent: DoubleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).doubleClickEvent)
                     };
                     break;
-                case /* symbol.destack.TripleClickEventProto triple_click_event */ 560204:
+                case /* symbol.destack.TripleClickEventProto triple_click_event */ 2000204:
                     message.node = {
                         oneofKind: "tripleClickEvent",
                         tripleClickEvent: TripleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tripleClickEvent)
                     };
                     break;
-                case /* symbol.destack.WheelEventProto wheel_event */ 560210:
+                case /* symbol.destack.WheelEventProto wheel_event */ 2000210:
                     message.node = {
                         oneofKind: "wheelEvent",
                         wheelEvent: WheelEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wheelEvent)
                     };
                     break;
-                case /* symbol.destack.MethodProto method */ 101000:
+                case /* symbol.destack.MethodProto method */ 701000:
                     message.node = {
                         oneofKind: "method",
                         method: MethodProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).method)
                     };
                     break;
-                case /* symbol.destack.ActionProto action */ 101100:
+                case /* symbol.destack.ActionProto action */ 701100:
                     message.node = {
                         oneofKind: "action",
                         action: ActionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.EventCursorProto event_cursor */ 112100:
+                case /* symbol.destack.EventCursorProto event_cursor */ 712100:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorProto screen_cursor */ 112200:
+                case /* symbol.destack.ScreenCursorProto screen_cursor */ 712200:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ScriptProto script */ 100000:
+                case /* symbol.destack.ScriptProto script */ 700000:
                     message.node = {
                         oneofKind: "script",
                         script: ScriptProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).script)
@@ -62195,319 +62144,319 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         service: ServiceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 105102:
+                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 705102:
                     message.node = {
                         oneofKind: "timerStartedEvent",
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 105103:
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 705103:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 105104:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 705104:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
                     };
                     break;
-                case /* symbol.destack.TimerProto timer */ 105100:
+                case /* symbol.destack.TimerProto timer */ 705100:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TriggerProto trigger */ 105000:
+                case /* symbol.destack.TriggerProto trigger */ 705000:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
                     };
                     break;
-                case /* symbol.destack.GaugeMetricProto gauge_metric */ 180000:
+                case /* symbol.destack.GaugeMetricProto gauge_metric */ 1200000:
                     message.node = {
                         oneofKind: "gaugeMetric",
                         gaugeMetric: GaugeMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMetric)
                     };
                     break;
-                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 180001:
+                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 1200001:
                     message.node = {
                         oneofKind: "gaugeMeasurementEvent",
                         gaugeMeasurementEvent: GaugeMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.CounterMetricProto counter_metric */ 180100:
+                case /* symbol.destack.CounterMetricProto counter_metric */ 1200100:
                     message.node = {
                         oneofKind: "counterMetric",
                         counterMetric: CounterMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMetric)
                     };
                     break;
-                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 180101:
+                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 1200101:
                     message.node = {
                         oneofKind: "counterMeasurementEvent",
                         counterMeasurementEvent: CounterMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.HistogramMetricProto histogram_metric */ 180200:
+                case /* symbol.destack.HistogramMetricProto histogram_metric */ 1200200:
                     message.node = {
                         oneofKind: "histogramMetric",
                         histogramMetric: HistogramMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
                     };
                     break;
-                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 180201:
+                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 1200201:
                     message.node = {
                         oneofKind: "histogramMeasurementEvent",
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.LayerProto layer */ 500200:
+                case /* symbol.destack.LayerProto layer */ 1700300:
                     message.node = {
                         oneofKind: "layer",
                         layer: LayerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).layer)
                     };
                     break;
-                case /* symbol.destack.SceneProto scene */ 500100:
+                case /* symbol.destack.SceneProto scene */ 1700200:
                     message.node = {
                         oneofKind: "scene",
                         scene: SceneProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
                     };
                     break;
-                case /* symbol.destack.WindowProto window */ 500000:
+                case /* symbol.destack.WindowProto window */ 1700100:
                     message.node = {
                         oneofKind: "window",
                         window: WindowProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).window)
                     };
                     break;
-                case /* symbol.destack.FollowProto follow */ 220200:
+                case /* symbol.destack.FollowProto follow */ 1400200:
                     message.node = {
                         oneofKind: "follow",
                         follow: FollowProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).follow)
                     };
                     break;
-                case /* symbol.destack.FollowEventProto follow_event */ 220201:
+                case /* symbol.destack.FollowEventProto follow_event */ 1400201:
                     message.node = {
                         oneofKind: "followEvent",
                         followEvent: FollowEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followEvent)
                     };
                     break;
-                case /* symbol.destack.FollowAddedEventProto follow_added_event */ 220202:
+                case /* symbol.destack.FollowAddedEventProto follow_added_event */ 1400202:
                     message.node = {
                         oneofKind: "followAddedEvent",
                         followAddedEvent: FollowAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followAddedEvent)
                     };
                     break;
-                case /* symbol.destack.FollowRemovedEventProto follow_removed_event */ 220203:
+                case /* symbol.destack.FollowRemovedEventProto follow_removed_event */ 1400203:
                     message.node = {
                         oneofKind: "followRemovedEvent",
                         followRemovedEvent: FollowRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followRemovedEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationSentEventProto notification_sent_event */ 220502:
+                case /* symbol.destack.NotificationSentEventProto notification_sent_event */ 1400502:
                     message.node = {
                         oneofKind: "notificationSentEvent",
                         notificationSentEvent: NotificationSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationSentEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event */ 220503:
+                case /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event */ 1400503:
                     message.node = {
                         oneofKind: "notificationRescindedEvent",
                         notificationRescindedEvent: NotificationRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationReadEventProto notification_read_event */ 220504:
+                case /* symbol.destack.NotificationReadEventProto notification_read_event */ 1400504:
                     message.node = {
                         oneofKind: "notificationReadEvent",
                         notificationReadEvent: NotificationReadEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationReadEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event */ 220505:
+                case /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event */ 1400505:
                     message.node = {
                         oneofKind: "notificationDismissedEvent",
                         notificationDismissedEvent: NotificationDismissedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationDismissedEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationExpiredEventProto notification_expired_event */ 220506:
+                case /* symbol.destack.NotificationExpiredEventProto notification_expired_event */ 1400506:
                     message.node = {
                         oneofKind: "notificationExpiredEvent",
                         notificationExpiredEvent: NotificationExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationProto notification */ 220500:
+                case /* symbol.destack.NotificationProto notification */ 1400500:
                     message.node = {
                         oneofKind: "notification",
                         notification: NotificationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
                     };
                     break;
-                case /* symbol.destack.ReactionProto reaction */ 220000:
+                case /* symbol.destack.ReactionProto reaction */ 1400000:
                     message.node = {
                         oneofKind: "reaction",
                         reaction: ReactionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reaction)
                     };
                     break;
-                case /* symbol.destack.ReactionEventProto reaction_event */ 220001:
+                case /* symbol.destack.ReactionEventProto reaction_event */ 1400001:
                     message.node = {
                         oneofKind: "reactionEvent",
                         reactionEvent: ReactionEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionEvent)
                     };
                     break;
-                case /* symbol.destack.ReactionAddedEventProto reaction_added_event */ 220002:
+                case /* symbol.destack.ReactionAddedEventProto reaction_added_event */ 1400002:
                     message.node = {
                         oneofKind: "reactionAddedEvent",
                         reactionAddedEvent: ReactionAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionAddedEvent)
                     };
                     break;
-                case /* symbol.destack.ReactionRemovedEventProto reaction_removed_event */ 220003:
+                case /* symbol.destack.ReactionRemovedEventProto reaction_removed_event */ 1400003:
                     message.node = {
                         oneofKind: "reactionRemovedEvent",
                         reactionRemovedEvent: ReactionRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionRemovedEvent)
                     };
                     break;
-                case /* symbol.destack.StarProto star */ 220100:
+                case /* symbol.destack.StarProto star */ 1400100:
                     message.node = {
                         oneofKind: "star",
                         star: StarProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).star)
                     };
                     break;
-                case /* symbol.destack.StarEventProto star_event */ 220101:
+                case /* symbol.destack.StarEventProto star_event */ 1400101:
                     message.node = {
                         oneofKind: "starEvent",
                         starEvent: StarEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starEvent)
                     };
                     break;
-                case /* symbol.destack.StarAddedEventProto star_added_event */ 220102:
+                case /* symbol.destack.StarAddedEventProto star_added_event */ 1400102:
                     message.node = {
                         oneofKind: "starAddedEvent",
                         starAddedEvent: StarAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starAddedEvent)
                     };
                     break;
-                case /* symbol.destack.StarRemovedEventProto star_removed_event */ 220103:
+                case /* symbol.destack.StarRemovedEventProto star_removed_event */ 1400103:
                     message.node = {
                         oneofKind: "starRemovedEvent",
                         starRemovedEvent: StarRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starRemovedEvent)
                     };
                     break;
-                case /* symbol.destack.BranchProto branch */ 45000:
+                case /* symbol.destack.BranchProto branch */ 245000:
                     message.node = {
                         oneofKind: "branch",
                         branch: BranchProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).branch)
                     };
                     break;
-                case /* symbol.destack.FolderProto folder */ 40000:
+                case /* symbol.destack.FolderProto folder */ 240000:
                     message.node = {
                         oneofKind: "folder",
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagProto tag */ 41000:
+                case /* symbol.destack.TagProto tag */ 241000:
                     message.node = {
                         oneofKind: "tag",
                         tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
                     };
                     break;
-                case /* symbol.destack.TaggingProto tagging */ 41100:
+                case /* symbol.destack.TaggingProto tagging */ 241100:
                     message.node = {
                         oneofKind: "tagging",
                         tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
                     };
                     break;
-                case /* symbol.destack.ColorStyleProto color_style */ 600300:
+                case /* symbol.destack.ColorStyleProto color_style */ 2100300:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.destack.BorderStyleProto border_style */ 600600:
+                case /* symbol.destack.BorderStyleProto border_style */ 2100600:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 600900:
+                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 6001000:
+                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
-                case /* symbol.destack.GradientStyleProto gradient_style */ 600800:
+                case /* symbol.destack.GradientStyleProto gradient_style */ 2100800:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.destack.FillStyleProto fill_style */ 600400:
+                case /* symbol.destack.FillStyleProto fill_style */ 2100400:
                     message.node = {
                         oneofKind: "fillStyle",
                         fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
                     };
                     break;
-                case /* symbol.destack.FontStyleProto font_style */ 600500:
+                case /* symbol.destack.FontStyleProto font_style */ 2100500:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.destack.PaletteProto palette */ 600100:
+                case /* symbol.destack.PaletteProto palette */ 2100100:
                     message.node = {
                         oneofKind: "palette",
                         palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
                     };
                     break;
-                case /* symbol.destack.ShadowStyleProto shadow_style */ 600700:
+                case /* symbol.destack.ShadowStyleProto shadow_style */ 2100700:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.destack.StrokeStyleProto stroke_style */ 6001100:
+                case /* symbol.destack.StrokeStyleProto stroke_style */ 2101100:
                     message.node = {
                         oneofKind: "strokeStyle",
                         strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
                     };
                     break;
-                case /* symbol.destack.ThemeProto theme */ 600000:
+                case /* symbol.destack.ThemeProto theme */ 2100000:
                     message.node = {
                         oneofKind: "theme",
                         theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.destack.ClientProto client */ 21300:
+                case /* symbol.destack.ClientProto client */ 121300:
                     message.node = {
                         oneofKind: "client",
                         client: ClientProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
                     };
                     break;
-                case /* symbol.destack.HandleProto handle */ 20200:
+                case /* symbol.destack.HandleProto handle */ 100200:
                     message.node = {
                         oneofKind: "handle",
                         handle: HandleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).handle)
                     };
                     break;
-                case /* symbol.destack.OrganizationProto organization */ 22000:
+                case /* symbol.destack.OrganizationProto organization */ 122000:
                     message.node = {
                         oneofKind: "organization",
                         organization: OrganizationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).organization)
                     };
                     break;
-                case /* symbol.destack.SpaceProto space */ 20100:
+                case /* symbol.destack.SpaceProto space */ 100100:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbol.destack.TeamProto team */ 22100:
+                case /* symbol.destack.TeamProto team */ 122100:
                     message.node = {
                         oneofKind: "team",
                         team: TeamProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).team)
                     };
                     break;
-                case /* symbol.destack.UserProto user */ 21000:
+                case /* symbol.destack.UserProto user */ 121000:
                     message.node = {
                         oneofKind: "user",
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
@@ -62549,393 +62498,393 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.EditEventProto edit_event = 2001; */
         if (message.node.oneofKind === "editEvent")
             EditEventProto.internalBinaryWrite(message.node.editEvent, writer.tag(2001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpaceProto space = 20100; */
+        /* symbol.destack.SpaceProto space = 100100; */
         if (message.node.oneofKind === "space")
-            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(20100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HandleProto handle = 20200; */
+            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(100100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HandleProto handle = 100200; */
         if (message.node.oneofKind === "handle")
-            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(20200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.UserProto user = 21000; */
+            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(100200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.UserProto user = 121000; */
         if (message.node.oneofKind === "user")
-            UserProto.internalBinaryWrite(message.node.user, writer.tag(21000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ClientProto client = 21300; */
+            UserProto.internalBinaryWrite(message.node.user, writer.tag(121000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ClientProto client = 121300; */
         if (message.node.oneofKind === "client")
-            ClientProto.internalBinaryWrite(message.node.client, writer.tag(21300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.OrganizationProto organization = 22000; */
+            ClientProto.internalBinaryWrite(message.node.client, writer.tag(121300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.OrganizationProto organization = 122000; */
         if (message.node.oneofKind === "organization")
-            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(22000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TeamProto team = 22100; */
+            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(122000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TeamProto team = 122100; */
         if (message.node.oneofKind === "team")
-            TeamProto.internalBinaryWrite(message.node.team, writer.tag(22100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FolderProto folder = 40000; */
+            TeamProto.internalBinaryWrite(message.node.team, writer.tag(122100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FolderProto folder = 240000; */
         if (message.node.oneofKind === "folder")
-            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(40000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagProto tag = 41000; */
+            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(240000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagProto tag = 241000; */
         if (message.node.oneofKind === "tag")
-            TagProto.internalBinaryWrite(message.node.tag, writer.tag(41000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingProto tagging = 41100; */
+            TagProto.internalBinaryWrite(message.node.tag, writer.tag(241000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingProto tagging = 241100; */
         if (message.node.oneofKind === "tagging")
-            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(41100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BranchProto branch = 45000; */
+            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(241100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BranchProto branch = 245000; */
         if (message.node.oneofKind === "branch")
-            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(45000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipProto membership = 60000; */
+            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(245000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipProto membership = 360000; */
         if (message.node.oneofKind === "membership")
-            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(60000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 60002; */
+            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(360000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 360002; */
         if (message.node.oneofKind === "membershipJoinedEvent")
-            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(60002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipLeftEventProto membership_left_event = 60003; */
+            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(360002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipLeftEventProto membership_left_event = 360003; */
         if (message.node.oneofKind === "membershipLeftEvent")
-            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(60003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteProto invite = 60100; */
+            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(360003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteProto invite = 360100; */
         if (message.node.oneofKind === "invite")
-            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(60100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteSentEventProto invite_sent_event = 60102; */
+            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(360100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteSentEventProto invite_sent_event = 360102; */
         if (message.node.oneofKind === "inviteSentEvent")
-            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(60102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 60103; */
+            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(360102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 360103; */
         if (message.node.oneofKind === "inviteRescindedEvent")
-            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(60103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 60104; */
+            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(360103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 360104; */
         if (message.node.oneofKind === "inviteAcceptedEvent")
-            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(60104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 60105; */
+            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(360104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 360105; */
         if (message.node.oneofKind === "inviteRejectedEvent")
-            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(60105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleProto role = 60200; */
+            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(360105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleProto role = 360200; */
         if (message.node.oneofKind === "role")
-            RoleProto.internalBinaryWrite(message.node.role, writer.tag(60200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 60202; */
+            RoleProto.internalBinaryWrite(message.node.role, writer.tag(360200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 360202; */
         if (message.node.oneofKind === "roleAssignedEvent")
-            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(60202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 60203; */
+            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(360202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 360203; */
         if (message.node.oneofKind === "roleUnassignedEvent")
-            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(60203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PermissionProto permission = 60300; */
+            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(360203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PermissionProto permission = 360300; */
         if (message.node.oneofKind === "permission")
-            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(60300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionProto sanction = 60400; */
+            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(360300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionProto sanction = 360400; */
         if (message.node.oneofKind === "sanction")
-            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(60400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 60402; */
+            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(360400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 360402; */
         if (message.node.oneofKind === "sanctionRequestedEvent")
-            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(60402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 60403; */
+            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(360402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 360403; */
         if (message.node.oneofKind === "sanctionGrantedEvent")
-            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(60403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 60404; */
+            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(360403, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 360404; */
         if (message.node.oneofKind === "sanctionRevokedEvent")
-            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(60404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 60405; */
+            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(360404, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 360405; */
         if (message.node.oneofKind === "sanctionExpiredEvent")
-            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(60405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementProto entitlement = 60500; */
+            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(360405, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementProto entitlement = 360500; */
         if (message.node.oneofKind === "entitlement")
-            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(60500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 60502; */
+            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(360500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 360502; */
         if (message.node.oneofKind === "entitlementRequestedEvent")
-            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(60502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 60503; */
+            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(360502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 360503; */
         if (message.node.oneofKind === "entitlementGrantedEvent")
-            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(60503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 60504; */
+            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(360503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 360504; */
         if (message.node.oneofKind === "entitlementRevokedEvent")
-            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(60504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 60505; */
+            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(360504, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 360505; */
         if (message.node.oneofKind === "entitlementExpiredEvent")
-            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(60505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FileProto file = 80000; */
+            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(360505, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FileProto file = 480000; */
         if (message.node.oneofKind === "file")
-            FileProto.internalBinaryWrite(message.node.file, writer.tag(80000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScriptProto script = 100000; */
+            FileProto.internalBinaryWrite(message.node.file, writer.tag(480000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScriptProto script = 700000; */
         if (message.node.oneofKind === "script")
-            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MethodProto method = 101000; */
+            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(700000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodProto method = 701000; */
         if (message.node.oneofKind === "method")
-            MethodProto.internalBinaryWrite(message.node.method, writer.tag(101000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ActionProto action = 101100; */
+            MethodProto.internalBinaryWrite(message.node.method, writer.tag(701000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ActionProto action = 701100; */
         if (message.node.oneofKind === "action")
-            ActionProto.internalBinaryWrite(message.node.action, writer.tag(101100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerProto trigger = 105000; */
+            ActionProto.internalBinaryWrite(message.node.action, writer.tag(701100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerProto trigger = 705000; */
         if (message.node.oneofKind === "trigger")
-            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(105000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerProto timer = 105100; */
+            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(705000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerProto timer = 705100; */
         if (message.node.oneofKind === "timer")
-            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(105100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerStartedEventProto timer_started_event = 105102; */
+            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(705100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerStartedEventProto timer_started_event = 705102; */
         if (message.node.oneofKind === "timerStartedEvent")
-            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(105102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 105103; */
+            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(705102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 705103; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(105103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(705103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(105104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorProto event_cursor = 112100; */
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(705104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorProto event_cursor = 712100; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(112100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorProto screen_cursor = 112200; */
+            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(712100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorProto screen_cursor = 712200; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(112200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DatabaseProto database = 140000; */
+            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(712200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DatabaseProto database = 1000000; */
         if (message.node.oneofKind === "database")
-            DatabaseProto.internalBinaryWrite(message.node.database, writer.tag(140000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MachineProto machine = 140100; */
+            DatabaseProto.internalBinaryWrite(message.node.database, writer.tag(1000000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MachineProto machine = 1001000; */
         if (message.node.oneofKind === "machine")
-            MachineProto.internalBinaryWrite(message.node.machine, writer.tag(140100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EnvironmentProto environment = 160000; */
+            MachineProto.internalBinaryWrite(message.node.machine, writer.tag(1001000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EnvironmentProto environment = 1100000; */
         if (message.node.oneofKind === "environment")
-            EnvironmentProto.internalBinaryWrite(message.node.environment, writer.tag(160000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunStartedEventProto run_started_event = 170002; */
+            EnvironmentProto.internalBinaryWrite(message.node.environment, writer.tag(1100000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunStartedEventProto run_started_event = 1110002; */
         if (message.node.oneofKind === "runStartedEvent")
-            RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(170002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 170003; */
+            RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(1110002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 1110003; */
         if (message.node.oneofKind === "runPauseRequestedEvent")
-            RunPauseRequestedEventProto.internalBinaryWrite(message.node.runPauseRequestedEvent, writer.tag(170003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunPausedEventProto run_paused_event = 170004; */
+            RunPauseRequestedEventProto.internalBinaryWrite(message.node.runPauseRequestedEvent, writer.tag(1110003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunPausedEventProto run_paused_event = 1110004; */
         if (message.node.oneofKind === "runPausedEvent")
-            RunPausedEventProto.internalBinaryWrite(message.node.runPausedEvent, writer.tag(170004, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 170005; */
+            RunPausedEventProto.internalBinaryWrite(message.node.runPausedEvent, writer.tag(1110004, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 1110005; */
         if (message.node.oneofKind === "runResumeRequestedEvent")
-            RunResumeRequestedEventProto.internalBinaryWrite(message.node.runResumeRequestedEvent, writer.tag(170005, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunResumedEventProto run_resumed_event = 170006; */
+            RunResumeRequestedEventProto.internalBinaryWrite(message.node.runResumeRequestedEvent, writer.tag(1110005, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunResumedEventProto run_resumed_event = 1110006; */
         if (message.node.oneofKind === "runResumedEvent")
-            RunResumedEventProto.internalBinaryWrite(message.node.runResumedEvent, writer.tag(170006, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 170007; */
+            RunResumedEventProto.internalBinaryWrite(message.node.runResumedEvent, writer.tag(1110006, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 1110007; */
         if (message.node.oneofKind === "runStopRequestedEvent")
-            RunStopRequestedEventProto.internalBinaryWrite(message.node.runStopRequestedEvent, writer.tag(170007, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunFailedEventProto run_failed_event = 170008; */
+            RunStopRequestedEventProto.internalBinaryWrite(message.node.runStopRequestedEvent, writer.tag(1110007, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunFailedEventProto run_failed_event = 1110008; */
         if (message.node.oneofKind === "runFailedEvent")
-            RunFailedEventProto.internalBinaryWrite(message.node.runFailedEvent, writer.tag(170008, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunCompletedEventProto run_completed_event = 170009; */
+            RunFailedEventProto.internalBinaryWrite(message.node.runFailedEvent, writer.tag(1110008, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunCompletedEventProto run_completed_event = 1110009; */
         if (message.node.oneofKind === "runCompletedEvent")
-            RunCompletedEventProto.internalBinaryWrite(message.node.runCompletedEvent, writer.tag(170009, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpanEventProto span_event = 170101; */
+            RunCompletedEventProto.internalBinaryWrite(message.node.runCompletedEvent, writer.tag(1110009, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SpanEventProto span_event = 1110010; */
         if (message.node.oneofKind === "spanEvent")
-            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(170101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LogEventProto log_event = 170301; */
+            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(1110010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LogEventProto log_event = 1110011; */
         if (message.node.oneofKind === "logEvent")
-            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(170301, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMetricProto gauge_metric = 180000; */
+            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(1110011, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMetricProto gauge_metric = 1200000; */
         if (message.node.oneofKind === "gaugeMetric")
-            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(180000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 180001; */
+            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(1200000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 1200001; */
         if (message.node.oneofKind === "gaugeMeasurementEvent")
-            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(180001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMetricProto counter_metric = 180100; */
+            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(1200001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMetricProto counter_metric = 1200100; */
         if (message.node.oneofKind === "counterMetric")
-            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(180100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 180101; */
+            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(1200100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 1200101; */
         if (message.node.oneofKind === "counterMeasurementEvent")
-            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(180101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMetricProto histogram_metric = 180200; */
+            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(1200101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMetricProto histogram_metric = 1200200; */
         if (message.node.oneofKind === "histogramMetric")
-            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(180200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 180201; */
+            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(1200200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 1200201; */
         if (message.node.oneofKind === "histogramMeasurementEvent")
-            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(180201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionProto reaction = 220000; */
+            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(1200201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionProto reaction = 1400000; */
         if (message.node.oneofKind === "reaction")
-            ReactionProto.internalBinaryWrite(message.node.reaction, writer.tag(220000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionEventProto reaction_event = 220001; */
+            ReactionProto.internalBinaryWrite(message.node.reaction, writer.tag(1400000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionEventProto reaction_event = 1400001; */
         if (message.node.oneofKind === "reactionEvent")
-            ReactionEventProto.internalBinaryWrite(message.node.reactionEvent, writer.tag(220001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionAddedEventProto reaction_added_event = 220002; */
+            ReactionEventProto.internalBinaryWrite(message.node.reactionEvent, writer.tag(1400001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionAddedEventProto reaction_added_event = 1400002; */
         if (message.node.oneofKind === "reactionAddedEvent")
-            ReactionAddedEventProto.internalBinaryWrite(message.node.reactionAddedEvent, writer.tag(220002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220003; */
+            ReactionAddedEventProto.internalBinaryWrite(message.node.reactionAddedEvent, writer.tag(1400002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionRemovedEventProto reaction_removed_event = 1400003; */
         if (message.node.oneofKind === "reactionRemovedEvent")
-            ReactionRemovedEventProto.internalBinaryWrite(message.node.reactionRemovedEvent, writer.tag(220003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarProto star = 220100; */
+            ReactionRemovedEventProto.internalBinaryWrite(message.node.reactionRemovedEvent, writer.tag(1400003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarProto star = 1400100; */
         if (message.node.oneofKind === "star")
-            StarProto.internalBinaryWrite(message.node.star, writer.tag(220100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarEventProto star_event = 220101; */
+            StarProto.internalBinaryWrite(message.node.star, writer.tag(1400100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarEventProto star_event = 1400101; */
         if (message.node.oneofKind === "starEvent")
-            StarEventProto.internalBinaryWrite(message.node.starEvent, writer.tag(220101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarAddedEventProto star_added_event = 220102; */
+            StarEventProto.internalBinaryWrite(message.node.starEvent, writer.tag(1400101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarAddedEventProto star_added_event = 1400102; */
         if (message.node.oneofKind === "starAddedEvent")
-            StarAddedEventProto.internalBinaryWrite(message.node.starAddedEvent, writer.tag(220102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarRemovedEventProto star_removed_event = 220103; */
+            StarAddedEventProto.internalBinaryWrite(message.node.starAddedEvent, writer.tag(1400102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarRemovedEventProto star_removed_event = 1400103; */
         if (message.node.oneofKind === "starRemovedEvent")
-            StarRemovedEventProto.internalBinaryWrite(message.node.starRemovedEvent, writer.tag(220103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowProto follow = 220200; */
+            StarRemovedEventProto.internalBinaryWrite(message.node.starRemovedEvent, writer.tag(1400103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowProto follow = 1400200; */
         if (message.node.oneofKind === "follow")
-            FollowProto.internalBinaryWrite(message.node.follow, writer.tag(220200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowEventProto follow_event = 220201; */
+            FollowProto.internalBinaryWrite(message.node.follow, writer.tag(1400200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowEventProto follow_event = 1400201; */
         if (message.node.oneofKind === "followEvent")
-            FollowEventProto.internalBinaryWrite(message.node.followEvent, writer.tag(220201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowAddedEventProto follow_added_event = 220202; */
+            FollowEventProto.internalBinaryWrite(message.node.followEvent, writer.tag(1400201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowAddedEventProto follow_added_event = 1400202; */
         if (message.node.oneofKind === "followAddedEvent")
-            FollowAddedEventProto.internalBinaryWrite(message.node.followAddedEvent, writer.tag(220202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowRemovedEventProto follow_removed_event = 220203; */
+            FollowAddedEventProto.internalBinaryWrite(message.node.followAddedEvent, writer.tag(1400202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowRemovedEventProto follow_removed_event = 1400203; */
         if (message.node.oneofKind === "followRemovedEvent")
-            FollowRemovedEventProto.internalBinaryWrite(message.node.followRemovedEvent, writer.tag(220203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationProto notification = 220500; */
+            FollowRemovedEventProto.internalBinaryWrite(message.node.followRemovedEvent, writer.tag(1400203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationProto notification = 1400500; */
         if (message.node.oneofKind === "notification")
-            NotificationProto.internalBinaryWrite(message.node.notification, writer.tag(220500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationSentEventProto notification_sent_event = 220502; */
+            NotificationProto.internalBinaryWrite(message.node.notification, writer.tag(1400500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationSentEventProto notification_sent_event = 1400502; */
         if (message.node.oneofKind === "notificationSentEvent")
-            NotificationSentEventProto.internalBinaryWrite(message.node.notificationSentEvent, writer.tag(220502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 220503; */
+            NotificationSentEventProto.internalBinaryWrite(message.node.notificationSentEvent, writer.tag(1400502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 1400503; */
         if (message.node.oneofKind === "notificationRescindedEvent")
-            NotificationRescindedEventProto.internalBinaryWrite(message.node.notificationRescindedEvent, writer.tag(220503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationReadEventProto notification_read_event = 220504; */
+            NotificationRescindedEventProto.internalBinaryWrite(message.node.notificationRescindedEvent, writer.tag(1400503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationReadEventProto notification_read_event = 1400504; */
         if (message.node.oneofKind === "notificationReadEvent")
-            NotificationReadEventProto.internalBinaryWrite(message.node.notificationReadEvent, writer.tag(220504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 220505; */
+            NotificationReadEventProto.internalBinaryWrite(message.node.notificationReadEvent, writer.tag(1400504, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 1400505; */
         if (message.node.oneofKind === "notificationDismissedEvent")
-            NotificationDismissedEventProto.internalBinaryWrite(message.node.notificationDismissedEvent, writer.tag(220505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationExpiredEventProto notification_expired_event = 220506; */
+            NotificationDismissedEventProto.internalBinaryWrite(message.node.notificationDismissedEvent, writer.tag(1400505, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationExpiredEventProto notification_expired_event = 1400506; */
         if (message.node.oneofKind === "notificationExpiredEvent")
-            NotificationExpiredEventProto.internalBinaryWrite(message.node.notificationExpiredEvent, writer.tag(220506, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WindowProto window = 500000; */
+            NotificationExpiredEventProto.internalBinaryWrite(message.node.notificationExpiredEvent, writer.tag(1400506, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WindowProto window = 1700100; */
         if (message.node.oneofKind === "window")
-            WindowProto.internalBinaryWrite(message.node.window, writer.tag(500000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SceneProto scene = 500100; */
+            WindowProto.internalBinaryWrite(message.node.window, writer.tag(1700100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SceneProto scene = 1700200; */
         if (message.node.oneofKind === "scene")
-            SceneProto.internalBinaryWrite(message.node.scene, writer.tag(500100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LayerProto layer = 500200; */
+            SceneProto.internalBinaryWrite(message.node.scene, writer.tag(1700200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LayerProto layer = 1700300; */
         if (message.node.oneofKind === "layer")
-            LayerProto.internalBinaryWrite(message.node.layer, writer.tag(500200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FrameViewProto frame_view = 520200; */
+            LayerProto.internalBinaryWrite(message.node.layer, writer.tag(1700300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FrameViewProto frame_view = 1800200; */
         if (message.node.oneofKind === "frameView")
-            FrameViewProto.internalBinaryWrite(message.node.frameView, writer.tag(520200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LabelViewProto label_view = 520300; */
+            FrameViewProto.internalBinaryWrite(message.node.frameView, writer.tag(1800200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LabelViewProto label_view = 1800300; */
         if (message.node.oneofKind === "labelView")
-            LabelViewProto.internalBinaryWrite(message.node.labelView, writer.tag(520300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SplitViewProto split_view = 520400; */
+            LabelViewProto.internalBinaryWrite(message.node.labelView, writer.tag(1800300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SplitViewProto split_view = 1800400; */
         if (message.node.oneofKind === "splitView")
-            SplitViewProto.internalBinaryWrite(message.node.splitView, writer.tag(520400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TextViewProto text_view = 525100; */
+            SplitViewProto.internalBinaryWrite(message.node.splitView, writer.tag(1800400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TextViewProto text_view = 1805100; */
         if (message.node.oneofKind === "textView")
-            TextViewProto.internalBinaryWrite(message.node.textView, writer.tag(525100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NumberInputViewProto number_input_view = 530100; */
+            TextViewProto.internalBinaryWrite(message.node.textView, writer.tag(1805100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NumberInputViewProto number_input_view = 1810100; */
         if (message.node.oneofKind === "numberInputView")
-            NumberInputViewProto.internalBinaryWrite(message.node.numberInputView, writer.tag(530100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SliderInputViewProto slider_input_view = 530200; */
+            NumberInputViewProto.internalBinaryWrite(message.node.numberInputView, writer.tag(1810100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SliderInputViewProto slider_input_view = 1810200; */
         if (message.node.oneofKind === "sliderInputView")
-            SliderInputViewProto.internalBinaryWrite(message.node.sliderInputView, writer.tag(530200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InternalViewProto internal_view = 535000; */
+            SliderInputViewProto.internalBinaryWrite(message.node.sliderInputView, writer.tag(1810200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InternalViewProto internal_view = 1815000; */
         if (message.node.oneofKind === "internalView")
-            InternalViewProto.internalBinaryWrite(message.node.internalView, writer.tag(535000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LineShapeProto line_shape = 540200; */
+            InternalViewProto.internalBinaryWrite(message.node.internalView, writer.tag(1815000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LineShapeProto line_shape = 1900100; */
         if (message.node.oneofKind === "lineShape")
-            LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(540200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ArrowShapeProto arrow_shape = 540300; */
+            LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(1900100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ArrowShapeProto arrow_shape = 1900200; */
         if (message.node.oneofKind === "arrowShape")
-            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(540300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AnnotationShapeProto annotation_shape = 540400; */
+            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(1900200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AnnotationShapeProto annotation_shape = 1900300; */
         if (message.node.oneofKind === "annotationShape")
-            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(540400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerDownEventProto pointer_down_event = 560101; */
+            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(1900300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerDownEventProto pointer_down_event = 2000101; */
         if (message.node.oneofKind === "pointerDownEvent")
-            PointerDownEventProto.internalBinaryWrite(message.node.pointerDownEvent, writer.tag(560101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerUpEventProto pointer_up_event = 560102; */
+            PointerDownEventProto.internalBinaryWrite(message.node.pointerDownEvent, writer.tag(2000101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerUpEventProto pointer_up_event = 2000102; */
         if (message.node.oneofKind === "pointerUpEvent")
-            PointerUpEventProto.internalBinaryWrite(message.node.pointerUpEvent, writer.tag(560102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerMoveEventProto pointer_move_event = 560103; */
+            PointerUpEventProto.internalBinaryWrite(message.node.pointerUpEvent, writer.tag(2000102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerMoveEventProto pointer_move_event = 2000103; */
         if (message.node.oneofKind === "pointerMoveEvent")
-            PointerMoveEventProto.internalBinaryWrite(message.node.pointerMoveEvent, writer.tag(560103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerEnterEventProto pointer_enter_event = 560104; */
+            PointerMoveEventProto.internalBinaryWrite(message.node.pointerMoveEvent, writer.tag(2000103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerEnterEventProto pointer_enter_event = 2000104; */
         if (message.node.oneofKind === "pointerEnterEvent")
-            PointerEnterEventProto.internalBinaryWrite(message.node.pointerEnterEvent, writer.tag(560104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerOverEventProto pointer_over_event = 560105; */
+            PointerEnterEventProto.internalBinaryWrite(message.node.pointerEnterEvent, writer.tag(2000104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerOverEventProto pointer_over_event = 2000105; */
         if (message.node.oneofKind === "pointerOverEvent")
-            PointerOverEventProto.internalBinaryWrite(message.node.pointerOverEvent, writer.tag(560105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerLeaveEventProto pointer_leave_event = 560106; */
+            PointerOverEventProto.internalBinaryWrite(message.node.pointerOverEvent, writer.tag(2000105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerLeaveEventProto pointer_leave_event = 2000106; */
         if (message.node.oneofKind === "pointerLeaveEvent")
-            PointerLeaveEventProto.internalBinaryWrite(message.node.pointerLeaveEvent, writer.tag(560106, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerLongPressEventProto pointer_long_press_event = 560107; */
+            PointerLeaveEventProto.internalBinaryWrite(message.node.pointerLeaveEvent, writer.tag(2000106, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerLongPressEventProto pointer_long_press_event = 2000107; */
         if (message.node.oneofKind === "pointerLongPressEvent")
-            PointerLongPressEventProto.internalBinaryWrite(message.node.pointerLongPressEvent, writer.tag(560107, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SingleClickEventProto single_click_event = 560202; */
+            PointerLongPressEventProto.internalBinaryWrite(message.node.pointerLongPressEvent, writer.tag(2000107, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SingleClickEventProto single_click_event = 2000202; */
         if (message.node.oneofKind === "singleClickEvent")
-            SingleClickEventProto.internalBinaryWrite(message.node.singleClickEvent, writer.tag(560202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DoubleClickEventProto double_click_event = 560203; */
+            SingleClickEventProto.internalBinaryWrite(message.node.singleClickEvent, writer.tag(2000202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DoubleClickEventProto double_click_event = 2000203; */
         if (message.node.oneofKind === "doubleClickEvent")
-            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(560203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TripleClickEventProto triple_click_event = 560204; */
+            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(2000203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TripleClickEventProto triple_click_event = 2000204; */
         if (message.node.oneofKind === "tripleClickEvent")
-            TripleClickEventProto.internalBinaryWrite(message.node.tripleClickEvent, writer.tag(560204, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WheelEventProto wheel_event = 560210; */
+            TripleClickEventProto.internalBinaryWrite(message.node.tripleClickEvent, writer.tag(2000204, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WheelEventProto wheel_event = 2000210; */
         if (message.node.oneofKind === "wheelEvent")
-            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(560210, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.KeyDownEventProto key_down_event = 560301; */
+            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(2000210, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.KeyDownEventProto key_down_event = 2000301; */
         if (message.node.oneofKind === "keyDownEvent")
-            KeyDownEventProto.internalBinaryWrite(message.node.keyDownEvent, writer.tag(560301, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.KeyUpEventProto key_up_event = 560302; */
+            KeyDownEventProto.internalBinaryWrite(message.node.keyDownEvent, writer.tag(2000301, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.KeyUpEventProto key_up_event = 2000302; */
         if (message.node.oneofKind === "keyUpEvent")
-            KeyUpEventProto.internalBinaryWrite(message.node.keyUpEvent, writer.tag(560302, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.KeyPressEventProto key_press_event = 560303; */
+            KeyUpEventProto.internalBinaryWrite(message.node.keyUpEvent, writer.tag(2000302, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.KeyPressEventProto key_press_event = 2000303; */
         if (message.node.oneofKind === "keyPressEvent")
-            KeyPressEventProto.internalBinaryWrite(message.node.keyPressEvent, writer.tag(560303, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragStartEventProto drag_start_event = 560401; */
+            KeyPressEventProto.internalBinaryWrite(message.node.keyPressEvent, writer.tag(2000303, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragStartEventProto drag_start_event = 2000401; */
         if (message.node.oneofKind === "dragStartEvent")
-            DragStartEventProto.internalBinaryWrite(message.node.dragStartEvent, writer.tag(560401, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragEndEventProto drag_end_event = 560402; */
+            DragStartEventProto.internalBinaryWrite(message.node.dragStartEvent, writer.tag(2000401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragEndEventProto drag_end_event = 2000402; */
         if (message.node.oneofKind === "dragEndEvent")
-            DragEndEventProto.internalBinaryWrite(message.node.dragEndEvent, writer.tag(560402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragOverEventProto drag_over_event = 560403; */
+            DragEndEventProto.internalBinaryWrite(message.node.dragEndEvent, writer.tag(2000402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragOverEventProto drag_over_event = 2000403; */
         if (message.node.oneofKind === "dragOverEvent")
-            DragOverEventProto.internalBinaryWrite(message.node.dragOverEvent, writer.tag(560403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragEnterEventProto drag_enter_event = 560404; */
+            DragOverEventProto.internalBinaryWrite(message.node.dragOverEvent, writer.tag(2000403, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragEnterEventProto drag_enter_event = 2000404; */
         if (message.node.oneofKind === "dragEnterEvent")
-            DragEnterEventProto.internalBinaryWrite(message.node.dragEnterEvent, writer.tag(560404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragLeaveEventProto drag_leave_event = 560405; */
+            DragEnterEventProto.internalBinaryWrite(message.node.dragEnterEvent, writer.tag(2000404, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragLeaveEventProto drag_leave_event = 2000405; */
         if (message.node.oneofKind === "dragLeaveEvent")
-            DragLeaveEventProto.internalBinaryWrite(message.node.dragLeaveEvent, writer.tag(560405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DropEventProto drop_event = 560406; */
+            DragLeaveEventProto.internalBinaryWrite(message.node.dragLeaveEvent, writer.tag(2000405, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DropEventProto drop_event = 2000406; */
         if (message.node.oneofKind === "dropEvent")
-            DropEventProto.internalBinaryWrite(message.node.dropEvent, writer.tag(560406, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CopyEventProto copy_event = 560501; */
+            DropEventProto.internalBinaryWrite(message.node.dropEvent, writer.tag(2000406, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CopyEventProto copy_event = 2000501; */
         if (message.node.oneofKind === "copyEvent")
-            CopyEventProto.internalBinaryWrite(message.node.copyEvent, writer.tag(560501, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CutEventProto cut_event = 560502; */
+            CopyEventProto.internalBinaryWrite(message.node.copyEvent, writer.tag(2000501, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CutEventProto cut_event = 2000502; */
         if (message.node.oneofKind === "cutEvent")
-            CutEventProto.internalBinaryWrite(message.node.cutEvent, writer.tag(560502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PasteEventProto paste_event = 560503; */
+            CutEventProto.internalBinaryWrite(message.node.cutEvent, writer.tag(2000502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PasteEventProto paste_event = 2000503; */
         if (message.node.oneofKind === "pasteEvent")
-            PasteEventProto.internalBinaryWrite(message.node.pasteEvent, writer.tag(560503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FocusInEventProto focus_in_event = 560601; */
+            PasteEventProto.internalBinaryWrite(message.node.pasteEvent, writer.tag(2000503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FocusInEventProto focus_in_event = 2000601; */
         if (message.node.oneofKind === "focusInEvent")
-            FocusInEventProto.internalBinaryWrite(message.node.focusInEvent, writer.tag(560601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FocusOutEventProto focus_out_event = 560602; */
+            FocusInEventProto.internalBinaryWrite(message.node.focusInEvent, writer.tag(2000601, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FocusOutEventProto focus_out_event = 2000602; */
         if (message.node.oneofKind === "focusOutEvent")
-            FocusOutEventProto.internalBinaryWrite(message.node.focusOutEvent, writer.tag(560602, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThemeProto theme = 600000; */
+            FocusOutEventProto.internalBinaryWrite(message.node.focusOutEvent, writer.tag(2000602, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThemeProto theme = 2100000; */
         if (message.node.oneofKind === "theme")
-            ThemeProto.internalBinaryWrite(message.node.theme, writer.tag(600000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PaletteProto palette = 600100; */
+            ThemeProto.internalBinaryWrite(message.node.theme, writer.tag(2100000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PaletteProto palette = 2100100; */
         if (message.node.oneofKind === "palette")
-            PaletteProto.internalBinaryWrite(message.node.palette, writer.tag(600100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ColorStyleProto color_style = 600300; */
+            PaletteProto.internalBinaryWrite(message.node.palette, writer.tag(2100100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ColorStyleProto color_style = 2100300; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(600300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FillStyleProto fill_style = 600400; */
+            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(2100300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FillStyleProto fill_style = 2100400; */
         if (message.node.oneofKind === "fillStyle")
-            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(600400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FontStyleProto font_style = 600500; */
+            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(2100400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FontStyleProto font_style = 2100500; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(600500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BorderStyleProto border_style = 600600; */
+            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(2100500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BorderStyleProto border_style = 2100600; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(600600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ShadowStyleProto shadow_style = 600700; */
+            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(2100600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ShadowStyleProto shadow_style = 2100700; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(600700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GradientStyleProto gradient_style = 600800; */
+            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(2100700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GradientStyleProto gradient_style = 2100800; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(600800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleProto transition_style = 600900; */
+            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(2100800, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleProto transition_style = 2100900; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(600900, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleProto effect_style = 6001000; */
+            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(2100900, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleProto effect_style = 2101000; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(6001000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StrokeStyleProto stroke_style = 6001100; */
+            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2101000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StrokeStyleProto stroke_style = 2101100; */
         if (message.node.oneofKind === "strokeStyle")
-            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(6001100, WireType.LengthDelimited).fork(), options).join();
+            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(2101100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -62956,65 +62905,65 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 120, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
             { no: 110, name: "custom_property", kind: "message", oneof: "node", T: () => CustomPropertyProto },
             { no: 103, name: "custom_struct", kind: "message", oneof: "node", T: () => CustomStructProto },
-            { no: 60500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
-            { no: 60100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
-            { no: 60000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
-            { no: 60300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
-            { no: 60200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
-            { no: 60400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
-            { no: 520200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
-            { no: 535000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
-            { no: 520300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
-            { no: 530100, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewProto },
-            { no: 530200, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewProto },
-            { no: 520400, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewProto },
-            { no: 525100, name: "text_view", kind: "message", oneof: "node", T: () => TextViewProto },
-            { no: 540400, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
-            { no: 540300, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
-            { no: 540200, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
-            { no: 80000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
-            { no: 160000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
-            { no: 140000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
-            { no: 140100, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
-            { no: 101000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
-            { no: 101100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
-            { no: 112100, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
-            { no: 112200, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
-            { no: 100000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
+            { no: 360500, name: "entitlement", kind: "message", oneof: "node", T: () => EntitlementProto },
+            { no: 360100, name: "invite", kind: "message", oneof: "node", T: () => InviteProto },
+            { no: 360000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
+            { no: 360300, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
+            { no: 360200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
+            { no: 360400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
+            { no: 1800200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
+            { no: 1815000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
+            { no: 1800300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
+            { no: 1810100, name: "number_input_view", kind: "message", oneof: "node", T: () => NumberInputViewProto },
+            { no: 1810200, name: "slider_input_view", kind: "message", oneof: "node", T: () => SliderInputViewProto },
+            { no: 1800400, name: "split_view", kind: "message", oneof: "node", T: () => SplitViewProto },
+            { no: 1805100, name: "text_view", kind: "message", oneof: "node", T: () => TextViewProto },
+            { no: 1900300, name: "annotation_shape", kind: "message", oneof: "node", T: () => AnnotationShapeProto },
+            { no: 1900200, name: "arrow_shape", kind: "message", oneof: "node", T: () => ArrowShapeProto },
+            { no: 1900100, name: "line_shape", kind: "message", oneof: "node", T: () => LineShapeProto },
+            { no: 480000, name: "file", kind: "message", oneof: "node", T: () => FileProto },
+            { no: 1100000, name: "environment", kind: "message", oneof: "node", T: () => EnvironmentProto },
+            { no: 1000000, name: "database", kind: "message", oneof: "node", T: () => DatabaseProto },
+            { no: 1001000, name: "machine", kind: "message", oneof: "node", T: () => MachineProto },
+            { no: 701000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
+            { no: 701100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
+            { no: 712100, name: "event_cursor", kind: "message", oneof: "node", T: () => EventCursorProto },
+            { no: 712200, name: "screen_cursor", kind: "message", oneof: "node", T: () => ScreenCursorProto },
+            { no: 700000, name: "script", kind: "message", oneof: "node", T: () => ScriptProto },
             { no: 1400, name: "service", kind: "message", oneof: "node", T: () => ServiceProto },
-            { no: 105100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
-            { no: 105000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
-            { no: 180000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
-            { no: 180100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
-            { no: 180200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
-            { no: 500200, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
-            { no: 500100, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
-            { no: 500000, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
-            { no: 220200, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
-            { no: 220500, name: "notification", kind: "message", oneof: "node", T: () => NotificationProto },
-            { no: 220000, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
-            { no: 220100, name: "star", kind: "message", oneof: "node", T: () => StarProto },
-            { no: 45000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
-            { no: 40000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 41000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
-            { no: 41100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
-            { no: 600300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
-            { no: 600600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
-            { no: 600900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 6001000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
-            { no: 600800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
-            { no: 600400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
-            { no: 600500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
-            { no: 600100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
-            { no: 600700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
-            { no: 6001100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
-            { no: 600000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
-            { no: 21300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
-            { no: 20200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
-            { no: 22000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
-            { no: 20100, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
-            { no: 22100, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
-            { no: 21000, name: "user", kind: "message", oneof: "node", T: () => UserProto }
+            { no: 705100, name: "timer", kind: "message", oneof: "node", T: () => TimerProto },
+            { no: 705000, name: "trigger", kind: "message", oneof: "node", T: () => TriggerProto },
+            { no: 1200000, name: "gauge_metric", kind: "message", oneof: "node", T: () => GaugeMetricProto },
+            { no: 1200100, name: "counter_metric", kind: "message", oneof: "node", T: () => CounterMetricProto },
+            { no: 1200200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
+            { no: 1700300, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
+            { no: 1700200, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
+            { no: 1700100, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
+            { no: 1400200, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
+            { no: 1400500, name: "notification", kind: "message", oneof: "node", T: () => NotificationProto },
+            { no: 1400000, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
+            { no: 1400100, name: "star", kind: "message", oneof: "node", T: () => StarProto },
+            { no: 245000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
+            { no: 240000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
+            { no: 241000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
+            { no: 241100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
+            { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
+            { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
+            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
+            { no: 2100800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
+            { no: 2100400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
+            { no: 2100500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
+            { no: 2100100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
+            { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
+            { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
+            { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
+            { no: 121300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
+            { no: 100200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
+            { no: 122000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
+            { no: 100100, name: "space", kind: "message", oneof: "node", T: () => SpaceProto },
+            { no: 122100, name: "team", kind: "message", oneof: "node", T: () => TeamProto },
+            { no: 121000, name: "user", kind: "message", oneof: "node", T: () => UserProto }
         ]);
     }
     create(value?: PartialMessage<SomeEntityProto>): SomeEntityProto {
@@ -63065,151 +63014,151 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         customStruct: CustomStructProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customStruct)
                     };
                     break;
-                case /* symbol.destack.EntitlementProto entitlement */ 60500:
+                case /* symbol.destack.EntitlementProto entitlement */ 360500:
                     message.node = {
                         oneofKind: "entitlement",
                         entitlement: EntitlementProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlement)
                     };
                     break;
-                case /* symbol.destack.InviteProto invite */ 60100:
+                case /* symbol.destack.InviteProto invite */ 360100:
                     message.node = {
                         oneofKind: "invite",
                         invite: InviteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).invite)
                     };
                     break;
-                case /* symbol.destack.MembershipProto membership */ 60000:
+                case /* symbol.destack.MembershipProto membership */ 360000:
                     message.node = {
                         oneofKind: "membership",
                         membership: MembershipProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membership)
                     };
                     break;
-                case /* symbol.destack.PermissionProto permission */ 60300:
+                case /* symbol.destack.PermissionProto permission */ 360300:
                     message.node = {
                         oneofKind: "permission",
                         permission: PermissionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).permission)
                     };
                     break;
-                case /* symbol.destack.RoleProto role */ 60200:
+                case /* symbol.destack.RoleProto role */ 360200:
                     message.node = {
                         oneofKind: "role",
                         role: RoleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).role)
                     };
                     break;
-                case /* symbol.destack.SanctionProto sanction */ 60400:
+                case /* symbol.destack.SanctionProto sanction */ 360400:
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
                     };
                     break;
-                case /* symbol.destack.FrameViewProto frame_view */ 520200:
+                case /* symbol.destack.FrameViewProto frame_view */ 1800200:
                     message.node = {
                         oneofKind: "frameView",
                         frameView: FrameViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).frameView)
                     };
                     break;
-                case /* symbol.destack.InternalViewProto internal_view */ 535000:
+                case /* symbol.destack.InternalViewProto internal_view */ 1815000:
                     message.node = {
                         oneofKind: "internalView",
                         internalView: InternalViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).internalView)
                     };
                     break;
-                case /* symbol.destack.LabelViewProto label_view */ 520300:
+                case /* symbol.destack.LabelViewProto label_view */ 1800300:
                     message.node = {
                         oneofKind: "labelView",
                         labelView: LabelViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).labelView)
                     };
                     break;
-                case /* symbol.destack.NumberInputViewProto number_input_view */ 530100:
+                case /* symbol.destack.NumberInputViewProto number_input_view */ 1810100:
                     message.node = {
                         oneofKind: "numberInputView",
                         numberInputView: NumberInputViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).numberInputView)
                     };
                     break;
-                case /* symbol.destack.SliderInputViewProto slider_input_view */ 530200:
+                case /* symbol.destack.SliderInputViewProto slider_input_view */ 1810200:
                     message.node = {
                         oneofKind: "sliderInputView",
                         sliderInputView: SliderInputViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sliderInputView)
                     };
                     break;
-                case /* symbol.destack.SplitViewProto split_view */ 520400:
+                case /* symbol.destack.SplitViewProto split_view */ 1800400:
                     message.node = {
                         oneofKind: "splitView",
                         splitView: SplitViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).splitView)
                     };
                     break;
-                case /* symbol.destack.TextViewProto text_view */ 525100:
+                case /* symbol.destack.TextViewProto text_view */ 1805100:
                     message.node = {
                         oneofKind: "textView",
                         textView: TextViewProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).textView)
                     };
                     break;
-                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 540400:
+                case /* symbol.destack.AnnotationShapeProto annotation_shape */ 1900300:
                     message.node = {
                         oneofKind: "annotationShape",
                         annotationShape: AnnotationShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).annotationShape)
                     };
                     break;
-                case /* symbol.destack.ArrowShapeProto arrow_shape */ 540300:
+                case /* symbol.destack.ArrowShapeProto arrow_shape */ 1900200:
                     message.node = {
                         oneofKind: "arrowShape",
                         arrowShape: ArrowShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).arrowShape)
                     };
                     break;
-                case /* symbol.destack.LineShapeProto line_shape */ 540200:
+                case /* symbol.destack.LineShapeProto line_shape */ 1900100:
                     message.node = {
                         oneofKind: "lineShape",
                         lineShape: LineShapeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).lineShape)
                     };
                     break;
-                case /* symbol.destack.FileProto file */ 80000:
+                case /* symbol.destack.FileProto file */ 480000:
                     message.node = {
                         oneofKind: "file",
                         file: FileProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).file)
                     };
                     break;
-                case /* symbol.destack.EnvironmentProto environment */ 160000:
+                case /* symbol.destack.EnvironmentProto environment */ 1100000:
                     message.node = {
                         oneofKind: "environment",
                         environment: EnvironmentProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).environment)
                     };
                     break;
-                case /* symbol.destack.DatabaseProto database */ 140000:
+                case /* symbol.destack.DatabaseProto database */ 1000000:
                     message.node = {
                         oneofKind: "database",
                         database: DatabaseProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).database)
                     };
                     break;
-                case /* symbol.destack.MachineProto machine */ 140100:
+                case /* symbol.destack.MachineProto machine */ 1001000:
                     message.node = {
                         oneofKind: "machine",
                         machine: MachineProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).machine)
                     };
                     break;
-                case /* symbol.destack.MethodProto method */ 101000:
+                case /* symbol.destack.MethodProto method */ 701000:
                     message.node = {
                         oneofKind: "method",
                         method: MethodProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).method)
                     };
                     break;
-                case /* symbol.destack.ActionProto action */ 101100:
+                case /* symbol.destack.ActionProto action */ 701100:
                     message.node = {
                         oneofKind: "action",
                         action: ActionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).action)
                     };
                     break;
-                case /* symbol.destack.EventCursorProto event_cursor */ 112100:
+                case /* symbol.destack.EventCursorProto event_cursor */ 712100:
                     message.node = {
                         oneofKind: "eventCursor",
                         eventCursor: EventCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).eventCursor)
                     };
                     break;
-                case /* symbol.destack.ScreenCursorProto screen_cursor */ 112200:
+                case /* symbol.destack.ScreenCursorProto screen_cursor */ 712200:
                     message.node = {
                         oneofKind: "screenCursor",
                         screenCursor: ScreenCursorProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).screenCursor)
                     };
                     break;
-                case /* symbol.destack.ScriptProto script */ 100000:
+                case /* symbol.destack.ScriptProto script */ 700000:
                     message.node = {
                         oneofKind: "script",
                         script: ScriptProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).script)
@@ -63221,199 +63170,199 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         service: ServiceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).service)
                     };
                     break;
-                case /* symbol.destack.TimerProto timer */ 105100:
+                case /* symbol.destack.TimerProto timer */ 705100:
                     message.node = {
                         oneofKind: "timer",
                         timer: TimerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timer)
                     };
                     break;
-                case /* symbol.destack.TriggerProto trigger */ 105000:
+                case /* symbol.destack.TriggerProto trigger */ 705000:
                     message.node = {
                         oneofKind: "trigger",
                         trigger: TriggerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).trigger)
                     };
                     break;
-                case /* symbol.destack.GaugeMetricProto gauge_metric */ 180000:
+                case /* symbol.destack.GaugeMetricProto gauge_metric */ 1200000:
                     message.node = {
                         oneofKind: "gaugeMetric",
                         gaugeMetric: GaugeMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMetric)
                     };
                     break;
-                case /* symbol.destack.CounterMetricProto counter_metric */ 180100:
+                case /* symbol.destack.CounterMetricProto counter_metric */ 1200100:
                     message.node = {
                         oneofKind: "counterMetric",
                         counterMetric: CounterMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMetric)
                     };
                     break;
-                case /* symbol.destack.HistogramMetricProto histogram_metric */ 180200:
+                case /* symbol.destack.HistogramMetricProto histogram_metric */ 1200200:
                     message.node = {
                         oneofKind: "histogramMetric",
                         histogramMetric: HistogramMetricProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMetric)
                     };
                     break;
-                case /* symbol.destack.LayerProto layer */ 500200:
+                case /* symbol.destack.LayerProto layer */ 1700300:
                     message.node = {
                         oneofKind: "layer",
                         layer: LayerProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).layer)
                     };
                     break;
-                case /* symbol.destack.SceneProto scene */ 500100:
+                case /* symbol.destack.SceneProto scene */ 1700200:
                     message.node = {
                         oneofKind: "scene",
                         scene: SceneProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
                     };
                     break;
-                case /* symbol.destack.WindowProto window */ 500000:
+                case /* symbol.destack.WindowProto window */ 1700100:
                     message.node = {
                         oneofKind: "window",
                         window: WindowProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).window)
                     };
                     break;
-                case /* symbol.destack.FollowProto follow */ 220200:
+                case /* symbol.destack.FollowProto follow */ 1400200:
                     message.node = {
                         oneofKind: "follow",
                         follow: FollowProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).follow)
                     };
                     break;
-                case /* symbol.destack.NotificationProto notification */ 220500:
+                case /* symbol.destack.NotificationProto notification */ 1400500:
                     message.node = {
                         oneofKind: "notification",
                         notification: NotificationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notification)
                     };
                     break;
-                case /* symbol.destack.ReactionProto reaction */ 220000:
+                case /* symbol.destack.ReactionProto reaction */ 1400000:
                     message.node = {
                         oneofKind: "reaction",
                         reaction: ReactionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reaction)
                     };
                     break;
-                case /* symbol.destack.StarProto star */ 220100:
+                case /* symbol.destack.StarProto star */ 1400100:
                     message.node = {
                         oneofKind: "star",
                         star: StarProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).star)
                     };
                     break;
-                case /* symbol.destack.BranchProto branch */ 45000:
+                case /* symbol.destack.BranchProto branch */ 245000:
                     message.node = {
                         oneofKind: "branch",
                         branch: BranchProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).branch)
                     };
                     break;
-                case /* symbol.destack.FolderProto folder */ 40000:
+                case /* symbol.destack.FolderProto folder */ 240000:
                     message.node = {
                         oneofKind: "folder",
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagProto tag */ 41000:
+                case /* symbol.destack.TagProto tag */ 241000:
                     message.node = {
                         oneofKind: "tag",
                         tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
                     };
                     break;
-                case /* symbol.destack.TaggingProto tagging */ 41100:
+                case /* symbol.destack.TaggingProto tagging */ 241100:
                     message.node = {
                         oneofKind: "tagging",
                         tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
                     };
                     break;
-                case /* symbol.destack.ColorStyleProto color_style */ 600300:
+                case /* symbol.destack.ColorStyleProto color_style */ 2100300:
                     message.node = {
                         oneofKind: "colorStyle",
                         colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
                     };
                     break;
-                case /* symbol.destack.BorderStyleProto border_style */ 600600:
+                case /* symbol.destack.BorderStyleProto border_style */ 2100600:
                     message.node = {
                         oneofKind: "borderStyle",
                         borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
                     };
                     break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 600900:
+                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
                     message.node = {
                         oneofKind: "transitionStyle",
                         transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
                     };
                     break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 6001000:
+                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
                     message.node = {
                         oneofKind: "effectStyle",
                         effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
-                case /* symbol.destack.GradientStyleProto gradient_style */ 600800:
+                case /* symbol.destack.GradientStyleProto gradient_style */ 2100800:
                     message.node = {
                         oneofKind: "gradientStyle",
                         gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
                     };
                     break;
-                case /* symbol.destack.FillStyleProto fill_style */ 600400:
+                case /* symbol.destack.FillStyleProto fill_style */ 2100400:
                     message.node = {
                         oneofKind: "fillStyle",
                         fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
                     };
                     break;
-                case /* symbol.destack.FontStyleProto font_style */ 600500:
+                case /* symbol.destack.FontStyleProto font_style */ 2100500:
                     message.node = {
                         oneofKind: "fontStyle",
                         fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
                     };
                     break;
-                case /* symbol.destack.PaletteProto palette */ 600100:
+                case /* symbol.destack.PaletteProto palette */ 2100100:
                     message.node = {
                         oneofKind: "palette",
                         palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
                     };
                     break;
-                case /* symbol.destack.ShadowStyleProto shadow_style */ 600700:
+                case /* symbol.destack.ShadowStyleProto shadow_style */ 2100700:
                     message.node = {
                         oneofKind: "shadowStyle",
                         shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
                     };
                     break;
-                case /* symbol.destack.StrokeStyleProto stroke_style */ 6001100:
+                case /* symbol.destack.StrokeStyleProto stroke_style */ 2101100:
                     message.node = {
                         oneofKind: "strokeStyle",
                         strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
                     };
                     break;
-                case /* symbol.destack.ThemeProto theme */ 600000:
+                case /* symbol.destack.ThemeProto theme */ 2100000:
                     message.node = {
                         oneofKind: "theme",
                         theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
-                case /* symbol.destack.ClientProto client */ 21300:
+                case /* symbol.destack.ClientProto client */ 121300:
                     message.node = {
                         oneofKind: "client",
                         client: ClientProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).client)
                     };
                     break;
-                case /* symbol.destack.HandleProto handle */ 20200:
+                case /* symbol.destack.HandleProto handle */ 100200:
                     message.node = {
                         oneofKind: "handle",
                         handle: HandleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).handle)
                     };
                     break;
-                case /* symbol.destack.OrganizationProto organization */ 22000:
+                case /* symbol.destack.OrganizationProto organization */ 122000:
                     message.node = {
                         oneofKind: "organization",
                         organization: OrganizationProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).organization)
                     };
                     break;
-                case /* symbol.destack.SpaceProto space */ 20100:
+                case /* symbol.destack.SpaceProto space */ 100100:
                     message.node = {
                         oneofKind: "space",
                         space: SpaceProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).space)
                     };
                     break;
-                case /* symbol.destack.TeamProto team */ 22100:
+                case /* symbol.destack.TeamProto team */ 122100:
                     message.node = {
                         oneofKind: "team",
                         team: TeamProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).team)
                     };
                     break;
-                case /* symbol.destack.UserProto user */ 21000:
+                case /* symbol.destack.UserProto user */ 121000:
                     message.node = {
                         oneofKind: "user",
                         user: UserProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).user)
@@ -63452,180 +63401,180 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.ServiceProto service = 1400; */
         if (message.node.oneofKind === "service")
             ServiceProto.internalBinaryWrite(message.node.service, writer.tag(1400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpaceProto space = 20100; */
+        /* symbol.destack.SpaceProto space = 100100; */
         if (message.node.oneofKind === "space")
-            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(20100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HandleProto handle = 20200; */
+            SpaceProto.internalBinaryWrite(message.node.space, writer.tag(100100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HandleProto handle = 100200; */
         if (message.node.oneofKind === "handle")
-            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(20200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.UserProto user = 21000; */
+            HandleProto.internalBinaryWrite(message.node.handle, writer.tag(100200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.UserProto user = 121000; */
         if (message.node.oneofKind === "user")
-            UserProto.internalBinaryWrite(message.node.user, writer.tag(21000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ClientProto client = 21300; */
+            UserProto.internalBinaryWrite(message.node.user, writer.tag(121000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ClientProto client = 121300; */
         if (message.node.oneofKind === "client")
-            ClientProto.internalBinaryWrite(message.node.client, writer.tag(21300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.OrganizationProto organization = 22000; */
+            ClientProto.internalBinaryWrite(message.node.client, writer.tag(121300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.OrganizationProto organization = 122000; */
         if (message.node.oneofKind === "organization")
-            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(22000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TeamProto team = 22100; */
+            OrganizationProto.internalBinaryWrite(message.node.organization, writer.tag(122000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TeamProto team = 122100; */
         if (message.node.oneofKind === "team")
-            TeamProto.internalBinaryWrite(message.node.team, writer.tag(22100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FolderProto folder = 40000; */
+            TeamProto.internalBinaryWrite(message.node.team, writer.tag(122100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FolderProto folder = 240000; */
         if (message.node.oneofKind === "folder")
-            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(40000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagProto tag = 41000; */
+            FolderProto.internalBinaryWrite(message.node.folder, writer.tag(240000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagProto tag = 241000; */
         if (message.node.oneofKind === "tag")
-            TagProto.internalBinaryWrite(message.node.tag, writer.tag(41000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingProto tagging = 41100; */
+            TagProto.internalBinaryWrite(message.node.tag, writer.tag(241000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingProto tagging = 241100; */
         if (message.node.oneofKind === "tagging")
-            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(41100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BranchProto branch = 45000; */
+            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(241100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BranchProto branch = 245000; */
         if (message.node.oneofKind === "branch")
-            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(45000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipProto membership = 60000; */
+            BranchProto.internalBinaryWrite(message.node.branch, writer.tag(245000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipProto membership = 360000; */
         if (message.node.oneofKind === "membership")
-            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(60000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteProto invite = 60100; */
+            MembershipProto.internalBinaryWrite(message.node.membership, writer.tag(360000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteProto invite = 360100; */
         if (message.node.oneofKind === "invite")
-            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(60100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleProto role = 60200; */
+            InviteProto.internalBinaryWrite(message.node.invite, writer.tag(360100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleProto role = 360200; */
         if (message.node.oneofKind === "role")
-            RoleProto.internalBinaryWrite(message.node.role, writer.tag(60200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PermissionProto permission = 60300; */
+            RoleProto.internalBinaryWrite(message.node.role, writer.tag(360200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PermissionProto permission = 360300; */
         if (message.node.oneofKind === "permission")
-            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(60300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionProto sanction = 60400; */
+            PermissionProto.internalBinaryWrite(message.node.permission, writer.tag(360300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionProto sanction = 360400; */
         if (message.node.oneofKind === "sanction")
-            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(60400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementProto entitlement = 60500; */
+            SanctionProto.internalBinaryWrite(message.node.sanction, writer.tag(360400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementProto entitlement = 360500; */
         if (message.node.oneofKind === "entitlement")
-            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(60500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FileProto file = 80000; */
+            EntitlementProto.internalBinaryWrite(message.node.entitlement, writer.tag(360500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FileProto file = 480000; */
         if (message.node.oneofKind === "file")
-            FileProto.internalBinaryWrite(message.node.file, writer.tag(80000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScriptProto script = 100000; */
+            FileProto.internalBinaryWrite(message.node.file, writer.tag(480000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScriptProto script = 700000; */
         if (message.node.oneofKind === "script")
-            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(100000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MethodProto method = 101000; */
+            ScriptProto.internalBinaryWrite(message.node.script, writer.tag(700000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MethodProto method = 701000; */
         if (message.node.oneofKind === "method")
-            MethodProto.internalBinaryWrite(message.node.method, writer.tag(101000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ActionProto action = 101100; */
+            MethodProto.internalBinaryWrite(message.node.method, writer.tag(701000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ActionProto action = 701100; */
         if (message.node.oneofKind === "action")
-            ActionProto.internalBinaryWrite(message.node.action, writer.tag(101100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TriggerProto trigger = 105000; */
+            ActionProto.internalBinaryWrite(message.node.action, writer.tag(701100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TriggerProto trigger = 705000; */
         if (message.node.oneofKind === "trigger")
-            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(105000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerProto timer = 105100; */
+            TriggerProto.internalBinaryWrite(message.node.trigger, writer.tag(705000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerProto timer = 705100; */
         if (message.node.oneofKind === "timer")
-            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(105100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EventCursorProto event_cursor = 112100; */
+            TimerProto.internalBinaryWrite(message.node.timer, writer.tag(705100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EventCursorProto event_cursor = 712100; */
         if (message.node.oneofKind === "eventCursor")
-            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(112100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ScreenCursorProto screen_cursor = 112200; */
+            EventCursorProto.internalBinaryWrite(message.node.eventCursor, writer.tag(712100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ScreenCursorProto screen_cursor = 712200; */
         if (message.node.oneofKind === "screenCursor")
-            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(112200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DatabaseProto database = 140000; */
+            ScreenCursorProto.internalBinaryWrite(message.node.screenCursor, writer.tag(712200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DatabaseProto database = 1000000; */
         if (message.node.oneofKind === "database")
-            DatabaseProto.internalBinaryWrite(message.node.database, writer.tag(140000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MachineProto machine = 140100; */
+            DatabaseProto.internalBinaryWrite(message.node.database, writer.tag(1000000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MachineProto machine = 1001000; */
         if (message.node.oneofKind === "machine")
-            MachineProto.internalBinaryWrite(message.node.machine, writer.tag(140100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EnvironmentProto environment = 160000; */
+            MachineProto.internalBinaryWrite(message.node.machine, writer.tag(1001000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EnvironmentProto environment = 1100000; */
         if (message.node.oneofKind === "environment")
-            EnvironmentProto.internalBinaryWrite(message.node.environment, writer.tag(160000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMetricProto gauge_metric = 180000; */
+            EnvironmentProto.internalBinaryWrite(message.node.environment, writer.tag(1100000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMetricProto gauge_metric = 1200000; */
         if (message.node.oneofKind === "gaugeMetric")
-            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(180000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMetricProto counter_metric = 180100; */
+            GaugeMetricProto.internalBinaryWrite(message.node.gaugeMetric, writer.tag(1200000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMetricProto counter_metric = 1200100; */
         if (message.node.oneofKind === "counterMetric")
-            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(180100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMetricProto histogram_metric = 180200; */
+            CounterMetricProto.internalBinaryWrite(message.node.counterMetric, writer.tag(1200100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMetricProto histogram_metric = 1200200; */
         if (message.node.oneofKind === "histogramMetric")
-            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(180200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionProto reaction = 220000; */
+            HistogramMetricProto.internalBinaryWrite(message.node.histogramMetric, writer.tag(1200200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionProto reaction = 1400000; */
         if (message.node.oneofKind === "reaction")
-            ReactionProto.internalBinaryWrite(message.node.reaction, writer.tag(220000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarProto star = 220100; */
+            ReactionProto.internalBinaryWrite(message.node.reaction, writer.tag(1400000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarProto star = 1400100; */
         if (message.node.oneofKind === "star")
-            StarProto.internalBinaryWrite(message.node.star, writer.tag(220100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowProto follow = 220200; */
+            StarProto.internalBinaryWrite(message.node.star, writer.tag(1400100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowProto follow = 1400200; */
         if (message.node.oneofKind === "follow")
-            FollowProto.internalBinaryWrite(message.node.follow, writer.tag(220200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationProto notification = 220500; */
+            FollowProto.internalBinaryWrite(message.node.follow, writer.tag(1400200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationProto notification = 1400500; */
         if (message.node.oneofKind === "notification")
-            NotificationProto.internalBinaryWrite(message.node.notification, writer.tag(220500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WindowProto window = 500000; */
+            NotificationProto.internalBinaryWrite(message.node.notification, writer.tag(1400500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WindowProto window = 1700100; */
         if (message.node.oneofKind === "window")
-            WindowProto.internalBinaryWrite(message.node.window, writer.tag(500000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SceneProto scene = 500100; */
+            WindowProto.internalBinaryWrite(message.node.window, writer.tag(1700100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SceneProto scene = 1700200; */
         if (message.node.oneofKind === "scene")
-            SceneProto.internalBinaryWrite(message.node.scene, writer.tag(500100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LayerProto layer = 500200; */
+            SceneProto.internalBinaryWrite(message.node.scene, writer.tag(1700200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LayerProto layer = 1700300; */
         if (message.node.oneofKind === "layer")
-            LayerProto.internalBinaryWrite(message.node.layer, writer.tag(500200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FrameViewProto frame_view = 520200; */
+            LayerProto.internalBinaryWrite(message.node.layer, writer.tag(1700300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FrameViewProto frame_view = 1800200; */
         if (message.node.oneofKind === "frameView")
-            FrameViewProto.internalBinaryWrite(message.node.frameView, writer.tag(520200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LabelViewProto label_view = 520300; */
+            FrameViewProto.internalBinaryWrite(message.node.frameView, writer.tag(1800200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LabelViewProto label_view = 1800300; */
         if (message.node.oneofKind === "labelView")
-            LabelViewProto.internalBinaryWrite(message.node.labelView, writer.tag(520300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SplitViewProto split_view = 520400; */
+            LabelViewProto.internalBinaryWrite(message.node.labelView, writer.tag(1800300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SplitViewProto split_view = 1800400; */
         if (message.node.oneofKind === "splitView")
-            SplitViewProto.internalBinaryWrite(message.node.splitView, writer.tag(520400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TextViewProto text_view = 525100; */
+            SplitViewProto.internalBinaryWrite(message.node.splitView, writer.tag(1800400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TextViewProto text_view = 1805100; */
         if (message.node.oneofKind === "textView")
-            TextViewProto.internalBinaryWrite(message.node.textView, writer.tag(525100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NumberInputViewProto number_input_view = 530100; */
+            TextViewProto.internalBinaryWrite(message.node.textView, writer.tag(1805100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NumberInputViewProto number_input_view = 1810100; */
         if (message.node.oneofKind === "numberInputView")
-            NumberInputViewProto.internalBinaryWrite(message.node.numberInputView, writer.tag(530100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SliderInputViewProto slider_input_view = 530200; */
+            NumberInputViewProto.internalBinaryWrite(message.node.numberInputView, writer.tag(1810100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SliderInputViewProto slider_input_view = 1810200; */
         if (message.node.oneofKind === "sliderInputView")
-            SliderInputViewProto.internalBinaryWrite(message.node.sliderInputView, writer.tag(530200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InternalViewProto internal_view = 535000; */
+            SliderInputViewProto.internalBinaryWrite(message.node.sliderInputView, writer.tag(1810200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InternalViewProto internal_view = 1815000; */
         if (message.node.oneofKind === "internalView")
-            InternalViewProto.internalBinaryWrite(message.node.internalView, writer.tag(535000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LineShapeProto line_shape = 540200; */
+            InternalViewProto.internalBinaryWrite(message.node.internalView, writer.tag(1815000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LineShapeProto line_shape = 1900100; */
         if (message.node.oneofKind === "lineShape")
-            LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(540200, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ArrowShapeProto arrow_shape = 540300; */
+            LineShapeProto.internalBinaryWrite(message.node.lineShape, writer.tag(1900100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ArrowShapeProto arrow_shape = 1900200; */
         if (message.node.oneofKind === "arrowShape")
-            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(540300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.AnnotationShapeProto annotation_shape = 540400; */
+            ArrowShapeProto.internalBinaryWrite(message.node.arrowShape, writer.tag(1900200, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.AnnotationShapeProto annotation_shape = 1900300; */
         if (message.node.oneofKind === "annotationShape")
-            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(540400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ThemeProto theme = 600000; */
+            AnnotationShapeProto.internalBinaryWrite(message.node.annotationShape, writer.tag(1900300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ThemeProto theme = 2100000; */
         if (message.node.oneofKind === "theme")
-            ThemeProto.internalBinaryWrite(message.node.theme, writer.tag(600000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PaletteProto palette = 600100; */
+            ThemeProto.internalBinaryWrite(message.node.theme, writer.tag(2100000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PaletteProto palette = 2100100; */
         if (message.node.oneofKind === "palette")
-            PaletteProto.internalBinaryWrite(message.node.palette, writer.tag(600100, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ColorStyleProto color_style = 600300; */
+            PaletteProto.internalBinaryWrite(message.node.palette, writer.tag(2100100, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ColorStyleProto color_style = 2100300; */
         if (message.node.oneofKind === "colorStyle")
-            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(600300, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FillStyleProto fill_style = 600400; */
+            ColorStyleProto.internalBinaryWrite(message.node.colorStyle, writer.tag(2100300, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FillStyleProto fill_style = 2100400; */
         if (message.node.oneofKind === "fillStyle")
-            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(600400, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FontStyleProto font_style = 600500; */
+            FillStyleProto.internalBinaryWrite(message.node.fillStyle, writer.tag(2100400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FontStyleProto font_style = 2100500; */
         if (message.node.oneofKind === "fontStyle")
-            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(600500, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.BorderStyleProto border_style = 600600; */
+            FontStyleProto.internalBinaryWrite(message.node.fontStyle, writer.tag(2100500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.BorderStyleProto border_style = 2100600; */
         if (message.node.oneofKind === "borderStyle")
-            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(600600, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ShadowStyleProto shadow_style = 600700; */
+            BorderStyleProto.internalBinaryWrite(message.node.borderStyle, writer.tag(2100600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ShadowStyleProto shadow_style = 2100700; */
         if (message.node.oneofKind === "shadowStyle")
-            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(600700, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GradientStyleProto gradient_style = 600800; */
+            ShadowStyleProto.internalBinaryWrite(message.node.shadowStyle, writer.tag(2100700, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GradientStyleProto gradient_style = 2100800; */
         if (message.node.oneofKind === "gradientStyle")
-            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(600800, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TransitionStyleProto transition_style = 600900; */
+            GradientStyleProto.internalBinaryWrite(message.node.gradientStyle, writer.tag(2100800, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TransitionStyleProto transition_style = 2100900; */
         if (message.node.oneofKind === "transitionStyle")
-            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(600900, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EffectStyleProto effect_style = 6001000; */
+            TransitionStyleProto.internalBinaryWrite(message.node.transitionStyle, writer.tag(2100900, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EffectStyleProto effect_style = 2101000; */
         if (message.node.oneofKind === "effectStyle")
-            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(6001000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StrokeStyleProto stroke_style = 6001100; */
+            EffectStyleProto.internalBinaryWrite(message.node.effectStyle, writer.tag(2101000, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StrokeStyleProto stroke_style = 2101100; */
         if (message.node.oneofKind === "strokeStyle")
-            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(6001100, WireType.LengthDelimited).fork(), options).join();
+            StrokeStyleProto.internalBinaryWrite(message.node.strokeStyle, writer.tag(2101100, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -63641,77 +63590,77 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
     constructor() {
         super("symbol.destack.SomeEventProto", [
             { no: 2001, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
-            { no: 60502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
-            { no: 60503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
-            { no: 60504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
-            { no: 60505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
-            { no: 60102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
-            { no: 60103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
-            { no: 60104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
-            { no: 60105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
-            { no: 60002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
-            { no: 60003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
-            { no: 60202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
-            { no: 60203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
-            { no: 60402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
-            { no: 60403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
-            { no: 60404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
-            { no: 60405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
-            { no: 170301, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
-            { no: 170002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
-            { no: 170003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
-            { no: 170004, name: "run_paused_event", kind: "message", oneof: "node", T: () => RunPausedEventProto },
-            { no: 170005, name: "run_resume_requested_event", kind: "message", oneof: "node", T: () => RunResumeRequestedEventProto },
-            { no: 170006, name: "run_resumed_event", kind: "message", oneof: "node", T: () => RunResumedEventProto },
-            { no: 170007, name: "run_stop_requested_event", kind: "message", oneof: "node", T: () => RunStopRequestedEventProto },
-            { no: 170008, name: "run_failed_event", kind: "message", oneof: "node", T: () => RunFailedEventProto },
-            { no: 170009, name: "run_completed_event", kind: "message", oneof: "node", T: () => RunCompletedEventProto },
-            { no: 170101, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
-            { no: 560501, name: "copy_event", kind: "message", oneof: "node", T: () => CopyEventProto },
-            { no: 560502, name: "cut_event", kind: "message", oneof: "node", T: () => CutEventProto },
-            { no: 560503, name: "paste_event", kind: "message", oneof: "node", T: () => PasteEventProto },
-            { no: 560401, name: "drag_start_event", kind: "message", oneof: "node", T: () => DragStartEventProto },
-            { no: 560402, name: "drag_end_event", kind: "message", oneof: "node", T: () => DragEndEventProto },
-            { no: 560403, name: "drag_over_event", kind: "message", oneof: "node", T: () => DragOverEventProto },
-            { no: 560404, name: "drag_enter_event", kind: "message", oneof: "node", T: () => DragEnterEventProto },
-            { no: 560405, name: "drag_leave_event", kind: "message", oneof: "node", T: () => DragLeaveEventProto },
-            { no: 560406, name: "drop_event", kind: "message", oneof: "node", T: () => DropEventProto },
-            { no: 560601, name: "focus_in_event", kind: "message", oneof: "node", T: () => FocusInEventProto },
-            { no: 560602, name: "focus_out_event", kind: "message", oneof: "node", T: () => FocusOutEventProto },
-            { no: 560301, name: "key_down_event", kind: "message", oneof: "node", T: () => KeyDownEventProto },
-            { no: 560302, name: "key_up_event", kind: "message", oneof: "node", T: () => KeyUpEventProto },
-            { no: 560303, name: "key_press_event", kind: "message", oneof: "node", T: () => KeyPressEventProto },
-            { no: 560101, name: "pointer_down_event", kind: "message", oneof: "node", T: () => PointerDownEventProto },
-            { no: 560102, name: "pointer_up_event", kind: "message", oneof: "node", T: () => PointerUpEventProto },
-            { no: 560103, name: "pointer_move_event", kind: "message", oneof: "node", T: () => PointerMoveEventProto },
-            { no: 560104, name: "pointer_enter_event", kind: "message", oneof: "node", T: () => PointerEnterEventProto },
-            { no: 560105, name: "pointer_over_event", kind: "message", oneof: "node", T: () => PointerOverEventProto },
-            { no: 560106, name: "pointer_leave_event", kind: "message", oneof: "node", T: () => PointerLeaveEventProto },
-            { no: 560107, name: "pointer_long_press_event", kind: "message", oneof: "node", T: () => PointerLongPressEventProto },
-            { no: 560202, name: "single_click_event", kind: "message", oneof: "node", T: () => SingleClickEventProto },
-            { no: 560203, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
-            { no: 560204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
-            { no: 560210, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
-            { no: 105102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
-            { no: 105103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
-            { no: 105104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
-            { no: 180001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
-            { no: 180101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
-            { no: 180201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
-            { no: 220201, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
-            { no: 220202, name: "follow_added_event", kind: "message", oneof: "node", T: () => FollowAddedEventProto },
-            { no: 220203, name: "follow_removed_event", kind: "message", oneof: "node", T: () => FollowRemovedEventProto },
-            { no: 220502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
-            { no: 220503, name: "notification_rescinded_event", kind: "message", oneof: "node", T: () => NotificationRescindedEventProto },
-            { no: 220504, name: "notification_read_event", kind: "message", oneof: "node", T: () => NotificationReadEventProto },
-            { no: 220505, name: "notification_dismissed_event", kind: "message", oneof: "node", T: () => NotificationDismissedEventProto },
-            { no: 220506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
-            { no: 220001, name: "reaction_event", kind: "message", oneof: "node", T: () => ReactionEventProto },
-            { no: 220002, name: "reaction_added_event", kind: "message", oneof: "node", T: () => ReactionAddedEventProto },
-            { no: 220003, name: "reaction_removed_event", kind: "message", oneof: "node", T: () => ReactionRemovedEventProto },
-            { no: 220101, name: "star_event", kind: "message", oneof: "node", T: () => StarEventProto },
-            { no: 220102, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
-            { no: 220103, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto }
+            { no: 360502, name: "entitlement_requested_event", kind: "message", oneof: "node", T: () => EntitlementRequestedEventProto },
+            { no: 360503, name: "entitlement_granted_event", kind: "message", oneof: "node", T: () => EntitlementGrantedEventProto },
+            { no: 360504, name: "entitlement_revoked_event", kind: "message", oneof: "node", T: () => EntitlementRevokedEventProto },
+            { no: 360505, name: "entitlement_expired_event", kind: "message", oneof: "node", T: () => EntitlementExpiredEventProto },
+            { no: 360102, name: "invite_sent_event", kind: "message", oneof: "node", T: () => InviteSentEventProto },
+            { no: 360103, name: "invite_rescinded_event", kind: "message", oneof: "node", T: () => InviteRescindedEventProto },
+            { no: 360104, name: "invite_accepted_event", kind: "message", oneof: "node", T: () => InviteAcceptedEventProto },
+            { no: 360105, name: "invite_rejected_event", kind: "message", oneof: "node", T: () => InviteRejectedEventProto },
+            { no: 360002, name: "membership_joined_event", kind: "message", oneof: "node", T: () => MembershipJoinedEventProto },
+            { no: 360003, name: "membership_left_event", kind: "message", oneof: "node", T: () => MembershipLeftEventProto },
+            { no: 360202, name: "role_assigned_event", kind: "message", oneof: "node", T: () => RoleAssignedEventProto },
+            { no: 360203, name: "role_unassigned_event", kind: "message", oneof: "node", T: () => RoleUnassignedEventProto },
+            { no: 360402, name: "sanction_requested_event", kind: "message", oneof: "node", T: () => SanctionRequestedEventProto },
+            { no: 360403, name: "sanction_granted_event", kind: "message", oneof: "node", T: () => SanctionGrantedEventProto },
+            { no: 360404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
+            { no: 360405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
+            { no: 1110011, name: "log_event", kind: "message", oneof: "node", T: () => LogEventProto },
+            { no: 1110002, name: "run_started_event", kind: "message", oneof: "node", T: () => RunStartedEventProto },
+            { no: 1110003, name: "run_pause_requested_event", kind: "message", oneof: "node", T: () => RunPauseRequestedEventProto },
+            { no: 1110004, name: "run_paused_event", kind: "message", oneof: "node", T: () => RunPausedEventProto },
+            { no: 1110005, name: "run_resume_requested_event", kind: "message", oneof: "node", T: () => RunResumeRequestedEventProto },
+            { no: 1110006, name: "run_resumed_event", kind: "message", oneof: "node", T: () => RunResumedEventProto },
+            { no: 1110007, name: "run_stop_requested_event", kind: "message", oneof: "node", T: () => RunStopRequestedEventProto },
+            { no: 1110008, name: "run_failed_event", kind: "message", oneof: "node", T: () => RunFailedEventProto },
+            { no: 1110009, name: "run_completed_event", kind: "message", oneof: "node", T: () => RunCompletedEventProto },
+            { no: 1110010, name: "span_event", kind: "message", oneof: "node", T: () => SpanEventProto },
+            { no: 2000501, name: "copy_event", kind: "message", oneof: "node", T: () => CopyEventProto },
+            { no: 2000502, name: "cut_event", kind: "message", oneof: "node", T: () => CutEventProto },
+            { no: 2000503, name: "paste_event", kind: "message", oneof: "node", T: () => PasteEventProto },
+            { no: 2000401, name: "drag_start_event", kind: "message", oneof: "node", T: () => DragStartEventProto },
+            { no: 2000402, name: "drag_end_event", kind: "message", oneof: "node", T: () => DragEndEventProto },
+            { no: 2000403, name: "drag_over_event", kind: "message", oneof: "node", T: () => DragOverEventProto },
+            { no: 2000404, name: "drag_enter_event", kind: "message", oneof: "node", T: () => DragEnterEventProto },
+            { no: 2000405, name: "drag_leave_event", kind: "message", oneof: "node", T: () => DragLeaveEventProto },
+            { no: 2000406, name: "drop_event", kind: "message", oneof: "node", T: () => DropEventProto },
+            { no: 2000601, name: "focus_in_event", kind: "message", oneof: "node", T: () => FocusInEventProto },
+            { no: 2000602, name: "focus_out_event", kind: "message", oneof: "node", T: () => FocusOutEventProto },
+            { no: 2000301, name: "key_down_event", kind: "message", oneof: "node", T: () => KeyDownEventProto },
+            { no: 2000302, name: "key_up_event", kind: "message", oneof: "node", T: () => KeyUpEventProto },
+            { no: 2000303, name: "key_press_event", kind: "message", oneof: "node", T: () => KeyPressEventProto },
+            { no: 2000101, name: "pointer_down_event", kind: "message", oneof: "node", T: () => PointerDownEventProto },
+            { no: 2000102, name: "pointer_up_event", kind: "message", oneof: "node", T: () => PointerUpEventProto },
+            { no: 2000103, name: "pointer_move_event", kind: "message", oneof: "node", T: () => PointerMoveEventProto },
+            { no: 2000104, name: "pointer_enter_event", kind: "message", oneof: "node", T: () => PointerEnterEventProto },
+            { no: 2000105, name: "pointer_over_event", kind: "message", oneof: "node", T: () => PointerOverEventProto },
+            { no: 2000106, name: "pointer_leave_event", kind: "message", oneof: "node", T: () => PointerLeaveEventProto },
+            { no: 2000107, name: "pointer_long_press_event", kind: "message", oneof: "node", T: () => PointerLongPressEventProto },
+            { no: 2000202, name: "single_click_event", kind: "message", oneof: "node", T: () => SingleClickEventProto },
+            { no: 2000203, name: "double_click_event", kind: "message", oneof: "node", T: () => DoubleClickEventProto },
+            { no: 2000204, name: "triple_click_event", kind: "message", oneof: "node", T: () => TripleClickEventProto },
+            { no: 2000210, name: "wheel_event", kind: "message", oneof: "node", T: () => WheelEventProto },
+            { no: 705102, name: "timer_started_event", kind: "message", oneof: "node", T: () => TimerStartedEventProto },
+            { no: 705103, name: "timer_completed_event", kind: "message", oneof: "node", T: () => TimerCompletedEventProto },
+            { no: 705104, name: "timer_cancelled_event", kind: "message", oneof: "node", T: () => TimerCancelledEventProto },
+            { no: 1200001, name: "gauge_measurement_event", kind: "message", oneof: "node", T: () => GaugeMeasurementEventProto },
+            { no: 1200101, name: "counter_measurement_event", kind: "message", oneof: "node", T: () => CounterMeasurementEventProto },
+            { no: 1200201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
+            { no: 1400201, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
+            { no: 1400202, name: "follow_added_event", kind: "message", oneof: "node", T: () => FollowAddedEventProto },
+            { no: 1400203, name: "follow_removed_event", kind: "message", oneof: "node", T: () => FollowRemovedEventProto },
+            { no: 1400502, name: "notification_sent_event", kind: "message", oneof: "node", T: () => NotificationSentEventProto },
+            { no: 1400503, name: "notification_rescinded_event", kind: "message", oneof: "node", T: () => NotificationRescindedEventProto },
+            { no: 1400504, name: "notification_read_event", kind: "message", oneof: "node", T: () => NotificationReadEventProto },
+            { no: 1400505, name: "notification_dismissed_event", kind: "message", oneof: "node", T: () => NotificationDismissedEventProto },
+            { no: 1400506, name: "notification_expired_event", kind: "message", oneof: "node", T: () => NotificationExpiredEventProto },
+            { no: 1400001, name: "reaction_event", kind: "message", oneof: "node", T: () => ReactionEventProto },
+            { no: 1400002, name: "reaction_added_event", kind: "message", oneof: "node", T: () => ReactionAddedEventProto },
+            { no: 1400003, name: "reaction_removed_event", kind: "message", oneof: "node", T: () => ReactionRemovedEventProto },
+            { no: 1400101, name: "star_event", kind: "message", oneof: "node", T: () => StarEventProto },
+            { no: 1400102, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
+            { no: 1400103, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto }
         ]);
     }
     create(value?: PartialMessage<SomeEventProto>): SomeEventProto {
@@ -63732,427 +63681,427 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
                         editEvent: EditEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).editEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 60502:
+                case /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event */ 360502:
                     message.node = {
                         oneofKind: "entitlementRequestedEvent",
                         entitlementRequestedEvent: EntitlementRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 60503:
+                case /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event */ 360503:
                     message.node = {
                         oneofKind: "entitlementGrantedEvent",
                         entitlementGrantedEvent: EntitlementGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 60504:
+                case /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event */ 360504:
                     message.node = {
                         oneofKind: "entitlementRevokedEvent",
                         entitlementRevokedEvent: EntitlementRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 60505:
+                case /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event */ 360505:
                     message.node = {
                         oneofKind: "entitlementExpiredEvent",
                         entitlementExpiredEvent: EntitlementExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).entitlementExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 60102:
+                case /* symbol.destack.InviteSentEventProto invite_sent_event */ 360102:
                     message.node = {
                         oneofKind: "inviteSentEvent",
                         inviteSentEvent: InviteSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteSentEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 60103:
+                case /* symbol.destack.InviteRescindedEventProto invite_rescinded_event */ 360103:
                     message.node = {
                         oneofKind: "inviteRescindedEvent",
                         inviteRescindedEvent: InviteRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 60104:
+                case /* symbol.destack.InviteAcceptedEventProto invite_accepted_event */ 360104:
                     message.node = {
                         oneofKind: "inviteAcceptedEvent",
                         inviteAcceptedEvent: InviteAcceptedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteAcceptedEvent)
                     };
                     break;
-                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 60105:
+                case /* symbol.destack.InviteRejectedEventProto invite_rejected_event */ 360105:
                     message.node = {
                         oneofKind: "inviteRejectedEvent",
                         inviteRejectedEvent: InviteRejectedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).inviteRejectedEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 60002:
+                case /* symbol.destack.MembershipJoinedEventProto membership_joined_event */ 360002:
                     message.node = {
                         oneofKind: "membershipJoinedEvent",
                         membershipJoinedEvent: MembershipJoinedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipJoinedEvent)
                     };
                     break;
-                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 60003:
+                case /* symbol.destack.MembershipLeftEventProto membership_left_event */ 360003:
                     message.node = {
                         oneofKind: "membershipLeftEvent",
                         membershipLeftEvent: MembershipLeftEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).membershipLeftEvent)
                     };
                     break;
-                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 60202:
+                case /* symbol.destack.RoleAssignedEventProto role_assigned_event */ 360202:
                     message.node = {
                         oneofKind: "roleAssignedEvent",
                         roleAssignedEvent: RoleAssignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleAssignedEvent)
                     };
                     break;
-                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 60203:
+                case /* symbol.destack.RoleUnassignedEventProto role_unassigned_event */ 360203:
                     message.node = {
                         oneofKind: "roleUnassignedEvent",
                         roleUnassignedEvent: RoleUnassignedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).roleUnassignedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 60402:
+                case /* symbol.destack.SanctionRequestedEventProto sanction_requested_event */ 360402:
                     message.node = {
                         oneofKind: "sanctionRequestedEvent",
                         sanctionRequestedEvent: SanctionRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 60403:
+                case /* symbol.destack.SanctionGrantedEventProto sanction_granted_event */ 360403:
                     message.node = {
                         oneofKind: "sanctionGrantedEvent",
                         sanctionGrantedEvent: SanctionGrantedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionGrantedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 60404:
+                case /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event */ 360404:
                     message.node = {
                         oneofKind: "sanctionRevokedEvent",
                         sanctionRevokedEvent: SanctionRevokedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionRevokedEvent)
                     };
                     break;
-                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 60405:
+                case /* symbol.destack.SanctionExpiredEventProto sanction_expired_event */ 360405:
                     message.node = {
                         oneofKind: "sanctionExpiredEvent",
                         sanctionExpiredEvent: SanctionExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanctionExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.LogEventProto log_event */ 170301:
+                case /* symbol.destack.LogEventProto log_event */ 1110011:
                     message.node = {
                         oneofKind: "logEvent",
                         logEvent: LogEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).logEvent)
                     };
                     break;
-                case /* symbol.destack.RunStartedEventProto run_started_event */ 170002:
+                case /* symbol.destack.RunStartedEventProto run_started_event */ 1110002:
                     message.node = {
                         oneofKind: "runStartedEvent",
                         runStartedEvent: RunStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runStartedEvent)
                     };
                     break;
-                case /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event */ 170003:
+                case /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event */ 1110003:
                     message.node = {
                         oneofKind: "runPauseRequestedEvent",
                         runPauseRequestedEvent: RunPauseRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runPauseRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.RunPausedEventProto run_paused_event */ 170004:
+                case /* symbol.destack.RunPausedEventProto run_paused_event */ 1110004:
                     message.node = {
                         oneofKind: "runPausedEvent",
                         runPausedEvent: RunPausedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runPausedEvent)
                     };
                     break;
-                case /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event */ 170005:
+                case /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event */ 1110005:
                     message.node = {
                         oneofKind: "runResumeRequestedEvent",
                         runResumeRequestedEvent: RunResumeRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runResumeRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.RunResumedEventProto run_resumed_event */ 170006:
+                case /* symbol.destack.RunResumedEventProto run_resumed_event */ 1110006:
                     message.node = {
                         oneofKind: "runResumedEvent",
                         runResumedEvent: RunResumedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runResumedEvent)
                     };
                     break;
-                case /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event */ 170007:
+                case /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event */ 1110007:
                     message.node = {
                         oneofKind: "runStopRequestedEvent",
                         runStopRequestedEvent: RunStopRequestedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runStopRequestedEvent)
                     };
                     break;
-                case /* symbol.destack.RunFailedEventProto run_failed_event */ 170008:
+                case /* symbol.destack.RunFailedEventProto run_failed_event */ 1110008:
                     message.node = {
                         oneofKind: "runFailedEvent",
                         runFailedEvent: RunFailedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runFailedEvent)
                     };
                     break;
-                case /* symbol.destack.RunCompletedEventProto run_completed_event */ 170009:
+                case /* symbol.destack.RunCompletedEventProto run_completed_event */ 1110009:
                     message.node = {
                         oneofKind: "runCompletedEvent",
                         runCompletedEvent: RunCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).runCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.SpanEventProto span_event */ 170101:
+                case /* symbol.destack.SpanEventProto span_event */ 1110010:
                     message.node = {
                         oneofKind: "spanEvent",
                         spanEvent: SpanEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).spanEvent)
                     };
                     break;
-                case /* symbol.destack.CopyEventProto copy_event */ 560501:
+                case /* symbol.destack.CopyEventProto copy_event */ 2000501:
                     message.node = {
                         oneofKind: "copyEvent",
                         copyEvent: CopyEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).copyEvent)
                     };
                     break;
-                case /* symbol.destack.CutEventProto cut_event */ 560502:
+                case /* symbol.destack.CutEventProto cut_event */ 2000502:
                     message.node = {
                         oneofKind: "cutEvent",
                         cutEvent: CutEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).cutEvent)
                     };
                     break;
-                case /* symbol.destack.PasteEventProto paste_event */ 560503:
+                case /* symbol.destack.PasteEventProto paste_event */ 2000503:
                     message.node = {
                         oneofKind: "pasteEvent",
                         pasteEvent: PasteEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pasteEvent)
                     };
                     break;
-                case /* symbol.destack.DragStartEventProto drag_start_event */ 560401:
+                case /* symbol.destack.DragStartEventProto drag_start_event */ 2000401:
                     message.node = {
                         oneofKind: "dragStartEvent",
                         dragStartEvent: DragStartEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragStartEvent)
                     };
                     break;
-                case /* symbol.destack.DragEndEventProto drag_end_event */ 560402:
+                case /* symbol.destack.DragEndEventProto drag_end_event */ 2000402:
                     message.node = {
                         oneofKind: "dragEndEvent",
                         dragEndEvent: DragEndEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragEndEvent)
                     };
                     break;
-                case /* symbol.destack.DragOverEventProto drag_over_event */ 560403:
+                case /* symbol.destack.DragOverEventProto drag_over_event */ 2000403:
                     message.node = {
                         oneofKind: "dragOverEvent",
                         dragOverEvent: DragOverEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragOverEvent)
                     };
                     break;
-                case /* symbol.destack.DragEnterEventProto drag_enter_event */ 560404:
+                case /* symbol.destack.DragEnterEventProto drag_enter_event */ 2000404:
                     message.node = {
                         oneofKind: "dragEnterEvent",
                         dragEnterEvent: DragEnterEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragEnterEvent)
                     };
                     break;
-                case /* symbol.destack.DragLeaveEventProto drag_leave_event */ 560405:
+                case /* symbol.destack.DragLeaveEventProto drag_leave_event */ 2000405:
                     message.node = {
                         oneofKind: "dragLeaveEvent",
                         dragLeaveEvent: DragLeaveEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dragLeaveEvent)
                     };
                     break;
-                case /* symbol.destack.DropEventProto drop_event */ 560406:
+                case /* symbol.destack.DropEventProto drop_event */ 2000406:
                     message.node = {
                         oneofKind: "dropEvent",
                         dropEvent: DropEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).dropEvent)
                     };
                     break;
-                case /* symbol.destack.FocusInEventProto focus_in_event */ 560601:
+                case /* symbol.destack.FocusInEventProto focus_in_event */ 2000601:
                     message.node = {
                         oneofKind: "focusInEvent",
                         focusInEvent: FocusInEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).focusInEvent)
                     };
                     break;
-                case /* symbol.destack.FocusOutEventProto focus_out_event */ 560602:
+                case /* symbol.destack.FocusOutEventProto focus_out_event */ 2000602:
                     message.node = {
                         oneofKind: "focusOutEvent",
                         focusOutEvent: FocusOutEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).focusOutEvent)
                     };
                     break;
-                case /* symbol.destack.KeyDownEventProto key_down_event */ 560301:
+                case /* symbol.destack.KeyDownEventProto key_down_event */ 2000301:
                     message.node = {
                         oneofKind: "keyDownEvent",
                         keyDownEvent: KeyDownEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).keyDownEvent)
                     };
                     break;
-                case /* symbol.destack.KeyUpEventProto key_up_event */ 560302:
+                case /* symbol.destack.KeyUpEventProto key_up_event */ 2000302:
                     message.node = {
                         oneofKind: "keyUpEvent",
                         keyUpEvent: KeyUpEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).keyUpEvent)
                     };
                     break;
-                case /* symbol.destack.KeyPressEventProto key_press_event */ 560303:
+                case /* symbol.destack.KeyPressEventProto key_press_event */ 2000303:
                     message.node = {
                         oneofKind: "keyPressEvent",
                         keyPressEvent: KeyPressEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).keyPressEvent)
                     };
                     break;
-                case /* symbol.destack.PointerDownEventProto pointer_down_event */ 560101:
+                case /* symbol.destack.PointerDownEventProto pointer_down_event */ 2000101:
                     message.node = {
                         oneofKind: "pointerDownEvent",
                         pointerDownEvent: PointerDownEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerDownEvent)
                     };
                     break;
-                case /* symbol.destack.PointerUpEventProto pointer_up_event */ 560102:
+                case /* symbol.destack.PointerUpEventProto pointer_up_event */ 2000102:
                     message.node = {
                         oneofKind: "pointerUpEvent",
                         pointerUpEvent: PointerUpEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerUpEvent)
                     };
                     break;
-                case /* symbol.destack.PointerMoveEventProto pointer_move_event */ 560103:
+                case /* symbol.destack.PointerMoveEventProto pointer_move_event */ 2000103:
                     message.node = {
                         oneofKind: "pointerMoveEvent",
                         pointerMoveEvent: PointerMoveEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerMoveEvent)
                     };
                     break;
-                case /* symbol.destack.PointerEnterEventProto pointer_enter_event */ 560104:
+                case /* symbol.destack.PointerEnterEventProto pointer_enter_event */ 2000104:
                     message.node = {
                         oneofKind: "pointerEnterEvent",
                         pointerEnterEvent: PointerEnterEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerEnterEvent)
                     };
                     break;
-                case /* symbol.destack.PointerOverEventProto pointer_over_event */ 560105:
+                case /* symbol.destack.PointerOverEventProto pointer_over_event */ 2000105:
                     message.node = {
                         oneofKind: "pointerOverEvent",
                         pointerOverEvent: PointerOverEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerOverEvent)
                     };
                     break;
-                case /* symbol.destack.PointerLeaveEventProto pointer_leave_event */ 560106:
+                case /* symbol.destack.PointerLeaveEventProto pointer_leave_event */ 2000106:
                     message.node = {
                         oneofKind: "pointerLeaveEvent",
                         pointerLeaveEvent: PointerLeaveEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerLeaveEvent)
                     };
                     break;
-                case /* symbol.destack.PointerLongPressEventProto pointer_long_press_event */ 560107:
+                case /* symbol.destack.PointerLongPressEventProto pointer_long_press_event */ 2000107:
                     message.node = {
                         oneofKind: "pointerLongPressEvent",
                         pointerLongPressEvent: PointerLongPressEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).pointerLongPressEvent)
                     };
                     break;
-                case /* symbol.destack.SingleClickEventProto single_click_event */ 560202:
+                case /* symbol.destack.SingleClickEventProto single_click_event */ 2000202:
                     message.node = {
                         oneofKind: "singleClickEvent",
                         singleClickEvent: SingleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).singleClickEvent)
                     };
                     break;
-                case /* symbol.destack.DoubleClickEventProto double_click_event */ 560203:
+                case /* symbol.destack.DoubleClickEventProto double_click_event */ 2000203:
                     message.node = {
                         oneofKind: "doubleClickEvent",
                         doubleClickEvent: DoubleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).doubleClickEvent)
                     };
                     break;
-                case /* symbol.destack.TripleClickEventProto triple_click_event */ 560204:
+                case /* symbol.destack.TripleClickEventProto triple_click_event */ 2000204:
                     message.node = {
                         oneofKind: "tripleClickEvent",
                         tripleClickEvent: TripleClickEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tripleClickEvent)
                     };
                     break;
-                case /* symbol.destack.WheelEventProto wheel_event */ 560210:
+                case /* symbol.destack.WheelEventProto wheel_event */ 2000210:
                     message.node = {
                         oneofKind: "wheelEvent",
                         wheelEvent: WheelEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).wheelEvent)
                     };
                     break;
-                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 105102:
+                case /* symbol.destack.TimerStartedEventProto timer_started_event */ 705102:
                     message.node = {
                         oneofKind: "timerStartedEvent",
                         timerStartedEvent: TimerStartedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerStartedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 105103:
+                case /* symbol.destack.TimerCompletedEventProto timer_completed_event */ 705103:
                     message.node = {
                         oneofKind: "timerCompletedEvent",
                         timerCompletedEvent: TimerCompletedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCompletedEvent)
                     };
                     break;
-                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 105104:
+                case /* symbol.destack.TimerCancelledEventProto timer_cancelled_event */ 705104:
                     message.node = {
                         oneofKind: "timerCancelledEvent",
                         timerCancelledEvent: TimerCancelledEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).timerCancelledEvent)
                     };
                     break;
-                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 180001:
+                case /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event */ 1200001:
                     message.node = {
                         oneofKind: "gaugeMeasurementEvent",
                         gaugeMeasurementEvent: GaugeMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gaugeMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 180101:
+                case /* symbol.destack.CounterMeasurementEventProto counter_measurement_event */ 1200101:
                     message.node = {
                         oneofKind: "counterMeasurementEvent",
                         counterMeasurementEvent: CounterMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).counterMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 180201:
+                case /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event */ 1200201:
                     message.node = {
                         oneofKind: "histogramMeasurementEvent",
                         histogramMeasurementEvent: HistogramMeasurementEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).histogramMeasurementEvent)
                     };
                     break;
-                case /* symbol.destack.FollowEventProto follow_event */ 220201:
+                case /* symbol.destack.FollowEventProto follow_event */ 1400201:
                     message.node = {
                         oneofKind: "followEvent",
                         followEvent: FollowEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followEvent)
                     };
                     break;
-                case /* symbol.destack.FollowAddedEventProto follow_added_event */ 220202:
+                case /* symbol.destack.FollowAddedEventProto follow_added_event */ 1400202:
                     message.node = {
                         oneofKind: "followAddedEvent",
                         followAddedEvent: FollowAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followAddedEvent)
                     };
                     break;
-                case /* symbol.destack.FollowRemovedEventProto follow_removed_event */ 220203:
+                case /* symbol.destack.FollowRemovedEventProto follow_removed_event */ 1400203:
                     message.node = {
                         oneofKind: "followRemovedEvent",
                         followRemovedEvent: FollowRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).followRemovedEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationSentEventProto notification_sent_event */ 220502:
+                case /* symbol.destack.NotificationSentEventProto notification_sent_event */ 1400502:
                     message.node = {
                         oneofKind: "notificationSentEvent",
                         notificationSentEvent: NotificationSentEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationSentEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event */ 220503:
+                case /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event */ 1400503:
                     message.node = {
                         oneofKind: "notificationRescindedEvent",
                         notificationRescindedEvent: NotificationRescindedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationRescindedEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationReadEventProto notification_read_event */ 220504:
+                case /* symbol.destack.NotificationReadEventProto notification_read_event */ 1400504:
                     message.node = {
                         oneofKind: "notificationReadEvent",
                         notificationReadEvent: NotificationReadEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationReadEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event */ 220505:
+                case /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event */ 1400505:
                     message.node = {
                         oneofKind: "notificationDismissedEvent",
                         notificationDismissedEvent: NotificationDismissedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationDismissedEvent)
                     };
                     break;
-                case /* symbol.destack.NotificationExpiredEventProto notification_expired_event */ 220506:
+                case /* symbol.destack.NotificationExpiredEventProto notification_expired_event */ 1400506:
                     message.node = {
                         oneofKind: "notificationExpiredEvent",
                         notificationExpiredEvent: NotificationExpiredEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).notificationExpiredEvent)
                     };
                     break;
-                case /* symbol.destack.ReactionEventProto reaction_event */ 220001:
+                case /* symbol.destack.ReactionEventProto reaction_event */ 1400001:
                     message.node = {
                         oneofKind: "reactionEvent",
                         reactionEvent: ReactionEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionEvent)
                     };
                     break;
-                case /* symbol.destack.ReactionAddedEventProto reaction_added_event */ 220002:
+                case /* symbol.destack.ReactionAddedEventProto reaction_added_event */ 1400002:
                     message.node = {
                         oneofKind: "reactionAddedEvent",
                         reactionAddedEvent: ReactionAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionAddedEvent)
                     };
                     break;
-                case /* symbol.destack.ReactionRemovedEventProto reaction_removed_event */ 220003:
+                case /* symbol.destack.ReactionRemovedEventProto reaction_removed_event */ 1400003:
                     message.node = {
                         oneofKind: "reactionRemovedEvent",
                         reactionRemovedEvent: ReactionRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).reactionRemovedEvent)
                     };
                     break;
-                case /* symbol.destack.StarEventProto star_event */ 220101:
+                case /* symbol.destack.StarEventProto star_event */ 1400101:
                     message.node = {
                         oneofKind: "starEvent",
                         starEvent: StarEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starEvent)
                     };
                     break;
-                case /* symbol.destack.StarAddedEventProto star_added_event */ 220102:
+                case /* symbol.destack.StarAddedEventProto star_added_event */ 1400102:
                     message.node = {
                         oneofKind: "starAddedEvent",
                         starAddedEvent: StarAddedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starAddedEvent)
                     };
                     break;
-                case /* symbol.destack.StarRemovedEventProto star_removed_event */ 220103:
+                case /* symbol.destack.StarRemovedEventProto star_removed_event */ 1400103:
                     message.node = {
                         oneofKind: "starRemovedEvent",
                         starRemovedEvent: StarRemovedEventProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).starRemovedEvent)
@@ -64173,219 +64122,219 @@ class SomeEventProto$Type extends MessageType<SomeEventProto> {
         /* symbol.destack.EditEventProto edit_event = 2001; */
         if (message.node.oneofKind === "editEvent")
             EditEventProto.internalBinaryWrite(message.node.editEvent, writer.tag(2001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 60002; */
+        /* symbol.destack.MembershipJoinedEventProto membership_joined_event = 360002; */
         if (message.node.oneofKind === "membershipJoinedEvent")
-            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(60002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.MembershipLeftEventProto membership_left_event = 60003; */
+            MembershipJoinedEventProto.internalBinaryWrite(message.node.membershipJoinedEvent, writer.tag(360002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MembershipLeftEventProto membership_left_event = 360003; */
         if (message.node.oneofKind === "membershipLeftEvent")
-            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(60003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteSentEventProto invite_sent_event = 60102; */
+            MembershipLeftEventProto.internalBinaryWrite(message.node.membershipLeftEvent, writer.tag(360003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteSentEventProto invite_sent_event = 360102; */
         if (message.node.oneofKind === "inviteSentEvent")
-            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(60102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 60103; */
+            InviteSentEventProto.internalBinaryWrite(message.node.inviteSentEvent, writer.tag(360102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRescindedEventProto invite_rescinded_event = 360103; */
         if (message.node.oneofKind === "inviteRescindedEvent")
-            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(60103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 60104; */
+            InviteRescindedEventProto.internalBinaryWrite(message.node.inviteRescindedEvent, writer.tag(360103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteAcceptedEventProto invite_accepted_event = 360104; */
         if (message.node.oneofKind === "inviteAcceptedEvent")
-            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(60104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 60105; */
+            InviteAcceptedEventProto.internalBinaryWrite(message.node.inviteAcceptedEvent, writer.tag(360104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.InviteRejectedEventProto invite_rejected_event = 360105; */
         if (message.node.oneofKind === "inviteRejectedEvent")
-            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(60105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 60202; */
+            InviteRejectedEventProto.internalBinaryWrite(message.node.inviteRejectedEvent, writer.tag(360105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleAssignedEventProto role_assigned_event = 360202; */
         if (message.node.oneofKind === "roleAssignedEvent")
-            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(60202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 60203; */
+            RoleAssignedEventProto.internalBinaryWrite(message.node.roleAssignedEvent, writer.tag(360202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RoleUnassignedEventProto role_unassigned_event = 360203; */
         if (message.node.oneofKind === "roleUnassignedEvent")
-            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(60203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 60402; */
+            RoleUnassignedEventProto.internalBinaryWrite(message.node.roleUnassignedEvent, writer.tag(360203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRequestedEventProto sanction_requested_event = 360402; */
         if (message.node.oneofKind === "sanctionRequestedEvent")
-            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(60402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 60403; */
+            SanctionRequestedEventProto.internalBinaryWrite(message.node.sanctionRequestedEvent, writer.tag(360402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionGrantedEventProto sanction_granted_event = 360403; */
         if (message.node.oneofKind === "sanctionGrantedEvent")
-            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(60403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 60404; */
+            SanctionGrantedEventProto.internalBinaryWrite(message.node.sanctionGrantedEvent, writer.tag(360403, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionRevokedEventProto sanction_revoked_event = 360404; */
         if (message.node.oneofKind === "sanctionRevokedEvent")
-            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(60404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 60405; */
+            SanctionRevokedEventProto.internalBinaryWrite(message.node.sanctionRevokedEvent, writer.tag(360404, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SanctionExpiredEventProto sanction_expired_event = 360405; */
         if (message.node.oneofKind === "sanctionExpiredEvent")
-            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(60405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 60502; */
+            SanctionExpiredEventProto.internalBinaryWrite(message.node.sanctionExpiredEvent, writer.tag(360405, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRequestedEventProto entitlement_requested_event = 360502; */
         if (message.node.oneofKind === "entitlementRequestedEvent")
-            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(60502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 60503; */
+            EntitlementRequestedEventProto.internalBinaryWrite(message.node.entitlementRequestedEvent, writer.tag(360502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementGrantedEventProto entitlement_granted_event = 360503; */
         if (message.node.oneofKind === "entitlementGrantedEvent")
-            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(60503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 60504; */
+            EntitlementGrantedEventProto.internalBinaryWrite(message.node.entitlementGrantedEvent, writer.tag(360503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementRevokedEventProto entitlement_revoked_event = 360504; */
         if (message.node.oneofKind === "entitlementRevokedEvent")
-            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(60504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 60505; */
+            EntitlementRevokedEventProto.internalBinaryWrite(message.node.entitlementRevokedEvent, writer.tag(360504, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.EntitlementExpiredEventProto entitlement_expired_event = 360505; */
         if (message.node.oneofKind === "entitlementExpiredEvent")
-            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(60505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerStartedEventProto timer_started_event = 105102; */
+            EntitlementExpiredEventProto.internalBinaryWrite(message.node.entitlementExpiredEvent, writer.tag(360505, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerStartedEventProto timer_started_event = 705102; */
         if (message.node.oneofKind === "timerStartedEvent")
-            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(105102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 105103; */
+            TimerStartedEventProto.internalBinaryWrite(message.node.timerStartedEvent, writer.tag(705102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCompletedEventProto timer_completed_event = 705103; */
         if (message.node.oneofKind === "timerCompletedEvent")
-            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(105103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 105104; */
+            TimerCompletedEventProto.internalBinaryWrite(message.node.timerCompletedEvent, writer.tag(705103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TimerCancelledEventProto timer_cancelled_event = 705104; */
         if (message.node.oneofKind === "timerCancelledEvent")
-            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(105104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunStartedEventProto run_started_event = 170002; */
+            TimerCancelledEventProto.internalBinaryWrite(message.node.timerCancelledEvent, writer.tag(705104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunStartedEventProto run_started_event = 1110002; */
         if (message.node.oneofKind === "runStartedEvent")
-            RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(170002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 170003; */
+            RunStartedEventProto.internalBinaryWrite(message.node.runStartedEvent, writer.tag(1110002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunPauseRequestedEventProto run_pause_requested_event = 1110003; */
         if (message.node.oneofKind === "runPauseRequestedEvent")
-            RunPauseRequestedEventProto.internalBinaryWrite(message.node.runPauseRequestedEvent, writer.tag(170003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunPausedEventProto run_paused_event = 170004; */
+            RunPauseRequestedEventProto.internalBinaryWrite(message.node.runPauseRequestedEvent, writer.tag(1110003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunPausedEventProto run_paused_event = 1110004; */
         if (message.node.oneofKind === "runPausedEvent")
-            RunPausedEventProto.internalBinaryWrite(message.node.runPausedEvent, writer.tag(170004, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 170005; */
+            RunPausedEventProto.internalBinaryWrite(message.node.runPausedEvent, writer.tag(1110004, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunResumeRequestedEventProto run_resume_requested_event = 1110005; */
         if (message.node.oneofKind === "runResumeRequestedEvent")
-            RunResumeRequestedEventProto.internalBinaryWrite(message.node.runResumeRequestedEvent, writer.tag(170005, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunResumedEventProto run_resumed_event = 170006; */
+            RunResumeRequestedEventProto.internalBinaryWrite(message.node.runResumeRequestedEvent, writer.tag(1110005, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunResumedEventProto run_resumed_event = 1110006; */
         if (message.node.oneofKind === "runResumedEvent")
-            RunResumedEventProto.internalBinaryWrite(message.node.runResumedEvent, writer.tag(170006, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 170007; */
+            RunResumedEventProto.internalBinaryWrite(message.node.runResumedEvent, writer.tag(1110006, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunStopRequestedEventProto run_stop_requested_event = 1110007; */
         if (message.node.oneofKind === "runStopRequestedEvent")
-            RunStopRequestedEventProto.internalBinaryWrite(message.node.runStopRequestedEvent, writer.tag(170007, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunFailedEventProto run_failed_event = 170008; */
+            RunStopRequestedEventProto.internalBinaryWrite(message.node.runStopRequestedEvent, writer.tag(1110007, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunFailedEventProto run_failed_event = 1110008; */
         if (message.node.oneofKind === "runFailedEvent")
-            RunFailedEventProto.internalBinaryWrite(message.node.runFailedEvent, writer.tag(170008, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.RunCompletedEventProto run_completed_event = 170009; */
+            RunFailedEventProto.internalBinaryWrite(message.node.runFailedEvent, writer.tag(1110008, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.RunCompletedEventProto run_completed_event = 1110009; */
         if (message.node.oneofKind === "runCompletedEvent")
-            RunCompletedEventProto.internalBinaryWrite(message.node.runCompletedEvent, writer.tag(170009, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SpanEventProto span_event = 170101; */
+            RunCompletedEventProto.internalBinaryWrite(message.node.runCompletedEvent, writer.tag(1110009, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SpanEventProto span_event = 1110010; */
         if (message.node.oneofKind === "spanEvent")
-            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(170101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.LogEventProto log_event = 170301; */
+            SpanEventProto.internalBinaryWrite(message.node.spanEvent, writer.tag(1110010, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.LogEventProto log_event = 1110011; */
         if (message.node.oneofKind === "logEvent")
-            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(170301, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 180001; */
+            LogEventProto.internalBinaryWrite(message.node.logEvent, writer.tag(1110011, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.GaugeMeasurementEventProto gauge_measurement_event = 1200001; */
         if (message.node.oneofKind === "gaugeMeasurementEvent")
-            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(180001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 180101; */
+            GaugeMeasurementEventProto.internalBinaryWrite(message.node.gaugeMeasurementEvent, writer.tag(1200001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CounterMeasurementEventProto counter_measurement_event = 1200101; */
         if (message.node.oneofKind === "counterMeasurementEvent")
-            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(180101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 180201; */
+            CounterMeasurementEventProto.internalBinaryWrite(message.node.counterMeasurementEvent, writer.tag(1200101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.HistogramMeasurementEventProto histogram_measurement_event = 1200201; */
         if (message.node.oneofKind === "histogramMeasurementEvent")
-            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(180201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionEventProto reaction_event = 220001; */
+            HistogramMeasurementEventProto.internalBinaryWrite(message.node.histogramMeasurementEvent, writer.tag(1200201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionEventProto reaction_event = 1400001; */
         if (message.node.oneofKind === "reactionEvent")
-            ReactionEventProto.internalBinaryWrite(message.node.reactionEvent, writer.tag(220001, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionAddedEventProto reaction_added_event = 220002; */
+            ReactionEventProto.internalBinaryWrite(message.node.reactionEvent, writer.tag(1400001, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionAddedEventProto reaction_added_event = 1400002; */
         if (message.node.oneofKind === "reactionAddedEvent")
-            ReactionAddedEventProto.internalBinaryWrite(message.node.reactionAddedEvent, writer.tag(220002, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.ReactionRemovedEventProto reaction_removed_event = 220003; */
+            ReactionAddedEventProto.internalBinaryWrite(message.node.reactionAddedEvent, writer.tag(1400002, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.ReactionRemovedEventProto reaction_removed_event = 1400003; */
         if (message.node.oneofKind === "reactionRemovedEvent")
-            ReactionRemovedEventProto.internalBinaryWrite(message.node.reactionRemovedEvent, writer.tag(220003, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarEventProto star_event = 220101; */
+            ReactionRemovedEventProto.internalBinaryWrite(message.node.reactionRemovedEvent, writer.tag(1400003, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarEventProto star_event = 1400101; */
         if (message.node.oneofKind === "starEvent")
-            StarEventProto.internalBinaryWrite(message.node.starEvent, writer.tag(220101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarAddedEventProto star_added_event = 220102; */
+            StarEventProto.internalBinaryWrite(message.node.starEvent, writer.tag(1400101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarAddedEventProto star_added_event = 1400102; */
         if (message.node.oneofKind === "starAddedEvent")
-            StarAddedEventProto.internalBinaryWrite(message.node.starAddedEvent, writer.tag(220102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.StarRemovedEventProto star_removed_event = 220103; */
+            StarAddedEventProto.internalBinaryWrite(message.node.starAddedEvent, writer.tag(1400102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StarRemovedEventProto star_removed_event = 1400103; */
         if (message.node.oneofKind === "starRemovedEvent")
-            StarRemovedEventProto.internalBinaryWrite(message.node.starRemovedEvent, writer.tag(220103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowEventProto follow_event = 220201; */
+            StarRemovedEventProto.internalBinaryWrite(message.node.starRemovedEvent, writer.tag(1400103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowEventProto follow_event = 1400201; */
         if (message.node.oneofKind === "followEvent")
-            FollowEventProto.internalBinaryWrite(message.node.followEvent, writer.tag(220201, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowAddedEventProto follow_added_event = 220202; */
+            FollowEventProto.internalBinaryWrite(message.node.followEvent, writer.tag(1400201, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowAddedEventProto follow_added_event = 1400202; */
         if (message.node.oneofKind === "followAddedEvent")
-            FollowAddedEventProto.internalBinaryWrite(message.node.followAddedEvent, writer.tag(220202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FollowRemovedEventProto follow_removed_event = 220203; */
+            FollowAddedEventProto.internalBinaryWrite(message.node.followAddedEvent, writer.tag(1400202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FollowRemovedEventProto follow_removed_event = 1400203; */
         if (message.node.oneofKind === "followRemovedEvent")
-            FollowRemovedEventProto.internalBinaryWrite(message.node.followRemovedEvent, writer.tag(220203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationSentEventProto notification_sent_event = 220502; */
+            FollowRemovedEventProto.internalBinaryWrite(message.node.followRemovedEvent, writer.tag(1400203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationSentEventProto notification_sent_event = 1400502; */
         if (message.node.oneofKind === "notificationSentEvent")
-            NotificationSentEventProto.internalBinaryWrite(message.node.notificationSentEvent, writer.tag(220502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 220503; */
+            NotificationSentEventProto.internalBinaryWrite(message.node.notificationSentEvent, writer.tag(1400502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationRescindedEventProto notification_rescinded_event = 1400503; */
         if (message.node.oneofKind === "notificationRescindedEvent")
-            NotificationRescindedEventProto.internalBinaryWrite(message.node.notificationRescindedEvent, writer.tag(220503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationReadEventProto notification_read_event = 220504; */
+            NotificationRescindedEventProto.internalBinaryWrite(message.node.notificationRescindedEvent, writer.tag(1400503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationReadEventProto notification_read_event = 1400504; */
         if (message.node.oneofKind === "notificationReadEvent")
-            NotificationReadEventProto.internalBinaryWrite(message.node.notificationReadEvent, writer.tag(220504, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 220505; */
+            NotificationReadEventProto.internalBinaryWrite(message.node.notificationReadEvent, writer.tag(1400504, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationDismissedEventProto notification_dismissed_event = 1400505; */
         if (message.node.oneofKind === "notificationDismissedEvent")
-            NotificationDismissedEventProto.internalBinaryWrite(message.node.notificationDismissedEvent, writer.tag(220505, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.NotificationExpiredEventProto notification_expired_event = 220506; */
+            NotificationDismissedEventProto.internalBinaryWrite(message.node.notificationDismissedEvent, writer.tag(1400505, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NotificationExpiredEventProto notification_expired_event = 1400506; */
         if (message.node.oneofKind === "notificationExpiredEvent")
-            NotificationExpiredEventProto.internalBinaryWrite(message.node.notificationExpiredEvent, writer.tag(220506, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerDownEventProto pointer_down_event = 560101; */
+            NotificationExpiredEventProto.internalBinaryWrite(message.node.notificationExpiredEvent, writer.tag(1400506, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerDownEventProto pointer_down_event = 2000101; */
         if (message.node.oneofKind === "pointerDownEvent")
-            PointerDownEventProto.internalBinaryWrite(message.node.pointerDownEvent, writer.tag(560101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerUpEventProto pointer_up_event = 560102; */
+            PointerDownEventProto.internalBinaryWrite(message.node.pointerDownEvent, writer.tag(2000101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerUpEventProto pointer_up_event = 2000102; */
         if (message.node.oneofKind === "pointerUpEvent")
-            PointerUpEventProto.internalBinaryWrite(message.node.pointerUpEvent, writer.tag(560102, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerMoveEventProto pointer_move_event = 560103; */
+            PointerUpEventProto.internalBinaryWrite(message.node.pointerUpEvent, writer.tag(2000102, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerMoveEventProto pointer_move_event = 2000103; */
         if (message.node.oneofKind === "pointerMoveEvent")
-            PointerMoveEventProto.internalBinaryWrite(message.node.pointerMoveEvent, writer.tag(560103, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerEnterEventProto pointer_enter_event = 560104; */
+            PointerMoveEventProto.internalBinaryWrite(message.node.pointerMoveEvent, writer.tag(2000103, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerEnterEventProto pointer_enter_event = 2000104; */
         if (message.node.oneofKind === "pointerEnterEvent")
-            PointerEnterEventProto.internalBinaryWrite(message.node.pointerEnterEvent, writer.tag(560104, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerOverEventProto pointer_over_event = 560105; */
+            PointerEnterEventProto.internalBinaryWrite(message.node.pointerEnterEvent, writer.tag(2000104, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerOverEventProto pointer_over_event = 2000105; */
         if (message.node.oneofKind === "pointerOverEvent")
-            PointerOverEventProto.internalBinaryWrite(message.node.pointerOverEvent, writer.tag(560105, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerLeaveEventProto pointer_leave_event = 560106; */
+            PointerOverEventProto.internalBinaryWrite(message.node.pointerOverEvent, writer.tag(2000105, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerLeaveEventProto pointer_leave_event = 2000106; */
         if (message.node.oneofKind === "pointerLeaveEvent")
-            PointerLeaveEventProto.internalBinaryWrite(message.node.pointerLeaveEvent, writer.tag(560106, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PointerLongPressEventProto pointer_long_press_event = 560107; */
+            PointerLeaveEventProto.internalBinaryWrite(message.node.pointerLeaveEvent, writer.tag(2000106, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PointerLongPressEventProto pointer_long_press_event = 2000107; */
         if (message.node.oneofKind === "pointerLongPressEvent")
-            PointerLongPressEventProto.internalBinaryWrite(message.node.pointerLongPressEvent, writer.tag(560107, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.SingleClickEventProto single_click_event = 560202; */
+            PointerLongPressEventProto.internalBinaryWrite(message.node.pointerLongPressEvent, writer.tag(2000107, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.SingleClickEventProto single_click_event = 2000202; */
         if (message.node.oneofKind === "singleClickEvent")
-            SingleClickEventProto.internalBinaryWrite(message.node.singleClickEvent, writer.tag(560202, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DoubleClickEventProto double_click_event = 560203; */
+            SingleClickEventProto.internalBinaryWrite(message.node.singleClickEvent, writer.tag(2000202, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DoubleClickEventProto double_click_event = 2000203; */
         if (message.node.oneofKind === "doubleClickEvent")
-            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(560203, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TripleClickEventProto triple_click_event = 560204; */
+            DoubleClickEventProto.internalBinaryWrite(message.node.doubleClickEvent, writer.tag(2000203, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TripleClickEventProto triple_click_event = 2000204; */
         if (message.node.oneofKind === "tripleClickEvent")
-            TripleClickEventProto.internalBinaryWrite(message.node.tripleClickEvent, writer.tag(560204, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.WheelEventProto wheel_event = 560210; */
+            TripleClickEventProto.internalBinaryWrite(message.node.tripleClickEvent, writer.tag(2000204, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.WheelEventProto wheel_event = 2000210; */
         if (message.node.oneofKind === "wheelEvent")
-            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(560210, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.KeyDownEventProto key_down_event = 560301; */
+            WheelEventProto.internalBinaryWrite(message.node.wheelEvent, writer.tag(2000210, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.KeyDownEventProto key_down_event = 2000301; */
         if (message.node.oneofKind === "keyDownEvent")
-            KeyDownEventProto.internalBinaryWrite(message.node.keyDownEvent, writer.tag(560301, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.KeyUpEventProto key_up_event = 560302; */
+            KeyDownEventProto.internalBinaryWrite(message.node.keyDownEvent, writer.tag(2000301, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.KeyUpEventProto key_up_event = 2000302; */
         if (message.node.oneofKind === "keyUpEvent")
-            KeyUpEventProto.internalBinaryWrite(message.node.keyUpEvent, writer.tag(560302, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.KeyPressEventProto key_press_event = 560303; */
+            KeyUpEventProto.internalBinaryWrite(message.node.keyUpEvent, writer.tag(2000302, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.KeyPressEventProto key_press_event = 2000303; */
         if (message.node.oneofKind === "keyPressEvent")
-            KeyPressEventProto.internalBinaryWrite(message.node.keyPressEvent, writer.tag(560303, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragStartEventProto drag_start_event = 560401; */
+            KeyPressEventProto.internalBinaryWrite(message.node.keyPressEvent, writer.tag(2000303, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragStartEventProto drag_start_event = 2000401; */
         if (message.node.oneofKind === "dragStartEvent")
-            DragStartEventProto.internalBinaryWrite(message.node.dragStartEvent, writer.tag(560401, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragEndEventProto drag_end_event = 560402; */
+            DragStartEventProto.internalBinaryWrite(message.node.dragStartEvent, writer.tag(2000401, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragEndEventProto drag_end_event = 2000402; */
         if (message.node.oneofKind === "dragEndEvent")
-            DragEndEventProto.internalBinaryWrite(message.node.dragEndEvent, writer.tag(560402, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragOverEventProto drag_over_event = 560403; */
+            DragEndEventProto.internalBinaryWrite(message.node.dragEndEvent, writer.tag(2000402, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragOverEventProto drag_over_event = 2000403; */
         if (message.node.oneofKind === "dragOverEvent")
-            DragOverEventProto.internalBinaryWrite(message.node.dragOverEvent, writer.tag(560403, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragEnterEventProto drag_enter_event = 560404; */
+            DragOverEventProto.internalBinaryWrite(message.node.dragOverEvent, writer.tag(2000403, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragEnterEventProto drag_enter_event = 2000404; */
         if (message.node.oneofKind === "dragEnterEvent")
-            DragEnterEventProto.internalBinaryWrite(message.node.dragEnterEvent, writer.tag(560404, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DragLeaveEventProto drag_leave_event = 560405; */
+            DragEnterEventProto.internalBinaryWrite(message.node.dragEnterEvent, writer.tag(2000404, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DragLeaveEventProto drag_leave_event = 2000405; */
         if (message.node.oneofKind === "dragLeaveEvent")
-            DragLeaveEventProto.internalBinaryWrite(message.node.dragLeaveEvent, writer.tag(560405, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.DropEventProto drop_event = 560406; */
+            DragLeaveEventProto.internalBinaryWrite(message.node.dragLeaveEvent, writer.tag(2000405, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.DropEventProto drop_event = 2000406; */
         if (message.node.oneofKind === "dropEvent")
-            DropEventProto.internalBinaryWrite(message.node.dropEvent, writer.tag(560406, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CopyEventProto copy_event = 560501; */
+            DropEventProto.internalBinaryWrite(message.node.dropEvent, writer.tag(2000406, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CopyEventProto copy_event = 2000501; */
         if (message.node.oneofKind === "copyEvent")
-            CopyEventProto.internalBinaryWrite(message.node.copyEvent, writer.tag(560501, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.CutEventProto cut_event = 560502; */
+            CopyEventProto.internalBinaryWrite(message.node.copyEvent, writer.tag(2000501, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.CutEventProto cut_event = 2000502; */
         if (message.node.oneofKind === "cutEvent")
-            CutEventProto.internalBinaryWrite(message.node.cutEvent, writer.tag(560502, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.PasteEventProto paste_event = 560503; */
+            CutEventProto.internalBinaryWrite(message.node.cutEvent, writer.tag(2000502, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.PasteEventProto paste_event = 2000503; */
         if (message.node.oneofKind === "pasteEvent")
-            PasteEventProto.internalBinaryWrite(message.node.pasteEvent, writer.tag(560503, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FocusInEventProto focus_in_event = 560601; */
+            PasteEventProto.internalBinaryWrite(message.node.pasteEvent, writer.tag(2000503, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FocusInEventProto focus_in_event = 2000601; */
         if (message.node.oneofKind === "focusInEvent")
-            FocusInEventProto.internalBinaryWrite(message.node.focusInEvent, writer.tag(560601, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.FocusOutEventProto focus_out_event = 560602; */
+            FocusInEventProto.internalBinaryWrite(message.node.focusInEvent, writer.tag(2000601, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.FocusOutEventProto focus_out_event = 2000602; */
         if (message.node.oneofKind === "focusOutEvent")
-            FocusOutEventProto.internalBinaryWrite(message.node.focusOutEvent, writer.tag(560602, WireType.LengthDelimited).fork(), options).join();
+            FocusOutEventProto.internalBinaryWrite(message.node.focusOutEvent, writer.tag(2000602, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -64404,7 +64353,7 @@ export const SomeEventProto = new SomeEventProto$Type();
 //
 
 // Any...
-export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | CustomEnumProto | CustomOptionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UniverseProto | UserProto
+export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | CustomEnumProto | CustomOptionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | PermissionProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | MethodProto | ActionProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
 export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | PropertyGroupDefinitionProto | OptionDefinitionProto | OptionGroupDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | PermissionDefinitionProto | IconProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumMutableProto | DatumProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | GalaxyInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
 
     

@@ -48,7 +48,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100300 ==== */
 /**
  * A color value.
  */
@@ -305,7 +305,7 @@ export class Color extends StructFrozen {
 
   static __packValue__(object: Color): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600300;
+    objectValue["1"] = 2100300;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -395,7 +395,7 @@ export class Color extends StructFrozen {
   }
 
   static __packProto__(object: Color): ColorProto {
-    const objectProto: Partial<ColorProto> = { metatype: 600300 };
+    const objectProto: Partial<ColorProto> = { metatype: 2100300 };
     objectProto.type = Number(object.type) as ColorTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -486,9 +486,9 @@ export class Color extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLOR, Color);
-/* ==== DESTACK_GENERATED_END:STRUCT:600300 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100300 ==== */
 /**
  * A color style, with an optional dark variant.
  */
@@ -496,7 +496,7 @@ export class ColorStyle extends Style {
   static metatype: NodeType = NodeType.COLOR_STYLE;
 
   /**
-   * ColorStyle.parent
+   * Style.parent
    */
   get parent(): Scene | View | Theme | Palette | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1085,9 +1085,6 @@ export class ColorStyle extends Style {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._hue != null) {
       h = (h * 31 + this._hue) & 0xffffffff;
@@ -1112,6 +1109,9 @@ export class ColorStyle extends Style {
     }
     if (this._dark != null) {
       h = (h * 31 + this._dark.hash()) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     if (this.snapshotPtr != null) {
@@ -1221,7 +1221,7 @@ export class ColorStyle extends Style {
 
   static __packValue__(object: ColorStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600300;
+    objectValue["1"] = 2100300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1299,11 +1299,6 @@ export class ColorStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const hueValue = objectValue["200"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
     const shadeValue = objectValue["201"];
@@ -1322,6 +1317,11 @@ export class ColorStyle extends Style {
     const unpackedDark =
       darkValue != undefined
         ? _Color.fromValue(darkValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1371,7 +1371,6 @@ export class ColorStyle extends Style {
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new ColorStyle({
-      parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
       hue: unpackedHue,
       shade: unpackedShade,
@@ -1381,6 +1380,7 @@ export class ColorStyle extends Style {
       z: unpackedZ,
       alpha: unpackedAlpha,
       dark: unpackedDark,
+      parent: unpackedParentPtr,
       name: objectValue["101"],
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -1418,7 +1418,7 @@ export class ColorStyle extends Style {
   }
 
   static __packProto__(object: ColorStyle): ColorStyleProto {
-    const objectProto: Partial<ColorStyleProto> = { metatype: 600300 };
+    const objectProto: Partial<ColorStyleProto> = { metatype: 2100300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1505,16 +1505,6 @@ export class ColorStyle extends Style {
       }
     }
     return new ColorStyle({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       type: Number(objectProto.type) as ColorType,
       hue: objectProto.hue != undefined ? (Number(objectProto.hue) as ColorHue) : null,
       shade: objectProto.shade != undefined ? (Number(objectProto.shade) as ColorShade) : null,
@@ -1526,6 +1516,16 @@ export class ColorStyle extends Style {
       dark:
         objectProto.dark != undefined
           ? _Color.fromProto(objectProto.dark!, _session, _supergraph, _graph, _connection)
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       name: objectProto.name,
       materialization: Number(objectProto.materialization) as Materialization,
@@ -1667,7 +1667,7 @@ export class ColorStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.COLOR_STYLE, ColorStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100300 ==== */
 
 /** y-encoded sRGB → linear */
 function srgbToLinear(c: number): number {
@@ -1841,7 +1841,7 @@ export function p3ToHsl(rp3: number, gp3: number, bp3: number): [number, number,
   return rgbToHsl(Math.round(r * 255), Math.round(g * 255), Math.round(b * 255));
 }
 
-/* ==== DESTACK_GENERATED_START:ENUM:600000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100000 ==== */
 /**
  * ColorType
  */
@@ -1856,9 +1856,9 @@ export enum ColorType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_TYPE, ColorType);
-/* ==== DESTACK_GENERATED_END:ENUM:600000 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600002 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100002 ==== */
 /**
  * ColorHue
  */
@@ -1887,9 +1887,9 @@ export enum ColorHue {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_HUE, ColorHue);
-/* ==== DESTACK_GENERATED_END:ENUM:600002 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100001 ==== */
 /**
  * ColorShade
  */
@@ -1912,9 +1912,9 @@ export enum ColorShade {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_SHADE, ColorShade);
-/* ==== DESTACK_GENERATED_END:ENUM:600001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100001 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600003 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100003 ==== */
 /**
  * ColorIntent
  */
@@ -1932,4 +1932,4 @@ export enum ColorIntent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.COLOR_INTENT, ColorIntent);
-/* ==== DESTACK_GENERATED_END:ENUM:600003 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100003 ==== */

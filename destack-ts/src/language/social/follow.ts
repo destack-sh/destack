@@ -36,7 +36,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:220200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400200 ==== */
 /**
  * A Follow is a relationship between a Actor and an IsFollowable Node.
  */
@@ -377,7 +377,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
 
   static __packValue__(object: Follow): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220200;
+    objectValue["1"] = 1400200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -483,7 +483,7 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   }
 
   static __packProto__(object: Follow): FollowProto {
-    const objectProto: Partial<FollowProto> = { metatype: 220200 };
+    const objectProto: Partial<FollowProto> = { metatype: 1400200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -617,9 +617,9 @@ export class Follow extends Entity implements IsDeletable, IsOwned {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW, Follow);
-/* ==== DESTACK_GENERATED_END:NODE:220200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220201 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400201 ==== */
 /**
  * FollowEvent
  */
@@ -896,7 +896,7 @@ export class FollowEvent extends Event {
 
   static __packValue__(object: FollowEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220201;
+    objectValue["1"] = 1400201;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -979,7 +979,7 @@ export class FollowEvent extends Event {
   }
 
   static __packProto__(object: FollowEvent): FollowEventProto {
-    const objectProto: Partial<FollowEventProto> = { metatype: 220201 };
+    const objectProto: Partial<FollowEventProto> = { metatype: 1400201 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1084,9 +1084,9 @@ export class FollowEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW_EVENT, FollowEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220201 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220202 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400202 ==== */
 /**
  * FollowAddedEvent
  */
@@ -1212,7 +1212,7 @@ export class FollowAddedEvent extends FollowEvent {
 
   static __packValue__(object: FollowAddedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220202;
+    objectValue["1"] = 1400202;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1301,7 +1301,7 @@ export class FollowAddedEvent extends FollowEvent {
   }
 
   static __packProto__(object: FollowAddedEvent): FollowAddedEventProto {
-    const objectProto: Partial<FollowAddedEventProto> = { metatype: 220202 };
+    const objectProto: Partial<FollowAddedEventProto> = { metatype: 1400202 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1412,9 +1412,9 @@ export class FollowAddedEvent extends FollowEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW_ADDED_EVENT, FollowAddedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220202 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400202 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:220203 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1400203 ==== */
 /**
  * FollowRemovedEvent
  */
@@ -1540,7 +1540,7 @@ export class FollowRemovedEvent extends FollowEvent {
 
   static __packValue__(object: FollowRemovedEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 220203;
+    objectValue["1"] = 1400203;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -1629,7 +1629,7 @@ export class FollowRemovedEvent extends FollowEvent {
   }
 
   static __packProto__(object: FollowRemovedEvent): FollowRemovedEventProto {
-    const objectProto: Partial<FollowRemovedEventProto> = { metatype: 220203 };
+    const objectProto: Partial<FollowRemovedEventProto> = { metatype: 1400203 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -1740,4 +1740,4 @@ export class FollowRemovedEvent extends FollowEvent {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FOLLOW_REMOVED_EVENT, FollowRemovedEvent);
-/* ==== DESTACK_GENERATED_END:NODE:220203 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1400203 ==== */

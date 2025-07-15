@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 
 
 class EnumType(Enum):
-    # meta [1-20_000]
+    # meta [1-100_000]
     ENUM_TYPE = 1
     NODE_TYPE = 2
     STRUCT_TYPE = 3
@@ -46,7 +46,6 @@ class EnumType(Enum):
     EDGE_TYPE = 67
     EDGE_DIRECTION = 68
     CASCADE_ACTION = 69
-    MODE_TYPE = 560_000
 
     RESOURCE_STATUS = 1100
     SNAPSHOT_TYPE = 1300
@@ -63,116 +62,126 @@ class EnumType(Enum):
     QUERY_TYPE = 10_120
     QUERY_UPDATE_TYPE = 10_121
 
-    # universe [20_000-40_000]
-    SPACE_STATUS = 20_001
-    USER_STATUS = 21_200
-    ORGANIZATION_STATUS = 22_500
-    CLIENT_TYPE = 21_700
+    # universe [100_000-200_000]
+    SPACE_STATUS = 100_000
+    USER_STATUS = 101_000
+    ORGANIZATION_STATUS = 103_000
+    CLIENT_TYPE = 102_000
 
-    # space [40_000-60_000]
-    FOLDER_TYPE = 40_000
+    # space [200_000-300_000]
+    FOLDER_TYPE = 200_000
 
-    # access [60_000-80_000]
-    ROLE_TYPE = 60_200
-    PERMISSION_TYPE = 60_300
-    SANCTION_TYPE = 60_400
-    ENTITLEMENT_TYPE = 60_500
+    # access [300_000-400_000]
+    ROLE_TYPE = 300_200
+    PERMISSION_TYPE = 300_300
+    SANCTION_TYPE = 300_400
+    ENTITLEMENT_TYPE = 300_500
 
-    # data [80_000-100_000]
-    FILE_RETENTION_MODE = 80_000
-    FILE_SOURCE = 80_001
-    FILE_TYPE = 80_002
-    FILE_FORMAT = 80_003
-    TEXT_SPAN_TYPE = 80_004
-    ICON_TYPE = 80_005
+    # data [400_000-500_000]
+    FILE_RETENTION_MODE = 400_000
+    FILE_SOURCE = 400_001
+    FILE_TYPE = 400_002
+    FILE_FORMAT = 400_003
+    TEXT_SPAN_TYPE = 400_004
+    ICON_TYPE = 400_005
 
-    # logic [100_000-120_000]
-    METHOD_CARDINALITY = 102_001
-    TRIGGER_TYPE = 105_000
-    TIMER_TYPE = 105_100
-    DAY_OF_WEEK = 105_101
-    MONTH = 105_102
-    SCHEDULE_FREQUENCY = 105_103
-    CURSOR_STATUS = 105_501
+    # media [500_000-600_000]
+    # ...
 
-    # intelligence [120_000-140_000]
-    MODEL_DEVELOPER = 120_000
-    MODEL_PROVIDER = 120_001
+    # locale [600_000-700_000]
+    # ...
 
-    # infrastructure [140_000-160_000]
-    CLOUD = 140_000
-    REGION = 140_001
-    REGION_AREA = 140_002
-    REGION_CONTINENT = 140_003
-    TENANCY = 140_004
-    DATABASE_TYPE = 140_005
-    MACHINE_TYPE = 140_100
+    # logic [700_000-800_000]
+    METHOD_CARDINALITY = 701_001
+    TRIGGER_TYPE = 705_000
+    TIMER_TYPE = 705_100
+    DAY_OF_WEEK = 705_101
+    MONTH = 705_102
+    SCHEDULE_FREQUENCY = 705_103
+    CURSOR_STATUS = 712_001
 
-    # deployment [160_000-180_000]
-    ENVIRONMENT_TYPE = 160_000
+    # quality [800_000-900_000]
+    # ...
 
-    # runtime [170_000-180_000]
-    RUN_STATUS = 170_000
-    LOG_LEVEL = 170_300
+    # intelligence [900_000-1_000_000]
+    MODEL_DEVELOPER = 920_000
+    MODEL_PROVIDER = 920_001
 
-    # observability [180_000-200_000]
+    # infrastructure [1_000_000-1_100_000]
+    CLOUD = 1_000_000
+    REGION = 1_000_001
+    REGION_AREA = 1_000_002
+    REGION_CONTINENT = 1_000_003
+    TENANCY = 1_000_004
+    DATABASE_TYPE = 1_000_005
+    MACHINE_TYPE = 1_001_000
 
-    # optimization [200_000-220_000]
+    # deployment [1_100_000-1_200_000]
+    ENVIRONMENT_TYPE = 1_100_000
+    # runtime
+    RUN_STATUS = 1_110_000
+    LOG_LEVEL = 1_110_300
 
-    # social [220_000-240_000]
-    NOTIFICATION_STATUS = 220_500
+    # observability [1_200_000-1_300_000]
+    # ...
 
-    # finance [240_000-260_000]
+    # experience [1_300_000-1_400_000]
+    # ...
 
-    # scene [500_000-520_000]
-    WINDOW_TYPE = 500_000
-    LAYER_TYPE = 500_200
+    # social [1_400_000-1_500_000]
+    NOTIFICATION_STATUS = 1_400_500
 
-    # view [520_000-540_000]
+    # finance [1_500_000-1_600_000]
 
-    # canvas [540_000-560_000]
-    ARROW_HEAD_TYPE = 540_300
+    # scene [1_700_000-1_800_000]
+    WINDOW_TYPE = 1_700_000
+    LAYER_TYPE = 1_700_200
 
-    # interaction [560_000-580_000]
-    TOOL_TYPE = 560_001
-    MOUSE_BUTTON = 560_010
+    # view [1_800_000-1_900_000]
+    # ...
 
-    # animation [580_000-600_000]
+    # canvas [1_900_000-2_000_000]
+    ARROW_HEAD_TYPE = 1_900_200
 
-    # style [600_000-620_000]
-    COLOR_TYPE = 600_000
-    COLOR_SHADE = 600_001
-    COLOR_HUE = 600_002
-    COLOR_INTENT = 600_003
-    FILL_TYPE = 600_100
-    FILL_POSITION = 600_101
-    FILL_SIZE = 600_102
-    FONT_TYPE = 600_200
-    FONT_WEIGHT = 600_201
-    FONT_SIZE = 600_202
-    TEXT_ALIGN = 600_203
-    TEXT_DECORATION = 600_204
-    TEXT_TRANSFORM = 600_205
-    BORDER_TYPE = 600_206
-    SHADOW_TYPE = 600_207
-    SHADOW_POSITION = 600_208
-    GRADIENT_TYPE = 600_209
-    TRANSITION_TYPE = 600_210
-    SPRING_TYPE = 600_211
-    EFFECT_TYPE = 600_212
-    STROKE_TYPE = 600_213
-    POSITION_TYPE = 600_214
-    LENGTH_UNIT = 600_215
-    LAYOUT = 600_216
-    DISTRIBUTE = 600_217
-    ALIGN = 600_218
-    DIRECTION = 600_219
-    OVERFLOW = 600_220
-    DIMENSION_TYPE = 600_221
-    REPEAT_TYPE = 600_222
-    TEXT_SPLIT_TYPE = 600_223
-    OFFSCREEN_BEHAVIOR = 600_224
-    EASING = 600_225
+    # interaction [2_000_000-2_100_000]
+    MODE_TYPE = 2_000_000
+    TOOL_TYPE = 2_000_001
+    MOUSE_BUTTON = 2_000_010
+
+    # style [2_100_000-2_200_000]
+    COLOR_TYPE = 2_100_000
+    COLOR_SHADE = 2_100_001
+    COLOR_HUE = 2_100_002
+    COLOR_INTENT = 2_100_003
+    FILL_TYPE = 2_100_100
+    FILL_POSITION = 2_100_101
+    FILL_SIZE = 2_100_102
+    FONT_TYPE = 2_100_200
+    FONT_WEIGHT = 2_100_201
+    FONT_SIZE = 2_100_202
+    TEXT_ALIGN = 2_100_203
+    TEXT_DECORATION = 2_100_204
+    TEXT_TRANSFORM = 2_100_205
+    BORDER_TYPE = 2_100_206
+    SHADOW_TYPE = 2_100_207
+    SHADOW_POSITION = 2_100_208
+    GRADIENT_TYPE = 2_100_209
+    TRANSITION_TYPE = 2_100_210
+    SPRING_TYPE = 2_100_211
+    EFFECT_TYPE = 2_100_212
+    STROKE_TYPE = 2_100_213
+    POSITION_TYPE = 2_100_214
+    LENGTH_UNIT = 2_100_215
+    LAYOUT = 2_100_216
+    DISTRIBUTE = 2_100_217
+    ALIGN = 2_100_218
+    DIRECTION = 2_100_219
+    OVERFLOW = 2_100_220
+    DIMENSION_TYPE = 2_100_221
+    REPEAT_TYPE = 2_100_222
+    TEXT_SPLIT_TYPE = 2_100_223
+    OFFSCREEN_BEHAVIOR = 2_100_224
+    EASING = 2_100_225
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
@@ -180,7 +189,7 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 
 @builtin_enum(EnumType.STRUCT_TYPE)
 class StructType(Enum):
-    # meta [1-20_000]
+    # meta [1-100_000]
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
     DATUM_MUTABLE = 2
     DATUM = 3
@@ -226,103 +235,122 @@ class StructType(Enum):
     STRING_CONSTRAINT = 651
     COLLECTION_CONSTRAINT = 652
     NODE_CONSTRAINT = 653
-    # geometry
-    VECTOR = 700, None, None, "fas fa-vector-square"
-    VECTORF = 710
-    VECTOR2F = 711, None, None, "fas fa-vector-square"
-    VECTOR3F = 712, None, None, "fas fa-vector-square"
-    VECTOR4F = 713, None, None, "fas fa-vector-square"
-    VECTORI = 720
-    VECTOR2I = 721, None, None, "fas fa-vector-square"
-    VECTOR3I = 722, None, None, "fas fa-vector-square"
-    VECTOR4I = 723, None, None, "fas fa-vector-square"
 
-    # universe [20_000-40_000]
+    # universe [100_000-200_000]
     # ...
 
-    # space [40_000-60_000]
+    # space [200_000-300_000]
     # ...
 
-    # access [60_000-80_000]
+    # access [300_000-400_000]
     # ...
 
-    # data [80_000-100_000]
-    TEXT = 80_020, None, None, "fas fa-text"
-    TEXT_SPAN = 80_021, None, None, "fas fa-text"
-    ICON = 80_031
+    # data [400_000-500_000]
+    TEXT = 400_020, None, None, "fas fa-text"
+    TEXT_SPAN = 400_021, None, None, "fas fa-text"
+    ICON = 400_031
     # ...
 
-    # logic [100_000-120_000]
-    SCHEDULE = 100_001
+    # media [500_000-600_000]
     # ...
 
-    # intelligence [120_000-140_000]
+    # locale [600_000-700_000]
     # ...
 
-    # infrastructure [140_000-160_000]
-    DATABASE_INFO = 140_001
-    GALAXY_INFO = 140_101
+    # logic [700_000-800_000]
+    SCHEDULE = 700_001
     # ...
 
-    # deployment [160_000-180_000]
+    # quality [800_000-900_000]
     # ...
 
-    # observability [180_000-200_000]
+    # intelligence [900_000-1_000_000]
     # ...
 
-    # optimization [200_000-220_000]
+    # infrastructure [1_000_000-1_100_000]
+    DATABASE_INFO = 1_000_001
+    GALAXY_INFO = 1_000_101
     # ...
 
-    # social [220_000-240_000]
+    # deployment [1_100_000-1_200_000]
     # ...
 
-    # finance [240_000-260_000]
+    # observability [1_200_000-1_300_000]
     # ...
 
-    # scene [500_000-520_000]
+    # experience [1_300_000-1_400_000]
     # ...
 
-    # view [520_000-540_000]
+    # social [1_400_000-1_500_000]
     # ...
 
-    # canvas [540_000-560_000]
-    LINE = 540_200, "Line", None, "fas fa-line"
-    ARROW = 540_300, "Arrow", None, "fas fa-arrow-right"
-
-    # interaction [560_000-580_000]
+    # finance [1_500_000-1_600_000]
     # ...
 
-    # animation [580_000-600_000]
+    # scene [1_700_000-1_800_000]
     # ...
 
-    # style [600_000-620_000]
-    LENGTH = 600_018, "Length", None, "fas fa-ruler"
-    POSITION = 600_020, "Position", None, "fas fa-location-crosshair"
-    DIMENSION = 600_022, "Dimension", None, "fas fa-ruler"
-    GRID = 600_026, "Grid", None, "fas fa-grid-2"
-    GRID_SPAN = 600_028, "Grid Span", None, "fas fa-grid-2"
-    INSETS = 600_030, "Insets", None, "fas fa-corner"
-    CORNERS = 600_032, "Corners", None, "fas fa-corner"
-    AXIS2 = 600_034, "Axis2", None, "fas fa-vector-square"
-    AXIS3 = 600_036, "Axis3", None, "fas fa-vector-square"
-    COLOR = 600_300, "Color", None, "fas fa-palette"
-    FILL = 600_400, "Fill", None, "fas fa-fill"
-    FONT = 600_500, "Font", None, "fas fa-text"
-    BORDER = 600_600, "Border", None, "fas fa-border-outer"
-    SHADOW = 600_700, "Shadow", None, "fas fa-eclipse"
-    GRADIENT = 600_800, "Gradient", None, "fas fa-gradient"
-    GRADIENT_STOP = 600_801, "Gradient Stop", None, "fas fa-gradient"
-    TRANSITION = 600_900, "Transition", None, "fas fa-bezier-curve"
-    EFFECT = 600_1000, "Effect", None, "fas fa-sparkle"
-    STROKE = 600_1100, "Stroke", None, "fas fa-stroke"
-    STROKE_CAP = 600_1101, "Stroke Cap", None, "fas fa-stroke"
-    STROKE_PATH = 600_1102, "Stroke Path", None, "fas fa-stroke"
-    STROKE_POINT = 600_1103, "Stroke Point", None, "fas fa-stroke"
+    # view [1_800_000-1_900_000]
+    # ...
+
+    # canvas [1_900_000-2_000_000]
+    LINE = 1_900_100, "Line", None, "fas fa-line"
+    ARROW = 1_900_200, "Arrow", None, "fas fa-arrow-right"
+
+    # interaction [2_000_000-2_100_000]
+    # ...
+
+    # style [2_100_000-2_200_000]
+    LENGTH = 2_100_018, "Length", None, "fas fa-ruler"
+    POSITION = 2_100_020, "Position", None, "fas fa-location-crosshair"
+    DIMENSION = 2_100_022, "Dimension", None, "fas fa-ruler"
+    GRID = 2_100_026, "Grid", None, "fas fa-grid-2"
+    GRID_SPAN = 2_100_028, "Grid Span", None, "fas fa-grid-2"
+    INSETS = 2_100_030, "Insets", None, "fas fa-corner"
+    CORNERS = 2_100_032, "Corners", None, "fas fa-corner"
+    AXIS2 = 2_100_034, "Axis2", None, "fas fa-vector-square"
+    AXIS3 = 2_100_036, "Axis3", None, "fas fa-vector-square"
+    COLOR = 2_100_300, "Color", None, "fas fa-palette"
+    FILL = 2_100_400, "Fill", None, "fas fa-fill"
+    FONT = 2_100_500, "Font", None, "fas fa-text"
+    BORDER = 2_100_600, "Border", None, "fas fa-border-outer"
+    SHADOW = 2_100_700, "Shadow", None, "fas fa-eclipse"
+    GRADIENT = 2_100_800, "Gradient", None, "fas fa-gradient"
+    GRADIENT_STOP = 2_100_801, "Gradient Stop", None, "fas fa-gradient"
+    TRANSITION = 2_100_900, "Transition", None, "fas fa-bezier-curve"
+    EFFECT = 2_101_000, "Effect", None, "fas fa-sparkle"
+    STROKE = 2_101_100, "Stroke", None, "fas fa-stroke"
+    STROKE_CAP = 2_101_101, "Stroke Cap", None, "fas fa-stroke"
+    STROKE_PATH = 2_101_102, "Stroke Path", None, "fas fa-stroke"
+    STROKE_POINT = 2_101_103, "Stroke Point", None, "fas fa-stroke"
+
+    # animation [2_200_000-2_300_000]
+    # ...
+
+    # audio [2_300_000-2_400_000]
+    # ...
+
+    # geometry [2_400_000-2_500_000]
+    VECTOR = 2_400_000, None, None, "fas fa-vector-square"
+    VECTORF = 2_400_010
+    VECTOR2F = 2_400_011, None, None, "fas fa-vector-square"
+    VECTOR3F = 2_400_012, None, None, "fas fa-vector-square"
+    VECTOR4F = 2_400_013, None, None, "fas fa-vector-square"
+    VECTORI = 2_400_020
+    VECTOR2I = 2_400_021, None, None, "fas fa-vector-square"
+    VECTOR3I = 2_400_022, None, None, "fas fa-vector-square"
+    VECTOR4I = 2_400_023, None, None, "fas fa-vector-square"
+
+    # physics [2_500_000-2_600_000]
+    # ...
+
+    # lighting [2_600_000-2_700_000]
+    # ...
 
 
 @builtin_enum(EnumType.TRAIT_TYPE)
 class TraitType(Enum):
-    # meta [1-20_000]
+    # meta [1-100_000]
     # LOCAL?
     # storage
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
@@ -341,74 +369,94 @@ class TraitType(Enum):
     EXTENSIBLE = 111, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
     IRREVERSIBLE = 120, "Irreversible", "Cannot be rewound", "fas fa-clock-rotate-left"
 
-    # universe [20_000-40_000]
+    # universe [100_000-200_000]
     # ...
 
-    # space [40_000-60_000]
-    TAGGABLE = 40_000, "Taggable", "Can be tagged", "fas fa-tag"
+    # space [200_000-300_000]
+    TAGGABLE = 201_000, "Taggable", "Can be tagged", "fas fa-tag"
 
-    # access [60_000-80_000]
-    OWNABLE = 60_000, "Ownable", "Is ownable", "fas fa-user"
-    OWNED = 60_001, "Owned", "Is owned", "fas fa-user"
-    JOINABLE = 60_003, "Joinable", "Is joinable", "fas fa-users"
-    ACTOR = 60_004, "Actor", "Is an Actor", "fas fa-user"
+    # access [300_000-400_000]
+    OWNABLE = 300_000, "Ownable", "Is ownable", "fas fa-user"
+    OWNED = 300_001, "Owned", "Is owned", "fas fa-user"
+    JOINABLE = 300_003, "Joinable", "Is joinable", "fas fa-users"
+    ACTOR = 300_004, "Actor", "Is an Actor", "fas fa-user"
 
-    # data [80_000-100_000]
+    # data [400_000-500_000]
     # ...
 
-    # logic [100_000-120_000]
-    RUNNABLE = 100_001, "Runnable", "Can be run", "fas fa-play"
-    SCRIPTABLE = 100_002, "Scriptable", "Can be scripted", "fas fa-code"
-    SOURCEABLE = 100_003, "Sourcable", "Can be defined in a Script", "fas fa-code"
-
-    # intelligence [120_000-140_000]
+    # media [500_000-600_000]
     # ...
 
-    # infrastructure [140_000-160_000]
+    # locale [600_000-700_000]
     # ...
 
-    # deployment [160_000-180_000]
+    # logic [700_000-800_000]
+    RUNNABLE = 700_001, "Runnable", "Can be run", "fas fa-play"
+    SCRIPTABLE = 700_002, "Scriptable", "Can be scripted", "fas fa-code"
+    SOURCEABLE = 700_003, "Sourcable", "Can be defined in a Script", "fas fa-code"
+
+    # quality [800_000-900_000]
     # ...
 
-    # observability [180_000-200_000]
+    # intelligence [900_000-1_000_000]
     # ...
 
-    # optimization [200_000-220_000]
+    # infrastructure [1_000_000-1_100_000]
     # ...
 
-    # social [220_000-240_000]
-    STARABLE = 220_030, "Starable", "Can be starred", "fas fa-star"
-    REACTABLE = 220_032, "Reactable", "Can be reacted to", "fas fa-heart"
-    FOLLOWABLE = 220_034, "Followable", "Can be followed", "fas fa-plus"
+    # deployment [1_100_000-1_200_000]
+    # ...
+
+    # observability [1_200_000-1_300_000]
+    # ...
+
+    # experience [1_300_000-1_400_000]
+    # ...
+
+    # social [1_400_000-1_500_000]
+    STARABLE = 1_400_030, "Starable", "Can be starred", "fas fa-star"
+    REACTABLE = 1_400_032, "Reactable", "Can be reacted to", "fas fa-heart"
+    FOLLOWABLE = 1_400_034, "Followable", "Can be followed", "fas fa-plus"
     # RATEABLE, VOTABLE, ...
     # ASSIGNABLE, MESSAGEABLE, CLOSABLE, LOCKABLE, ...
 
-    # finance [240_000-260_000]
+    # finance [1_500_000-1_600_000]
     # ...
 
-    # scene [500_000-520_000]
+    # scene [1_700_000-1_800_000]
     # ...
 
-    # view [520_000-540_000]
-    # ...
+    # view [1_800_000-1_900_000]
+    VIEWABLE = 1_800_000, "Viewable", "Can be presented visually", "fas fa-presentation"
 
-    # canvas [540_000-560_000]
-    VIEWABLE = 540_000, "Viewable", "Can be presented visually", "fas fa-presentation"
+    # canvas [1_900_000-2_000_000]
+
+    # interaction [2_000_000-2_100_000]
     # DRAGGABLE, SELECTABLE, ...
-
-    # interaction [560_000-580_000]
     # ...
 
-    # animation [580_000-600_000]
+    # style [2_100_000-2_200_000]
     # ...
 
-    # style [600_000-620_000]
+    # animation [2_200_000-2_300_000]
+    # ...
+
+    # audio [2_300_000-2_400_000]
+    # ...
+
+    # geometry [2_400_000-2_500_000]
+    # ...
+
+    # physics [2_500_000-2_600_000]
+    # ...
+
+    # lighting [2_600_000-2_700_000]
     # ...
 
 
 @builtin_enum(EnumType.NODE_TYPE)
 class NodeType(Enum):
-    # meta [1-10_000]
+    # meta [1-100_000]
     # root
     NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
@@ -426,7 +474,8 @@ class NodeType(Enum):
     SNAPSHOT = 1300, "Snapshot", "Point in Space-time", "fas fa-save"
     SERVICE = 1400, "Service", None, "fas fa-screwdriver-wrench"
     VARIANT = 1500, "Variant", "Variant of a Scene", "fas fa-shapes"
-    # LINK, PORTAL, ...
+    # LINK, ...
+    # TIMELINE, TRACK, KEYFRAME, ...
 
     # event
     SIGNAL = 2000, "Custom Event", "Custom Event", "fas fa-signal"
@@ -434,267 +483,269 @@ class NodeType(Enum):
     # CHANGE_EVENT?
     MEASUREMENT_EVENT = 2010, "Measurement of a Metric", None, "fas fa-gauge"
 
-    # universe [20_000-40_000]
-    UNIVERSE = 20_000, "Universe", "Universal Space", None
-    SPACE = 20_100, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
-    HANDLE = 20_200, "Handle", "Unique @handle", "fas fa-at"
+    # universe [100_000-200_000]
+    SPACE = 100_100, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
+    HANDLE = 100_200, "Handle", "Unique @handle", "fas fa-at"
     # user
-    USER = 21_000, "User", None, "fas fa-user"
+    USER = 121_000, "User", None, "fas fa-user"
     # FRIENDSHIP, FRIENDSHIP_INVITE, ...
-    CLIENT = 21_300, "Client", None, "fas fa-desktop"
+    CLIENT = 121_300, "Client", None, "fas fa-desktop"
     # CREDENTIAL, ACCOUNT, PROFILE, ...
     # organization
-    ORGANIZATION = 22_000, "Organization", None, "fas fa-building"
-    TEAM = 22_100, "Team", "Team in an Organization", "fas fa-users"
+    ORGANIZATION = 122_000, "Organization", None, "fas fa-building"
+    TEAM = 122_100, "Team", "Team in an Organization", "fas fa-users"
 
-    # space [40_000-60_000]
+    # space [200_000-300_000]
     # folder
-    FOLDER = 40_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    FOLDER = 240_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
     # DEPENDENCY, ...
-    TAG = 41_000, "Tag", None, "fas fa-tag"
-    TAGGING = 41_100, "Tagging", None, "fas fa-tag"
+    TAG = 241_000, "Tag", None, "fas fa-tag"
+    TAGGING = 241_100, "Tagging", None, "fas fa-tag"
     # GROUP, ...
     # spacetime
-    BRANCH = 45_000, "Branch", None, "fas fa-code-branch"
+    BRANCH = 245_000, "Branch", None, "fas fa-code-branch"
     # HISTORY, REPLAY, ...
     # FORK, ...
     # LINK, PORTAL, ...
 
-    # access [60_000-80_000]
-    MEMBERSHIP = 60_000, "Membership", "Membership to something", "fas fa-user-group"
-    MEMBERSHIP_EVENT = 60_001, "Membership Event", None, "fas fa-user-group"
-    MEMBERSHIP_JOINED_EVENT = 60_002, "Membership Join Event", None, "fas fa-user-group"
-    MEMBERSHIP_LEFT_EVENT = 60_003, "Membership Leave Event", None, "fas fa-user-group"
-    INVITE = 60_100, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
-    INVITE_EVENT = 60_101, "Invite Event", None, "fas fa-user-plus"
-    INVITE_SENT_EVENT = 60_102, "Invite Sent Event", None, "fas fa-user-plus"
-    INVITE_RESCINDED_EVENT = 60_103, "Invite Rescinded Event", None, "fas fa-user-plus"
-    INVITE_ACCEPTED_EVENT = 60_104, "Invite Accepted Event", None, "fas fa-user-plus"
-    INVITE_REJECTED_EVENT = 60_105, "Invite Rejected Event", None, "fas fa-user-plus"
-    ROLE = 60_200, "Role", "Role in something", "fas fa-user-tag"
-    ROLE_EVENT = 60_201, "Role Event", None, "fas fa-user-tag"
-    ROLE_ASSIGNED_EVENT = 60_202, "Role Assigned Event", None, "fas fa-user-tag"
-    ROLE_UNASSIGNED_EVENT = 60_203, "Role Unassigned Event", None, "fas fa-user-tag"
-    PERMISSION = 60_300, "Permission", "Permission for something", "fas fa-user-shield"
-    SANCTION = 60_400, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
-    SANCTION_EVENT = 60_401, "Sanction Event", None, "fas fa-user-minus"
-    SANCTION_REQUESTED_EVENT = 60_402, "Sanction Requested Event", None, "fas fa-user-minus"
-    SANCTION_GRANTED_EVENT = 60_403, "Sanction Granted Event", None, "fas fa-user-minus"
-    SANCTION_REVOKED_EVENT = 60_404, "Sanction Revoked Event", None, "fas fa-user-minus"
-    SANCTION_EXPIRED_EVENT = 60_405, "Sanction Expired Event", None, "fas fa-user-minus"
-    ENTITLEMENT = 60_500, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
-    ENTITLEMENT_EVENT = 60_501, "Entitlement Event", None, "fas fa-user-check"
-    ENTITLEMENT_REQUESTED_EVENT = 60_502, "Entitlement Requested Event", None, "fas fa-user-check"
-    ENTITLEMENT_GRANTED_EVENT = 60_503, "Entitlement Granted Event", None, "fas fa-user-check"
-    ENTITLEMENT_REVOKED_EVENT = 60_504, "Entitlement Revoked Event", None, "fas fa-user-check"
-    ENTITLEMENT_EXPIRED_EVENT = 60_505, "Entitlement Expired Event", None, "fas fa-user-check"
+    # access [300_000-400_000]
+    MEMBERSHIP = 360_000, "Membership", "Membership to something", "fas fa-user-group"
+    MEMBERSHIP_EVENT = 360_001, "Membership Event", None, "fas fa-user-group"
+    MEMBERSHIP_JOINED_EVENT = 360_002, "Membership Join Event", None, "fas fa-user-group"
+    MEMBERSHIP_LEFT_EVENT = 360_003, "Membership Leave Event", None, "fas fa-user-group"
+    INVITE = 360_100, "Invite", "Invite to a Space/Folder", "fas fa-user-plus"
+    INVITE_EVENT = 360_101, "Invite Event", None, "fas fa-user-plus"
+    INVITE_SENT_EVENT = 360_102, "Invite Sent Event", None, "fas fa-user-plus"
+    INVITE_RESCINDED_EVENT = 360_103, "Invite Rescinded Event", None, "fas fa-user-plus"
+    INVITE_ACCEPTED_EVENT = 360_104, "Invite Accepted Event", None, "fas fa-user-plus"
+    INVITE_REJECTED_EVENT = 360_105, "Invite Rejected Event", None, "fas fa-user-plus"
+    ROLE = 360_200, "Role", "Role in something", "fas fa-user-tag"
+    ROLE_EVENT = 360_201, "Role Event", None, "fas fa-user-tag"
+    ROLE_ASSIGNED_EVENT = 360_202, "Role Assigned Event", None, "fas fa-user-tag"
+    ROLE_UNASSIGNED_EVENT = 360_203, "Role Unassigned Event", None, "fas fa-user-tag"
+    PERMISSION = 360_300, "Permission", "Permission for something", "fas fa-user-shield"
+    SANCTION = 360_400, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
+    SANCTION_EVENT = 360_401, "Sanction Event", None, "fas fa-user-minus"
+    SANCTION_REQUESTED_EVENT = 360_402, "Sanction Requested Event", None, "fas fa-user-minus"
+    SANCTION_GRANTED_EVENT = 360_403, "Sanction Granted Event", None, "fas fa-user-minus"
+    SANCTION_REVOKED_EVENT = 360_404, "Sanction Revoked Event", None, "fas fa-user-minus"
+    SANCTION_EXPIRED_EVENT = 360_405, "Sanction Expired Event", None, "fas fa-user-minus"
+    ENTITLEMENT = 360_500, "Entitlement", "Temporary or permanent grant", "fas fa-user-check"
+    ENTITLEMENT_EVENT = 360_501, "Entitlement Event", None, "fas fa-user-check"
+    ENTITLEMENT_REQUESTED_EVENT = 360_502, "Entitlement Requested Event", None, "fas fa-user-check"
+    ENTITLEMENT_GRANTED_EVENT = 360_503, "Entitlement Granted Event", None, "fas fa-user-check"
+    ENTITLEMENT_REVOKED_EVENT = 360_504, "Entitlement Revoked Event", None, "fas fa-user-check"
+    ENTITLEMENT_EXPIRED_EVENT = 360_505, "Entitlement Expired Event", None, "fas fa-user-check"
     # CHALLENGE, ...
 
-    # data [80_000-100_000]
-    FILE = 80_000, "File", None, "fas fa-file"
+    # data [400_000-500_000]
+    FILE = 480_000, "File", None, "fas fa-file"
     # DIRECTORY, SYNC, ...
     # INDEX, CONSTRAINT, MIGRATION, ...
-    # STREAM, SECRET, ...
-    # LOCALE, STRING, TRANSLATION, ...
-    # SETTINGS, ...
+    # SECRET, ...
 
-    # logic [100_000-120_000]
-    SCRIPT = 100_000, "Script", None, "fas fa-code"
-    METHOD = 101_000, "Method", None, "fas fa-code"
-    ACTION = 101_100, "Action", None, "fas fa-code"
-    TRIGGER = 105_000, "Trigger", None, "fas fa-bolt"
-    TRIGGER_EVENT = 105_001, "Trigger Event", None, "fas fa-bolt"
-    TIMER = 105_100, "Timer", None, "fas fa-clock"
-    TIMER_EVENT = 105_101, "Timer Event", None, "fas fa-clock"
-    TIMER_STARTED_EVENT = 105_102, "Timer Started Event", None, "fas fa-clock"
-    TIMER_COMPLETED_EVENT = 105_103, "Timer Completed Event", None, "fas fa-clock"
-    TIMER_CANCELLED_EVENT = 105_104, "Timer Cancelled Event", None, "fas fa-clock"
-    ROUTE = 110_000, "Route", None, "fas fa-route"
-    CURSOR = 112_000, "Cursor", None, "fas fa-cursor"
-    EVENT_CURSOR = 112_100, "Event Cursor", None, "fas fa-cursor"
-    SCREEN_CURSOR = 112_200, "Screen Cursor", None, "fas fa-cursor"
+    # media [500_000-600_000]
+    # STREAM, ...
+    # ENCODING, ...
+    # SPRITE, SPRITE_SHEET, ...
+
+    # locale [600_000-700_000]
+    # LOCALE, STRING, TRANSLATION, ...
+
+    # logic [700_000-800_000]
+    SCRIPT = 700_000, "Script", None, "fas fa-code"
+    METHOD = 701_000, "Method", None, "fas fa-code"
+    ACTION = 701_100, "Action", None, "fas fa-code"
+    TRIGGER = 705_000, "Trigger", None, "fas fa-bolt"
+    TRIGGER_EVENT = 705_001, "Trigger Event", None, "fas fa-bolt"
+    TIMER = 705_100, "Timer", None, "fas fa-clock"
+    TIMER_EVENT = 705_101, "Timer Event", None, "fas fa-clock"
+    TIMER_STARTED_EVENT = 705_102, "Timer Started Event", None, "fas fa-clock"
+    TIMER_COMPLETED_EVENT = 705_103, "Timer Completed Event", None, "fas fa-clock"
+    TIMER_CANCELLED_EVENT = 705_104, "Timer Cancelled Event", None, "fas fa-clock"
+    ROUTE = 710_000, "Route", None, "fas fa-route"
+    CURSOR = 712_000, "Cursor", None, "fas fa-cursor"
+    EVENT_CURSOR = 712_100, "Event Cursor", None, "fas fa-cursor"
+    SCREEN_CURSOR = 712_200, "Screen Cursor", None, "fas fa-cursor"
     # BREAKPOINT, ...
     # ROOM, CHANNEL, ...
     # SEMAPHORE, LOCK/LATCH, ...
     # RATE_LIMIT, ...
-    # test
-    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
-    # FIXTURE, MOCK, ...
-    # LINT, WARNING, ERROR, ...
     # STATE_MACHINE, STATE, STATE_TRANSITION, ...
     # PLATFORM_VARIANT, STATE_VARIANT, ...
 
-    # intelligence [120_000-140_000]
+    # quality [800_000-900_000]
+    # TEST, TEST_SUITE, TEST_CASE, TEST_RESULT, ...
+    # FIXTURE, MOCK, ...
+    # LINT, WARNING, ERROR, ...
+
+    # intelligence [900_000-1_000_000]
     # MODEL, FINETUNE, ...
     # PROMPT, INFERENCE/COMPLETION/..., ...
     # RECOMMENDATION, ...
 
-    # infrastructure [140_000-160_000]
-    DATABASE = 140_000, "Database", "Database for Postgres data", "fas fa-database"
-    MACHINE = 140_100, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
+    # infrastructure [1_000_000-1_100_000]
+    DATABASE = 1_000_000, "Database", "Database for Postgres data", "fas fa-database"
+    MACHINE = 1_001_000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
     # SEARCH/INDEX, VAULT, CACHE, S3, ...
     # GALAXY, ...
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 
-    # deployment [160_000-180_000]
-    ENVIRONMENT = 160_000, "Environment", None, "fas fa-environment"
+    # deployment [1_100_000-1_200_000]
+    ENVIRONMENT = 1_100_000, "Environment", None, "fas fa-environment"
     # VERSION, DEPLOYMENT, ...
     # PREVIEW, DRAFT, RELEASE, ROLLOUT, ...
     # TASK, TASK_GROUP/TASK_QUEUE, ...
     # QUEUE, RUN_QUEUE, ...
     # JOB, ...
-    RUN = 170_000, "Run", None, "fas fa-play"
-    RUN_EVENT = 170_001, "Run Event", None, "fas fa-play"
-    RUN_STARTED_EVENT = 170_002, "Run Started Event", None, "fas fa-play"
-    RUN_PAUSE_REQUESTED_EVENT = 170_003, "Run Pause Requested Event", None, "fas fa-play"
-    RUN_PAUSED_EVENT = 170_004, "Run Paused Event", None, "fas fa-play"
-    RUN_RESUME_REQUESTED_EVENT = 170_005, "Run Resume Requested Event", None, "fas fa-play"
-    RUN_RESUMED_EVENT = 170_006, "Run Resumed Event", None, "fas fa-play"
-    RUN_STOP_REQUESTED_EVENT = 170_007, "Run Stop Requested Event", None, "fas fa-play"
-    RUN_FAILED_EVENT = 170_008, "Run Failed Event", None, "fas fa-play"
-    RUN_COMPLETED_EVENT = 170_009, "Run Completed Event", None, "fas fa-play"
-    SPAN_EVENT = 170_101, "Span", None, "fas fa-ruler-horizontal"
-    LOG_EVENT = 170_301, "Log", None, "fas fa-file-lines"
+    RUN = 1_110_000, "Run", None, "fas fa-play"
+    RUN_EVENT = 1_110_001, "Run Event", None, "fas fa-play"
+    RUN_STARTED_EVENT = 1_110_002, "Run Started Event", None, "fas fa-play"
+    RUN_PAUSE_REQUESTED_EVENT = 1_110_003, "Run Pause Requested Event", None, "fas fa-play"
+    RUN_PAUSED_EVENT = 1_110_004, "Run Paused Event", None, "fas fa-play"
+    RUN_RESUME_REQUESTED_EVENT = 1_110_005, "Run Resume Requested Event", None, "fas fa-play"
+    RUN_RESUMED_EVENT = 1_110_006, "Run Resumed Event", None, "fas fa-play"
+    RUN_STOP_REQUESTED_EVENT = 1_110_007, "Run Stop Requested Event", None, "fas fa-play"
+    RUN_FAILED_EVENT = 1_110_008, "Run Failed Event", None, "fas fa-play"
+    RUN_COMPLETED_EVENT = 1_110_009, "Run Completed Event", None, "fas fa-play"
+    SPAN_EVENT = 1_110_010, "Span", None, "fas fa-ruler-horizontal"
+    LOG_EVENT = 1_110_011, "Log", None, "fas fa-file-lines"
 
-    # observability [180_000-200_000]
+    # observability [1_200_000-1_300_000]
     # metric
-    GAUGE_METRIC = 180_000, "Gauge Metric", None, "fas fa-gauge"
-    GAUGE_MEASUREMENT_EVENT = 180_001, "Gauge Measurement", None, "fas fa-gauge"
-    COUNTER_METRIC = 180_100, "Counter Metric", None, "fas fa-gauge"
-    COUNTER_MEASUREMENT_EVENT = 180_101, "Counter Measurement", None, "fas fa-gauge"
-    HISTOGRAM_METRIC = 180_200, "Histogram Metric", None, "fas fa-gauge"
-    HISTOGRAM_MEASUREMENT_EVENT = 180_201, "Histogram Measurement", None, "fas fa-gauge"
+    GAUGE_METRIC = 1_200_000, "Gauge Metric", None, "fas fa-gauge"
+    GAUGE_MEASUREMENT_EVENT = 1_200_001, "Gauge Measurement", None, "fas fa-gauge"
+    COUNTER_METRIC = 1_200_100, "Counter Metric", None, "fas fa-gauge"
+    COUNTER_MEASUREMENT_EVENT = 1_200_101, "Counter Measurement", None, "fas fa-gauge"
+    HISTOGRAM_METRIC = 1_200_200, "Histogram Metric", None, "fas fa-gauge"
+    HISTOGRAM_MEASUREMENT_EVENT = 1_200_201, "Histogram Measurement", None, "fas fa-gauge"
     # INCIDENT, ESCALATION, ...
     # VISIT/SESSION, RECORDING/REPLAY,
 
-    # optimization [200_000-220_000]
+    # experience [1_300_000-1_400_000]
     # SURVEY, ...
     # ONBOARDING, TOUR, FUNNEL, COHORT, JOURNEY, ..
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...
     # SEGMENT, EXPERIMENT, ...
+    # SETTINGS, ...
 
-    # social [220_000-240_000]
-    REACTION = 220_000, "Reaction", None, "fas fa-heart"
-    REACTION_EVENT = 220_001, "Reaction Event", None, "fas fa-heart"
-    REACTION_ADDED_EVENT = 220_002, "Reaction Added Event", None, "fas fa-heart"
-    REACTION_REMOVED_EVENT = 220_003, "Reaction Removed Event", None, "fas fa-heart"
-    STAR = 220_100, "Star", None, "fas fa-star"
-    STAR_EVENT = 220_101, "Star Event", None, "fas fa-star"
-    STAR_ADDED_EVENT = 220_102, "Star Added Event", None, "fas fa-star"
-    STAR_REMOVED_EVENT = 220_103, "Star Removed Event", None, "fas fa-star"
-    FOLLOW = 220_200, "Follow", None, "fas fa-plus"
-    FOLLOW_EVENT = 220_201, "Follow Event", None, "fas fa-plus"
-    FOLLOW_ADDED_EVENT = 220_202, "Follow Added Event", None, "fas fa-plus"
-    FOLLOW_REMOVED_EVENT = 220_203, "Follow Removed Event", None, "fas fa-plus"
-    NOTIFICATION = 220_500, "Notification", None, "fas fa-bell"
-    NOTIFICATION_EVENT = 220_501, "Notification Event", None, "fas fa-bell"
-    NOTIFICATION_SENT_EVENT = 220_502, "Notification Sent Event", None, "fas fa-bell"
-    NOTIFICATION_RESCINDED_EVENT = 220_503, "Notification Rescinded Event", None, "fas fa-bell"
-    NOTIFICATION_READ_EVENT = 220_504, "Notification Read Event", None, "fas fa-bell"
-    NOTIFICATION_DISMISSED_EVENT = 220_505, "Notification Dismissed Event", None, "fas fa-bell"
-    NOTIFICATION_EXPIRED_EVENT = 220_506, "Notification Expired Event", None, "fas fa-bell"
+    # social [1_400_000-1_500_000]
+    REACTION = 1_400_000, "Reaction", None, "fas fa-heart"
+    REACTION_EVENT = 1_400_001, "Reaction Event", None, "fas fa-heart"
+    REACTION_ADDED_EVENT = 1_400_002, "Reaction Added Event", None, "fas fa-heart"
+    REACTION_REMOVED_EVENT = 1_400_003, "Reaction Removed Event", None, "fas fa-heart"
+    STAR = 1_400_100, "Star", None, "fas fa-star"
+    STAR_EVENT = 1_400_101, "Star Event", None, "fas fa-star"
+    STAR_ADDED_EVENT = 1_400_102, "Star Added Event", None, "fas fa-star"
+    STAR_REMOVED_EVENT = 1_400_103, "Star Removed Event", None, "fas fa-star"
+    FOLLOW = 1_400_200, "Follow", None, "fas fa-plus"
+    FOLLOW_EVENT = 1_400_201, "Follow Event", None, "fas fa-plus"
+    FOLLOW_ADDED_EVENT = 1_400_202, "Follow Added Event", None, "fas fa-plus"
+    FOLLOW_REMOVED_EVENT = 1_400_203, "Follow Removed Event", None, "fas fa-plus"
+    NOTIFICATION = 1_400_500, "Notification", None, "fas fa-bell"
+    NOTIFICATION_EVENT = 1_400_501, "Notification Event", None, "fas fa-bell"
+    NOTIFICATION_SENT_EVENT = 1_400_502, "Notification Sent Event", None, "fas fa-bell"
+    NOTIFICATION_RESCINDED_EVENT = 1_400_503, "Notification Rescinded Event", None, "fas fa-bell"
+    NOTIFICATION_READ_EVENT = 1_400_504, "Notification Read Event", None, "fas fa-bell"
+    NOTIFICATION_DISMISSED_EVENT = 1_400_505, "Notification Dismissed Event", None, "fas fa-bell"
+    NOTIFICATION_EXPIRED_EVENT = 1_400_506, "Notification Expired Event", None, "fas fa-bell"
     # FEED, FEED_ITEM, ...
     # THREAD, MESSAGE, ...
     # POLL, VOTE, REVIEW, RATING, RANK, ...
     # ACHIEVEMENT, BADGE, WISHLIST/WATCHLIST, ...
 
-    # finance [240_000-260_000]
+    # finance [1_500_000-1_600_000]
     # WALLET, BALANCE, BUDGET, TRANSFER, CREDIT, ...
     # TIER, SUBSCRIPTION, PRODUCT, PRICE, ...
     # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
-    # physics [260_000-280_000]
-    # MESH, COLLISION, ...
-
-    # synthesis?
-    # GENERATOR, ...
-
-    # scene [500_000-520_000]
-    WINDOW = 500_000, "Window", None, "fas fa-galaxy"
-    SCENE = 500_100, "Scene", "Scene of an Application", "fas fa-masks-theater"
-    SCENE_EVENT = 500_101, "Scene Event", None, "fas fa-masks-theater"
-    LAYER = 500_200, "Layer", "Layer of a Scene", "fas fa-layer-group"
+    # scene [1_700_000-1_800_000]
+    # STAGE?
+    WINDOW = 1_700_100, "Window", None, "fas fa-galaxy"
+    SCENE = 1_700_200, "Scene", "Scene of an Application", "fas fa-masks-theater"
+    SCENE_EVENT = 1_700_201, "Scene Event", None, "fas fa-masks-theater"
+    LAYER = 1_700_300, "Layer", "Layer of a Scene", "fas fa-layer-group"
     # VIEW_VARIANT, BREAKPOINT_VARIANT, ...
     # VIEWPORT, OVERLAY, WIDGET, HUD, ...
     # FORM, MENU, ...
 
-    # view [520_000-540_000]
+    # view [1_800_000-1_900_000]
     # container views
-    VIEW = 520_000, "View", "View in a Scene", "fas fa-eye"
-    VIEW_EVENT = 520_001, "View Event", None, "fas fa-eye"
-    CONTAINER_VIEW = 520_100, "Container View", None, "fas fa-table"
-    FRAME_VIEW = 520_200, "Frame View", "Fixed Container", "fas fa-frame"
-    LABEL_VIEW = 520_300, "Label View", "Label Container", "fas fa-font-case"
-    SPLIT_VIEW = 520_400, "Split View", "Split Container", "fas fa-columns"
+    VIEW = 1_800_000, "View", "View in a Scene", "fas fa-eye"
+    VIEW_EVENT = 1_800_001, "View Event", None, "fas fa-eye"
+    CONTAINER_VIEW = 1_800_100, "Container View", None, "fas fa-table"
+    FRAME_VIEW = 1_800_200, "Frame View", "Fixed Container", "fas fa-frame"
+    LABEL_VIEW = 1_800_300, "Label View", "Label Container", "fas fa-font-case"
+    SPLIT_VIEW = 1_800_400, "Split View", "Split Container", "fas fa-columns"
     # SLOT_DEFINITION_VIEW, SLOT_VIEW, ...
     # FORM_VIEW, MENU_VIEW, ...
     # TAB_VIEW, ...
     # DRAWER_VIEW, SPLIT_DRAWER_VIEW, GRID/GRID_ELEMENT_VIEW, ...
     # POPOVER, SHEET, ALERT, HUD, ...
     # content views
-    CONTENT_VIEW = 525_000, "Content View", None, "fas fa-text"
-    TEXT_VIEW = 525_100, "Text View", "Text", "fas fa-text"
+    CONTENT_VIEW = 1_805_000, "Content View", None, "fas fa-text"
+    TEXT_VIEW = 1_805_100, "Text View", "Text", "fas fa-text"
     # CODE_VIEW, ICON_VIEW, IMAGE_VIEW, AUDIO_VIEW, VIDEO_VIEW, DOCUMENT_VIEW, ...
     # input views
-    INPUT_VIEW = 530_000, "Input View", None, "fas fa-hashtag"
-    NUMBER_INPUT_VIEW = 530_100, "Number Input View", "Number Input", "fas fa-hashtag"
-    SLIDER_INPUT_VIEW = 530_200, "Slider Input View", "Slider Input", "fas fa-slider"
+    INPUT_VIEW = 1_810_000, "Input View", None, "fas fa-hashtag"
+    NUMBER_INPUT_VIEW = 1_810_100, "Number Input View", "Number Input", "fas fa-hashtag"
+    SLIDER_INPUT_VIEW = 1_810_200, "Slider Input View", "Slider Input", "fas fa-slider"
     # STRING_INPUT_VIEW, TOGGLE_INPUT_VIEW, PICKER_INPUT_VIEW, COLOR_INPUT_VIEW, ...
     # ICON_INPUT_VIEW, FILE_INPUT_VIEW, DATETIME_INPUT_VIEW, DURATION_INPUT_VIEW, ...
     # NOTE :Architecture: node and internal views should probably be defined in user space?
     # node/internal views
-    INTERNAL_VIEW = 535_000, "Internal View", None, "fas fa-eye"
+    INTERNAL_VIEW = 1_815_000, "Internal View", None, "fas fa-eye"
     # WIZARD_VIEW, ...
     # CHART_VIEW, BAR_CHART_VIEW/..., ...
 
-    # canvas [540_000-560_000]
-    SHAPE = 540_100, "Shape", None, "fas fa-shapes"
-    LINE_SHAPE = 540_200, "Line Shape", None, "fas fa-line"
-    ARROW_SHAPE = 540_300, "Arrow Shape", None, "fas fa-arrow-right"
-    ANNOTATION_SHAPE = 540_400, "Annotation Shape", None, "fas fa-comment"
+    # canvas [1_900_000-2_000_000]
+    SHAPE = 1_900_000, "Shape", None, "fas fa-shapes"
+    LINE_SHAPE = 1_900_100, "Line Shape", None, "fas fa-line"
+    ARROW_SHAPE = 1_900_200, "Arrow Shape", None, "fas fa-arrow-right"
+    ANNOTATION_SHAPE = 1_900_300, "Annotation Shape", None, "fas fa-comment"
     # VECTOR/POINT/PATH/NETWORK, ...
     # RASTER/BITMAP, ...
 
-    # interaction [560_000-580_000]
-    INPUT_EVENT = 560_000, "Input Event", None, "fas fa-mouse-pointer"
+    # interaction [2_000_000-2_100_000]
+    INPUT_EVENT = 2_000_000, "Input Event", None, "fas fa-mouse-pointer"
     # pointer events
-    POINTER_EVENT = 560_100, "Pointer Event", None, "fas fa-mouse-pointer"
-    POINTER_DOWN_EVENT = 560_101, "Pointer Down Event", None, "fas fa-mouse-pointer"
-    POINTER_UP_EVENT = 560_102, "Pointer Up Event", None, "fas fa-mouse-pointer"
-    POINTER_MOVE_EVENT = 560_103, "Pointer Move Event", None, "fas fa-mouse-pointer"
-    POINTER_ENTER_EVENT = 560_104, "Pointer Enter Event", None, "fas fa-mouse-pointer"
-    POINTER_OVER_EVENT = 560_105, "Pointer Over Event", None, "fas fa-mouse-pointer"
-    POINTER_LEAVE_EVENT = 560_106, "Pointer Leave Event", None, "fas fa-mouse-pointer"
-    POINTER_LONG_PRESS_EVENT = 560_107, "Long Press Event", None, "fas fa-mouse-pointer"
+    POINTER_EVENT = 2_000_100, "Pointer Event", None, "fas fa-mouse-pointer"
+    POINTER_DOWN_EVENT = 2_000_101, "Pointer Down Event", None, "fas fa-mouse-pointer"
+    POINTER_UP_EVENT = 2_000_102, "Pointer Up Event", None, "fas fa-mouse-pointer"
+    POINTER_MOVE_EVENT = 2_000_103, "Pointer Move Event", None, "fas fa-mouse-pointer"
+    POINTER_ENTER_EVENT = 2_000_104, "Pointer Enter Event", None, "fas fa-mouse-pointer"
+    POINTER_OVER_EVENT = 2_000_105, "Pointer Over Event", None, "fas fa-mouse-pointer"
+    POINTER_LEAVE_EVENT = 2_000_106, "Pointer Leave Event", None, "fas fa-mouse-pointer"
+    POINTER_LONG_PRESS_EVENT = 2_000_107, "Long Press Event", None, "fas fa-mouse-pointer"
     # mouse events
-    MOUSE_EVENT = 560_200, "Mouse Event", None, "fas fa-mouse-pointer"
-    CLICK_EVENT = 560_201, "Click Event", None, "fas fa-mouse-pointer"
-    SINGLE_CLICK_EVENT = 560_202, "Single Click Event", None, "fas fa-mouse-pointer"
-    DOUBLE_CLICK_EVENT = 560_203, "Double Click Event", None, "fas fa-mouse-pointer"
-    TRIPLE_CLICK_EVENT = 560_204, "Triple Click Event", None, "fas fa-mouse-pointer"
-    WHEEL_EVENT = 560_210, "Wheel Event", None, "fas fa-mouse-pointer"
+    MOUSE_EVENT = 2_000_200, "Mouse Event", None, "fas fa-mouse-pointer"
+    CLICK_EVENT = 2_000_201, "Click Event", None, "fas fa-mouse-pointer"
+    SINGLE_CLICK_EVENT = 2_000_202, "Single Click Event", None, "fas fa-mouse-pointer"
+    DOUBLE_CLICK_EVENT = 2_000_203, "Double Click Event", None, "fas fa-mouse-pointer"
+    TRIPLE_CLICK_EVENT = 2_000_204, "Triple Click Event", None, "fas fa-mouse-pointer"
+    WHEEL_EVENT = 2_000_210, "Wheel Event", None, "fas fa-mouse-pointer"
     # keyboard events
-    KEY_EVENT = 560_300, "Key Event", None, "fas fa-keyboard"
-    KEY_DOWN_EVENT = 560_301, "Key Down Event", None, "fas fa-keyboard"
-    KEY_UP_EVENT = 560_302, "Key Up Event", None, "fas fa-keyboard"
-    KEY_PRESS_EVENT = 560_303, "Key Press Event", None, "fas fa-keyboard"
+    KEY_EVENT = 2_000_300, "Key Event", None, "fas fa-keyboard"
+    KEY_DOWN_EVENT = 2_000_301, "Key Down Event", None, "fas fa-keyboard"
+    KEY_UP_EVENT = 2_000_302, "Key Up Event", None, "fas fa-keyboard"
+    KEY_PRESS_EVENT = 2_000_303, "Key Press Event", None, "fas fa-keyboard"
     # drag events
-    DRAG_EVENT = 560_400, "Drag Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_START_EVENT = 560_401, "Drag Start Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_END_EVENT = 560_402, "Drag End Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_OVER_EVENT = 560_403, "Drag Over Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_ENTER_EVENT = 560_404, "Drag Enter Event", None, "fas fa-arrows-up-down-left-right"
-    DRAG_LEAVE_EVENT = 560_405, "Drag Leave Event", None, "fas fa-arrows-up-down-left-right"
-    DROP_EVENT = 560_406, "Drop Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_EVENT = 2_000_400, "Drag Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_START_EVENT = 2_000_401, "Drag Start Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_END_EVENT = 2_000_402, "Drag End Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_OVER_EVENT = 2_000_403, "Drag Over Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_ENTER_EVENT = 2_000_404, "Drag Enter Event", None, "fas fa-arrows-up-down-left-right"
+    DRAG_LEAVE_EVENT = 2_000_405, "Drag Leave Event", None, "fas fa-arrows-up-down-left-right"
+    DROP_EVENT = 2_000_406, "Drop Event", None, "fas fa-arrows-up-down-left-right"
     # clipboard events
-    CLIPBOARD_EVENT = 560_500, "Clipboard Event", None, "fas fa-clipboard"
-    COPY_EVENT = 560_501, "Copy Event", None, "fas fa-clipboard"
-    CUT_EVENT = 560_502, "Cut Event", None, "fas fa-clipboard"
-    PASTE_EVENT = 560_503, "Paste Event", None, "fas fa-clipboard"
+    CLIPBOARD_EVENT = 2_000_500, "Clipboard Event", None, "fas fa-clipboard"
+    COPY_EVENT = 2_000_501, "Copy Event", None, "fas fa-clipboard"
+    CUT_EVENT = 2_000_502, "Cut Event", None, "fas fa-clipboard"
+    PASTE_EVENT = 2_000_503, "Paste Event", None, "fas fa-clipboard"
     # focus events
-    FOCUS_EVENT = 560_600, "Focus Event", None, "fas fa-keyboard"
-    FOCUS_IN_EVENT = 560_601, "Focus In Event", None, "fas fa-keyboard"
-    FOCUS_OUT_EVENT = 560_602, "Focus Out Event", None, "fas fa-keyboard"
+    FOCUS_EVENT = 2_000_600, "Focus Event", None, "fas fa-keyboard"
+    FOCUS_IN_EVENT = 2_000_601, "Focus In Event", None, "fas fa-keyboard"
+    FOCUS_OUT_EVENT = 2_000_602, "Focus Out Event", None, "fas fa-keyboard"
     # command
     # COMMAND,  MODE, TOOL, SHORTCUT/KEYBINDING, ...
     # GESTURE, ...
@@ -702,25 +753,41 @@ class NodeType(Enum):
     # CAMERA, SPEAKER, MICROPHONE, ...
     # AUDIO, AUDIO_PLAYER, VIDEO, VIDEO_PLAYER, ...
 
-    # animation [580_000-600_000]
-    # ANIMATION, TRACK, KEYFRAME, ...
-    # PARTICLE, EMITTER, ...
-
-    # style [600_000-620_000]
-    THEME = 600_000, "Theme", None, "fas fa-palette"
-    PALETTE = 600_100, "Palette", None, "fas fa-palette"
-    STYLE = 600_200, "Style", None, "fas fa-palette"
-    COLOR_STYLE = 600_300, "Color Style", None, "fas fa-palette"
-    FILL_STYLE = 600_400, "Fill Style", None, "fas fa-fill"
-    FONT_STYLE = 600_500, "Font Style", None, "fas fa-text"
-    BORDER_STYLE = 600_600, "Border Style", None, "fas fa-border-outer"
-    SHADOW_STYLE = 600_700, "Shadow Style", None, "fas fa-eclipse"
-    GRADIENT_STYLE = 600_800, "Gradient Style", None, "fas fa-gradient"
-    TRANSITION_STYLE = 600_900, "Transition Style", None, "fas fa-bezier-curve"
-    EFFECT_STYLE = 600_1000, "Effect Style", None, "fas fa-sparkle"
-    STROKE_STYLE = 600_1100, "Stroke Style", None, "fas fa-stroke"
+    # style [2_100_000-2_200_000]
+    THEME = 2_100_000, "Theme", None, "fas fa-palette"
+    PALETTE = 2_100_100, "Palette", None, "fas fa-palette"
+    STYLE = 2_100_200, "Style", None, "fas fa-palette"
+    COLOR_STYLE = 2_100_300, "Color Style", None, "fas fa-palette"
+    FILL_STYLE = 2_100_400, "Fill Style", None, "fas fa-fill"
+    FONT_STYLE = 2_100_500, "Font Style", None, "fas fa-text"
+    BORDER_STYLE = 2_100_600, "Border Style", None, "fas fa-border-outer"
+    SHADOW_STYLE = 2_100_700, "Shadow Style", None, "fas fa-eclipse"
+    GRADIENT_STYLE = 2_100_800, "Gradient Style", None, "fas fa-gradient"
+    TRANSITION_STYLE = 2_100_900, "Transition Style", None, "fas fa-bezier-curve"
+    EFFECT_STYLE = 2_101_000, "Effect Style", None, "fas fa-sparkle"
+    STROKE_STYLE = 2_101_100, "Stroke Style", None, "fas fa-stroke"
     # BRUSH_STYLE, ...
     # SHADER, MATERIAL, ...
+
+    # animation [2_200_000-2_300_000]
+    # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
+    # RIG, ...
+    # PARTICLE, EMITTER, ...
+
+    # audio [2_300_000-2_400_000]
+    # ...
+
+    # geometry [2_400_000-2_500_000]
+    # SKELETON, ...
+
+    # physics [2_500_000-2_600_000]
+    # MESH, COLLISION, ...
+    # COLLIDER, RIGID_BODY, SOFT_BODY, ...
+    # synthesis?
+    # GENERATOR, ...
+
+    # lighting [2_600_000-2_700_000]
+    # ...
 
 
 @builtin_enum(EnumType.UNIVERSE_CATEGORY)
@@ -728,25 +795,31 @@ class UniverseCategory(Enum):
     """How the system is organized."""
 
     META = 1, "Meta", "Information about the system"
-    UNIVERSE = 20_000, "Universe", "Global computational universe"
-    SPACE = 40_000, "Space", "Spacetime organization"
-    ACCESS = 60_000, "Access", "Access control"
-    DATA = 80_000, "Data", "Schemas, files and streams"
-    LOGIC = 100_000, "Logic", "Logic, workflows and operations"
-    INTELLIGENCE = 120_000, "Intelligence", "Artificial intelligence"
-    INFRASTRUCTURE = 140_000, "Infrastructure", "Infrastructure management"
-    DEPLOYMENT = 160_000, "Deployment", "Deployment of the system"
-    OBSERVABILITY = 180_000, "Observability", "Analytics of the system"
-    OPTIMIZATION = 200_000, "Optimization", "Improve the system"
-    SOCIAL = 220_000, "Social", "Social interactions"
-    FINANCE = 240_000, "Finance", "Financial operations"
-    PHYSICS = 260_000, "Physics", "Physics simulation"
-    SCENE = 500_000, "Scene", "Scene construction"
-    VIEW = 520_000, "View", "View building"
-    CANVAS = 540_000, "Canvas", "Drawing and painting"
-    INTERACTION = 560_000, "Interaction", "Interaction design"
-    ANIMATION = 580_000, "Animation", "Motion design"
-    STYLE = 600_000, "Style", "Style views"
+    UNIVERSE = 100_000, "Universe", "Global computational universe"
+    SPACE = 200_000, "Space", "Spacetime organization"
+    ACCESS = 300_000, "Access", "Access control"
+    DATA = 400_000, "Data", "Core data"
+    MEDIA = 500_000, "Media", "Media and streaming"
+    LOCALE = 600_000, "Locale", "Localization and internationalization"
+    LOGIC = 700_000, "Logic", "Core logic"
+    QUALITY = 800_000, "Quality", "Quality management"
+    INTELLIGENCE = 900_000, "Intelligence", "Artificial intelligence"
+    INFRASTRUCTURE = 1_000_000, "Infrastructure", "Devices, hardware and plumbing"
+    DEPLOYMENT = 1_100_000, "Deployment", "Deployment and runtime"
+    OBSERVABILITY = 1_200_000, "Observability", "Analytics about everything"
+    EXPERIENCE = 1_300_000, "Experience", "Experience management"
+    SOCIAL = 1_400_000, "Social", "Social interactions"
+    FINANCE = 1_500_000, "Finance", "Financial operations"
+    SCENE = 1_700_000, "Scene", "Scene and viewport construction"
+    VIEW = 1_800_000, "View", "View building"
+    CANVAS = 1_900_000, "Canvas", "Drawing and painting"
+    INTERACTION = 2_000_000, "Interaction", "Interaction design"
+    STYLE = 2_100_000, "Style", "Style views"
+    ANIMATION = 2_200_000, "Animation", "Motion design"
+    AUDIO = 2_300_000, "Audio", "Audio management"
+    GEOMETRY = 2_400_000, "Geometry", "Meshes, skeletons and surface modeling"
+    PHYSICS = 2_500_000, "Physics", "Physics simulation"
+    LIGHTING = 2_600_000, "Lighting", "Lighting and shadows"
 
 
 ENUM_TYPES: tuple[EnumType, ...] = tuple(EnumType)

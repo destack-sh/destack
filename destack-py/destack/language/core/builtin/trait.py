@@ -390,6 +390,6 @@ class IsExtensible(IsCustomizable, IsScriptable):
 
 @builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)
 class IsIrreversible(Trait):
-    """An Entity that cannot be rewound in spacetime."""
+    """An Entity that is fixed / forward-only in spacetime."""
 
     pass

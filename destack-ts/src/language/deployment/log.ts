@@ -34,7 +34,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:170300 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:1110300 ==== */
 /**
  * LogLevel
  */
@@ -51,9 +51,9 @@ export enum LogLevel {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.LOG_LEVEL, LogLevel);
-/* ==== DESTACK_GENERATED_END:ENUM:170300 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:1110300 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:170301 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1110011 ==== */
 /**
  * A Log message.
  */
@@ -379,7 +379,7 @@ export class LogEvent extends Event {
 
   static __packValue__(object: LogEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 170301;
+    objectValue["1"] = 1110011;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -481,7 +481,7 @@ export class LogEvent extends Event {
   }
 
   static __packProto__(object: LogEvent): LogEventProto {
-    const objectProto: Partial<LogEventProto> = { metatype: 170301 };
+    const objectProto: Partial<LogEventProto> = { metatype: 1110011 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -608,4 +608,4 @@ export class LogEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.LOG_EVENT, LogEvent);
-/* ==== DESTACK_GENERATED_END:NODE:170301 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:1110011 ==== */

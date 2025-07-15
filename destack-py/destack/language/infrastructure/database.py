@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Enum,
@@ -13,12 +13,11 @@ from destack.language.core import (
     builtin_enum,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
     builtin_struct,
 )
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Space
+    from destack.language import Icon
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -61,8 +60,6 @@ class DatabaseInfo(StructFrozen):
 @builtin_node(NodeType.DATABASE)
 class Database(Resource):
     """A primary storage Database of some flavor."""
-
-    parent: Optional["Space"] = builtin_property_parent()
 
     name: str = builtin_property(101, is_repr=True)
     icon: "Icon | None" = builtin_property(102)

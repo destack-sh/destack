@@ -39,7 +39,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:102001 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:701001 ==== */
 /**
  * MethodCardinality
  */
@@ -51,9 +51,9 @@ export enum MethodCardinality {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
-/* ==== DESTACK_GENERATED_END:ENUM:102001 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:701001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:101000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:701000 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
@@ -573,7 +573,7 @@ export class Method
 
   static __packValue__(object: Method): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 101000;
+    objectValue["1"] = 701000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -733,7 +733,7 @@ export class Method
   }
 
   static __packProto__(object: Method): MethodProto {
-    const objectProto: Partial<MethodProto> = { metatype: 101000 };
+    const objectProto: Partial<MethodProto> = { metatype: 701000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -915,4 +915,4 @@ export class Method
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METHOD, Method);
-/* ==== DESTACK_GENERATED_END:NODE:101000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:701000 ==== */

@@ -50,7 +50,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:600100 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100100 ==== */
 /**
  * FillType
  */
@@ -64,9 +64,9 @@ export enum FillType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILL_TYPE, FillType);
-/* ==== DESTACK_GENERATED_END:ENUM:600100 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100100 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600101 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100101 ==== */
 /**
  * FillPosition
  */
@@ -86,9 +86,9 @@ export enum FillPosition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILL_POSITION, FillPosition);
-/* ==== DESTACK_GENERATED_END:ENUM:600101 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100101 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:600102 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2100102 ==== */
 /**
  * FillSize
  */
@@ -103,9 +103,9 @@ export enum FillSize {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.FILL_SIZE, FillSize);
-/* ==== DESTACK_GENERATED_END:ENUM:600102 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2100102 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600400 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2100400 ==== */
 /**
  * A fill value.
  */
@@ -334,7 +334,7 @@ export class Fill extends StructFrozen {
 
   static __packValue__(object: Fill): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600400;
+    objectValue["1"] = 2100400;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -423,7 +423,7 @@ export class Fill extends StructFrozen {
   }
 
   static __packProto__(object: Fill): FillProto {
-    const objectProto: Partial<FillProto> = { metatype: 600400 };
+    const objectProto: Partial<FillProto> = { metatype: 2100400 };
     objectProto.type = Number(object.type) as FillTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -515,9 +515,9 @@ export class Fill extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FILL, Fill);
-/* ==== DESTACK_GENERATED_END:STRUCT:600400 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2100400 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:600400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:2100400 ==== */
 /**
  * A fill style.
  */
@@ -1176,7 +1176,7 @@ export class FillStyle extends Style {
 
   static __packValue__(object: FillStyle): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600400;
+    objectValue["1"] = 2100400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1362,7 +1362,7 @@ export class FillStyle extends Style {
   }
 
   static __packProto__(object: FillStyle): FillStyleProto {
-    const objectProto: Partial<FillStyleProto> = { metatype: 600400 };
+    const objectProto: Partial<FillStyleProto> = { metatype: 2100400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1577,4 +1577,4 @@ export class FillStyle extends Style {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.FILL_STYLE, FillStyle);
-/* ==== DESTACK_GENERATED_END:NODE:600400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:2100400 ==== */
