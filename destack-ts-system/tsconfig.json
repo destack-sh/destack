@@ -15,8 +15,8 @@
     "noEmit": true,
     "types": ["node"],
     "paths": {
-      "@/*": ["./*/index.ts", "./*"],
-      "@destack/*": ["../destack-ts/src/*"]
+      "@destack/*": ["../destack-ts/src/*"],
+      "@desys/*": ["./src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx"],

@@ -129,6 +129,8 @@ ENV = get_from_env(
 )
 setup_env()
 IS_DEV = ENV == Env.DEV
+IS_PROD = ENV == Env.PROD
+IS_STAGE = ENV == Env.STAGE
 IS_TEST: bool = (
     "test" in sys.argv
     or "pytest" in sys.argv[0]

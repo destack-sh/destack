@@ -2,7 +2,6 @@ from cachetools import cached
 
 from destack.language import (
     EdgeType,
-    IsExtensible,
     Node,
     NodeReference,
     NodeType,
@@ -120,12 +119,6 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
         indexes=tuple(indexes),
     )
     return table
-
-
-def map_custom_node_to_database_table(definition: IsExtensible) -> PostgresTable:
-    """Maps a CustomNodeDefinition to its corresponding CustomNodeTable."""
-
-    raise NotImplementedError(definition)
 
 
 @cached({})
