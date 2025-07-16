@@ -33,7 +33,7 @@ def get_table_name(node_ptr: NodeReference) -> str:
 def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     """Maps a node type into its builtin Table schema."""
 
-    table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node.metatype.name.lower()}"
+    table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node.metatype.id}"
     columns: list[PostgresColumn] = []
     constraints: list[PostgresConstraint] = []
     indexes: list[PostgresIndex] = []
@@ -44,6 +44,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
     for prop in properties:
         if prop.edge_type == EdgeType.PARENT and node.metatype == NodeType.SPACE:
             continue  # no parent for root nodes
+        assert isinstance(prop.id, int), f"undetermined id for {prop!r}"
 
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel node ptr column
@@ -51,7 +52,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                 f"non-scalar node reference: {prop!r}"
             )
             column = PostgresColumn(
-                name=f"{prop.name}_id",
+                name=f"{prop.id}_id",
                 type=PrimitiveType.UUID,
                 is_nullable=not prop.is_required,
                 prop=prop,
@@ -59,14 +60,14 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
             columns.append(column)
             if prop.node_is_heterogenous:
                 node_type_column = PostgresColumn(
-                    name=f"{prop.name}_type",
+                    name=f"{prop.id}_type",
                     type=PrimitiveType.INT32,
                     is_nullable=prop.is_optional,
                     prop=prop,
                 )
                 columns.append(node_type_column)
             space_id_column = PostgresColumn(
-                name=f"{prop.name}_space_id",
+                name=f"{prop.id}_space_id",
                 type=PrimitiveType.UUID,
                 is_nullable=True,
                 prop=prop,
@@ -74,7 +75,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
             columns.append(space_id_column)
             if prop.node_is_extensible:
                 table_id_column = PostgresColumn(
-                    name=f"{prop.name}_definition_id",
+                    name=f"{prop.id}_definition_id",
                     type=PrimitiveType.UUID,
                     is_nullable=True,
                     prop=prop,
@@ -84,7 +85,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
             # regular column
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"
             column = PostgresColumn(
-                name=prop.name,
+                name=str(prop.id),
                 type=prop.primitive_type,
                 is_array=prop.cardinality == TypeCardinality.LIST,
                 is_nullable=prop.is_optional,
@@ -96,9 +97,9 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
         # unique
         if prop.is_unique:
             index = PostgresIndex(
-                inner_name=f"unique_{prop.name}",
+                inner_name=f"unique_{prop.id}",
                 type=PostgresIndexType.BTREE,
-                columns=(prop.name,),
+                columns=(str(prop.id),),
                 is_unique=True,
             )
             indexes.append(index)

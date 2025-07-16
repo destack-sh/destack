@@ -247,7 +247,7 @@ function executeEdit(options: {
     return { edits, cascadedEdits: [] };
   }
 
-  // archive/unarchive/delete/restore
+  // delete/restore
   else if (editType === EditType.DELETE || editType === EditType.RESTORE) {
     // cascade
     const nodesPtrs = edits.map((edit) => edit.nodePtr);

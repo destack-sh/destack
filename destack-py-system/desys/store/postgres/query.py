@@ -17,6 +17,7 @@ from destack.language import (
     ExpressionType,
     Function,
     JoinType,
+    Node,
     NodeDefinitionReference,
     NodeReference,
     NodeType,
@@ -42,6 +43,7 @@ tracer = trace.get_tracer(__name__)
 
 MAX_RECURSION_DEPTH = 1_000
 
+NODE_ID_KEY = str(Node.property("id").id)
 ENTITY_PARENT_KEY = str(Entity.property("parent").id)
 
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
@@ -74,9 +76,9 @@ def _compile_attribute(
         prop = attribute.resolve()
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel reference column into id
-            return f"{prop.name}_id"
+            return f'"{prop.id}_id"'
         else:
-            return prop.name
+            return f'"{prop.id}"'
     elif attribute.type == PropertyReferenceType.CUSTOM:
         raise NotImplementedError(f"cannot compile custom attribute: {attribute!r}")
     else:
@@ -280,34 +282,34 @@ async def _walk_node(
             tables = [context.get(r) for r in context.resolve(definition)]
             # build a single UNION of all node tables
             union_parts = [
-                f"SELECT id, parent_id, {tbl.node_type.value}::int AS node_type FROM {tbl.name}"
+                f'SELECT "{NODE_ID_KEY}", "{ENTITY_PARENT_KEY}_id", {tbl.node_type.value}::int AS node_type FROM "{tbl.name}"'
                 for tbl in tables
             ]
             union_subquery = " UNION ALL ".join(union_parts)
             # anchor term
             base_sql = f"""
-SELECT id,
-    parent_id,
+SELECT "{NODE_ID_KEY}",
+    "{ENTITY_PARENT_KEY}_id",
     1 AS depth,
     node_type,
-    id AS source_id
+    "{NODE_ID_KEY}" AS source_id
 FROM (
     {union_subquery}
 ) roots
-WHERE (id = ANY($1) OR parent_id = ANY($2))
+WHERE ("{NODE_ID_KEY}" = ANY($1) OR "{ENTITY_PARENT_KEY}_id" = ANY($2))
 AND {where_sql}
             """
             # recursive term
             recursive_sql = f"""
-SELECT p.id,
-    p.parent_id,
+SELECT p."{NODE_ID_KEY}",
+    p."{ENTITY_PARENT_KEY}_id",
     t.depth + 1 AS depth,
     p.node_type,
     t.source_id
 FROM (
     {union_subquery}
 ) p
-JOIN tree t ON p.id = t.parent_id
+JOIN tree t ON p."{NODE_ID_KEY}" = t."{ENTITY_PARENT_KEY}_id"
 WHERE t.depth < $3
 AND {where_sql}
             """
@@ -318,7 +320,7 @@ WITH RECURSIVE tree AS (
     UNION ALL
     {recursive_sql}
 )
-SELECT id, parent_id, depth, node_type, source_id
+SELECT "{NODE_ID_KEY}", "{ENTITY_PARENT_KEY}_id", depth, node_type, source_id
 FROM tree;
             """
 
@@ -329,7 +331,7 @@ FROM tree;
             }
             for row in result_rows:
                 node_type = NodeType(int(row["node_type"]))
-                node_ptr = NodeReference(type=node_type, id=DestackUUID(str(row["id"])))
+                node_ptr = NodeReference(type=node_type, id=DestackUUID(str(row[NODE_ID_KEY])))
                 result_nodes_ptr.append(node_ptr)
                 source_id_by_node_id[uuid.UUID(str(node_ptr.id))] = uuid.UUID(str(row["source_id"]))
             return result_nodes_ptr, source_id_by_node_id
@@ -337,25 +339,25 @@ FROM tree;
             table = context.get(definition)
             stmt = f"""
 WITH RECURSIVE tree AS (
-    SELECT  id,
-            parent_id,
+    SELECT  "{NODE_ID_KEY}",
+            "{ENTITY_PARENT_KEY}_id",
             1 AS depth,
-            id AS source_id
-    FROM    {table.name}
-    WHERE   (id = ANY($1) OR parent_id = ANY($2)) AND {where_sql}
+            "{NODE_ID_KEY}" AS source_id
+    FROM    "{table.name}"
+    WHERE   ("{NODE_ID_KEY}" = ANY($1) OR "{ENTITY_PARENT_KEY}_id" = ANY($2)) AND {where_sql}
 
     UNION ALL
 
-    SELECT  p.id,
-            p.parent_id,
+    SELECT  p."{NODE_ID_KEY}",
+            p."{ENTITY_PARENT_KEY}_id",
             t.depth + 1,
             t.source_id
-    FROM    {table.name}  AS p
-    JOIN    tree      AS t ON p.id = t.parent_id
+    FROM    "{table.name}"  AS p
+    JOIN    tree      AS t ON p."{NODE_ID_KEY}" = t."{ENTITY_PARENT_KEY}_id"
     WHERE   t.depth < $3 AND {where_sql}
 )
-SELECT  id,
-        parent_id,
+SELECT  "{NODE_ID_KEY}",
+        "{ENTITY_PARENT_KEY}_id",
         depth,
         source_id
 FROM    tree;
@@ -366,7 +368,9 @@ FROM    tree;
                 uuid.UUID(str(n.id)): uuid.UUID(str(n.id)) for n in nodes_ptr
             }
             for row in result_rows:
-                node_ptr = NodeReference(type=table.node_type, id=DestackUUID(str(row["id"])))
+                node_ptr = NodeReference(
+                    type=table.node_type, id=DestackUUID(str(row[NODE_ID_KEY]))
+                )
                 result_nodes_ptr.append(node_ptr)
                 source_id_by_node_id[uuid.UUID(str(node_ptr.id))] = uuid.UUID(str(row["source_id"]))
             return result_nodes_ptr, source_id_by_node_id
@@ -378,34 +382,34 @@ FROM    tree;
 
         # build a single UNION of all node tables
         union_parts = [
-            f"SELECT id, parent_id, {tbl.node_type.value}::int AS node_type FROM {tbl.name}"
+            f'SELECT "{NODE_ID_KEY}", "{ENTITY_PARENT_KEY}_id", {tbl.node_type.value}::int AS node_type FROM "{tbl.name}"'
             for tbl in tables
         ]
         union_subquery = " UNION ALL ".join(union_parts)
         # anchor term
         base_sql = f"""
-SELECT id,
-    parent_id,
+SELECT "{NODE_ID_KEY}",
+    "{ENTITY_PARENT_KEY}_id",
     1 AS depth,
     node_type,
-    parent_id AS source_id
+    "{ENTITY_PARENT_KEY}_id" AS source_id
 FROM (
     {union_subquery}
 ) roots
-WHERE (id = ANY($1) OR parent_id = ANY($2))
+WHERE ("{NODE_ID_KEY}" = ANY($1) OR "{ENTITY_PARENT_KEY}_id" = ANY($2))
 AND {where_sql}
         """
         # recursive term
         recursive_sql = f"""
-SELECT c.id,
-    c.parent_id,
+SELECT c."{NODE_ID_KEY}",
+    c."{ENTITY_PARENT_KEY}_id",
     t.depth + 1 AS depth,
     c.node_type,
     t.source_id
 FROM (
     {union_subquery}
 ) c
-JOIN tree t ON c.parent_id = t.id
+JOIN tree t ON c."{ENTITY_PARENT_KEY}_id" = t."{NODE_ID_KEY}"
 WHERE t.depth < $3
 AND {where_sql}
         """
@@ -416,7 +420,7 @@ WITH RECURSIVE tree AS (
     UNION ALL
     {recursive_sql}
 )
-SELECT id, parent_id, depth, node_type, source_id
+SELECT "{NODE_ID_KEY}", "{ENTITY_PARENT_KEY}_id", depth, node_type, source_id
 FROM tree;
         """
 
@@ -427,7 +431,7 @@ FROM tree;
         }
         for row in result_rows:
             node_type = NodeType(int(row["node_type"]))
-            node_ptr = NodeReference(type=node_type, id=DestackUUID(str(row["id"])))
+            node_ptr = NodeReference(type=node_type, id=DestackUUID(str(row[NODE_ID_KEY])))
             result_nodes_ptr.append(node_ptr)
             source_id_by_node_id[uuid.UUID(str(node_ptr.id))] = uuid.UUID(str(row["source_id"]))
         return result_nodes_ptr, source_id_by_node_id
@@ -484,7 +488,7 @@ async def _query_node(
         stmt_parts.append(_compile_select(context, arguments, select))
     else:
         stmt_parts.append(", ".join(f'"{col.name}"' for col in table.columns))
-    stmt_parts.append(f"FROM {table.name}")
+    stmt_parts.append(f'FROM "{table.name}"')
     if where is not None:
         stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
     if sort:
@@ -526,7 +530,7 @@ async def _query_scalar(
     stmt_parts: list[str] = [
         "SELECT",
         _compile_aggregation(context, arguments, aggregation),
-        f"FROM {table.name}",
+        f'FROM "{table.name}"',
     ]
     if where is not None:
         stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")
@@ -576,8 +580,8 @@ async def _query_grouped_node(
     group_by_clause = ", ".join(group_by_parts)
     stmt_parts: list[str] = [
         "SELECT",
-        f"{group_by_clause}, ARRAY_AGG(id ORDER BY id) as grouped_ids",
-        f"FROM {table.name}",
+        f'{group_by_clause}, ARRAY_AGG("{NODE_ID_KEY}" ORDER BY "{NODE_ID_KEY}") as grouped_ids',
+        f'FROM "{table.name}"',
     ]
     if where is not None:
         stmt_parts.append(f"WHERE {_compile_condition(context, group_arguments, where)}")
@@ -612,8 +616,8 @@ async def _query_grouped_node(
     else:
         columns_clause = ", ".join(f'"{col.name}"' for col in table.columns)
         node_stmt_parts.append(columns_clause)
-    node_stmt_parts.append(f"FROM {table.name}")  # noqa: FURB113
-    node_stmt_parts.append(f"WHERE id = ANY(${len(node_arguments) + 1})")
+    node_stmt_parts.append(f'FROM "{table.name}"')  # noqa: FURB113
+    node_stmt_parts.append(f'WHERE "{NODE_ID_KEY}" = ANY(${len(node_arguments) + 1})')
     node_arguments.append(nodes_id)
     node_stmt = "\n".join(node_stmt_parts)
 
@@ -672,7 +676,7 @@ async def _query_grouped_scalar(
     stmt_parts: list[str] = [
         "SELECT",
         f"{group_by_clause}, {_compile_aggregation(context, arguments, aggregation)}",
-        f"FROM {table.name}",
+        f'FROM "{table.name}"',
     ]
     if where is not None:
         stmt_parts.append(f"WHERE {_compile_condition(context, arguments, where)}")

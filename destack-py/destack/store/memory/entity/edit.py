@@ -233,7 +233,7 @@ def _execute_edit(
         )
         return edits, ()
 
-    # archive/unarchive/delete/restore
+    # delete/restore
     elif edit_type in (
         EditType.DELETE,
         EditType.RESTORE,
@@ -243,7 +243,7 @@ def _execute_edit(
         edit_by_node_id: dict[UUID, EditEvent] = {edit.node_ptr.id: edit for edit in edits}
         where: Condition | None = None
         if edit_type == EditType.RESTORE:
-            # restrict to nodes with same deleted_at/archived_at
+            # restrict to nodes with same deleted_at
             root_dts: set[datetime] = set()
             for node_ptr in nodes_ptr:
                 snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
