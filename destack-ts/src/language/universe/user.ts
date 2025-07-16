@@ -145,6 +145,11 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   /**
@@ -345,6 +350,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     name?: string;
     slug: string;
@@ -424,6 +430,8 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
     if (_customValues === null) {
       _customValues = {};
@@ -605,6 +613,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -681,6 +692,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
@@ -783,6 +797,11 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new User({
       parent: unpackedParentPtr,
       slug: objectValue["102"],
@@ -802,6 +821,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -846,6 +866,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._customValues) {
       objectProto.customValues = {} as any;
@@ -981,6 +1004,8 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

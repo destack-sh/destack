@@ -24,7 +24,6 @@ from .property import (
 )
 from .trait import (
     INTER_ORDER_TYPES,
-    IsDeletable,
     IsExtensible,
     IsOrdered,
     IsOwnable,
@@ -145,6 +144,7 @@ class Entity(Node):
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None
         updated_by_ptr: Optional[NodeReference] = None
+    deleted_at: Optional[datetime] = builtin_property(24, is_managed=True, is_eq=False)
     # revision? epoch?
 
     name: str = builtin_property(
@@ -165,6 +165,16 @@ class Entity(Node):
 
     if not TYPE_CHECKING:
         __setattr__ = _do_set
+
+    def delete(self):
+        """Delete this Entity."""
+        assert not self.deleted_at, f"{self!r} is already deleted"
+        self._session.delete(self)
+
+    def restore(self):
+        """Restore this deleted Entity from the trash."""
+        assert self.deleted_at, f"{self!r} is not deleted"
+        self._session.restore(self)
 
     def _assign_order(
         self,
@@ -432,7 +442,6 @@ class Entity(Node):
 @builtin_node(NodeType.RECORD, is_abstract=True)
 class Record(
     IsExtensible,
-    IsDeletable,
     IsOwnable,
     Entity,
 ):
@@ -449,7 +458,6 @@ class Record(
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
 class Resource(
     IsExtensible,
-    IsDeletable,
     Entity,
 ):
     """
@@ -472,7 +480,6 @@ class SnapshotStatus(Enum):
 @builtin_node(NodeType.SNAPSHOT)
 class Snapshot(
     IsOwnable,
-    IsDeletable,
     Entity,
 ):
     """
@@ -528,7 +535,6 @@ class Snapshot(
 class Variant(
     IsExtensible,
     IsOwnable,
-    IsDeletable,
     Entity,
 ):
     """A Variant is an alternative version of an Entity."""

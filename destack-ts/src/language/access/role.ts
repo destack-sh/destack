@@ -3,7 +3,6 @@ import type {
   Graph,
   Icon,
   IsActor,
-  IsDeletable,
   IsExtensible,
   IsJoinable,
   IsOrdered,
@@ -1248,7 +1247,7 @@ registerNodeClass(NodeType.ROLE_UNASSIGNED_EVENT, RoleUnassignedEvent);
 /**
  * A Role for Actors to take.
  */
-export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsExtensible {
+export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
   static metatype: NodeType = NodeType.ROLE;
 
   /**
@@ -1351,7 +1350,7 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -1683,9 +1682,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -1703,6 +1699,9 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1794,7 +1793,7 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
@@ -1836,11 +1835,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const definitionPtrValue = objectValue["6"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
@@ -1866,6 +1860,11 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["26"])) {
@@ -1888,7 +1887,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       type: Number(objectValue["100"]),
       icon: unpackedIcon,
       orderKey: objectValue["27"],
-      deletedAt: unpackedDeletedAt,
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       materialization: Number(objectValue["10"]),
@@ -1898,6 +1896,7 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       customValues: unpackedCustomValues,
@@ -2006,8 +2005,6 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       definition:
         objectProto.definitionPtr != undefined
           ? _NodeReference.fromProto(
@@ -2062,6 +2059,8 @@ export class Role extends Entity implements IsActor, IsOrdered, IsDeletable, IsE
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       customValues: unpackedCustomValues,

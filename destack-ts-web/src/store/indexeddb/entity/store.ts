@@ -94,7 +94,7 @@ export class IndexedDBEntityStore extends IndexedDBStoreBase implements EntitySt
       for (const edit of [...edits, ...cascadedEdits]) {
         if (edit.type === EditType.CREATE || edit.type === EditType.UPSERT) {
           this.entityCount++;
-        } else if (edit.type === EditType.ERASE) {
+        } else if (edit.type === EditType.DELETE) {
           this.entityCount--;
         }
       }

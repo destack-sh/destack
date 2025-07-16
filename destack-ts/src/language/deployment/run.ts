@@ -4715,6 +4715,11 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.deletedAt
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
    */
   /**

@@ -8,7 +8,6 @@ from destack.language.core import (
     EnumType,
     Event,
     IsActor,
-    IsDeletable,
     IsJoinable,
     NodeReference,
     NodeType,
@@ -62,7 +61,7 @@ class EntitlementType(Enum):
     NodeType.ENTITLEMENT,
     event_types=(NodeType.ENTITLEMENT_EVENT,),
 )
-class Entitlement(IsDeletable, Entity):
+class Entitlement(Entity):
     """A Entitlement to some Actor."""
 
     parent: Union["IsActor", "IsJoinable", None] = builtin_property_parent()

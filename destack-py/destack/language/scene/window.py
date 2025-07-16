@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
-    IsDeletable,
     IsOrdered,
     IsOwnable,
     NodeType,
@@ -30,7 +29,6 @@ class WindowType(Enum):
 class Window(
     IsOwnable,
     IsOrdered,
-    IsDeletable,
     Entity,
 ):
     """

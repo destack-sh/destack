@@ -1,7 +1,6 @@
 import {
   Entity,
   Event,
-  IsDeletable,
   IsExtensible,
   Node,
   NodeDefinitionReference,
@@ -19,8 +18,8 @@ export const NODE_ID_ID = Node.property("id").id;
 export const NODE_ID_KEY = String(Node.property("id").id);
 export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
 export const NODE_SPACE_PTR_ID = String(Node.property("space").id);
+export const NODE_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
 export const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
-export const NODE_DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
 
 export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
 export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);

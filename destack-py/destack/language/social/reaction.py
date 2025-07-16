@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IndexIn,
-    IsDeletable,
     IsOwned,
     IsReactable,
     NodeType,
@@ -23,7 +22,7 @@ if TYPE_CHECKING:
     NodeType.REACTION,
     index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
 )
-class Reaction(IsDeletable, IsOwned, Entity):
+class Reaction(IsOwned, Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
 
     parent: Union["IsReactable", None] = builtin_property_parent()

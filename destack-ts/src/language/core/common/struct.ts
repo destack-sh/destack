@@ -14,7 +14,6 @@ import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type {
   IsActor,
   IsCustomizable,
-  IsDeletable,
   IsSourceable,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
@@ -44,10 +43,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A CustomStruct describes a custom Struct with custom Properties.
  */
-export class CustomStruct
-  extends Entity
-  implements IsTaggable, IsDeletable, IsSourceable, IsCustomizable
-{
+export class CustomStruct extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
   static metatype: NodeType = NodeType.CUSTOM_STRUCT;
 
   /**
@@ -138,7 +134,7 @@ export class CustomStruct
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -477,9 +473,6 @@ export class CustomStruct
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -508,6 +501,9 @@ export class CustomStruct
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -586,7 +582,7 @@ export class CustomStruct
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
@@ -642,11 +638,6 @@ export class CustomStruct
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -691,11 +682,15 @@ export class CustomStruct
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new CustomStruct({
       baseType: unpackedBaseType,
       isFrozen: objectValue["42"],
       icon: unpackedIcon,
-      deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
       customValues: unpackedCustomValues,
@@ -707,6 +702,7 @@ export class CustomStruct
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
@@ -818,8 +814,6 @@ export class CustomStruct
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -885,6 +879,8 @@ export class CustomStruct
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,

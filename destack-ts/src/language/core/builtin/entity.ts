@@ -6,12 +6,7 @@ import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, hasTrait } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type {
-  IsActor,
-  IsDeletable,
-  IsExtensible,
-  IsOwnable,
-} from "@destack/language/core/builtin/trait";
+import type { IsActor, IsExtensible, IsOwnable } from "@destack/language/core/builtin/trait";
 import { INTER_ORDER_TYPES, IsOrdered } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
@@ -90,6 +85,11 @@ export abstract class Entity extends Node {
    */
   abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * Entity.deletedAt
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
    * Entity.name
@@ -338,7 +338,7 @@ registerNodeClass(NodeType.ENTITY, Entity);
  *  (but must be explicitly added to the CustomEntityDefinition to use them).
  * More specific base Entity types will be instanced of that base type instead.
  */
-export abstract class Record extends Entity implements IsExtensible, IsDeletable, IsOwnable {
+export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   static metatype: NodeType = NodeType.RECORD;
 
   /**
@@ -399,7 +399,7 @@ export abstract class Record extends Entity implements IsExtensible, IsDeletable
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -460,7 +460,7 @@ registerNodeClass(NodeType.RECORD, Record);
  * A Resource represents an external asset outside of Destack.
  * The lifecycle of a Resource may be managed by some Provisioner (Service).
  */
-export abstract class Resource extends Entity implements IsExtensible, IsDeletable {
+export abstract class Resource extends Entity implements IsExtensible {
   static metatype: NodeType = NodeType.RESOURCE;
 
   /**
@@ -521,7 +521,7 @@ export abstract class Resource extends Entity implements IsExtensible, IsDeletab
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -580,7 +580,7 @@ registerNodeClass(NodeType.RESOURCE, Resource);
  * A Snapshot is a point in Space time.
  * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
  */
-export class Snapshot extends Entity implements IsOwnable, IsDeletable {
+export class Snapshot extends Entity implements IsOwnable {
   static metatype: NodeType = NodeType.SNAPSHOT;
 
   /**
@@ -671,7 +671,7 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -919,9 +919,6 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
       h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
@@ -929,6 +926,9 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1007,7 +1007,7 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
@@ -1040,11 +1040,6 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1054,6 +1049,11 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Snapshot({
       parent: unpackedParentPtr,
@@ -1067,12 +1067,12 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
       precededBy: unpackedPrecededByPtr,
       status: Number(objectValue["110"]),
       ownedBy: unpackedOwnedByPtr,
-      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -1174,8 +1174,6 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
               _connection,
             )
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
       createdBy:
@@ -1199,6 +1197,8 @@ export class Snapshot extends Entity implements IsOwnable, IsDeletable {
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -1273,7 +1273,7 @@ registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
 /**
  * A Variant is an alternative version of an Entity.
  */
-export abstract class Variant extends Entity implements IsExtensible, IsOwnable, IsDeletable {
+export abstract class Variant extends Entity implements IsExtensible, IsOwnable {
   static metatype: NodeType = NodeType.VARIANT;
 
   /**
@@ -1334,7 +1334,7 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable,
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

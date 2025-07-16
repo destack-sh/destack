@@ -1,6 +1,5 @@
 import type {
   IsActor,
-  IsDeletable,
   IsExtensible,
   IsOrdered,
   IsTaggable,
@@ -23,10 +22,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Style defines a base visual appearance in some context.
  */
-export abstract class Style
-  extends Entity
-  implements IsOrdered, IsTaggable, IsDeletable, IsExtensible
-{
+export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsExtensible {
   static metatype: NodeType = NodeType.STYLE;
 
   /**
@@ -87,7 +83,7 @@ export abstract class Style
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

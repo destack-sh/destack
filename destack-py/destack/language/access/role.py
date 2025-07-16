@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IsActor,
-    IsDeletable,
     IsExtensible,
     IsJoinable,
     IsOrdered,
@@ -50,7 +49,6 @@ class RoleUnassignedEvent(RoleEvent):
 class Role(
     IsActor,
     IsOrdered,
-    IsDeletable,
     IsExtensible,
     Entity,
 ):

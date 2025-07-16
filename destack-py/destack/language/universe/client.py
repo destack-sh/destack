@@ -5,7 +5,6 @@ from destack.language.core import (
     ClientType,
     Entity,
     IsActor,
-    IsDeletable,
     NodeReference,
     NodeType,
     builtin_node,
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CLIENT)
 class Client(
-    IsDeletable,
     Entity,
 ):
     """A Client to connect with the system."""

@@ -8,7 +8,6 @@ from destack.language.core import (
     EnumType,
     Event,
     IsActor,
-    IsDeletable,
     IsJoinable,
     NodeReference,
     NodeType,
@@ -62,7 +61,7 @@ class SanctionType(Enum):
     NodeType.SANCTION,
     event_types=(NodeType.SANCTION_EVENT,),
 )
-class Sanction(IsDeletable, Entity):
+class Sanction(Entity):
     """A Sanction on some Actor."""
 
     parent: Union["IsActor", "IsJoinable", None] = builtin_property_parent()

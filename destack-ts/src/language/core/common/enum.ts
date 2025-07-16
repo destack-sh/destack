@@ -10,7 +10,6 @@ import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
   IsCustomizable,
-  IsDeletable,
   IsSourceable,
   IsTaggable,
 } from "@destack/language/core/builtin/trait";
@@ -31,10 +30,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A CustomEnum describes a custom Enum with custom Options.
  */
-export class CustomEnum
-  extends Entity
-  implements IsTaggable, IsDeletable, IsSourceable, IsCustomizable
-{
+export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
   static metatype: NodeType = NodeType.CUSTOM_ENUM;
 
   /**
@@ -125,7 +121,7 @@ export class CustomEnum
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -407,9 +403,6 @@ export class CustomEnum
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -438,6 +431,9 @@ export class CustomEnum
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -516,7 +512,7 @@ export class CustomEnum
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
@@ -553,11 +549,6 @@ export class CustomEnum
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
@@ -603,9 +594,13 @@ export class CustomEnum
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new CustomEnum({
       icon: unpackedIcon,
-      deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
       customValues: unpackedCustomValues,
@@ -617,6 +612,7 @@ export class CustomEnum
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
@@ -710,8 +706,6 @@ export class CustomEnum
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -777,6 +771,8 @@ export class CustomEnum
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,
@@ -820,7 +816,7 @@ registerNodeClass(NodeType.CUSTOM_ENUM, CustomEnum);
 /**
  * CustomOption
  */
-export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsSourceable {
+export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_OPTION;
 
   /**
@@ -911,7 +907,7 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -1163,9 +1159,6 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -1185,6 +1178,9 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -1263,7 +1259,7 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
     objectValue["50"] = object._name;
@@ -1298,11 +1294,6 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -1330,10 +1321,14 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new CustomOption({
       parent: unpackedParentPtr,
       icon: unpackedIcon,
-      deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
       materialization: Number(objectValue["10"]),
@@ -1343,6 +1338,7 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       orderKey: objectValue["27"],
@@ -1430,8 +1426,6 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -1486,6 +1480,8 @@ export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsS
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       orderKey: objectProto.orderKey,

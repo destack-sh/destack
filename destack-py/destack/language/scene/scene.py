@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from destack.language.core import (
     Entity,
     Event,
-    IsDeletable,
     IsOrdered,
     IsOwnable,
     IsTaggable,
@@ -35,7 +34,6 @@ class Scene(
     IsOwnable,
     IsOrdered,
     IsTaggable,
-    IsDeletable,
     Entity,
 ):
     """A Scene is a container for an interaction point."""

@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
-  IsDeletable,
   IsOrdered,
   IsOwnable,
   NodeClass,
@@ -53,7 +52,7 @@ registerEnumClass(EnumType.WINDOW_TYPE, WindowType);
 /**
  * A Window for someone to interact with Destack (in a Space).
  */
-export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable {
+export class Window extends Entity implements IsOwnable, IsOrdered {
   static metatype: NodeType = NodeType.WINDOW;
 
   /**
@@ -144,7 +143,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -389,9 +388,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -408,6 +404,9 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -489,7 +488,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
     if (object._ownedByPtr != null) {
@@ -512,11 +511,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -543,11 +537,15 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Window({
       type: Number(objectValue["100"]),
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["27"],
-      deletedAt: unpackedDeletedAt,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -556,6 +554,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -634,8 +633,6 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
             )
           : null,
       orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -689,6 +686,8 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsDeletable 
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

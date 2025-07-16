@@ -66,7 +66,7 @@ export interface ActionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -205,7 +205,7 @@ export interface AnnotationShapeProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -431,7 +431,7 @@ export interface ArrowShapeProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -715,7 +715,7 @@ export interface BorderStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -808,7 +808,7 @@ export interface BranchProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -1001,7 +1001,7 @@ export interface ClientProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -1243,7 +1243,7 @@ export interface ColorStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -1407,7 +1407,7 @@ export interface ContainerViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -1600,7 +1600,7 @@ export interface ContentViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -1878,6 +1878,10 @@ export interface CounterMetricProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: string order_key = 27
      */
     orderKey: string;
@@ -1949,6 +1953,10 @@ export interface CursorProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 28
      */
     ownedByPtr?: NodeReferenceProto;
@@ -2016,7 +2024,7 @@ export interface CustomEnumProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -2096,6 +2104,10 @@ export interface CustomEventProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
      */
@@ -2184,7 +2196,7 @@ export interface CustomOptionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -2259,7 +2271,7 @@ export interface CustomPropertyProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -2422,7 +2434,7 @@ export interface CustomStructProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -2584,7 +2596,7 @@ export interface DatabaseProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -3557,7 +3569,7 @@ export interface EffectStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -3694,7 +3706,7 @@ export interface EntitlementProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -4030,6 +4042,10 @@ export interface EntityProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: string name = 50
      */
     name: string;
@@ -4118,7 +4134,7 @@ export interface EnvironmentProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -4233,6 +4249,10 @@ export interface EventCursorProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 28
      */
     ownedByPtr?: NodeReferenceProto;
@@ -4341,7 +4361,7 @@ export interface FileProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -4531,7 +4551,7 @@ export interface FillStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -4839,7 +4859,7 @@ export interface FolderProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -4922,7 +4942,7 @@ export interface FollowProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -5185,7 +5205,7 @@ export interface FontStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -5302,7 +5322,7 @@ export interface FrameViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -5567,6 +5587,10 @@ export interface GaugeMetricProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: string order_key = 27
      */
     orderKey: string;
@@ -5688,7 +5712,7 @@ export interface GradientStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -5831,6 +5855,10 @@ export interface HandleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: string name = 50
      */
     name: string;
@@ -5961,6 +5989,10 @@ export interface HistogramMetricProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: string order_key = 27
      */
@@ -6143,7 +6175,7 @@ export interface InputViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -6297,7 +6329,7 @@ export interface InternalViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -6414,7 +6446,7 @@ export interface InviteProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -7251,7 +7283,7 @@ export interface LabelViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -7440,7 +7472,7 @@ export interface LayerProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -7577,7 +7609,7 @@ export interface LineShapeProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -7844,7 +7876,7 @@ export interface MachineProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -8032,7 +8064,7 @@ export interface MembershipProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -8307,7 +8339,7 @@ export interface MethodProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -8424,6 +8456,10 @@ export interface MetricProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: string order_key = 27
      */
@@ -8791,6 +8827,10 @@ export interface NotificationProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
      */
@@ -9220,7 +9260,7 @@ export interface NumberInputViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -9436,6 +9476,10 @@ export interface OrganizationProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: string name = 50
      */
     name: string;
@@ -9503,7 +9547,7 @@ export interface PaletteProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -9639,7 +9683,7 @@ export interface PermissionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -10903,7 +10947,7 @@ export interface ReactionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -11136,7 +11180,7 @@ export interface RecordProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -11218,7 +11262,7 @@ export interface ResourceProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -11299,7 +11343,7 @@ export interface RoleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -11549,7 +11593,7 @@ export interface RouteProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -11615,6 +11659,10 @@ export interface RunProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
      */
@@ -12204,7 +12252,7 @@ export interface SanctionProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -12540,7 +12588,7 @@ export interface SceneProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -12739,6 +12787,10 @@ export interface ScreenCursorProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 28
      */
     ownedByPtr?: NodeReferenceProto;
@@ -12810,7 +12862,7 @@ export interface ScriptProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -12901,7 +12953,7 @@ export interface ServiceProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -13039,7 +13091,7 @@ export interface ShadowStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -13148,7 +13200,7 @@ export interface ShapeProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -13511,7 +13563,7 @@ export interface SliderInputViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -13649,7 +13701,7 @@ export interface SnapshotProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -13736,6 +13788,10 @@ export interface SpaceProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 28
      */
@@ -13883,7 +13939,7 @@ export interface SplitViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -14072,7 +14128,7 @@ export interface StarProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -14427,7 +14483,7 @@ export interface StrokeStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -14635,7 +14691,7 @@ export interface StyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -14712,7 +14768,7 @@ export interface TagProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -14787,7 +14843,7 @@ export interface TaggingProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -14853,6 +14909,10 @@ export interface TeamProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: string name = 50
      */
@@ -14995,7 +15055,7 @@ export interface TextViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -15132,7 +15192,7 @@ export interface ThemeProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -15194,6 +15254,10 @@ export interface TimerProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: string order_key = 27
      */
@@ -15588,7 +15652,7 @@ export interface TransitionStyleProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -15700,6 +15764,10 @@ export interface TriggerProto {
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 23
      */
     updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
     /**
      * @generated from protobuf field: string order_key = 27
      */
@@ -16015,6 +16083,10 @@ export interface UserProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
+     */
+    deletedAt?: Timestamp;
+    /**
      * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 26
      */
     customValues: {
@@ -16133,7 +16205,7 @@ export interface VariantProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -16371,7 +16443,7 @@ export interface ViewProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -16636,7 +16708,7 @@ export interface WindowProto {
      */
     updatedByPtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 25
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 24
      */
     deletedAt?: Timestamp;
     /**
@@ -23212,10 +23284,6 @@ export enum TraitTypeProto {
      */
     TRAIT_TYPE_ORDERED = 100,
     /**
-     * @generated from protobuf enum value: TRAIT_TYPE_DELETABLE = 102;
-     */
-    TRAIT_TYPE_DELETABLE = 102,
-    /**
      * @generated from protobuf enum value: TRAIT_TYPE_CUSTOMIZABLE = 110;
      */
     TRAIT_TYPE_CUSTOMIZABLE = 110,
@@ -23538,7 +23606,7 @@ class ActionProto$Type extends MessageType<ActionProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -23600,7 +23668,7 @@ class ActionProto$Type extends MessageType<ActionProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -23688,9 +23756,9 @@ class ActionProto$Type extends MessageType<ActionProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -23892,7 +23960,7 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -23984,7 +24052,7 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -24156,9 +24224,9 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -24371,7 +24439,7 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -24468,7 +24536,7 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -24649,9 +24717,9 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -25015,7 +25083,7 @@ class BorderStyleProto$Type extends MessageType<BorderStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -25082,7 +25150,7 @@ class BorderStyleProto$Type extends MessageType<BorderStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -25176,9 +25244,9 @@ class BorderStyleProto$Type extends MessageType<BorderStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -25235,7 +25303,7 @@ class BranchProto$Type extends MessageType<BranchProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
@@ -25290,7 +25358,7 @@ class BranchProto$Type extends MessageType<BranchProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
@@ -25350,9 +25418,9 @@ class BranchProto$Type extends MessageType<BranchProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -25690,7 +25758,7 @@ class ClientProto$Type extends MessageType<ClientProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 44, name: "browser_version", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.ClientTypeProto", ClientTypeProto] },
@@ -25755,7 +25823,7 @@ class ClientProto$Type extends MessageType<ClientProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional string browser_version */ 44:
@@ -25842,9 +25910,9 @@ class ClientProto$Type extends MessageType<ClientProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional string browser_version = 44; */
         if (message.browserVersion !== undefined)
             writer.tag(44, WireType.LengthDelimited).string(message.browserVersion);
@@ -26251,7 +26319,7 @@ class ColorStyleProto$Type extends MessageType<ColorStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -26323,7 +26391,7 @@ class ColorStyleProto$Type extends MessageType<ColorStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -26432,9 +26500,9 @@ class ColorStyleProto$Type extends MessageType<ColorStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -26653,7 +26721,7 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -26743,7 +26811,7 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -26909,9 +26977,9 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -27041,7 +27109,7 @@ class ContentViewProto$Type extends MessageType<ContentViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -27115,7 +27183,7 @@ class ContentViewProto$Type extends MessageType<ContentViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -27233,9 +27301,9 @@ class ContentViewProto$Type extends MessageType<ContentViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -27693,6 +27761,7 @@ class CounterMetricProto$Type extends MessageType<CounterMetricProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -27748,6 +27817,9 @@ class CounterMetricProto$Type extends MessageType<CounterMetricProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
@@ -27809,6 +27881,9 @@ class CounterMetricProto$Type extends MessageType<CounterMetricProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -27849,6 +27924,7 @@ class CursorProto$Type extends MessageType<CursorProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "status", kind: "enum", T: () => ["symbol.destack.CursorStatusProto", CursorStatusProto] },
@@ -27903,6 +27979,9 @@ class CursorProto$Type extends MessageType<CursorProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -27961,6 +28040,9 @@ class CursorProto$Type extends MessageType<CursorProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -27998,7 +28080,7 @@ class CustomEnumProto$Type extends MessageType<CustomEnumProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -28057,7 +28139,7 @@ class CustomEnumProto$Type extends MessageType<CustomEnumProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -28139,9 +28221,9 @@ class CustomEnumProto$Type extends MessageType<CustomEnumProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -28189,6 +28271,7 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 40, name: "base_type", kind: "message", T: () => NodeDefinitionReferenceProto },
@@ -28251,6 +28334,9 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
                     this.binaryReadMap26(message.customValues, reader, options);
@@ -28340,6 +28426,9 @@ class CustomEventProto$Type extends MessageType<CustomEventProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -28396,7 +28485,7 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -28453,7 +28542,7 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -28516,9 +28605,9 @@ class CustomOptionProto$Type extends MessageType<CustomOptionProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -28559,7 +28648,7 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -28641,7 +28730,7 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -28770,9 +28859,9 @@ class CustomPropertyProto$Type extends MessageType<CustomPropertyProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -28879,7 +28968,7 @@ class CustomStructProto$Type extends MessageType<CustomStructProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 41, name: "base_type", kind: "message", T: () => StructDefinitionReferenceProto },
@@ -28941,7 +29030,7 @@ class CustomStructProto$Type extends MessageType<CustomStructProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -29029,9 +29118,9 @@ class CustomStructProto$Type extends MessageType<CustomStructProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -29255,7 +29344,7 @@ class DatabaseProto$Type extends MessageType<DatabaseProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatusProto", ResourceStatusProto] },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -29329,7 +29418,7 @@ class DatabaseProto$Type extends MessageType<DatabaseProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -29435,9 +29524,9 @@ class DatabaseProto$Type extends MessageType<DatabaseProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -31633,7 +31722,7 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -31711,7 +31800,7 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -31838,9 +31927,9 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -31930,7 +32019,7 @@ class EntitlementProto$Type extends MessageType<EntitlementProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EntitlementTypeProto", EntitlementTypeProto] },
             { no: 110, name: "expires_at", kind: "message", T: () => Timestamp },
@@ -31986,7 +32075,7 @@ class EntitlementProto$Type extends MessageType<EntitlementProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string name */ 50:
@@ -32046,9 +32135,9 @@ class EntitlementProto$Type extends MessageType<EntitlementProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -32716,6 +32805,7 @@ class EntityProto$Type extends MessageType<EntityProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -32767,6 +32857,9 @@ class EntityProto$Type extends MessageType<EntityProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
                 case /* string name */ 50:
                     message.name = reader.string();
                     break;
@@ -32815,6 +32908,9 @@ class EntityProto$Type extends MessageType<EntityProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -32936,7 +33032,7 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto }
         ]);
@@ -32989,7 +33085,7 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string name */ 50:
@@ -33043,9 +33139,9 @@ class EnvironmentProto$Type extends MessageType<EnvironmentProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -33196,6 +33292,7 @@ class EventCursorProto$Type extends MessageType<EventCursorProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "status", kind: "enum", T: () => ["symbol.destack.CursorStatusProto", CursorStatusProto] },
@@ -33251,6 +33348,9 @@ class EventCursorProto$Type extends MessageType<EventCursorProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -33312,6 +33412,9 @@ class EventCursorProto$Type extends MessageType<EventCursorProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -33443,7 +33546,7 @@ class FileProto$Type extends MessageType<FileProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatusProto", ResourceStatusProto] },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -33525,7 +33628,7 @@ class FileProto$Type extends MessageType<FileProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -33661,9 +33764,9 @@ class FileProto$Type extends MessageType<FileProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -33860,7 +33963,7 @@ class FillStyleProto$Type extends MessageType<FillStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -33929,7 +34032,7 @@ class FillStyleProto$Type extends MessageType<FillStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -34029,9 +34132,9 @@ class FillStyleProto$Type extends MessageType<FillStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -34601,7 +34704,7 @@ class FolderProto$Type extends MessageType<FolderProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -34661,7 +34764,7 @@ class FolderProto$Type extends MessageType<FolderProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -34730,9 +34833,9 @@ class FolderProto$Type extends MessageType<FolderProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -34779,7 +34882,7 @@ class FollowProto$Type extends MessageType<FollowProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -34832,7 +34935,7 @@ class FollowProto$Type extends MessageType<FollowProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
@@ -34886,9 +34989,9 @@ class FollowProto$Type extends MessageType<FollowProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -35396,7 +35499,7 @@ class FontStyleProto$Type extends MessageType<FontStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -35468,7 +35571,7 @@ class FontStyleProto$Type extends MessageType<FontStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -35577,9 +35680,9 @@ class FontStyleProto$Type extends MessageType<FontStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -35652,7 +35755,7 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -35742,7 +35845,7 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -35908,9 +36011,9 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -36234,6 +36337,7 @@ class GaugeMetricProto$Type extends MessageType<GaugeMetricProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -36289,6 +36393,9 @@ class GaugeMetricProto$Type extends MessageType<GaugeMetricProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
@@ -36350,6 +36457,9 @@ class GaugeMetricProto$Type extends MessageType<GaugeMetricProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -36537,7 +36647,7 @@ class GradientStyleProto$Type extends MessageType<GradientStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -36606,7 +36716,7 @@ class GradientStyleProto$Type extends MessageType<GradientStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -36703,9 +36813,9 @@ class GradientStyleProto$Type extends MessageType<GradientStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -36912,6 +37022,7 @@ class HandleProto$Type extends MessageType<HandleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -36965,6 +37076,9 @@ class HandleProto$Type extends MessageType<HandleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
                 case /* string name */ 50:
                     message.name = reader.string();
                     break;
@@ -37016,6 +37130,9 @@ class HandleProto$Type extends MessageType<HandleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -37244,6 +37361,7 @@ class HistogramMetricProto$Type extends MessageType<HistogramMetricProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -37299,6 +37417,9 @@ class HistogramMetricProto$Type extends MessageType<HistogramMetricProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
@@ -37360,6 +37481,9 @@ class HistogramMetricProto$Type extends MessageType<HistogramMetricProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -37667,7 +37791,7 @@ class InputViewProto$Type extends MessageType<InputViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -37740,7 +37864,7 @@ class InputViewProto$Type extends MessageType<InputViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -37855,9 +37979,9 @@ class InputViewProto$Type extends MessageType<InputViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -38018,7 +38142,7 @@ class InternalViewProto$Type extends MessageType<InternalViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -38089,7 +38213,7 @@ class InternalViewProto$Type extends MessageType<InternalViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -38198,9 +38322,9 @@ class InternalViewProto$Type extends MessageType<InternalViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -38273,7 +38397,7 @@ class InviteProto$Type extends MessageType<InviteProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -38337,7 +38461,7 @@ class InviteProto$Type extends MessageType<InviteProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -38428,9 +38552,9 @@ class InviteProto$Type extends MessageType<InviteProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -40196,7 +40320,7 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -40286,7 +40410,7 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -40452,9 +40576,9 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -40583,7 +40707,7 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -40647,7 +40771,7 @@ class LayerProto$Type extends MessageType<LayerProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -40728,9 +40852,9 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -40915,7 +41039,7 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -41008,7 +41132,7 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -41180,9 +41304,9 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -41481,7 +41605,7 @@ class MachineProto$Type extends MessageType<MachineProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatusProto", ResourceStatusProto] },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -41563,7 +41687,7 @@ class MachineProto$Type extends MessageType<MachineProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -41684,9 +41808,9 @@ class MachineProto$Type extends MessageType<MachineProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -41897,7 +42021,7 @@ class MembershipProto$Type extends MessageType<MembershipProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -41961,7 +42085,7 @@ class MembershipProto$Type extends MessageType<MembershipProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -42052,9 +42176,9 @@ class MembershipProto$Type extends MessageType<MembershipProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -42522,7 +42646,7 @@ class MethodProto$Type extends MessageType<MethodProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -42584,7 +42708,7 @@ class MethodProto$Type extends MessageType<MethodProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -42672,9 +42796,9 @@ class MethodProto$Type extends MessageType<MethodProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -42813,6 +42937,7 @@ class MetricProto$Type extends MessageType<MetricProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -42868,6 +42993,9 @@ class MetricProto$Type extends MessageType<MetricProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
@@ -42929,6 +43057,9 @@ class MetricProto$Type extends MessageType<MetricProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -43826,6 +43957,7 @@ class NotificationProto$Type extends MessageType<NotificationProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -43890,6 +44022,9 @@ class NotificationProto$Type extends MessageType<NotificationProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
                     this.binaryReadMap26(message.customValues, reader, options);
@@ -43979,6 +44114,9 @@ class NotificationProto$Type extends MessageType<NotificationProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -44836,7 +44974,7 @@ class NumberInputViewProto$Type extends MessageType<NumberInputViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -44911,7 +45049,7 @@ class NumberInputViewProto$Type extends MessageType<NumberInputViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -45032,9 +45170,9 @@ class NumberInputViewProto$Type extends MessageType<NumberInputViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -45370,6 +45508,7 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "status", kind: "enum", T: () => ["symbol.destack.OrganizationStatusProto", OrganizationStatusProto] },
@@ -45425,6 +45564,9 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
@@ -45483,6 +45625,9 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -45520,7 +45665,7 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto }
@@ -45575,7 +45720,7 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -45632,9 +45777,9 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -45838,7 +45983,7 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -45897,7 +46042,7 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -45963,9 +46108,9 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -48824,7 +48969,7 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "content", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
@@ -48879,7 +49024,7 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
@@ -48936,9 +49081,9 @@ class ReactionProto$Type extends MessageType<ReactionProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -49355,7 +49500,7 @@ class RecordProto$Type extends MessageType<RecordProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -49416,7 +49561,7 @@ class RecordProto$Type extends MessageType<RecordProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -49498,9 +49643,9 @@ class RecordProto$Type extends MessageType<RecordProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -49546,7 +49691,7 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 40, name: "status", kind: "enum", T: () => ["symbol.destack.ResourceStatusProto", ResourceStatusProto] },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -49608,7 +49753,7 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -49690,9 +49835,9 @@ class ResourceProto$Type extends MessageType<ResourceProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -49738,7 +49883,7 @@ class RoleProto$Type extends MessageType<RoleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -49803,7 +49948,7 @@ class RoleProto$Type extends MessageType<RoleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -49891,9 +50036,9 @@ class RoleProto$Type extends MessageType<RoleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -50322,7 +50467,7 @@ class RouteProto$Type extends MessageType<RouteProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
@@ -50377,7 +50522,7 @@ class RouteProto$Type extends MessageType<RouteProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -50434,9 +50579,9 @@ class RouteProto$Type extends MessageType<RouteProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -50471,6 +50616,7 @@ class RunProto$Type extends MessageType<RunProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "target_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -50532,6 +50678,9 @@ class RunProto$Type extends MessageType<RunProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
                     this.binaryReadMap26(message.customValues, reader, options);
@@ -50624,6 +50773,9 @@ class RunProto$Type extends MessageType<RunProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -51817,7 +51969,7 @@ class SanctionProto$Type extends MessageType<SanctionProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.SanctionTypeProto", SanctionTypeProto] },
             { no: 110, name: "expires_at", kind: "message", T: () => Timestamp },
@@ -51873,7 +52025,7 @@ class SanctionProto$Type extends MessageType<SanctionProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string name */ 50:
@@ -51933,9 +52085,9 @@ class SanctionProto$Type extends MessageType<SanctionProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -52603,7 +52755,7 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -52660,7 +52812,7 @@ class SceneProto$Type extends MessageType<SceneProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -52723,9 +52875,9 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -53136,6 +53288,7 @@ class ScreenCursorProto$Type extends MessageType<ScreenCursorProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 101, name: "status", kind: "enum", T: () => ["symbol.destack.CursorStatusProto", CursorStatusProto] },
@@ -53191,6 +53344,9 @@ class ScreenCursorProto$Type extends MessageType<ScreenCursorProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -53252,6 +53408,9 @@ class ScreenCursorProto$Type extends MessageType<ScreenCursorProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -53292,7 +53451,7 @@ class ScriptProto$Type extends MessageType<ScriptProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -53350,7 +53509,7 @@ class ScriptProto$Type extends MessageType<ScriptProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -53426,9 +53585,9 @@ class ScriptProto$Type extends MessageType<ScriptProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -53526,7 +53685,7 @@ class ServiceProto$Type extends MessageType<ServiceProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -53592,7 +53751,7 @@ class ServiceProto$Type extends MessageType<ServiceProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -53686,9 +53845,9 @@ class ServiceProto$Type extends MessageType<ServiceProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -53851,7 +54010,7 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -53922,7 +54081,7 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -54025,9 +54184,9 @@ class ShadowStyleProto$Type extends MessageType<ShadowStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -54094,7 +54253,7 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -54185,7 +54344,7 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -54354,9 +54513,9 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -54881,7 +55040,7 @@ class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -54958,7 +55117,7 @@ class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -55085,9 +55244,9 @@ class SliderInputViewProto$Type extends MessageType<SliderInputViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -55177,7 +55336,7 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 110, name: "status", kind: "enum", T: () => ["symbol.destack.SnapshotStatusProto", SnapshotStatusProto] }
@@ -55232,7 +55391,7 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
@@ -55289,9 +55448,9 @@ class SnapshotProto$Type extends MessageType<SnapshotProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -55395,6 +55554,7 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -55457,6 +55617,9 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
@@ -55533,6 +55696,9 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -55708,7 +55874,7 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -55798,7 +55964,7 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -55964,9 +56130,9 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -56095,7 +56261,7 @@ class StarProto$Type extends MessageType<StarProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -56148,7 +56314,7 @@ class StarProto$Type extends MessageType<StarProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* symbol.destack.NodeReferenceProto owned_by_ptr */ 28:
@@ -56202,9 +56368,9 @@ class StarProto$Type extends MessageType<StarProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.NodeReferenceProto owned_by_ptr = 28; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(28, WireType.LengthDelimited).fork(), options).join();
@@ -57011,7 +57177,7 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -57087,7 +57253,7 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -57193,9 +57359,9 @@ class StrokeStyleProto$Type extends MessageType<StrokeStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -57561,7 +57727,7 @@ class StyleProto$Type extends MessageType<StyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -57623,7 +57789,7 @@ class StyleProto$Type extends MessageType<StyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -57705,9 +57871,9 @@ class StyleProto$Type extends MessageType<StyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -57752,7 +57918,7 @@ class TagProto$Type extends MessageType<TagProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -57809,7 +57975,7 @@ class TagProto$Type extends MessageType<TagProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -57872,9 +58038,9 @@ class TagProto$Type extends MessageType<TagProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -57915,7 +58081,7 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 110, name: "tag_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -57970,7 +58136,7 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -58027,9 +58193,9 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -58064,6 +58230,7 @@ class TeamProto$Type extends MessageType<TeamProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -58117,6 +58284,9 @@ class TeamProto$Type extends MessageType<TeamProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
                 case /* string name */ 50:
                     message.name = reader.string();
                     break;
@@ -58168,6 +58338,9 @@ class TeamProto$Type extends MessageType<TeamProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
@@ -58401,7 +58574,7 @@ class TextViewProto$Type extends MessageType<TextViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -58478,7 +58651,7 @@ class TextViewProto$Type extends MessageType<TextViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -58605,9 +58778,9 @@ class TextViewProto$Type extends MessageType<TextViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -58697,7 +58870,7 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
@@ -58751,7 +58924,7 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -58805,9 +58978,9 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -58839,6 +59012,7 @@ class TimerProto$Type extends MessageType<TimerProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -58896,6 +59070,9 @@ class TimerProto$Type extends MessageType<TimerProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
@@ -58960,6 +59137,9 @@ class TimerProto$Type extends MessageType<TimerProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -59788,7 +59968,7 @@ class TransitionStyleProto$Type extends MessageType<TransitionStyleProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -59861,7 +60041,7 @@ class TransitionStyleProto$Type extends MessageType<TransitionStyleProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -59974,9 +60154,9 @@ class TransitionStyleProto$Type extends MessageType<TransitionStyleProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -60052,6 +60232,7 @@ class TriggerProto$Type extends MessageType<TriggerProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -60112,6 +60293,9 @@ class TriggerProto$Type extends MessageType<TriggerProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
                     message.orderKey = reader.string();
@@ -60201,6 +60385,9 @@ class TriggerProto$Type extends MessageType<TriggerProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);
@@ -60767,6 +60954,7 @@ class UserProto$Type extends MessageType<UserProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -60831,6 +61019,9 @@ class UserProto$Type extends MessageType<UserProto> {
                     break;
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
                     this.binaryReadMap26(message.customValues, reader, options);
@@ -60926,6 +61117,9 @@ class UserProto$Type extends MessageType<UserProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -61050,7 +61244,7 @@ class VariantProto$Type extends MessageType<VariantProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -61112,7 +61306,7 @@ class VariantProto$Type extends MessageType<VariantProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -61197,9 +61391,9 @@ class VariantProto$Type extends MessageType<VariantProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -61815,7 +62009,7 @@ class ViewProto$Type extends MessageType<ViewProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 26, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -61886,7 +62080,7 @@ class ViewProto$Type extends MessageType<ViewProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* map<string, symbol.destack.ValueProto> custom_values */ 26:
@@ -61995,9 +62189,9 @@ class ViewProto$Type extends MessageType<ViewProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* map<string, symbol.destack.ValueProto> custom_values = 26; */
         for (let k of globalThis.Object.keys(message.customValues)) {
             writer.tag(26, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
@@ -62418,7 +62612,7 @@ class WindowProto$Type extends MessageType<WindowProto> {
             { no: 21, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 22, name: "updated_at", kind: "message", T: () => Timestamp },
             { no: 23, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 25, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 28, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
@@ -62475,7 +62669,7 @@ class WindowProto$Type extends MessageType<WindowProto> {
                 case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 23:
                     message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
                     break;
-                case /* optional google.protobuf.Timestamp deleted_at */ 25:
+                case /* optional google.protobuf.Timestamp deleted_at */ 24:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
                 case /* string order_key */ 27:
@@ -62535,9 +62729,9 @@ class WindowProto$Type extends MessageType<WindowProto> {
         /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 23; */
         if (message.updatedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
-        /* optional google.protobuf.Timestamp deleted_at = 25; */
+        /* optional google.protobuf.Timestamp deleted_at = 24; */
         if (message.deletedAt)
-            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(24, WireType.LengthDelimited).fork(), options).join();
         /* string order_key = 27; */
         if (message.orderKey !== "")
             writer.tag(27, WireType.LengthDelimited).string(message.orderKey);

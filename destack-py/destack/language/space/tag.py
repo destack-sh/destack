@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     IsOrdered,
     IsScriptable,
     IsSourceable,
@@ -22,7 +21,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.TAG)
 class Tag(
     IsSourceable,
-    IsDeletable,
     Entity,
 ):
     """A Tag to tag something."""
@@ -35,7 +33,6 @@ class Tag(
 class Tagging(
     IsTaggable,
     IsOrdered,
-    IsDeletable,
     Entity,
 ):
     """A Tagging of a Node by a Tag."""

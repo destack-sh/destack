@@ -3,7 +3,6 @@ import type {
   Graph,
   Icon,
   IsActor,
-  IsDeletable,
   IsJoinable,
   IsSourceable,
   NodeClass,
@@ -54,7 +53,7 @@ registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
 /**
  * A Permission for something.
  */
-export class Permission extends Entity implements IsDeletable, IsSourceable {
+export class Permission extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.PERMISSION;
 
   /**
@@ -145,7 +144,7 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -423,9 +422,6 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -446,9 +442,12 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -524,7 +523,7 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
     objectValue["50"] = object._name;
@@ -560,11 +559,6 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -592,11 +586,15 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Permission({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
       icon: unpackedIcon,
-      deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
       materialization: Number(objectValue["10"]),
@@ -606,9 +604,10 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      id: String(objectValue["2"]),
       orderKey: objectValue["27"],
+      id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -695,8 +694,6 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -751,9 +748,11 @@ export class Permission extends Entity implements IsDeletable, IsSourceable {
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

@@ -3,7 +3,6 @@ import type {
   Graph,
   Icon,
   IsActor,
-  IsDeletable,
   IsOwnable,
   NodeClass,
   NodeReference,
@@ -32,7 +31,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Branch is a version of a Snapshot.
  */
-export class Branch extends Entity implements IsOwnable, IsDeletable {
+export class Branch extends Entity implements IsOwnable {
   static metatype: NodeType = NodeType.BRANCH;
 
   /**
@@ -123,7 +122,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -400,9 +399,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -416,6 +412,9 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -496,7 +495,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
@@ -540,11 +539,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -565,12 +559,16 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Branch({
       parent: unpackedParentPtr,
       icon: unpackedIcon,
       head: unpackedHeadPtr,
       ownedBy: unpackedOwnedByPtr,
-      deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -578,6 +576,7 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -683,8 +682,6 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
               _connection,
             )
           : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -728,6 +725,8 @@ export class Branch extends Entity implements IsOwnable, IsDeletable {
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

@@ -92,7 +92,7 @@ export abstract class Shape extends ContainerView {
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

@@ -3,7 +3,6 @@ import type {
   Graph,
   IsActor,
   IsCustomizable,
-  IsDeletable,
   IsOrdered,
   IsScriptable,
   NodeClass,
@@ -34,7 +33,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Script.
  */
-export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomizable {
+export class Script extends Entity implements IsOrdered, IsCustomizable {
   static metatype: NodeType = NodeType.SCRIPT;
 
   /**
@@ -125,7 +124,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -364,9 +363,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     }
     h = (h * 31 + hashString(this._code)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
@@ -386,6 +382,9 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -463,7 +462,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
@@ -491,11 +490,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["26"] != undefined) {
@@ -529,11 +523,15 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Script({
       parent: unpackedParentPtr,
       code: objectValue["110"],
       orderKey: objectValue["27"],
-      deletedAt: unpackedDeletedAt,
       customValues: unpackedCustomValues,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -542,6 +540,7 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -633,8 +632,6 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
           : null,
       code: objectProto.code,
       orderKey: objectProto.orderKey,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       customValues: unpackedCustomValues,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
@@ -679,6 +676,8 @@ export class Script extends Entity implements IsOrdered, IsDeletable, IsCustomiz
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

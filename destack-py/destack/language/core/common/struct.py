@@ -5,7 +5,6 @@ from destack.utils.uuid import UUID
 from ..builtin import (
     Entity,
     IsCustomizable,
-    IsDeletable,
     IsSourceable,
     IsTaggable,
     NodeType,
@@ -26,7 +25,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_STRUCT)
 class CustomStruct(
     IsTaggable,
-    IsDeletable,
     IsSourceable,
     IsCustomizable,
     Entity,

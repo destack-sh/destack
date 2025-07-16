@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     Event,
     IndexIn,
-    IsDeletable,
     IsOwned,
     NodeType,
     builtin_node,
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
     index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
 )
 class Follow(
-    IsDeletable,
     IsOwned,
     Entity,
 ):

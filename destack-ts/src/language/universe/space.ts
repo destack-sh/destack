@@ -145,6 +145,11 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * IsOwnable.ownedBy
    */
   get ownedBy(): (Entity & IsActor) | null {
@@ -357,6 +362,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
     slug: string;
@@ -428,6 +434,8 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -595,6 +603,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
 
@@ -661,6 +672,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object._ownedByPtr != null) {
       objectValue["28"] = object._ownedByPtr.toValue();
@@ -747,6 +761,11 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Space({
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       slug: objectValue["102"],
@@ -766,6 +785,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       _session,
@@ -809,6 +829,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
@@ -958,6 +981,8 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       _session,
