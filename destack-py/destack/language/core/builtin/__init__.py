@@ -80,7 +80,14 @@ from .entity import (
 )
 from .enum import Enum, builtin_enum
 from .event import CustomEvent, Event, EventStatus
-from .node import IndexIn, Node, builtin_node
+from .meta import (
+    ConstraintDeclaration,
+    ConstraintType,
+    IndexDeclaration,
+    IndexType,
+    PermissionDeclaration,
+)
+from .node import Node, builtin_node
 from .object import BuiltinObject, _is_finalized
 from .property import (
     PropertyDeclaration,
@@ -155,6 +162,8 @@ __all__ = [
     "ClientType",
     "Cloud",
     "ConstantDeclaration",
+    "ConstraintDeclaration",
+    "ConstraintType",
     "CustomEvent",
     "CustomEvent",
     "DestackError",
@@ -169,7 +178,8 @@ __all__ = [
     "EnvironmentType",
     "Event",
     "EventStatus",
-    "IndexIn",
+    "IndexDeclaration",
+    "IndexType",
     "IsActor",
     "IsActor",
     "IsCustomizable",
@@ -197,6 +207,7 @@ __all__ = [
     "ObjectDefinitionReference",
     "ObjectDefinitionType",
     "OperatingSystem",
+    "PermissionDeclaration",
     "PlatformType",
     "PrimitiveType",
     "PropertyDeclaration",

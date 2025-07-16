@@ -4,6 +4,7 @@ export * from "@destack/language/core/builtin/edit";
 export * from "@destack/language/core/builtin/entity";
 export * from "@destack/language/core/builtin/enum";
 export * from "@destack/language/core/builtin/event";
+export * from "@destack/language/core/builtin/meta";
 export * from "@destack/language/core/builtin/node";
 export * from "@destack/language/core/builtin/object";
 export * from "@destack/language/core/builtin/relation";

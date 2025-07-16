@@ -9,7 +9,7 @@ from more_itertools import first
 
 from destack.language import (
     CustomProperty,
-    IndexIn,
+    IndexDefinition,
     NodeDefinitionReference,
     NodeReference,
     NodeType,
@@ -459,14 +459,13 @@ class PostgresIndex(PostgresTableObject):
         return " ".join(parts)
 
     @staticmethod
-    def from_index_in(name: str, index_in: IndexIn) -> "PostgresIndex":
+    def from_index(index: IndexDefinition) -> "PostgresIndex":
         return PostgresIndex(
-            inner_name=name,
+            inner_name=index.name,
             type=PostgresIndexType.BTREE,
-            columns=index_in.columns,
-            cover=index_in.cover,
-            is_unique=index_in.is_unique,
-            condition=index_in.condition,
+            columns=tuple(p.resolve().name for p in index.properties),
+            cover=tuple(p.resolve().name for p in index.cover),
+            is_unique=False,
         )
 
 

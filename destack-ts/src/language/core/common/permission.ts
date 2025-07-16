@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
@@ -16,35 +16,15 @@ import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
 import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
-import {
-  MaterializationProto,
-  PermissionDefinitionProto,
-  PermissionProto,
-  PermissionTypeProto,
-} from "@destack/proto";
+import { MaterializationProto, PermissionDefinitionProto, PermissionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:ENUM:300300 ==== */
-/**
- * PermissionType
- */
-export enum PermissionType {
-  GENERAL = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
-/* ==== DESTACK_GENERATED_END:ENUM:300300 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:33000 ==== */
 /**
@@ -463,38 +443,6 @@ export class Permission extends Entity implements IsSourceable {
   }
   _key: string | null;
 
-  /**
-   * Permission.type
-   */
-  /**
-   * Permission.type
-   */
-  get type(): PermissionType {
-    return this._type;
-  }
-  set type(value: PermissionType) {
-    const prop = (this.constructor as NodeClass).__properties__["type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._type = value;
-  }
-  _type: PermissionType;
-
-  /**
-   * Permission.icon
-   */
-  /**
-   * Permission.icon
-   */
-  get icon(): Icon | null {
-    return this._icon;
-  }
-  set icon(value: Icon | null) {
-    const prop = (this.constructor as NodeClass).__properties__["icon"];
-    this._session.updateSetProperty(this, prop, value);
-    this._icon = value;
-  }
-  _icon: Icon | null;
-
   constructor(options: {
     id?: string;
     parent?: (Entity & IsJoinable) | Folder | NodeReference | null;
@@ -511,8 +459,6 @@ export class Permission extends Entity implements IsSourceable {
     name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    type: PermissionType;
-    icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -606,13 +552,6 @@ export class Permission extends Entity implements IsSourceable {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Permission.type is required`);
-    }
-    this._type = _type;
-    let _icon = options.icon ?? null;
-    this._icon = _icon;
 
     // identity
     if (options.id == null) {
@@ -648,15 +587,6 @@ export class Permission extends Entity implements IsSourceable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._type === other._type)) {
-      return false;
-    }
-    if (
-      (this._icon == null) !== (other._icon == null) ||
-      (this._icon != null && !this._icon.equals(other._icon))
-    ) {
-      return false;
-    }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
       return false;
     }
@@ -683,10 +613,6 @@ export class Permission extends Entity implements IsSourceable {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + this._type) & 0xffffffff;
-    if (this._icon != null) {
-      h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
@@ -756,7 +682,6 @@ export class Permission extends Entity implements IsSourceable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${PermissionType[this.type]}`);
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<Permission "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -799,10 +724,6 @@ export class Permission extends Entity implements IsSourceable {
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["100"] = object._type;
-    if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
-    }
     return objectValue;
   }
 
@@ -814,16 +735,10 @@ export class Permission extends Entity implements IsSourceable {
     _connection?: any | null,
   ): Permission {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
@@ -859,8 +774,6 @@ export class Permission extends Entity implements IsSourceable {
         : null;
     return new Permission({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
-      icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
       materialization: Number(objectValue["10"]),
@@ -928,10 +841,6 @@ export class Permission extends Entity implements IsSourceable {
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.type = Number(object._type) as PermissionTypeProto;
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
     return objectProto as PermissionProto;
   }
 
@@ -943,7 +852,6 @@ export class Permission extends Entity implements IsSourceable {
     _connection?: any | null,
   ): Permission {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Permission({
       parent:
         objectProto.parentPtr != undefined
@@ -954,11 +862,6 @@ export class Permission extends Entity implements IsSourceable {
               _graph,
               _connection,
             )
-          : null,
-      type: Number(objectProto.type) as PermissionType,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
       source:
         objectProto.sourcePtr != undefined

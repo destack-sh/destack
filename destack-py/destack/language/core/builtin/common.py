@@ -85,7 +85,6 @@ class EnumType(Enum):
 
     # access [300_000-400_000]
     ROLE_TYPE = 300_200
-    PERMISSION_TYPE = 300_300
     SANCTION_TYPE = 300_400
     ENTITLEMENT_TYPE = 300_500
 
@@ -484,6 +483,7 @@ class NodeType(Enum):
     SNAPSHOT = 10_300, "Snapshot", "Point in Space-time", "fas fa-save"
     SERVICE = 10_400, "Service", None, "fas fa-screwdriver-wrench"
     VARIANT = 10_500, "Variant", "Variant of a Scene", "fas fa-shapes"
+    # TRAIT?
     # LINK, ...
     # TIMELINE, TRACK, (KEY)FRAME, ...
     # custom
@@ -647,9 +647,9 @@ class NodeType(Enum):
     HISTOGRAM_METRIC = 1_200_200, "Histogram Metric", None, "fas fa-gauge"
     HISTOGRAM_MEASUREMENT_EVENT = 1_200_201, "Histogram Measurement", None, "fas fa-gauge"
     # INCIDENT, ESCALATION, ...
-    # VISIT/SESSION, RECORDING/REPLAY,
 
     # experience [1_300_000-1_400_000]
+    # VISIT/SESSION, RECORDING/REPLAY, ...
     # SURVEY, ...
     # ONBOARDING, TOUR, FUNNEL, COHORT, JOURNEY, ..
     # FEATURE, FEATURE_FLAG, FEATURE_GATE, ...

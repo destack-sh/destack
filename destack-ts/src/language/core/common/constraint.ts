@@ -1,14 +1,14 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
+import { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
-import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
 import type { IsActor, IsExtensible, IsTaggable } from "@destack/language/core/builtin/trait";
-import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import { BuiltinDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -16,7 +16,6 @@ import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
   STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
@@ -33,20 +32,6 @@ import {
 import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
-
-/* ==== DESTACK_GENERATED_START:ENUM:30200 ==== */
-/**
- * ConstraintType
- */
-export enum ConstraintType {
-  UNIQUE = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CONSTRAINT_TYPE, ConstraintType);
-/* ==== DESTACK_GENERATED_END:ENUM:30200 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:30200 ==== */
 /**
@@ -84,7 +69,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
   /**
    * ConstraintDefinition.properties
    */
-  readonly properties: readonly PropertyDefinition[];
+  readonly properties: readonly PropertyReference[];
 
   constructor(options: {
     id: number;
@@ -92,7 +77,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: readonly PropertyDefinition[];
+    properties?: readonly PropertyReference[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -260,15 +245,15 @@ export class ConstraintDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): ConstraintDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -343,15 +328,15 @@ export class ConstraintDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): ConstraintDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -536,15 +521,15 @@ export class Constraint extends Entity implements IsTaggable {
   /**
    * Constraint.properties
    */
-  get properties(): readonly PropertyDefinition[] {
+  get properties(): readonly PropertyReference[] {
     return this._properties;
   }
-  set properties(value: readonly PropertyDefinition[]) {
+  set properties(value: readonly PropertyReference[]) {
     const prop = (this.constructor as NodeClass).__properties__["properties"];
     this._session.updateSetProperty(this, prop, value);
     this._properties = value;
   }
-  _properties: readonly PropertyDefinition[];
+  _properties: readonly PropertyReference[];
 
   constructor(options: {
     id?: string;
@@ -560,7 +545,7 @@ export class Constraint extends Entity implements IsTaggable {
     deletedAt?: Temporal.ZonedDateTime | null;
     name?: string;
     type: ConstraintType;
-    properties?: readonly PropertyDefinition[];
+    properties?: readonly PropertyReference[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -838,9 +823,9 @@ export class Constraint extends Entity implements IsTaggable {
     _connection?: any | null,
   ): Constraint {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -850,7 +835,7 @@ export class Constraint extends Entity implements IsTaggable {
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -959,14 +944,14 @@ export class Constraint extends Entity implements IsTaggable {
     _connection?: any | null,
   ): Constraint {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1066,20 +1051,6 @@ export class Constraint extends Entity implements IsTaggable {
 registerNodeClass(NodeType.CONSTRAINT, Constraint);
 /* ==== DESTACK_GENERATED_END:NODE:30200 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:30100 ==== */
-/**
- * IndexType
- */
-export enum IndexType {
-  BTREE = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.INDEX_TYPE, IndexType);
-/* ==== DESTACK_GENERATED_END:ENUM:30100 ==== */
-
 /* ==== DESTACK_GENERATED_START:STRUCT:30100 ==== */
 /**
  * Definition of a builtin Index.
@@ -1116,7 +1087,7 @@ export class IndexDefinition extends BuiltinDefinition {
   /**
    * IndexDefinition.properties
    */
-  readonly properties: readonly PropertyDefinition[];
+  readonly properties: readonly PropertyReference[];
 
   constructor(options: {
     id: number;
@@ -1124,7 +1095,7 @@ export class IndexDefinition extends BuiltinDefinition {
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    properties?: readonly PropertyDefinition[];
+    properties?: readonly PropertyReference[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1292,15 +1263,15 @@ export class IndexDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): IndexDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1369,15 +1340,15 @@ export class IndexDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): IndexDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1556,15 +1527,15 @@ export class Index extends Entity implements IsTaggable {
   /**
    * Index.properties
    */
-  get properties(): readonly PropertyDefinition[] {
+  get properties(): readonly PropertyReference[] {
     return this._properties;
   }
-  set properties(value: readonly PropertyDefinition[]) {
+  set properties(value: readonly PropertyReference[]) {
     const prop = (this.constructor as NodeClass).__properties__["properties"];
     this._session.updateSetProperty(this, prop, value);
     this._properties = value;
   }
-  _properties: readonly PropertyDefinition[];
+  _properties: readonly PropertyReference[];
 
   constructor(options: {
     id?: string;
@@ -1580,7 +1551,7 @@ export class Index extends Entity implements IsTaggable {
     deletedAt?: Temporal.ZonedDateTime | null;
     name?: string;
     type: IndexType;
-    properties?: readonly PropertyDefinition[];
+    properties?: readonly PropertyReference[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1856,9 +1827,9 @@ export class Index extends Entity implements IsTaggable {
     _connection?: any | null,
   ): Index {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -1868,7 +1839,7 @@ export class Index extends Entity implements IsTaggable {
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1977,14 +1948,14 @@ export class Index extends Entity implements IsTaggable {
     _connection?: any | null,
   ): Index {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }

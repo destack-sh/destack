@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from typing import (
     TYPE_CHECKING,
     ClassVar,
@@ -27,9 +26,15 @@ from .property import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        ActionDefinition,
+        ConstraintDefinition,
         Entity,
+        IndexDefinition,
+        MethodDefinition,
         Node,
         NodeReference,
+        PermissionDeclaration,
+        PermissionDefinition,
         Script,
         Value,
     )
@@ -42,24 +47,12 @@ TRAIT_PREFIXES = ("Is",)
 # traits where all matching nodes are ordered together
 
 
-# nocheckin: remove IndexIn, use IndexDefinition
-@dataclass(slots=True, frozen=True)
-class IndexIn:
-    """Index to be turned into a SQL Index."""
-
-    columns: tuple[str, ...]
-    cover: tuple[str, ...] = ()
-    is_unique: bool = False
-    condition: str | None = None
-    name: str | None = None
-
-
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_trait(
     trait_type: TraitType | None,
-    pretend_frozen: bool = False,  # :PretendFrozen
     is_extensible: bool = False,
     event_types: tuple[NodeType, ...] = (),
+    permissions: tuple["PermissionDeclaration", ...] = (),
 ):
     """Register a class as a node trait."""
 
@@ -67,7 +60,7 @@ def builtin_trait(
         cls, _ = _process_object_cls(
             cls=cast(type["Trait"], cls),
             object_type=None,
-            is_frozen=pretend_frozen,
+            is_frozen=False,
             is_concrete=False,
             is_struct=False,
             is_node=True,
@@ -99,6 +92,14 @@ def builtin_trait(
 
         # event types
         cls.__base_event_types__ = tuple(event_types)
+
+        # meta
+        if permissions:
+            from ..common import PermissionDefinition
+
+            cls.__permissions__ = tuple(
+                PermissionDefinition.from_declaration(permission) for permission in permissions
+            )
 
         # register
         if trait_type is not None:
@@ -132,6 +133,17 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The event types of this trait (directly and indirectly)."""
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    """The indexes for this Node type."""
+    __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
+    """The constraints for this Node type."""
+    __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
+    """The permissions for this Node type."""
+    __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
+    """The methods for this Node type."""
+    __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
+    """The actions for this Node type."""
+    __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
 
 
 @builtin_trait(TraitType.ORDERED, is_extensible=True)

@@ -1414,9 +1414,9 @@ export interface ConstraintProto {
      */
     type: ConstraintTypeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
+     * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto properties = 105
      */
-    properties: PropertyDefinitionProto[];
+    properties: PropertyReferenceProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.ConstraintDefinitionProto
@@ -1447,9 +1447,9 @@ export interface ConstraintDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
+     * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto properties = 105
      */
-    properties: PropertyDefinitionProto[];
+    properties: PropertyReferenceProto[];
 }
 /**
  * A container View contains other Views.
@@ -6222,9 +6222,9 @@ export interface IndexProto {
      */
     type: IndexTypeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
+     * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto properties = 105
      */
-    properties: PropertyDefinitionProto[];
+    properties: PropertyReferenceProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.IndexDefinitionProto
@@ -6255,9 +6255,9 @@ export interface IndexDefinitionProto {
      */
     description?: string;
     /**
-     * @generated from protobuf field: repeated symbol.destack.PropertyDefinitionProto properties = 105
+     * @generated from protobuf field: repeated symbol.destack.PropertyReferenceProto properties = 105
      */
-    properties: PropertyDefinitionProto[];
+    properties: PropertyReferenceProto[];
 }
 /**
  * An InputEvent is an Event that corresponds to some direct user input.
@@ -9110,6 +9110,10 @@ export interface NodeDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.ConstraintDefinitionProto constraints = 161
      */
     constraints: ConstraintDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PermissionDefinitionProto permissions = 162
+     */
+    permissions: PermissionDefinitionProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.NodeDefinitionReferenceProto
@@ -10065,14 +10069,6 @@ export interface PermissionProto {
      * @generated from protobuf field: optional string key = 70
      */
     key?: string;
-    /**
-     * @generated from protobuf field: symbol.destack.PermissionTypeProto type = 100
-     */
-    type: PermissionTypeProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
-     */
-    icon?: IconProto;
 }
 /**
  * @generated from protobuf message symbol.destack.PermissionDefinitionProto
@@ -15873,6 +15869,18 @@ export interface TraitDefinitionProto {
      * @generated from protobuf field: repeated symbol.destack.NodeTypeProto base_event_types = 141
      */
     baseEventTypes: NodeTypeProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.IndexDefinitionProto indexes = 160
+     */
+    indexes: IndexDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.ConstraintDefinitionProto constraints = 161
+     */
+    constraints: ConstraintDefinitionProto[];
+    /**
+     * @generated from protobuf field: repeated symbol.destack.PermissionDefinitionProto permissions = 162
+     */
+    permissions: PermissionDefinitionProto[];
 }
 /**
  * @generated from protobuf message symbol.destack.TransitionProto
@@ -17098,6 +17106,12 @@ export interface SomeNodeProto {
          */
         constraint: ConstraintProto;
     } | {
+        oneofKind: "index";
+        /**
+         * @generated from protobuf field: symbol.destack.IndexProto index = 30100
+         */
+        index: IndexProto;
+    } | {
         oneofKind: "customEnum";
         /**
          * @generated from protobuf field: symbol.destack.CustomEnumProto custom_enum = 20200
@@ -17109,12 +17123,6 @@ export interface SomeNodeProto {
          * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 20400
          */
         customOption: CustomOptionProto;
-    } | {
-        oneofKind: "index";
-        /**
-         * @generated from protobuf field: symbol.destack.IndexProto index = 30100
-         */
-        index: IndexProto;
     } | {
         oneofKind: "migration";
         /**
@@ -17949,6 +17957,12 @@ export interface SomeEntityProto {
          */
         constraint: ConstraintProto;
     } | {
+        oneofKind: "index";
+        /**
+         * @generated from protobuf field: symbol.destack.IndexProto index = 30100
+         */
+        index: IndexProto;
+    } | {
         oneofKind: "customEnum";
         /**
          * @generated from protobuf field: symbol.destack.CustomEnumProto custom_enum = 20200
@@ -17960,12 +17974,6 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.CustomOptionProto custom_option = 20400
          */
         customOption: CustomOptionProto;
-    } | {
-        oneofKind: "index";
-        /**
-         * @generated from protobuf field: symbol.destack.IndexProto index = 30100
-         */
-        index: IndexProto;
     } | {
         oneofKind: "migration";
         /**
@@ -19885,10 +19893,6 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_ROLE_TYPE = 300200;
      */
     ENUM_TYPE_ROLE_TYPE = 300200,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_PERMISSION_TYPE = 300300;
-     */
-    ENUM_TYPE_PERMISSION_TYPE = 300300,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_SANCTION_TYPE = 300400;
      */
@@ -22298,21 +22302,6 @@ export enum OverflowProto {
      * @generated from protobuf enum value: OVERFLOW_SCROLL = 4;
      */
     OVERFLOW_SCROLL = 4
-}
-/**
- * A Type of Permission.
- *
- * @generated from protobuf enum symbol.destack.PermissionTypeProto
- */
-export enum PermissionTypeProto {
-    /**
-     * @generated from protobuf enum value: PERMISSION_TYPE_UNSPECIFIED = 0;
-     */
-    PERMISSION_TYPE_UNSPECIFIED = 0,
-    /**
-     * @generated from protobuf enum value: PERMISSION_TYPE_GENERAL = 1;
-     */
-    PERMISSION_TYPE_GENERAL = 1
 }
 /**
  * @generated from protobuf enum symbol.destack.PlatformTypeProto
@@ -27178,7 +27167,7 @@ class ConstraintProto$Type extends MessageType<ConstraintProto> {
             { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.ConstraintTypeProto", ConstraintTypeProto] },
-            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto }
         ]);
     }
     create(value?: PartialMessage<ConstraintProto>): ConstraintProto {
@@ -27240,8 +27229,8 @@ class ConstraintProto$Type extends MessageType<ConstraintProto> {
                 case /* symbol.destack.ConstraintTypeProto type */ 100:
                     message.type = reader.int32();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
-                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.PropertyReferenceProto properties */ 105:
+                    message.properties.push(PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27297,9 +27286,9 @@ class ConstraintProto$Type extends MessageType<ConstraintProto> {
         /* symbol.destack.ConstraintTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
+        /* repeated symbol.destack.PropertyReferenceProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -27320,7 +27309,7 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto }
         ]);
     }
     create(value?: PartialMessage<ConstraintDefinitionProto>): ConstraintDefinitionProto {
@@ -27357,8 +27346,8 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
                 case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
-                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.PropertyReferenceProto properties */ 105:
+                    message.properties.push(PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -27390,9 +27379,9 @@ class ConstraintDefinitionProto$Type extends MessageType<ConstraintDefinitionPro
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
+        /* repeated symbol.destack.PropertyReferenceProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -38336,7 +38325,7 @@ class IndexProto$Type extends MessageType<IndexProto> {
             { no: 24, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.IndexTypeProto", IndexTypeProto] },
-            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto }
         ]);
     }
     create(value?: PartialMessage<IndexProto>): IndexProto {
@@ -38398,8 +38387,8 @@ class IndexProto$Type extends MessageType<IndexProto> {
                 case /* symbol.destack.IndexTypeProto type */ 100:
                     message.type = reader.int32();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
-                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.PropertyReferenceProto properties */ 105:
+                    message.properties.push(PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -38455,9 +38444,9 @@ class IndexProto$Type extends MessageType<IndexProto> {
         /* symbol.destack.IndexTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
+        /* repeated symbol.destack.PropertyReferenceProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -38478,7 +38467,7 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
             { no: 101, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "description", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyDefinitionProto }
+            { no: 105, name: "properties", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PropertyReferenceProto }
         ]);
     }
     create(value?: PartialMessage<IndexDefinitionProto>): IndexDefinitionProto {
@@ -38515,8 +38504,8 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
                 case /* optional string description */ 103:
                     message.description = reader.string();
                     break;
-                case /* repeated symbol.destack.PropertyDefinitionProto properties */ 105:
-                    message.properties.push(PropertyDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.PropertyReferenceProto properties */ 105:
+                    message.properties.push(PropertyReferenceProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -38548,9 +38537,9 @@ class IndexDefinitionProto$Type extends MessageType<IndexDefinitionProto> {
         /* optional string description = 103; */
         if (message.description !== undefined)
             writer.tag(103, WireType.LengthDelimited).string(message.description);
-        /* repeated symbol.destack.PropertyDefinitionProto properties = 105; */
+        /* repeated symbol.destack.PropertyReferenceProto properties = 105; */
         for (let i = 0; i < message.properties.length; i++)
-            PropertyDefinitionProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
+            PropertyReferenceProto.internalBinaryWrite(message.properties[i], writer.tag(105, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -44878,7 +44867,8 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
             { no: 150, name: "primary_store_keys", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.StoreKeyProto", StoreKeyProto] },
             { no: 151, name: "store_domain", kind: "enum", opt: true, T: () => ["symbol.destack.StoreDomainProto", StoreDomainProto] },
             { no: 160, name: "indexes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => IndexDefinitionProto },
-            { no: 161, name: "constraints", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ConstraintDefinitionProto }
+            { no: 161, name: "constraints", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ConstraintDefinitionProto },
+            { no: 162, name: "permissions", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PermissionDefinitionProto }
         ]);
     }
     create(value?: PartialMessage<NodeDefinitionProto>): NodeDefinitionProto {
@@ -44905,6 +44895,7 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         message.primaryStoreKeys = [];
         message.indexes = [];
         message.constraints = [];
+        message.permissions = [];
         if (value !== undefined)
             reflectionMergePartial<NodeDefinitionProto>(this, message, value);
         return message;
@@ -45039,6 +45030,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
                     break;
                 case /* repeated symbol.destack.ConstraintDefinitionProto constraints */ 161:
                     message.constraints.push(ConstraintDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.PermissionDefinitionProto permissions */ 162:
+                    message.permissions.push(PermissionDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -45178,6 +45172,9 @@ class NodeDefinitionProto$Type extends MessageType<NodeDefinitionProto> {
         /* repeated symbol.destack.ConstraintDefinitionProto constraints = 161; */
         for (let i = 0; i < message.constraints.length; i++)
             ConstraintDefinitionProto.internalBinaryWrite(message.constraints[i], writer.tag(161, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.PermissionDefinitionProto permissions = 162; */
+        for (let i = 0; i < message.permissions.length; i++)
+            PermissionDefinitionProto.internalBinaryWrite(message.permissions[i], writer.tag(162, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -47311,9 +47308,7 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
             { no: 27, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 70, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.PermissionTypeProto", PermissionTypeProto] },
-            { no: 102, name: "icon", kind: "message", T: () => IconProto }
+            { no: 70, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<PermissionProto>): PermissionProto {
@@ -47323,7 +47318,6 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
         message.materialization = 0;
         message.orderKey = "";
         message.name = "";
-        message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<PermissionProto>(this, message, value);
         return message;
@@ -47380,12 +47374,6 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
                     break;
                 case /* optional string key */ 70:
                     message.key = reader.string();
-                    break;
-                case /* symbol.destack.PermissionTypeProto type */ 100:
-                    message.type = reader.int32();
-                    break;
-                case /* optional symbol.destack.IconProto icon */ 102:
-                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -47447,12 +47435,6 @@ class PermissionProto$Type extends MessageType<PermissionProto> {
         /* optional string key = 70; */
         if (message.key !== undefined)
             writer.tag(70, WireType.LengthDelimited).string(message.key);
-        /* symbol.destack.PermissionTypeProto type = 100; */
-        if (message.type !== 0)
-            writer.tag(100, WireType.Varint).int32(message.type);
-        /* optional symbol.destack.IconProto icon = 102; */
-        if (message.icon)
-            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -60890,7 +60872,10 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
             { no: 120, name: "traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 121, name: "base_traits", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.TraitTypeProto", TraitTypeProto] },
             { no: 140, name: "event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
-            { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] }
+            { no: 141, name: "base_event_types", kind: "enum", repeat: 1 /*RepeatType.PACKED*/, T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 160, name: "indexes", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => IndexDefinitionProto },
+            { no: 161, name: "constraints", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ConstraintDefinitionProto },
+            { no: 162, name: "permissions", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => PermissionDefinitionProto }
         ]);
     }
     create(value?: PartialMessage<TraitDefinitionProto>): TraitDefinitionProto {
@@ -60906,6 +60891,9 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
         message.baseTraits = [];
         message.eventTypes = [];
         message.baseEventTypes = [];
+        message.indexes = [];
+        message.constraints = [];
+        message.permissions = [];
         if (value !== undefined)
             reflectionMergePartial<TraitDefinitionProto>(this, message, value);
         return message;
@@ -60969,6 +60957,15 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                             message.baseEventTypes.push(reader.int32());
                     else
                         message.baseEventTypes.push(reader.int32());
+                    break;
+                case /* repeated symbol.destack.IndexDefinitionProto indexes */ 160:
+                    message.indexes.push(IndexDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.ConstraintDefinitionProto constraints */ 161:
+                    message.constraints.push(ConstraintDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* repeated symbol.destack.PermissionDefinitionProto permissions */ 162:
+                    message.permissions.push(PermissionDefinitionProto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -61037,6 +61034,15 @@ class TraitDefinitionProto$Type extends MessageType<TraitDefinitionProto> {
                 writer.int32(message.baseEventTypes[i]);
             writer.join();
         }
+        /* repeated symbol.destack.IndexDefinitionProto indexes = 160; */
+        for (let i = 0; i < message.indexes.length; i++)
+            IndexDefinitionProto.internalBinaryWrite(message.indexes[i], writer.tag(160, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.ConstraintDefinitionProto constraints = 161; */
+        for (let i = 0; i < message.constraints.length; i++)
+            ConstraintDefinitionProto.internalBinaryWrite(message.constraints[i], writer.tag(161, WireType.LengthDelimited).fork(), options).join();
+        /* repeated symbol.destack.PermissionDefinitionProto permissions = 162; */
+        for (let i = 0; i < message.permissions.length; i++)
+            PermissionDefinitionProto.internalBinaryWrite(message.permissions[i], writer.tag(162, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -63986,9 +63992,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 32000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
             { no: 32100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 30200, name: "constraint", kind: "message", oneof: "node", T: () => ConstraintProto },
+            { no: 30100, name: "index", kind: "message", oneof: "node", T: () => IndexProto },
             { no: 20200, name: "custom_enum", kind: "message", oneof: "node", T: () => CustomEnumProto },
             { no: 20400, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
-            { no: 30100, name: "index", kind: "message", oneof: "node", T: () => IndexProto },
             { no: 31000, name: "migration", kind: "message", oneof: "node", T: () => MigrationProto },
             { no: 31100, name: "migration_operation", kind: "message", oneof: "node", T: () => MigrationOperationProto },
             { no: 33000, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
@@ -64171,6 +64177,12 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         constraint: ConstraintProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).constraint)
                     };
                     break;
+                case /* symbol.destack.IndexProto index */ 30100:
+                    message.node = {
+                        oneofKind: "index",
+                        index: IndexProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).index)
+                    };
+                    break;
                 case /* symbol.destack.CustomEnumProto custom_enum */ 20200:
                     message.node = {
                         oneofKind: "customEnum",
@@ -64181,12 +64193,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "customOption",
                         customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
-                    };
-                    break;
-                case /* symbol.destack.IndexProto index */ 30100:
-                    message.node = {
-                        oneofKind: "index",
-                        index: IndexProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).index)
                     };
                     break;
                 case /* symbol.destack.MigrationProto migration */ 31000:
@@ -65435,9 +65441,9 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 32000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
             { no: 32100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
             { no: 30200, name: "constraint", kind: "message", oneof: "node", T: () => ConstraintProto },
+            { no: 30100, name: "index", kind: "message", oneof: "node", T: () => IndexProto },
             { no: 20200, name: "custom_enum", kind: "message", oneof: "node", T: () => CustomEnumProto },
             { no: 20400, name: "custom_option", kind: "message", oneof: "node", T: () => CustomOptionProto },
-            { no: 30100, name: "index", kind: "message", oneof: "node", T: () => IndexProto },
             { no: 31000, name: "migration", kind: "message", oneof: "node", T: () => MigrationProto },
             { no: 31100, name: "migration_operation", kind: "message", oneof: "node", T: () => MigrationOperationProto },
             { no: 33000, name: "permission", kind: "message", oneof: "node", T: () => PermissionProto },
@@ -65543,6 +65549,12 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         constraint: ConstraintProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).constraint)
                     };
                     break;
+                case /* symbol.destack.IndexProto index */ 30100:
+                    message.node = {
+                        oneofKind: "index",
+                        index: IndexProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).index)
+                    };
+                    break;
                 case /* symbol.destack.CustomEnumProto custom_enum */ 20200:
                     message.node = {
                         oneofKind: "customEnum",
@@ -65553,12 +65565,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "customOption",
                         customOption: CustomOptionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).customOption)
-                    };
-                    break;
-                case /* symbol.destack.IndexProto index */ 30100:
-                    message.node = {
-                        oneofKind: "index",
-                        index: IndexProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).index)
                     };
                     break;
                 case /* symbol.destack.MigrationProto migration */ 31000:
@@ -66919,6 +66925,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | CustomEnumProto | CustomOptionProto | IndexProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
-    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | ConstraintDefinitionProto | IconProto | IndexDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
+    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | ConstraintDefinitionProto | IndexDefinitionProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
         

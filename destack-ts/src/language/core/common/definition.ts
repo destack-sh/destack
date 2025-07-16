@@ -25,6 +25,7 @@ import type {
   IndexDefinition,
 } from "@destack/language/core/common/constraint";
 import type { Icon } from "@destack/language/core/common/icon";
+import type { PermissionDefinition } from "@destack/language/core/common/permission";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type {
   CollectionConstraint,
@@ -235,6 +236,11 @@ export class NodeDefinition extends BuiltinDefinition {
    */
   readonly constraints: readonly ConstraintDefinition[];
 
+  /**
+   * NodeDefinition.permissions
+   */
+  readonly permissions: readonly PermissionDefinition[];
+
   constructor(options: {
     id: number;
     type: NodeType;
@@ -261,6 +267,7 @@ export class NodeDefinition extends BuiltinDefinition {
     storeDomain?: StoreDomain | null;
     indexes?: readonly IndexDefinition[];
     constraints?: readonly ConstraintDefinition[];
+    permissions?: readonly PermissionDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -389,6 +396,11 @@ export class NodeDefinition extends BuiltinDefinition {
       _constraints = [];
     }
     this.constraints = _constraints;
+    let _permissions = options.permissions ?? null;
+    if (_permissions === null) {
+      _permissions = [];
+    }
+    this.permissions = _permissions;
 
     // identity
     // @ts-expect-error(readonly)
@@ -543,6 +555,14 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
+    if (this.permissions.length != other.permissions.length) {
+      return false;
+    }
+    for (let i = 0; i < this.permissions.length; i++) {
+      if (!this.permissions[i].equals(other.permissions[i])) {
+        return false;
+      }
+    }
     if (!(this.id === other.id)) {
       return false;
     }
@@ -668,6 +688,11 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (this.constraints && this.constraints.length > 0) {
       for (const _item of this.constraints) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.permissions && this.permissions.length > 0) {
+      for (const _item of this.permissions) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
@@ -823,6 +848,13 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectValue["161"] = packedConstraints;
     }
+    if (object.permissions.length > 0) {
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.toValue());
+      }
+      objectValue["162"] = packedPermissions;
+    }
     return objectValue;
   }
 
@@ -842,6 +874,9 @@ export class NodeDefinition extends BuiltinDefinition {
     const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.CONSTRAINT_DEFINITION
     ] as typeof ConstraintDefinition;
+    const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PERMISSION_DEFINITION
+    ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
@@ -943,6 +978,14 @@ export class NodeDefinition extends BuiltinDefinition {
         );
       }
     }
+    const unpackedPermissions: any[] = [];
+    if (objectValue["162"] != undefined) {
+      for (const item of objectValue["162"]) {
+        unpackedPermissions.push(
+          _PermissionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -972,6 +1015,7 @@ export class NodeDefinition extends BuiltinDefinition {
       storeDomain: unpackedStoreDomain,
       indexes: unpackedIndexes,
       constraints: unpackedConstraints,
+      permissions: unpackedPermissions,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1124,6 +1168,13 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectProto.constraints = packedConstraints;
     }
+    if (object.permissions) {
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.toProto());
+      }
+      objectProto.permissions = packedPermissions;
+    }
     return objectProto as NodeDefinitionProto;
   }
 
@@ -1143,6 +1194,9 @@ export class NodeDefinition extends BuiltinDefinition {
     const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.CONSTRAINT_DEFINITION
     ] as typeof ConstraintDefinition;
+    const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PERMISSION_DEFINITION
+    ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
@@ -1240,6 +1294,14 @@ export class NodeDefinition extends BuiltinDefinition {
         );
       }
     }
+    const unpackedPermissions: any[] = [];
+    if (objectProto.permissions) {
+      for (const item of objectProto.permissions) {
+        unpackedPermissions.push(
+          _PermissionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new NodeDefinition({
       type: Number(objectProto.type) as NodeType,
       properties: unpackedProperties,
@@ -1266,6 +1328,7 @@ export class NodeDefinition extends BuiltinDefinition {
           : null,
       indexes: unpackedIndexes,
       constraints: unpackedConstraints,
+      permissions: unpackedPermissions,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1388,6 +1451,21 @@ export class TraitDefinition extends BuiltinDefinition {
    */
   readonly baseEventTypes: readonly NodeType[];
 
+  /**
+   * TraitDefinition.indexes
+   */
+  readonly indexes: readonly IndexDefinition[];
+
+  /**
+   * TraitDefinition.constraints
+   */
+  readonly constraints: readonly ConstraintDefinition[];
+
+  /**
+   * TraitDefinition.permissions
+   */
+  readonly permissions: readonly PermissionDefinition[];
+
   constructor(options: {
     id: number;
     type: TraitType;
@@ -1401,6 +1479,9 @@ export class TraitDefinition extends BuiltinDefinition {
     baseTraits?: readonly TraitType[];
     eventTypes?: readonly NodeType[];
     baseEventTypes?: readonly NodeType[];
+    indexes?: readonly IndexDefinition[];
+    constraints?: readonly ConstraintDefinition[];
+    permissions?: readonly PermissionDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1470,6 +1551,21 @@ export class TraitDefinition extends BuiltinDefinition {
       _baseEventTypes = [];
     }
     this.baseEventTypes = _baseEventTypes;
+    let _indexes = options.indexes ?? null;
+    if (_indexes === null) {
+      _indexes = [];
+    }
+    this.indexes = _indexes;
+    let _constraints = options.constraints ?? null;
+    if (_constraints === null) {
+      _constraints = [];
+    }
+    this.constraints = _constraints;
+    let _permissions = options.permissions ?? null;
+    if (_permissions === null) {
+      _permissions = [];
+    }
+    this.permissions = _permissions;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1532,6 +1628,30 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.baseEventTypes.length; i++) {
       if (!(this.baseEventTypes[i] === other.baseEventTypes[i])) {
+        return false;
+      }
+    }
+    if (this.indexes.length != other.indexes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.indexes.length; i++) {
+      if (!this.indexes[i].equals(other.indexes[i])) {
+        return false;
+      }
+    }
+    if (this.constraints.length != other.constraints.length) {
+      return false;
+    }
+    for (let i = 0; i < this.constraints.length; i++) {
+      if (!this.constraints[i].equals(other.constraints[i])) {
+        return false;
+      }
+    }
+    if (this.permissions.length != other.permissions.length) {
+      return false;
+    }
+    for (let i = 0; i < this.permissions.length; i++) {
+      if (!this.permissions[i].equals(other.permissions[i])) {
         return false;
       }
     }
@@ -1603,6 +1723,21 @@ export class TraitDefinition extends BuiltinDefinition {
     if (this.baseEventTypes && this.baseEventTypes.length > 0) {
       for (const _item of this.baseEventTypes) {
         h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.indexes && this.indexes.length > 0) {
+      for (const _item of this.indexes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.constraints && this.constraints.length > 0) {
+      for (const _item of this.constraints) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.permissions && this.permissions.length > 0) {
+      for (const _item of this.permissions) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
@@ -1680,6 +1815,27 @@ export class TraitDefinition extends BuiltinDefinition {
       }
       objectValue["141"] = packedBaseEventTypes;
     }
+    if (object.indexes.length > 0) {
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.toValue());
+      }
+      objectValue["160"] = packedIndexes;
+    }
+    if (object.constraints.length > 0) {
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.toValue());
+      }
+      objectValue["161"] = packedConstraints;
+    }
+    if (object.permissions.length > 0) {
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.toValue());
+      }
+      objectValue["162"] = packedPermissions;
+    }
     return objectValue;
   }
 
@@ -1693,6 +1849,15 @@ export class TraitDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.INDEX_DEFINITION
+    ] as typeof IndexDefinition;
+    const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTRAINT_DEFINITION
+    ] as typeof ConstraintDefinition;
+    const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PERMISSION_DEFINITION
+    ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
@@ -1726,6 +1891,30 @@ export class TraitDefinition extends BuiltinDefinition {
         unpackedBaseEventTypes.push(Number(item));
       }
     }
+    const unpackedIndexes: any[] = [];
+    if (objectValue["160"] != undefined) {
+      for (const item of objectValue["160"]) {
+        unpackedIndexes.push(
+          _IndexDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstraints: any[] = [];
+    if (objectValue["161"] != undefined) {
+      for (const item of objectValue["161"]) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedPermissions: any[] = [];
+    if (objectValue["162"] != undefined) {
+      for (const item of objectValue["162"]) {
+        unpackedPermissions.push(
+          _PermissionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -1742,6 +1931,9 @@ export class TraitDefinition extends BuiltinDefinition {
       baseTraits: unpackedBaseTraits,
       eventTypes: unpackedEventTypes,
       baseEventTypes: unpackedBaseEventTypes,
+      indexes: unpackedIndexes,
+      constraints: unpackedConstraints,
+      permissions: unpackedPermissions,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1817,6 +2009,27 @@ export class TraitDefinition extends BuiltinDefinition {
       }
       objectProto.baseEventTypes = packedBaseEventTypes;
     }
+    if (object.indexes) {
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.toProto());
+      }
+      objectProto.indexes = packedIndexes;
+    }
+    if (object.constraints) {
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.toProto());
+      }
+      objectProto.constraints = packedConstraints;
+    }
+    if (object.permissions) {
+      const packedPermissions: any[] = [];
+      for (const item of object.permissions) {
+        packedPermissions.push(item.toProto());
+      }
+      objectProto.permissions = packedPermissions;
+    }
     return objectProto as TraitDefinitionProto;
   }
 
@@ -1830,6 +2043,15 @@ export class TraitDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
+    const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.INDEX_DEFINITION
+    ] as typeof IndexDefinition;
+    const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTRAINT_DEFINITION
+    ] as typeof ConstraintDefinition;
+    const _PermissionDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PERMISSION_DEFINITION
+    ] as typeof PermissionDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
@@ -1863,6 +2085,30 @@ export class TraitDefinition extends BuiltinDefinition {
         unpackedBaseEventTypes.push(Number(item) as NodeType);
       }
     }
+    const unpackedIndexes: any[] = [];
+    if (objectProto.indexes) {
+      for (const item of objectProto.indexes) {
+        unpackedIndexes.push(
+          _IndexDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstraints: any[] = [];
+    if (objectProto.constraints) {
+      for (const item of objectProto.constraints) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedPermissions: any[] = [];
+    if (objectProto.permissions) {
+      for (const item of objectProto.permissions) {
+        unpackedPermissions.push(
+          _PermissionDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new TraitDefinition({
       type: Number(objectProto.type) as TraitType,
       properties: unpackedProperties,
@@ -1872,6 +2118,9 @@ export class TraitDefinition extends BuiltinDefinition {
       baseTraits: unpackedBaseTraits,
       eventTypes: unpackedEventTypes,
       baseEventTypes: unpackedBaseEventTypes,
+      indexes: unpackedIndexes,
+      constraints: unpackedConstraints,
+      permissions: unpackedPermissions,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:

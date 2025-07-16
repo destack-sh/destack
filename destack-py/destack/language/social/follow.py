@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    ConstraintDeclaration,
+    ConstraintType,
     Entity,
     Event,
-    IndexIn,
     IsOwned,
     NodeType,
     builtin_node,
@@ -19,7 +20,13 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.FOLLOW,
-    index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
+    constraints=(
+        ConstraintDeclaration(
+            id=1,
+            type=ConstraintType.UNIQUE,
+            properties=("parent", "owned_by"),
+        ),
+    ),
 )
 class Follow(
     IsOwned,
@@ -28,14 +35,6 @@ class Follow(
     """A Follow is a relationship between a Actor and an IsFollowable Node."""
 
     parent: Union["IsFollowable", None] = builtin_property_parent()
-
-    # nocheckin
-
-    # methods, actions, ...
-
-    # class Meta:
-    # pass  # indexes, constraints, permissions, ...
-    # __meta__
 
 
 @builtin_node(NodeType.FOLLOW_EVENT, frozen=True)

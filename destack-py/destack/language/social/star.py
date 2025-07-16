@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    ConstraintDeclaration,
+    ConstraintType,
     Entity,
     Event,
-    IndexIn,
     IsOwned,
     NodeType,
     builtin_node,
@@ -19,7 +20,13 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.STAR,
-    index=(IndexIn(columns=("parent_id", "owned_by_id"), is_unique=True),),
+    constraints=(
+        ConstraintDeclaration(
+            id=1,
+            type=ConstraintType.UNIQUE,
+            properties=("parent", "owned_by"),
+        ),
+    ),
 )
 class Star(
     IsOwned,

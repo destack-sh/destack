@@ -278,18 +278,17 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
         description="custom Property of a custom Node or Struct",
     )
 
-    def resolve(self) -> "PropertyDefinition | CustomProperty | None":
+    def resolve_maybe(self) -> "PropertyDefinition | CustomProperty | None":
         """Resolves the property reference to a Property."""
         if self.type == PropertyReferenceType.BUILTIN:
             if (node_type := self.node_type) is not None:
-                object_cls = NODE_CLASS_BY_TYPE.get(node_type)
+                object_cls = NODE_CLASS_BY_TYPE[node_type]
             elif (struct_type := self.struct_type) is not None:
-                object_cls = STRUCT_CLASS_BY_TYPE.get(struct_type)
+                object_cls = STRUCT_CLASS_BY_TYPE[struct_type]
             elif (trait_type := self.trait_type) is not None:
-                object_cls = TRAIT_CLASS_BY_TYPE.get(trait_type)
+                object_cls = TRAIT_CLASS_BY_TYPE[trait_type]
             else:
-                object_cls = None
-            object_cls = object_cls or Node
+                object_cls = Node
             assert self.id is not None, f"no id for {self!r}"
             prop = object_cls.__properties_by_id__.get(self.id)
             return prop.definition if prop is not None else None
@@ -299,9 +298,9 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
         else:
             return None
 
-    def resolve_or_error(self) -> "PropertyDefinition | CustomProperty":
+    def resolve(self) -> "PropertyDefinition | CustomProperty":
         """Resolves the property reference to a Property."""
-        resolved = self.resolve()
+        resolved = self.resolve_maybe()
         if resolved is None:
             raise ValueError(f"could not resolve {self!r}")
         return resolved

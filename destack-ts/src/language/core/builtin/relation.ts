@@ -732,7 +732,7 @@ export class PropertyReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Resolve the property reference to a PropertyDefinition or CustomProperty. */
-  resolve(): PropertyDefinition | CustomProperty | null {
+  resolveMaybe(): PropertyDefinition | CustomProperty | null {
     if (this.type == PropertyReferenceType.BUILTIN) {
       if (this.id == null) {
         throw new Error(`no id for builtin property reference ${this.repr()}`);
@@ -757,8 +757,8 @@ export class PropertyReference extends StructFrozen {
   }
 
   /** Resolve the property reference to a PropertyDefinition or CustomProperty. */
-  resolveOrError(): PropertyDefinition | CustomProperty {
-    const resolved = this.resolve();
+  resolve(): PropertyDefinition | CustomProperty {
+    const resolved = this.resolveMaybe();
     if (resolved == null) {
       throw new Error(`could not resolve property reference ${this.repr()}`);
     }
