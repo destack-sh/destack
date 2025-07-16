@@ -50,7 +50,7 @@ import { assertNever } from "@destack/utils/functools";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { uuid4 } from "@destack/utils/uuid";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:501 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:201 ==== */
 /**
  * Function
  */
@@ -181,7 +181,7 @@ export class Function extends StructFrozen {
 
   static __packValue__(object: Function): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 501;
+    objectValue["1"] = 201;
     objectValue["100"] = object.type;
     objectValue["101"] = object.left.toValue();
     if (object.right != null) {
@@ -231,7 +231,7 @@ export class Function extends StructFrozen {
   }
 
   static __packProto__(object: Function): FunctionProto {
-    const objectProto: Partial<FunctionProto> = { metatype: 501 };
+    const objectProto: Partial<FunctionProto> = { metatype: 201 };
     objectProto.type = Number(object.type) as FunctionTypeProto;
     objectProto.left = object.left.toProto();
     if (object.right != null) {
@@ -286,9 +286,9 @@ export class Function extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.FUNCTION, Function);
-/* ==== DESTACK_GENERATED_END:STRUCT:501 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:504 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:204 ==== */
 /**
  * Boolean predicate (AND, =, <, etc.).
  */
@@ -419,7 +419,7 @@ export class Condition extends StructFrozen {
 
   static __packValue__(object: Condition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 504;
+    objectValue["1"] = 204;
     objectValue["100"] = object.type;
     objectValue["101"] = object.left.toValue();
     if (object.right != null) {
@@ -469,7 +469,7 @@ export class Condition extends StructFrozen {
   }
 
   static __packProto__(object: Condition): ConditionProto {
-    const objectProto: Partial<ConditionProto> = { metatype: 504 };
+    const objectProto: Partial<ConditionProto> = { metatype: 204 };
     objectProto.type = Number(object.type) as ConditionalTypeProto;
     objectProto.left = object.left.toProto();
     if (object.right != null) {
@@ -548,9 +548,9 @@ export class Condition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CONDITION, Condition);
-/* ==== DESTACK_GENERATED_END:STRUCT:504 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:204 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:503 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:203 ==== */
 /**
  * Aggregation.
  */
@@ -665,7 +665,7 @@ export class Aggregation extends StructFrozen {
 
   static __packValue__(object: Aggregation): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 503;
+    objectValue["1"] = 203;
     objectValue["100"] = object.type;
     if (object.expression != null) {
       objectValue["101"] = object.expression.toValue();
@@ -713,7 +713,7 @@ export class Aggregation extends StructFrozen {
   }
 
   static __packProto__(object: Aggregation): AggregationProto {
-    const objectProto: Partial<AggregationProto> = { metatype: 503 };
+    const objectProto: Partial<AggregationProto> = { metatype: 203 };
     objectProto.type = Number(object.type) as AggregationTypeProto;
     if (object.expression != null) {
       objectProto.expression = object.expression.toProto();
@@ -772,9 +772,9 @@ export class Aggregation extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AGGREGATION, Aggregation);
-/* ==== DESTACK_GENERATED_END:STRUCT:503 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:203 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:500 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:200 ==== */
 /**
  * Wrapper to unify any scalar / boolean / aggregate sub-tree.
  */
@@ -969,7 +969,7 @@ export class Expression extends StructFrozen {
 
   static __packValue__(object: Expression): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 500;
+    objectValue["1"] = 200;
     objectValue["100"] = object.type;
     if (object.literal != null) {
       objectValue["101"] = object.literal.toValue();
@@ -996,13 +996,13 @@ export class Expression extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Expression {
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Function = STRUCT_CLASS_BY_TYPE[StructType.FUNCTION] as typeof Function;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     const literalValue = objectValue["101"];
     const unpackedLiteral =
       literalValue != undefined
@@ -1059,7 +1059,7 @@ export class Expression extends StructFrozen {
   }
 
   static __packProto__(object: Expression): ExpressionProto {
-    const objectProto: Partial<ExpressionProto> = { metatype: 500 };
+    const objectProto: Partial<ExpressionProto> = { metatype: 200 };
     objectProto.type = Number(object.type) as ExpressionTypeProto;
     if (object.literal != null) {
       objectProto.literal = object.literal.toProto();
@@ -1086,13 +1086,13 @@ export class Expression extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Expression {
-    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_REFERENCE
-    ] as typeof PropertyReference;
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Function = STRUCT_CLASS_BY_TYPE[StructType.FUNCTION] as typeof Function;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
     const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _PropertyReference = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_REFERENCE
+    ] as typeof PropertyReference;
     return new Expression({
       type: Number(objectProto.type) as ExpressionType,
       literal:
@@ -1182,7 +1182,7 @@ export class Expression extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EXPRESSION, Expression);
-/* ==== DESTACK_GENERATED_END:STRUCT:500 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:200 ==== */
 
 export type ExpressionIn =
   | Value
@@ -1194,7 +1194,7 @@ export type ExpressionIn =
   | Aggregation
   | Expression;
 
-/* ==== DESTACK_GENERATED_START:STRUCT:505 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:205 ==== */
 /**
  * ORDER BY specification.
  */
@@ -1322,7 +1322,7 @@ export class Sort extends StructFrozen {
 
   static __packValue__(object: Sort): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 505;
+    objectValue["1"] = 205;
     objectValue["100"] = object.type;
     objectValue["101"] = object.by.toValue();
     if (object.mode != null) {
@@ -1369,7 +1369,7 @@ export class Sort extends StructFrozen {
   }
 
   static __packProto__(object: Sort): SortProto {
-    const objectProto: Partial<SortProto> = { metatype: 505 };
+    const objectProto: Partial<SortProto> = { metatype: 205 };
     objectProto.type = Number(object.type) as SortTypeProto;
     objectProto.by = object.by.toProto();
     if (object.mode != null) {
@@ -1421,9 +1421,9 @@ export class Sort extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SORT, Sort);
-/* ==== DESTACK_GENERATED_END:STRUCT:505 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:205 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:506 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:206 ==== */
 /**
  * Select specific Attributes.
  */
@@ -1534,7 +1534,7 @@ export class Select extends StructFrozen {
 
   static __packValue__(object: Select): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 506;
+    objectValue["1"] = 206;
     if (object.attributes.length > 0) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
@@ -1589,7 +1589,7 @@ export class Select extends StructFrozen {
   }
 
   static __packProto__(object: Select): SelectProto {
-    const objectProto: Partial<SelectProto> = { metatype: 506 };
+    const objectProto: Partial<SelectProto> = { metatype: 206 };
     if (object.attributes) {
       const packedAttributes: any[] = [];
       for (const item of object.attributes) {
@@ -1656,9 +1656,9 @@ export class Select extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.SELECT, Select);
-/* ==== DESTACK_GENERATED_END:STRUCT:506 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:206 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:502 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:202 ==== */
 /**
  * Join a Query with another Query.
  */
@@ -1829,7 +1829,7 @@ export class Join extends StructFrozen {
 
   static __packValue__(object: Join): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 502;
+    objectValue["1"] = 202;
     objectValue["100"] = object.type;
     if (object.definition != null) {
       objectValue["101"] = object.definition.toValue();
@@ -1851,10 +1851,10 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const definitionValue = objectValue["101"];
     const unpackedDefinition =
       definitionValue != undefined
@@ -1903,7 +1903,7 @@ export class Join extends StructFrozen {
   }
 
   static __packProto__(object: Join): JoinProto {
-    const objectProto: Partial<JoinProto> = { metatype: 502 };
+    const objectProto: Partial<JoinProto> = { metatype: 202 };
     objectProto.type = Number(object.type) as JoinTypeProto;
     if (object.definition != null) {
       objectProto.definition = object.definition.toProto();
@@ -1925,10 +1925,10 @@ export class Join extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Join {
+    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const _Condition = STRUCT_CLASS_BY_TYPE[StructType.CONDITION] as typeof Condition;
     return new Join({
       type: Number(objectProto.type) as JoinType,
       definition:
@@ -1998,9 +1998,9 @@ export class Join extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.JOIN, Join);
-/* ==== DESTACK_GENERATED_END:STRUCT:502 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:202 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:553 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:303 ==== */
 /**
  * An update to a QueryResult.
  */
@@ -2131,7 +2131,7 @@ export class QueryUpdate extends StructFrozen {
 
   static __packValue__(object: QueryUpdate): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 553;
+    objectValue["1"] = 303;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     if (object.result != null) {
@@ -2181,7 +2181,7 @@ export class QueryUpdate extends StructFrozen {
   }
 
   static __packProto__(object: QueryUpdate): QueryUpdateProto {
-    const objectProto: Partial<QueryUpdateProto> = { metatype: 553 };
+    const objectProto: Partial<QueryUpdateProto> = { metatype: 303 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryUpdateTypeProto;
     if (object.result != null) {
@@ -2231,9 +2231,9 @@ export class QueryUpdate extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_UPDATE, QueryUpdate);
-/* ==== DESTACK_GENERATED_END:STRUCT:553 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:303 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:550 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:300 ==== */
 /**
  * A Query into the supergraph about Nodes (node or scalar and potentially grouped).
  * Queries may either be about Entities or Events.
@@ -2668,7 +2668,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
 
   static __packValue__(object: Query): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 550;
+    objectValue["1"] = 300;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     objectValue["101"] = object.domain;
@@ -2736,10 +2736,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Query {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
@@ -2747,6 +2743,10 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
     const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
     const unpackedSubqueries: any[] = [];
     if (objectValue["109"] != undefined) {
       for (const item of objectValue["109"]) {
@@ -2855,7 +2855,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
   }
 
   static __packProto__(object: Query): QueryProto {
-    const objectProto: Partial<QueryProto> = { metatype: 550 };
+    const objectProto: Partial<QueryProto> = { metatype: 300 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     objectProto.domain = Number(object.domain) as StoreDomainProto;
@@ -2923,10 +2923,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Query {
-    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.NODE_DEFINITION_REFERENCE
-    ] as typeof NodeDefinitionReference;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Expression = STRUCT_CLASS_BY_TYPE[StructType.EXPRESSION] as typeof Expression;
     const _Join = STRUCT_CLASS_BY_TYPE[StructType.JOIN] as typeof Join;
     const _Aggregation = STRUCT_CLASS_BY_TYPE[StructType.AGGREGATION] as typeof Aggregation;
@@ -2934,6 +2930,10 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const _Sort = STRUCT_CLASS_BY_TYPE[StructType.SORT] as typeof Sort;
     const _Select = STRUCT_CLASS_BY_TYPE[StructType.SELECT] as typeof Select;
     const _Query = STRUCT_CLASS_BY_TYPE[StructType.QUERY] as typeof Query;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.NODE_DEFINITION_REFERENCE
+    ] as typeof NodeDefinitionReference;
     const unpackedSubqueries: any[] = [];
     if (objectProto.subqueries) {
       for (const item of objectProto.subqueries) {
@@ -3114,9 +3114,778 @@ export class Query<T extends Node = Node> extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY, Query);
-/* ==== DESTACK_GENERATED_END:STRUCT:550 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:300 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:551 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:302 ==== */
+/**
+ * A group in a QueryResult.
+ */
+export class QueryResultGroup extends Struct {
+  static metatype: StructType = StructType.QUERY_RESULT_GROUP;
+  static __isFrozen__: boolean = false;
+
+  /**
+   * QueryResultGroup.type
+   */
+  type: QueryType;
+
+  /**
+   * QueryResultGroup.discriminator
+   */
+  discriminator: Value;
+
+  /**
+   * QueryResultGroup.nodes
+   */
+  nodes: readonly Value[];
+
+  /**
+   * QueryResultGroup.count
+   */
+  count: number | null;
+
+  /**
+   * QueryResultGroup.exists
+   */
+  exists: boolean | null;
+
+  /**
+   * QueryResultGroup.scalar
+   */
+  scalar: Value | null;
+
+  constructor(options: {
+    type: QueryType;
+    discriminator: Value;
+    nodes?: readonly Value[];
+    count?: number | null;
+    exists?: boolean | null;
+    scalar?: Value | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`QueryResultGroup.type is required`);
+    }
+    this.type = _type;
+    let _discriminator = options.discriminator;
+    if (_discriminator === null) {
+      throw new Error(`QueryResultGroup.discriminator is required`);
+    }
+    this.discriminator = _discriminator;
+    let _nodes = options.nodes ?? null;
+    if (_nodes === null) {
+      _nodes = [];
+    }
+    this.nodes = _nodes;
+    let _count = options.count ?? null;
+    this.count = _count;
+    let _exists = options.exists ?? null;
+    this.exists = _exists;
+    let _scalar = options.scalar ?? null;
+    this.scalar = _scalar;
+
+    // identity
+    // ...
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!this.discriminator.equals(other.discriminator)) {
+      return false;
+    }
+    if (this.nodes.length != other.nodes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.nodes.length; i++) {
+      if (!this.nodes[i].equals(other.nodes[i])) {
+        return false;
+      }
+    }
+    if (!(this.count === other.count)) {
+      return false;
+    }
+    if (!(this.exists === other.exists)) {
+      return false;
+    }
+    if (
+      (this.scalar == null) !== (other.scalar == null) ||
+      (this.scalar != null && !this.scalar.equals(other.scalar))
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${QueryType[this.type]}`);
+    propertyReprs.push(`discriminator=${this.discriminator.repr()}`);
+    if (this.count != null) {
+      propertyReprs.push(`count=${this.count}`);
+    }
+    if (this.exists != null) {
+      propertyReprs.push(`exists=${this.exists}`);
+    }
+    if (this.scalar != null) {
+      propertyReprs.push(`scalar=${this.scalar.repr()}`);
+    }
+    return `<QueryResultGroup ${propertyReprs.join(" ")}>`;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    h = (h * 31 + this.discriminator.hash()) & 0xffffffff;
+    if (this.nodes && this.nodes.length > 0) {
+      for (const _item of this.nodes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.count != null) {
+      h = (h * 31 + hashInt(this.count)) & 0xffffffff;
+    }
+    if (this.exists != null) {
+      h = (h * 31 + hashBool(this.exists)) & 0xffffffff;
+    }
+    if (this.scalar != null) {
+      h = (h * 31 + this.scalar.hash()) & 0xffffffff;
+    }
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    return QueryResultGroup.__packValue__(this);
+  }
+
+  static __packValue__(object: QueryResultGroup): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 302;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.discriminator.toValue();
+    if (object.nodes.length > 0) {
+      const packedNodes: any[] = [];
+      for (const item of object.nodes) {
+        packedNodes.push(item.toValue());
+      }
+      objectValue["110"] = packedNodes;
+    }
+    if (object.count != null) {
+      objectValue["111"] = object.count;
+    }
+    if (object.exists != null) {
+      objectValue["112"] = object.exists;
+    }
+    if (object.scalar != null) {
+      objectValue["113"] = object.scalar.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResultGroup {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedNodes: any[] = [];
+    if (objectValue["110"] != undefined) {
+      for (const item of objectValue["110"]) {
+        unpackedNodes.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const countValue = objectValue["111"];
+    const unpackedCount = countValue != undefined ? Number(countValue) : null;
+    const existsValue = objectValue["112"];
+    const unpackedExists = existsValue != undefined ? existsValue : null;
+    const scalarValue = objectValue["113"];
+    const unpackedScalar =
+      scalarValue != undefined
+        ? _Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new QueryResultGroup({
+      type: Number(objectValue["100"]),
+      discriminator: _Value.fromValue(
+        objectValue["101"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      nodes: unpackedNodes,
+      count: unpackedCount,
+      exists: unpackedExists,
+      scalar: unpackedScalar,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResultGroup {
+    return QueryResultGroup.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): QueryResultGroupProto {
+    return QueryResultGroup.__packProto__(this);
+  }
+
+  static __packProto__(object: QueryResultGroup): QueryResultGroupProto {
+    const objectProto: Partial<QueryResultGroupProto> = { metatype: 302 };
+    objectProto.type = Number(object.type) as QueryTypeProto;
+    objectProto.discriminator = object.discriminator.toProto();
+    if (object.nodes) {
+      const packedNodes: any[] = [];
+      for (const item of object.nodes) {
+        packedNodes.push(item.toProto());
+      }
+      objectProto.nodes = packedNodes;
+    }
+    if (object.count != null) {
+      objectProto.count = object.count;
+    }
+    if (object.exists != null) {
+      objectProto.exists = object.exists;
+    }
+    if (object.scalar != null) {
+      objectProto.scalar = object.scalar.toProto();
+    }
+    return objectProto as QueryResultGroupProto;
+  }
+
+  static __unpackProto__(
+    objectProto: QueryResultGroupProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResultGroup {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedNodes: any[] = [];
+    if (objectProto.nodes) {
+      for (const item of objectProto.nodes) {
+        unpackedNodes.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    return new QueryResultGroup({
+      type: Number(objectProto.type) as QueryType,
+      discriminator: _Value.fromProto(
+        objectProto.discriminator!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      nodes: unpackedNodes,
+      count: objectProto.count != undefined ? Number(objectProto.count) : null,
+      exists: objectProto.exists != undefined ? objectProto.exists : null,
+      scalar:
+        objectProto.scalar != undefined
+          ? _Value.fromProto(objectProto.scalar!, _session, _supergraph, _graph, _connection)
+          : null,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: QueryResultGroupProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): QueryResultGroup {
+    return QueryResultGroup.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): QueryResultGroup {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = QueryResultGroupProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
+/* ==== DESTACK_GENERATED_END:STRUCT:302 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:207 ==== */
+/**
+ * A Histogram.
+ */
+export class Histogram extends StructFrozen {
+  static metatype: StructType = StructType.HISTOGRAM;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * Histogram.buckets
+   */
+  readonly buckets: readonly Value[];
+
+  /**
+   * Histogram.counts
+   */
+  readonly counts: readonly number[];
+
+  constructor(options: {
+    buckets?: readonly Value[];
+    counts?: readonly number[];
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _buckets = options.buckets ?? null;
+    if (_buckets === null) {
+      _buckets = [];
+    }
+    this.buckets = _buckets;
+    let _counts = options.counts ?? null;
+    if (_counts === null) {
+      _counts = [];
+    }
+    this.counts = _counts;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.buckets.length != other.buckets.length) {
+      return false;
+    }
+    for (let i = 0; i < this.buckets.length; i++) {
+      if (!this.buckets[i].equals(other.buckets[i])) {
+        return false;
+      }
+    }
+    if (this.counts.length != other.counts.length) {
+      return false;
+    }
+    for (let i = 0; i < this.counts.length; i++) {
+      if (!(this.counts[i] === other.counts[i])) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      if (this.buckets.length > 0) {
+        propertyReprs.push(`buckets=${this.buckets.map((_item) => _item.repr()).join(", ")}`);
+      }
+      if (this.counts.length > 0) {
+        propertyReprs.push(`counts=${this.counts.map((_item) => _item).join(", ")}`);
+      }
+      if (propertyReprs.length > 0) {
+        // @ts-expect-error(readonly)
+        this._repr = `<Histogram ${propertyReprs.join(" ")}>`;
+      } else {
+        // @ts-expect-error(readonly)
+        this._repr = `<Histogram>`;
+      }
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.buckets && this.buckets.length > 0) {
+      for (const _item of this.buckets) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.counts && this.counts.length > 0) {
+      for (const _item of this.counts) {
+        h = (h * 31 + hashInt(_item)) & 0xffffffff;
+      }
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = Histogram.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: Histogram): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 207;
+    if (object.buckets.length > 0) {
+      const packedBuckets: any[] = [];
+      for (const item of object.buckets) {
+        packedBuckets.push(item.toValue());
+      }
+      objectValue["101"] = packedBuckets;
+    }
+    if (object.counts.length > 0) {
+      const packedCounts: any[] = [];
+      for (const item of object.counts) {
+        packedCounts.push(item);
+      }
+      objectValue["102"] = packedCounts;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedBuckets: any[] = [];
+    if (objectValue["101"] != undefined) {
+      for (const item of objectValue["101"]) {
+        unpackedBuckets.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedCounts: any[] = [];
+    if (objectValue["102"] != undefined) {
+      for (const item of objectValue["102"]) {
+        unpackedCounts.push(Number(item));
+      }
+    }
+    return new Histogram({
+      buckets: unpackedBuckets,
+      counts: unpackedCounts,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    return Histogram.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): HistogramProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = Histogram.__packProto__(this);
+    }
+    return this._proto as HistogramProto;
+  }
+
+  static __packProto__(object: Histogram): HistogramProto {
+    const objectProto: Partial<HistogramProto> = { metatype: 207 };
+    if (object.buckets) {
+      const packedBuckets: any[] = [];
+      for (const item of object.buckets) {
+        packedBuckets.push(item.toProto());
+      }
+      objectProto.buckets = packedBuckets;
+    }
+    if (object.counts) {
+      const packedCounts: any[] = [];
+      for (const item of object.counts) {
+        packedCounts.push(item);
+      }
+      objectProto.counts = packedCounts;
+    }
+    return objectProto as HistogramProto;
+  }
+
+  static __unpackProto__(
+    objectProto: HistogramProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const unpackedBuckets: any[] = [];
+    if (objectProto.buckets) {
+      for (const item of objectProto.buckets) {
+        unpackedBuckets.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
+      }
+    }
+    const unpackedCounts: any[] = [];
+    if (objectProto.counts) {
+      for (const item of objectProto.counts) {
+        unpackedCounts.push(Number(item));
+      }
+    }
+    return new Histogram({
+      buckets: unpackedBuckets,
+      counts: unpackedCounts,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: HistogramProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Histogram {
+    return Histogram.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Histogram {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = HistogramProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.HISTOGRAM, Histogram);
+/* ==== DESTACK_GENERATED_END:STRUCT:207 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:305 ==== */
+/**
+ * FunctionType
+ */
+export enum FunctionType {
+  ADD = 1,
+  SUBTRACT = 2,
+  MULTIPLY = 3,
+  DIVIDE = 4,
+  MODULO = 5,
+  POWER = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.FUNCTION_TYPE, FunctionType);
+/* ==== DESTACK_GENERATED_END:ENUM:305 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:300 ==== */
+/**
+ * ConditionalType
+ */
+export enum ConditionalType {
+  NOT = 1,
+  AND = 2,
+  OR = 3,
+  EQUALS = 10,
+  NOT_EQUALS = 11,
+  GREATER_THAN = 12,
+  GREATER_THAN_OR_EQUALS = 13,
+  LESS_THAN = 14,
+  LESS_THAN_OR_EQUALS = 15,
+  MATCHES = 20,
+  STARTS_WITH = 21,
+  ENDS_WITH = 22,
+  IN = 30,
+  NOT_IN = 31,
+  EXISTS = 40,
+  NOT_EXISTS = 41,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.CONDITIONAL_TYPE, ConditionalType);
+/* ==== DESTACK_GENERATED_END:ENUM:300 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:301 ==== */
+/**
+ * AggregationType
+ */
+export enum AggregationType {
+  EXISTS = 1,
+  COUNT = 2,
+  SUM = 3,
+  MIN = 4,
+  MAX = 5,
+  AVERAGE = 6,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.AGGREGATION_TYPE, AggregationType);
+/* ==== DESTACK_GENERATED_END:ENUM:301 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:306 ==== */
+/**
+ * ExpressionType
+ */
+export enum ExpressionType {
+  LITERAL = 1,
+  ATTRIBUTE = 2,
+  CONDITION = 3,
+  FUNCTION = 4,
+  AGGREGATION = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EXPRESSION_TYPE, ExpressionType);
+/* ==== DESTACK_GENERATED_END:ENUM:306 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:303 ==== */
+/**
+ * SortType
+ */
+export enum SortType {
+  ASCENDING = 1,
+  DESCENDING = 2,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SORT_TYPE, SortType);
+/* ==== DESTACK_GENERATED_END:ENUM:303 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:302 ==== */
+/**
+ * SortMode
+ */
+export enum SortMode {
+  MAX = 1,
+  MIN = 2,
+  AVERAGE = 3,
+  SUM = 4,
+  MEDIAN = 5,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SORT_MODE, SortMode);
+/* ==== DESTACK_GENERATED_END:ENUM:302 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:304 ==== */
+/**
+ * JoinType
+ */
+export enum JoinType {
+  LEFT = 1,
+  PARENT = 10,
+  CHILD = 11,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.JOIN_TYPE, JoinType);
+/* ==== DESTACK_GENERATED_END:ENUM:304 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:320 ==== */
+/**
+ * QueryType
+ */
+export enum QueryType {
+  NODE = 1,
+  SCALAR = 5,
+  GROUPED_NODE = 10,
+  GROUPED_SCALAR = 15,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.QUERY_TYPE, QueryType);
+/* ==== DESTACK_GENERATED_END:ENUM:320 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:321 ==== */
+/**
+ * QueryUpdateType
+ */
+export enum QueryUpdateType {
+  FULL_RESULT = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
+/* ==== DESTACK_GENERATED_END:ENUM:321 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:301 ==== */
 /**
  * The result of a Query.
  * For grouped queries, the grouped results are in Query.groups.
@@ -3337,7 +4106,7 @@ export class QueryResult extends Struct {
 
   static __packValue__(object: QueryResult): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 551;
+    objectValue["1"] = 301;
     objectValue["2"] = String(object.id);
     objectValue["100"] = object.type;
     if (object.groups.length > 0) {
@@ -3380,11 +4149,11 @@ export class QueryResult extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResult {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
     const _QueryResultGroup = STRUCT_CLASS_BY_TYPE[
       StructType.QUERY_RESULT_GROUP
     ] as typeof QueryResultGroup;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedGroups: any[] = [];
     if (objectValue["101"] != undefined) {
       for (const item of objectValue["101"]) {
@@ -3444,7 +4213,7 @@ export class QueryResult extends Struct {
   }
 
   static __packProto__(object: QueryResult): QueryResultProto {
-    const objectProto: Partial<QueryResultProto> = { metatype: 551 };
+    const objectProto: Partial<QueryResultProto> = { metatype: 301 };
     objectProto.id = String(object.id);
     objectProto.type = Number(object.type) as QueryTypeProto;
     if (object.groups) {
@@ -3487,11 +4256,11 @@ export class QueryResult extends Struct {
     _graph?: any | null,
     _connection?: any | null,
   ): QueryResult {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _QueryResult = STRUCT_CLASS_BY_TYPE[StructType.QUERY_RESULT] as typeof QueryResult;
     const _QueryResultGroup = STRUCT_CLASS_BY_TYPE[
       StructType.QUERY_RESULT_GROUP
     ] as typeof QueryResultGroup;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const unpackedGroups: any[] = [];
     if (objectProto.groups) {
       for (const item of objectProto.groups) {
@@ -3551,773 +4320,4 @@ export class QueryResult extends Struct {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.QUERY_RESULT, QueryResult);
-/* ==== DESTACK_GENERATED_END:STRUCT:551 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:552 ==== */
-/**
- * A group in a QueryResult.
- */
-export class QueryResultGroup extends Struct {
-  static metatype: StructType = StructType.QUERY_RESULT_GROUP;
-  static __isFrozen__: boolean = false;
-
-  /**
-   * QueryResultGroup.type
-   */
-  type: QueryType;
-
-  /**
-   * QueryResultGroup.discriminator
-   */
-  discriminator: Value;
-
-  /**
-   * QueryResultGroup.nodes
-   */
-  nodes: readonly Value[];
-
-  /**
-   * QueryResultGroup.count
-   */
-  count: number | null;
-
-  /**
-   * QueryResultGroup.exists
-   */
-  exists: boolean | null;
-
-  /**
-   * QueryResultGroup.scalar
-   */
-  scalar: Value | null;
-
-  constructor(options: {
-    type: QueryType;
-    discriminator: Value;
-    nodes?: readonly Value[];
-    count?: number | null;
-    exists?: boolean | null;
-    scalar?: Value | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`QueryResultGroup.type is required`);
-    }
-    this.type = _type;
-    let _discriminator = options.discriminator;
-    if (_discriminator === null) {
-      throw new Error(`QueryResultGroup.discriminator is required`);
-    }
-    this.discriminator = _discriminator;
-    let _nodes = options.nodes ?? null;
-    if (_nodes === null) {
-      _nodes = [];
-    }
-    this.nodes = _nodes;
-    let _count = options.count ?? null;
-    this.count = _count;
-    let _exists = options.exists ?? null;
-    this.exists = _exists;
-    let _scalar = options.scalar ?? null;
-    this.scalar = _scalar;
-
-    // identity
-    // ...
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!this.discriminator.equals(other.discriminator)) {
-      return false;
-    }
-    if (this.nodes.length != other.nodes.length) {
-      return false;
-    }
-    for (let i = 0; i < this.nodes.length; i++) {
-      if (!this.nodes[i].equals(other.nodes[i])) {
-        return false;
-      }
-    }
-    if (!(this.count === other.count)) {
-      return false;
-    }
-    if (!(this.exists === other.exists)) {
-      return false;
-    }
-    if (
-      (this.scalar == null) !== (other.scalar == null) ||
-      (this.scalar != null && !this.scalar.equals(other.scalar))
-    ) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${QueryType[this.type]}`);
-    propertyReprs.push(`discriminator=${this.discriminator.repr()}`);
-    if (this.count != null) {
-      propertyReprs.push(`count=${this.count}`);
-    }
-    if (this.exists != null) {
-      propertyReprs.push(`exists=${this.exists}`);
-    }
-    if (this.scalar != null) {
-      propertyReprs.push(`scalar=${this.scalar.repr()}`);
-    }
-    return `<QueryResultGroup ${propertyReprs.join(" ")}>`;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + this.discriminator.hash()) & 0xffffffff;
-    if (this.nodes && this.nodes.length > 0) {
-      for (const _item of this.nodes) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.count != null) {
-      h = (h * 31 + hashInt(this.count)) & 0xffffffff;
-    }
-    if (this.exists != null) {
-      h = (h * 31 + hashBool(this.exists)) & 0xffffffff;
-    }
-    if (this.scalar != null) {
-      h = (h * 31 + this.scalar.hash()) & 0xffffffff;
-    }
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    return QueryResultGroup.__packValue__(this);
-  }
-
-  static __packValue__(object: QueryResultGroup): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 552;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.discriminator.toValue();
-    if (object.nodes.length > 0) {
-      const packedNodes: any[] = [];
-      for (const item of object.nodes) {
-        packedNodes.push(item.toValue());
-      }
-      objectValue["110"] = packedNodes;
-    }
-    if (object.count != null) {
-      objectValue["111"] = object.count;
-    }
-    if (object.exists != null) {
-      objectValue["112"] = object.exists;
-    }
-    if (object.scalar != null) {
-      objectValue["113"] = object.scalar.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryResultGroup {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedNodes: any[] = [];
-    if (objectValue["110"] != undefined) {
-      for (const item of objectValue["110"]) {
-        unpackedNodes.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const countValue = objectValue["111"];
-    const unpackedCount = countValue != undefined ? Number(countValue) : null;
-    const existsValue = objectValue["112"];
-    const unpackedExists = existsValue != undefined ? existsValue : null;
-    const scalarValue = objectValue["113"];
-    const unpackedScalar =
-      scalarValue != undefined
-        ? _Value.fromValue(scalarValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new QueryResultGroup({
-      type: Number(objectValue["100"]),
-      discriminator: _Value.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      nodes: unpackedNodes,
-      count: unpackedCount,
-      exists: unpackedExists,
-      scalar: unpackedScalar,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryResultGroup {
-    return QueryResultGroup.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): QueryResultGroupProto {
-    return QueryResultGroup.__packProto__(this);
-  }
-
-  static __packProto__(object: QueryResultGroup): QueryResultGroupProto {
-    const objectProto: Partial<QueryResultGroupProto> = { metatype: 552 };
-    objectProto.type = Number(object.type) as QueryTypeProto;
-    objectProto.discriminator = object.discriminator.toProto();
-    if (object.nodes) {
-      const packedNodes: any[] = [];
-      for (const item of object.nodes) {
-        packedNodes.push(item.toProto());
-      }
-      objectProto.nodes = packedNodes;
-    }
-    if (object.count != null) {
-      objectProto.count = object.count;
-    }
-    if (object.exists != null) {
-      objectProto.exists = object.exists;
-    }
-    if (object.scalar != null) {
-      objectProto.scalar = object.scalar.toProto();
-    }
-    return objectProto as QueryResultGroupProto;
-  }
-
-  static __unpackProto__(
-    objectProto: QueryResultGroupProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryResultGroup {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedNodes: any[] = [];
-    if (objectProto.nodes) {
-      for (const item of objectProto.nodes) {
-        unpackedNodes.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
-      }
-    }
-    return new QueryResultGroup({
-      type: Number(objectProto.type) as QueryType,
-      discriminator: _Value.fromProto(
-        objectProto.discriminator!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      nodes: unpackedNodes,
-      count: objectProto.count != undefined ? Number(objectProto.count) : null,
-      exists: objectProto.exists != undefined ? objectProto.exists : null,
-      scalar:
-        objectProto.scalar != undefined
-          ? _Value.fromProto(objectProto.scalar!, _session, _supergraph, _graph, _connection)
-          : null,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: QueryResultGroupProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): QueryResultGroup {
-    return QueryResultGroup.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): QueryResultGroup {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = QueryResultGroupProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.QUERY_RESULT_GROUP, QueryResultGroup);
-/* ==== DESTACK_GENERATED_END:STRUCT:552 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:554 ==== */
-/**
- * A Histogram.
- */
-export class Histogram extends StructFrozen {
-  static metatype: StructType = StructType.HISTOGRAM;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * Histogram.buckets
-   */
-  readonly buckets: readonly Value[];
-
-  /**
-   * Histogram.counts
-   */
-  readonly counts: readonly number[];
-
-  constructor(options: {
-    buckets?: readonly Value[];
-    counts?: readonly number[];
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _buckets = options.buckets ?? null;
-    if (_buckets === null) {
-      _buckets = [];
-    }
-    this.buckets = _buckets;
-    let _counts = options.counts ?? null;
-    if (_counts === null) {
-      _counts = [];
-    }
-    this.counts = _counts;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (this.buckets.length != other.buckets.length) {
-      return false;
-    }
-    for (let i = 0; i < this.buckets.length; i++) {
-      if (!this.buckets[i].equals(other.buckets[i])) {
-        return false;
-      }
-    }
-    if (this.counts.length != other.counts.length) {
-      return false;
-    }
-    for (let i = 0; i < this.counts.length; i++) {
-      if (!(this.counts[i] === other.counts[i])) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      if (this.buckets.length > 0) {
-        propertyReprs.push(`buckets=${this.buckets.map((_item) => _item.repr()).join(", ")}`);
-      }
-      if (this.counts.length > 0) {
-        propertyReprs.push(`counts=${this.counts.map((_item) => _item).join(", ")}`);
-      }
-      if (propertyReprs.length > 0) {
-        // @ts-expect-error(readonly)
-        this._repr = `<Histogram ${propertyReprs.join(" ")}>`;
-      } else {
-        // @ts-expect-error(readonly)
-        this._repr = `<Histogram>`;
-      }
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.buckets && this.buckets.length > 0) {
-      for (const _item of this.buckets) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.counts && this.counts.length > 0) {
-      for (const _item of this.counts) {
-        h = (h * 31 + hashInt(_item)) & 0xffffffff;
-      }
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = Histogram.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: Histogram): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 554;
-    if (object.buckets.length > 0) {
-      const packedBuckets: any[] = [];
-      for (const item of object.buckets) {
-        packedBuckets.push(item.toValue());
-      }
-      objectValue["101"] = packedBuckets;
-    }
-    if (object.counts.length > 0) {
-      const packedCounts: any[] = [];
-      for (const item of object.counts) {
-        packedCounts.push(item);
-      }
-      objectValue["102"] = packedCounts;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedBuckets: any[] = [];
-    if (objectValue["101"] != undefined) {
-      for (const item of objectValue["101"]) {
-        unpackedBuckets.push(_Value.fromValue(item, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const unpackedCounts: any[] = [];
-    if (objectValue["102"] != undefined) {
-      for (const item of objectValue["102"]) {
-        unpackedCounts.push(Number(item));
-      }
-    }
-    return new Histogram({
-      buckets: unpackedBuckets,
-      counts: unpackedCounts,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    return Histogram.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): HistogramProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = Histogram.__packProto__(this);
-    }
-    return this._proto as HistogramProto;
-  }
-
-  static __packProto__(object: Histogram): HistogramProto {
-    const objectProto: Partial<HistogramProto> = { metatype: 554 };
-    if (object.buckets) {
-      const packedBuckets: any[] = [];
-      for (const item of object.buckets) {
-        packedBuckets.push(item.toProto());
-      }
-      objectProto.buckets = packedBuckets;
-    }
-    if (object.counts) {
-      const packedCounts: any[] = [];
-      for (const item of object.counts) {
-        packedCounts.push(item);
-      }
-      objectProto.counts = packedCounts;
-    }
-    return objectProto as HistogramProto;
-  }
-
-  static __unpackProto__(
-    objectProto: HistogramProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
-    const unpackedBuckets: any[] = [];
-    if (objectProto.buckets) {
-      for (const item of objectProto.buckets) {
-        unpackedBuckets.push(_Value.fromProto(item!, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const unpackedCounts: any[] = [];
-    if (objectProto.counts) {
-      for (const item of objectProto.counts) {
-        unpackedCounts.push(Number(item));
-      }
-    }
-    return new Histogram({
-      buckets: unpackedBuckets,
-      counts: unpackedCounts,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: HistogramProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Histogram {
-    return Histogram.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Histogram {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = HistogramProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.HISTOGRAM, Histogram);
-/* ==== DESTACK_GENERATED_END:STRUCT:554 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10108 ==== */
-/**
- * FunctionType
- */
-export enum FunctionType {
-  ADD = 1,
-  SUBTRACT = 2,
-  MULTIPLY = 3,
-  DIVIDE = 4,
-  MODULO = 5,
-  POWER = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.FUNCTION_TYPE, FunctionType);
-/* ==== DESTACK_GENERATED_END:ENUM:10108 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10103 ==== */
-/**
- * ConditionalType
- */
-export enum ConditionalType {
-  NOT = 1,
-  AND = 2,
-  OR = 3,
-  EQUALS = 10,
-  NOT_EQUALS = 11,
-  GREATER_THAN = 12,
-  GREATER_THAN_OR_EQUALS = 13,
-  LESS_THAN = 14,
-  LESS_THAN_OR_EQUALS = 15,
-  MATCHES = 20,
-  STARTS_WITH = 21,
-  ENDS_WITH = 22,
-  IN = 30,
-  NOT_IN = 31,
-  EXISTS = 40,
-  NOT_EXISTS = 41,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CONDITIONAL_TYPE, ConditionalType);
-/* ==== DESTACK_GENERATED_END:ENUM:10103 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10104 ==== */
-/**
- * AggregationType
- */
-export enum AggregationType {
-  EXISTS = 1,
-  COUNT = 2,
-  SUM = 3,
-  MIN = 4,
-  MAX = 5,
-  AVERAGE = 6,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.AGGREGATION_TYPE, AggregationType);
-/* ==== DESTACK_GENERATED_END:ENUM:10104 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10109 ==== */
-/**
- * ExpressionType
- */
-export enum ExpressionType {
-  LITERAL = 1,
-  ATTRIBUTE = 2,
-  CONDITION = 3,
-  FUNCTION = 4,
-  AGGREGATION = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EXPRESSION_TYPE, ExpressionType);
-/* ==== DESTACK_GENERATED_END:ENUM:10109 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10106 ==== */
-/**
- * SortType
- */
-export enum SortType {
-  ASCENDING = 1,
-  DESCENDING = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SORT_TYPE, SortType);
-/* ==== DESTACK_GENERATED_END:ENUM:10106 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10105 ==== */
-/**
- * SortMode
- */
-export enum SortMode {
-  MAX = 1,
-  MIN = 2,
-  AVERAGE = 3,
-  SUM = 4,
-  MEDIAN = 5,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SORT_MODE, SortMode);
-/* ==== DESTACK_GENERATED_END:ENUM:10105 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10107 ==== */
-/**
- * JoinType
- */
-export enum JoinType {
-  LEFT = 1,
-  PARENT = 10,
-  CHILD = 11,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.JOIN_TYPE, JoinType);
-/* ==== DESTACK_GENERATED_END:ENUM:10107 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10120 ==== */
-/**
- * QueryType
- */
-export enum QueryType {
-  NODE = 1,
-  SCALAR = 5,
-  GROUPED_NODE = 10,
-  GROUPED_SCALAR = 15,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.QUERY_TYPE, QueryType);
-/* ==== DESTACK_GENERATED_END:ENUM:10120 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10121 ==== */
-/**
- * QueryUpdateType
- */
-export enum QueryUpdateType {
-  FULL_RESULT = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.QUERY_UPDATE_TYPE, QueryUpdateType);
-/* ==== DESTACK_GENERATED_END:ENUM:10121 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:301 ==== */

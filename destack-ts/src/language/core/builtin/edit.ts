@@ -28,7 +28,19 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:50 ==== */
+/* ==== DESTACK_GENERATED_START:CONSTANT:CASCADING_EDIT_TYPES ==== */
+/**
+ * CASCADING_EDIT_TYPES
+ */
+// prettier-ignore
+export const CASCADING_EDIT_TYPES = [
+  (7 /* EditType.DELETE */),
+  (8 /* EditType.RESTORE */)
+];
+
+/* ==== DESTACK_GENERATED_END:CONSTANT:CASCADING_EDIT_TYPES ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:200 ==== */
 /**
  * EditType
  */
@@ -45,9 +57,9 @@ export enum EditType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDIT_TYPE, EditType);
-/* ==== DESTACK_GENERATED_END:ENUM:50 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:200 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:51 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:201 ==== */
 /**
  * EditOperation
  */
@@ -60,9 +72,9 @@ export enum EditOperation {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EDIT_OPERATION, EditOperation);
-/* ==== DESTACK_GENERATED_END:ENUM:51 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:201 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2001 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:50100 ==== */
 /**
  * A recorded Edit of an Entity.
  */
@@ -515,7 +527,7 @@ export class EditEvent extends Event {
 
   static __packValue__(object: EditEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2001;
+    objectValue["1"] = 50100;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     if (object.snapshotPtr != null) {
@@ -568,8 +580,8 @@ export class EditEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): EditEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const operationValue = objectValue["102"];
     const unpackedOperation = operationValue != undefined ? Number(operationValue) : null;
     const propertyIdValue = objectValue["103"];
@@ -671,7 +683,7 @@ export class EditEvent extends Event {
   }
 
   static __packProto__(object: EditEvent): EditEventProto {
-    const objectProto: Partial<EditEventProto> = { metatype: 2001 };
+    const objectProto: Partial<EditEventProto> = { metatype: 50100 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
@@ -724,8 +736,8 @@ export class EditEvent extends Event {
     _graph?: any | null,
     _connection?: any | null,
   ): EditEvent {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new EditEvent({
       type: Number(objectProto.type) as EditType,
       node: _NodeReference.fromProto(
@@ -844,16 +856,4 @@ export class EditEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
-/* ==== DESTACK_GENERATED_END:NODE:2001 ==== */
-
-/* ==== DESTACK_GENERATED_START:CONSTANT:CASCADING_EDIT_TYPES ==== */
-/**
- * CASCADING_EDIT_TYPES
- */
-// prettier-ignore
-export const CASCADING_EDIT_TYPES = [
-  (7 /* EditType.DELETE */),
-  (8 /* EditType.RESTORE */)
-];
-
-/* ==== DESTACK_GENERATED_END:CONSTANT:CASCADING_EDIT_TYPES ==== */
+/* ==== DESTACK_GENERATED_END:NODE:50100 ==== */

@@ -1,6 +1,6 @@
 from typing import TYPE_CHECKING, Optional, Union
 
-from destack.language.core import (
+from ..builtin import (
     Entity,
     Enum,
     EnumType,
@@ -9,14 +9,17 @@ from destack.language.core import (
     IsSourceable,
     IsTaggable,
     NodeType,
+    StructType,
     builtin_enum,
     builtin_node,
     builtin_property,
     builtin_property_parent,
+    builtin_struct,
 )
+from .definition import BuiltinDefinition
 
 if TYPE_CHECKING:
-    from destack.language import Icon, Text
+    from destack.language import Icon, PropertyDefinition, Text
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -29,6 +32,13 @@ class MethodCardinality(Enum):
     @property
     def is_boundary(self) -> bool:
         return self < 40
+
+
+@builtin_struct(StructType.METHOD_DEFINITION, frozen=True)
+class MethodDefinition(BuiltinDefinition):
+    """Definition of a builtin Method."""
+
+    properties: list["PropertyDefinition"] = builtin_property(104)
 
 
 @builtin_node(NodeType.METHOD)

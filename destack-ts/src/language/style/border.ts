@@ -1041,8 +1041,8 @@ export class BorderStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): BorderStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const colorValue = objectValue["200"];
@@ -1214,8 +1214,8 @@ export class BorderStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): BorderStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Insets = STRUCT_CLASS_BY_TYPE[StructType.INSETS] as typeof Insets;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const unpackedCustomValues = {} as any;

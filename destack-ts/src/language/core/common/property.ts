@@ -62,7 +62,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:110 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:20300 ==== */
 /**
  * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
  */
@@ -1113,7 +1113,7 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
 
   static __packValue__(object: CustomProperty): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 110;
+    objectValue["1"] = 20300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1218,7 +1218,6 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
     _graph?: any | null,
     _connection?: any | null,
   ): CustomProperty {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -1233,6 +1232,7 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -1414,7 +1414,7 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
   }
 
   static __packProto__(object: CustomProperty): CustomPropertyProto {
-    const objectProto: Partial<CustomPropertyProto> = { metatype: 110 };
+    const objectProto: Partial<CustomPropertyProto> = { metatype: 20300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1519,7 +1519,6 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
     _graph?: any | null,
     _connection?: any | null,
   ): CustomProperty {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -1534,6 +1533,7 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new CustomProperty({
       parent:
@@ -1797,4 +1797,4 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_PROPERTY, CustomProperty);
-/* ==== DESTACK_GENERATED_END:NODE:110 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20300 ==== */

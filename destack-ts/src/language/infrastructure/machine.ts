@@ -1035,8 +1035,8 @@ export class Machine extends Resource {
     _graph?: any | null,
     _connection?: any | null,
   ): Machine {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const externalNameValue = objectValue["112"];
     const unpackedExternalName = externalNameValue != undefined ? externalNameValue : null;
     const externalIdValue = objectValue["113"];
@@ -1239,8 +1239,8 @@ export class Machine extends Resource {
     _graph?: any | null,
     _connection?: any | null,
   ): Machine {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {

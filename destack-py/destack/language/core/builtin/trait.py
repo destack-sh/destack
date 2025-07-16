@@ -45,6 +45,7 @@ INTER_ORDER_TYPES = (NodeType.VIEW, NodeType.STYLE)
 register_constant("INTER_ORDER_TYPES", INTER_ORDER_TYPES)
 
 
+# nocheckin: remove IndexIn, use IndexDefinition
 @dataclass(slots=True, frozen=True)
 class IndexIn:
     """Index to be turned into a SQL Index."""

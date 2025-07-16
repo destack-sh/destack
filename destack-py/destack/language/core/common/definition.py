@@ -25,7 +25,6 @@ from ..builtin.common import (
     ValueFactory,
 )
 from ..builtin.constant import ConstantDeclaration, register_constant
-from ..builtin.enum import builtin_enum
 from ..builtin.property import PropertyDeclaration, builtin_property, builtin_property_runtime
 from ..builtin.relation import (
     ObjectDefinitionReference,
@@ -40,7 +39,9 @@ if TYPE_CHECKING:
         CollectionConstraint,
         Condition,
         ConditionalType,
+        ConstraintDefinition,
         Icon,
+        IndexDefinition,
         Node,
         NodeConstraint,
         NumberConstraint,
@@ -73,7 +74,6 @@ class NodeDefinition(BuiltinDefinition):
 
     type: NodeType = builtin_property(100, is_repr=True)
     properties: list["PropertyDefinition"] = builtin_property(105)
-    groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
     is_abstract: bool = builtin_property(
         110,
@@ -177,7 +177,6 @@ class TraitDefinition(BuiltinDefinition):
 
     type: TraitType = builtin_property(100, is_repr=True)
     properties: list["PropertyDefinition"] = builtin_property(105)
-    groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
     alias: str = builtin_property(110, is_repr=True)
     is_extensible: bool = builtin_property(
@@ -230,7 +229,6 @@ class StructDefinition(BuiltinDefinition):
 
     type: StructType = builtin_property(100, is_repr=True)
     properties: list["PropertyDefinition"] = builtin_property(105)
-    groups: list["PropertyGroupDefinition"] = builtin_property(106)
 
     is_frozen: bool = builtin_property(110, description="Whether this Struct cannot be modified.")
     is_abstract: bool = builtin_property(
@@ -518,19 +516,11 @@ class PropertyDefinition(BuiltinDefinition):
         return Sort.of(self, SortType.DESCENDING)
 
 
-@builtin_struct(StructType.PROPERTY_GROUP_DEFINITION, frozen=True)
-class PropertyGroupDefinition(BuiltinDefinition):
-    """Definition of a builtin Property Group."""
-
-    pass
-
-
 @builtin_struct(StructType.OPTION_DEFINITION, frozen=True)
 class OptionDefinition(BuiltinDefinition):
     """Definition of a builtin Enum Option."""
 
     type: EnumType = builtin_property(100, is_repr=True)
-    group_id: int | None = builtin_property(105)
 
     @classmethod
     def from_enum_option(cls, enum_type: EnumType, option: Enum) -> "OptionDefinition":
@@ -544,13 +534,6 @@ class OptionDefinition(BuiltinDefinition):
             icon=to_icon(option.icon) if option.icon else None,
             description=option.__doc__,
         )
-
-
-@builtin_struct(StructType.OPTION_GROUP_DEFINITION, frozen=True)
-class OptionGroupDefinition(BuiltinDefinition):
-    """Definition of a builtin Enum Option Group."""
-
-    pass
 
 
 @builtin_struct(StructType.CONSTANT_DEFINITION, frozen=True)
@@ -587,59 +570,6 @@ class ConstantDefinition(StructFrozen):
             is_deferred=is_deferred,
             _declaration=constant_declaration,
         )
-
-
-@builtin_struct(StructType.METHOD_DEFINITION, frozen=True)
-class MethodDefinition(BuiltinDefinition):
-    """Definition of a builtin Method."""
-
-    properties: list["PropertyDefinition"] = builtin_property(104)
-
-
-@builtin_struct(StructType.ACTION_DEFINITION, frozen=True)
-class ActionDefinition(MethodDefinition):
-    """Definition of a builtin Action."""
-
-    pass
-
-
-@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
-class PermissionDefinition(BuiltinDefinition):
-    """Definition of a builtin Permission for a builtin Node."""
-
-    pass
-
-
-@builtin_enum(EnumType.INDEX_TYPE)
-class IndexType(Enum):
-    """Type of a builtin Index."""
-
-    UNIQUE = 1
-    # CHECK, ...
-
-
-@builtin_struct(StructType.INDEX_DEFINITION, frozen=True)
-class IndexDefinition(BuiltinDefinition):
-    """Definition of a builtin Index."""
-
-    type: IndexType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
-
-
-@builtin_enum(EnumType.CONSTRAINT_TYPE)
-class ConstraintType(Enum):
-    """Type of a builtin Constraint."""
-
-    UNIQUE = 1
-    # CHECK, ...
-
-
-@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
-class ConstraintDefinition(BuiltinDefinition):
-    """Definition of a builtin Constraint."""
-
-    type: ConstraintType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
 
 
 register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))

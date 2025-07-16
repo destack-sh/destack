@@ -1,68 +1,405 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
+import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import type { Snapshot } from "@destack/language/core/builtin/entity";
+import { Entity, Materialization } from "@destack/language/core/builtin/entity";
+import { Event } from "@destack/language/core/builtin/event";
+import type { NodeClass } from "@destack/language/core/builtin/node";
+import { Node } from "@destack/language/core/builtin/node";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
-  Graph,
-  Icon,
   IsActor,
-  IsJoinable,
+  IsCustomizable,
+  IsScriptable,
   IsSourceable,
-  NodeClass,
-  NodeReference,
-  QueryConnection,
-  Session,
-  Snapshot,
-  Supergraph,
-} from "@destack/language/core";
-import {
-  ACTIVE_SPACE,
-  Entity,
-  EnumType,
-  Event,
-  Materialization,
-  Node,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
+  IsTaggable,
+} from "@destack/language/core/builtin/trait";
+import type { PropertyDefinition } from "@destack/language/core/common/definition";
+import { BuiltinDefinition } from "@destack/language/core/common/definition";
+import type { Icon } from "@destack/language/core/common/icon";
+import type { Text } from "@destack/language/core/common/text";
+import type { Value } from "@destack/language/core/common/value";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
+  registerStructClass,
 } from "@destack/language/registry";
-import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
-import { MaterializationProto, PermissionProto, PermissionTypeProto } from "@destack/proto";
+import {
+  MaterializationProto,
+  MethodCardinalityProto,
+  MethodDefinitionProto,
+  MethodProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:300300 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:701001 ==== */
 /**
- * PermissionType
+ * MethodCardinality
  */
-export enum PermissionType {
-  GENERAL = 1,
+export enum MethodCardinality {
+  UNARY = 1,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.PERMISSION_TYPE, PermissionType);
-/* ==== DESTACK_GENERATED_END:ENUM:300300 ==== */
+registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
+/* ==== DESTACK_GENERATED_END:ENUM:701001 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:360300 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:32000 ==== */
 /**
- * A Permission for something.
+ * Definition of a builtin Method.
  */
-export class Permission extends Entity implements IsSourceable {
-  static metatype: NodeType = NodeType.PERMISSION;
+export class MethodDefinition extends BuiltinDefinition {
+  static metatype: StructType = StructType.METHOD_DEFINITION;
+  static __isFrozen__: boolean = true;
 
   /**
-   * Permission.parent
+   * BuiltinDefinition.id
    */
-  get parent(): (Entity & IsJoinable) | Folder | null {
+  readonly id: number;
+
+  /**
+   * BuiltinDefinition.name
+   */
+  readonly name: string;
+
+  /**
+   * BuiltinDefinition.icon
+   */
+  readonly icon: Icon | null;
+
+  /**
+   * BuiltinDefinition.description
+   */
+  readonly description: string | null;
+
+  /**
+   * MethodDefinition.properties
+   */
+  readonly properties: readonly PropertyDefinition[];
+
+  constructor(options: {
+    id: number;
+    name: string;
+    icon?: Icon | null;
+    description?: string | null;
+    properties?: readonly PropertyDefinition[];
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`MethodDefinition.id is required`);
+    }
+    this.id = _id;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`MethodDefinition.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    let _description = options.description ?? null;
+    this.description = _description;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this.properties = _properties;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.properties.length != other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
+      if (this.description != null) {
+        propertyReprs.push(`description=${`"${this.description}"`}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<MethodDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = MethodDefinition.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: MethodDefinition): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 32000;
+    objectValue["2"] = object.id;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    if (object.description != null) {
+      objectValue["103"] = object.description;
+    }
+    if (object.properties.length > 0) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toValue());
+      }
+      objectValue["104"] = packedProperties;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MethodDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const descriptionValue = objectValue["103"];
+    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    return new MethodDefinition({
+      properties: unpackedProperties,
+      id: Number(objectValue["2"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      description: unpackedDescription,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MethodDefinition {
+    return MethodDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): MethodDefinitionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = MethodDefinition.__packProto__(this);
+    }
+    return this._proto as MethodDefinitionProto;
+  }
+
+  static __packProto__(object: MethodDefinition): MethodDefinitionProto {
+    const objectProto: Partial<MethodDefinitionProto> = { metatype: 32000 };
+    objectProto.id = object.id;
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    if (object.description != null) {
+      objectProto.description = object.description;
+    }
+    if (object.properties) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toProto());
+      }
+      objectProto.properties = packedProperties;
+    }
+    return objectProto as MethodDefinitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: MethodDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MethodDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new MethodDefinition({
+      properties: unpackedProperties,
+      id: Number(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      description: objectProto.description != undefined ? objectProto.description : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: MethodDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): MethodDefinition {
+    return MethodDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): MethodDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = MethodDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.METHOD_DEFINITION, MethodDefinition);
+/* ==== DESTACK_GENERATED_END:STRUCT:32000 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:32000 ==== */
+/**
+ * An implementation of a unit of work, usually expressed with Code or some tool.
+ * May defer to a builtin or some other service in a separate system.
+ */
+export class Method extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
+  static metatype: NodeType = NodeType.METHOD;
+
+  /**
+   * Method.parent
+   */
+  get parent(): (Entity & IsScriptable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | Folder | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsScriptable) | null;
     }
     return null;
   }
@@ -100,10 +437,10 @@ export class Permission extends Entity implements IsSourceable {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get precededBy(): Permission | null {
+  get precededBy(): Method | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Permission | null;
+      return this._supergraph.get(nodePtr.id) as Method | null;
     }
     return null;
   }
@@ -147,6 +484,22 @@ export class Permission extends Entity implements IsSourceable {
    * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
 
   /**
    * The absolute order key of this Node in its parent.
@@ -198,26 +551,10 @@ export class Permission extends Entity implements IsSourceable {
   _key: string | null;
 
   /**
-   * Permission.type
+   * Method.icon
    */
   /**
-   * Permission.type
-   */
-  get type(): PermissionType {
-    return this._type;
-  }
-  set type(value: PermissionType) {
-    const prop = (this.constructor as NodeClass).__properties__["type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._type = value;
-  }
-  _type: PermissionType;
-
-  /**
-   * Permission.icon
-   */
-  /**
-   * Permission.icon
+   * Method.icon
    */
   get icon(): Icon | null {
     return this._icon;
@@ -229,24 +566,58 @@ export class Permission extends Entity implements IsSourceable {
   }
   _icon: Icon | null;
 
+  /**
+   * Method.text
+   */
+  /**
+   * Method.text
+   */
+  get text(): Text | null {
+    return this._text;
+  }
+  set text(value: Text | null) {
+    const prop = (this.constructor as NodeClass).__properties__["text"];
+    this._session.updateSetProperty(this, prop, value);
+    this._text = value;
+  }
+  _text: Text | null;
+
+  /**
+   * Method.cardinality
+   */
+  /**
+   * Method.cardinality
+   */
+  get cardinality(): MethodCardinality {
+    return this._cardinality;
+  }
+  set cardinality(value: MethodCardinality) {
+    const prop = (this.constructor as NodeClass).__properties__["cardinality"];
+    this._session.updateSetProperty(this, prop, value);
+    this._cardinality = value;
+  }
+  _cardinality: MethodCardinality;
+
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsJoinable) | Folder | NodeReference | null;
+    parent?: (Entity & IsScriptable) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    precededBy?: Permission | NodeReference | null;
+    precededBy?: Method | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
-    type: PermissionType;
     icon?: Icon | null;
+    text?: Text | null;
+    cardinality?: MethodCardinality;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -285,16 +656,16 @@ export class Permission extends Entity implements IsSourceable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Permission has no Session`);
+        throw new Error(`Method has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Permission has no Space`);
+        throw new Error(`Method has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`Permission.space is required`);
+      throw new Error(`Method.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -302,7 +673,7 @@ export class Permission extends Entity implements IsSourceable {
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`Permission.materialization is required`);
+      throw new Error(`Method.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -317,20 +688,25 @@ export class Permission extends Entity implements IsSourceable {
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`Permission.orderKey is required`);
+      throw new Error(`Method.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "Permission";
+      _name = "Method";
     }
     if (_name === null) {
-      throw new Error(`Permission.name is required`);
+      throw new Error(`Method.name is required`);
     }
     this._name = _name;
     let _source = options.source ?? null;
@@ -340,13 +716,18 @@ export class Permission extends Entity implements IsSourceable {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`Permission.type is required`);
-    }
-    this._type = _type;
     let _icon = options.icon ?? null;
     this._icon = _icon;
+    let _text = options.text ?? null;
+    this._text = _text;
+    let _cardinality = options.cardinality ?? null;
+    if (_cardinality === null) {
+      _cardinality = 1 /* MethodCardinality.UNARY */;
+    }
+    if (_cardinality === null) {
+      throw new Error(`Method.cardinality is required`);
+    }
+    this._cardinality = _cardinality;
 
     // identity
     if (options.id == null) {
@@ -357,9 +738,7 @@ export class Permission extends Entity implements IsSourceable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `Permission.createdAt and Permission.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Method.createdAt and Method.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -382,13 +761,19 @@ export class Permission extends Entity implements IsSourceable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._type === other._type)) {
-      return false;
-    }
     if (
       (this._icon == null) !== (other._icon == null) ||
       (this._icon != null && !this._icon.equals(other._icon))
     ) {
+      return false;
+    }
+    if (
+      (this._text == null) !== (other._text == null) ||
+      (this._text != null && !this._text.equals(other._text))
+    ) {
+      return false;
+    }
+    if (!(this._cardinality === other._cardinality)) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
@@ -396,6 +781,17 @@ export class Permission extends Entity implements IsSourceable {
     }
     if (!(this._key === other._key)) {
       return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
@@ -418,15 +814,24 @@ export class Permission extends Entity implements IsSourceable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this._type) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
+    if (this._text != null) {
+      h = (h * 31 + this._text.hash()) & 0xffffffff;
+    }
+    h = (h * 31 + this._cardinality) & 0xffffffff;
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -446,8 +851,8 @@ export class Permission extends Entity implements IsSourceable {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -460,7 +865,7 @@ export class Permission extends Entity implements IsSourceable {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.PERMISSION,
+      type: NodeType.METHOD,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -490,18 +895,17 @@ export class Permission extends Entity implements IsSourceable {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${PermissionType[this.type]}`);
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Permission "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Method "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return Permission.__packValue__(this);
+    return Method.__packValue__(this);
   }
 
-  static __packValue__(object: Permission): { readonly [key: string]: any } {
+  static __packValue__(object: Method): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 360300;
+    objectValue["1"] = 32000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -525,6 +929,13 @@ export class Permission extends Entity implements IsSourceable {
     if (object.deletedAt != null) {
       objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["26"] = packedCustomValues;
+    }
     objectValue["27"] = object.orderKey;
     objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
@@ -533,10 +944,13 @@ export class Permission extends Entity implements IsSourceable {
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
-    objectValue["100"] = object._type;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
+    if (object._text != null) {
+      objectValue["104"] = object._text.toValue();
+    }
+    objectValue["110"] = object._cardinality;
     return objectValue;
   }
 
@@ -546,8 +960,10 @@ export class Permission extends Entity implements IsSourceable {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Permission {
+  ): Method {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -559,6 +975,11 @@ export class Permission extends Entity implements IsSourceable {
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
+    const textValue = objectValue["104"];
+    const unpackedText =
+      textValue != undefined
+        ? _Text.fromValue(textValue, _session, _supergraph, _graph, _connection)
+        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -566,6 +987,18 @@ export class Permission extends Entity implements IsSourceable {
         : null;
     const keyValue = objectValue["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -591,12 +1024,14 @@ export class Permission extends Entity implements IsSourceable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    return new Permission({
+    return new Method({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
       icon: unpackedIcon,
+      text: unpackedText,
+      cardinality: Number(objectValue["110"]),
       source: unpackedSourcePtr,
       key: unpackedKey,
+      customValues: unpackedCustomValues,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -606,8 +1041,8 @@ export class Permission extends Entity implements IsSourceable {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      orderKey: objectValue["27"],
       id: String(objectValue["2"]),
+      orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -621,16 +1056,16 @@ export class Permission extends Entity implements IsSourceable {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Permission {
-    return Permission.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Method {
+    return Method.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): PermissionProto {
-    return Permission.__packProto__(this);
+  toProto(): MethodProto {
+    return Method.__packProto__(this);
   }
 
-  static __packProto__(object: Permission): PermissionProto {
-    const objectProto: Partial<PermissionProto> = { metatype: 360300 };
+  static __packProto__(object: Method): MethodProto {
+    const objectProto: Partial<MethodProto> = { metatype: 32000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -654,6 +1089,12 @@ export class Permission extends Entity implements IsSourceable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
     if (object.sourcePtr != null) {
@@ -662,23 +1103,37 @@ export class Permission extends Entity implements IsSourceable {
     if (object._key != null) {
       objectProto.key = object._key;
     }
-    objectProto.type = Number(object._type) as PermissionTypeProto;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
-    return objectProto as PermissionProto;
+    if (object._text != null) {
+      objectProto.text = object._text.toProto();
+    }
+    objectProto.cardinality = Number(object._cardinality) as MethodCardinalityProto;
+    return objectProto as MethodProto;
   }
 
   static __unpackProto__(
-    objectProto: PermissionProto,
+    objectProto: MethodProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Permission {
+  ): Method {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new Permission({
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new Method({
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -689,11 +1144,15 @@ export class Permission extends Entity implements IsSourceable {
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as PermissionType,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
+      text:
+        objectProto.text != undefined
+          ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
+          : null,
+      cardinality: Number(objectProto.cardinality) as MethodCardinality,
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -705,6 +1164,7 @@ export class Permission extends Entity implements IsSourceable {
             )
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
+      customValues: unpackedCustomValues,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -751,8 +1211,8 @@ export class Permission extends Entity implements IsSourceable {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      orderKey: objectProto.orderKey,
       id: String(objectProto.id),
+      orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -767,18 +1227,18 @@ export class Permission extends Entity implements IsSourceable {
   }
 
   static fromProto(
-    objectProto: PermissionProto,
+    objectProto: MethodProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Permission {
-    return Permission.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Method {
+    return Method.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Permission {
+  static fromProtoString(packedProtoString: string): Method {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PermissionProto.fromBinary(packedProtoBytes);
+    const packedProto = MethodProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -786,5 +1246,5 @@ export class Permission extends Entity implements IsSourceable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.PERMISSION, Permission);
-/* ==== DESTACK_GENERATED_END:NODE:360300 ==== */
+registerNodeClass(NodeType.METHOD, Method);
+/* ==== DESTACK_GENERATED_END:NODE:32000 ==== */

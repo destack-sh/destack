@@ -151,7 +151,7 @@ enum ConditionalTypeProto {
   CONDITIONAL_TYPE_NOT_EXISTS = 41;
 }
 
-// Type of a builtin Constraint.
+// Type of a Constraint.
 enum ConstraintTypeProto {
   CONSTRAINT_TYPE_UNSPECIFIED = 0;
   CONSTRAINT_TYPE_UNIQUE = 1;
@@ -307,31 +307,32 @@ enum EnumTypeProto {
   ENUM_TYPE_PLATFORM_TYPE = 30;
   ENUM_TYPE_RUNTIME_LANGUAGE = 31;
   ENUM_TYPE_OPERATING_SYSTEM = 40;
-  ENUM_TYPE_EDIT_TYPE = 50;
-  ENUM_TYPE_EDIT_OPERATION = 51;
-  ENUM_TYPE_PRIMITIVE_TYPE = 60;
-  ENUM_TYPE_TYPE_CARDINALITY = 61;
-  ENUM_TYPE_SCALAR_TYPE = 62;
-  ENUM_TYPE_VALUE_FACTORY = 63;
-  ENUM_TYPE_STRING_FORMAT = 64;
-  ENUM_TYPE_NUMBER_FORMAT = 65;
-  ENUM_TYPE_PROPERTY_TYPE = 66;
-  ENUM_TYPE_EDGE_TYPE = 67;
-  ENUM_TYPE_EDGE_DIRECTION = 68;
-  ENUM_TYPE_CASCADE_ACTION = 69;
-  ENUM_TYPE_INDEX_TYPE = 100;
-  ENUM_TYPE_CONSTRAINT_TYPE = 101;
-  ENUM_TYPE_RESOURCE_STATUS = 1100;
-  ENUM_TYPE_SNAPSHOT_STATUS = 1301;
-  ENUM_TYPE_CONDITIONAL_TYPE = 10103;
-  ENUM_TYPE_AGGREGATION_TYPE = 10104;
-  ENUM_TYPE_SORT_MODE = 10105;
-  ENUM_TYPE_SORT_TYPE = 10106;
-  ENUM_TYPE_JOIN_TYPE = 10107;
-  ENUM_TYPE_FUNCTION_TYPE = 10108;
-  ENUM_TYPE_EXPRESSION_TYPE = 10109;
-  ENUM_TYPE_QUERY_TYPE = 10120;
-  ENUM_TYPE_QUERY_UPDATE_TYPE = 10121;
+  ENUM_TYPE_PRIMITIVE_TYPE = 100;
+  ENUM_TYPE_TYPE_CARDINALITY = 101;
+  ENUM_TYPE_SCALAR_TYPE = 102;
+  ENUM_TYPE_VALUE_FACTORY = 103;
+  ENUM_TYPE_STRING_FORMAT = 104;
+  ENUM_TYPE_NUMBER_FORMAT = 105;
+  ENUM_TYPE_PROPERTY_TYPE = 106;
+  ENUM_TYPE_EDGE_TYPE = 107;
+  ENUM_TYPE_EDGE_DIRECTION = 108;
+  ENUM_TYPE_CASCADE_ACTION = 109;
+  ENUM_TYPE_EDIT_TYPE = 200;
+  ENUM_TYPE_EDIT_OPERATION = 201;
+  ENUM_TYPE_CONDITIONAL_TYPE = 300;
+  ENUM_TYPE_AGGREGATION_TYPE = 301;
+  ENUM_TYPE_SORT_MODE = 302;
+  ENUM_TYPE_SORT_TYPE = 303;
+  ENUM_TYPE_JOIN_TYPE = 304;
+  ENUM_TYPE_FUNCTION_TYPE = 305;
+  ENUM_TYPE_EXPRESSION_TYPE = 306;
+  ENUM_TYPE_QUERY_TYPE = 320;
+  ENUM_TYPE_QUERY_UPDATE_TYPE = 321;
+  ENUM_TYPE_RESOURCE_STATUS = 10100;
+  ENUM_TYPE_SNAPSHOT_STATUS = 10301;
+  ENUM_TYPE_INDEX_TYPE = 30100;
+  ENUM_TYPE_CONSTRAINT_TYPE = 30200;
+  ENUM_TYPE_MIGRATION_TYPE = 31000;
   ENUM_TYPE_SPACE_STATUS = 100000;
   ENUM_TYPE_USER_STATUS = 101000;
   ENUM_TYPE_ORGANIZATION_STATUS = 103000;
@@ -655,10 +656,10 @@ enum IconTypeProto {
   ICON_TYPE_FILE_URL = 11;
 }
 
-// Type of a builtin Index.
+// Type of an Index.
 enum IndexTypeProto {
   INDEX_TYPE_UNSPECIFIED = 0;
-  INDEX_TYPE_UNIQUE = 1;
+  INDEX_TYPE_BTREE = 1;
 }
 
 enum JoinTypeProto {
@@ -723,6 +724,12 @@ enum MethodCardinalityProto {
   METHOD_CARDINALITY_UNARY = 1;
 }
 
+// Type of a builtin Migration.
+enum MigrationTypeProto {
+  MIGRATION_TYPE_UNSPECIFIED = 0;
+  MIGRATION_TYPE_CREATE = 1;
+}
+
 enum ModeTypeProto {
   MODE_TYPE_UNSPECIFIED = 0;
   MODE_TYPE_ACTIVE = 1;
@@ -781,20 +788,27 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_CUSTOM_EVENT = 102;
-  NODE_TYPE_CUSTOM_STRUCT = 103;
-  NODE_TYPE_CUSTOM_ENUM = 104;
-  NODE_TYPE_CUSTOM_PROPERTY = 110;
-  NODE_TYPE_CUSTOM_OPTION = 120;
-  NODE_TYPE_RECORD = 1000;
-  NODE_TYPE_RESOURCE = 1100;
-  NODE_TYPE_METRIC = 1200;
-  NODE_TYPE_SNAPSHOT = 1300;
-  NODE_TYPE_SERVICE = 1400;
-  NODE_TYPE_VARIANT = 1500;
-  NODE_TYPE_SIGNAL = 2000;
-  NODE_TYPE_EDIT_EVENT = 2001;
-  NODE_TYPE_MEASUREMENT_EVENT = 2010;
+  NODE_TYPE_RECORD = 10000;
+  NODE_TYPE_RESOURCE = 10100;
+  NODE_TYPE_METRIC = 10200;
+  NODE_TYPE_SNAPSHOT = 10300;
+  NODE_TYPE_SERVICE = 10400;
+  NODE_TYPE_VARIANT = 10500;
+  NODE_TYPE_CUSTOM_EVENT = 20000;
+  NODE_TYPE_CUSTOM_STRUCT = 20100;
+  NODE_TYPE_CUSTOM_ENUM = 20200;
+  NODE_TYPE_CUSTOM_PROPERTY = 20300;
+  NODE_TYPE_CUSTOM_OPTION = 20400;
+  NODE_TYPE_INDEX = 30100;
+  NODE_TYPE_CONSTRAINT = 30200;
+  NODE_TYPE_MIGRATION = 31000;
+  NODE_TYPE_MIGRATION_OPERATION = 31100;
+  NODE_TYPE_METHOD = 32000;
+  NODE_TYPE_ACTION = 32100;
+  NODE_TYPE_PERMISSION = 33000;
+  NODE_TYPE_SIGNAL = 50000;
+  NODE_TYPE_EDIT_EVENT = 50100;
+  NODE_TYPE_MEASUREMENT_EVENT = 50200;
   NODE_TYPE_SPACE = 100100;
   NODE_TYPE_HANDLE = 100200;
   NODE_TYPE_USER = 121000;
@@ -819,7 +833,6 @@ enum NodeTypeProto {
   NODE_TYPE_ROLE_EVENT = 360201;
   NODE_TYPE_ROLE_ASSIGNED_EVENT = 360202;
   NODE_TYPE_ROLE_UNASSIGNED_EVENT = 360203;
-  NODE_TYPE_PERMISSION = 360300;
   NODE_TYPE_SANCTION = 360400;
   NODE_TYPE_SANCTION_EVENT = 360401;
   NODE_TYPE_SANCTION_REQUESTED_EVENT = 360402;
@@ -834,8 +847,6 @@ enum NodeTypeProto {
   NODE_TYPE_ENTITLEMENT_EXPIRED_EVENT = 360505;
   NODE_TYPE_FILE = 480000;
   NODE_TYPE_SCRIPT = 700000;
-  NODE_TYPE_METHOD = 701000;
-  NODE_TYPE_ACTION = 701100;
   NODE_TYPE_TRIGGER = 705000;
   NODE_TYPE_TRIGGER_EVENT = 705001;
   NODE_TYPE_TIMER = 705100;
@@ -1308,44 +1319,44 @@ enum StructTypeProto {
   STRUCT_TYPE_STRUCT = 1;
   STRUCT_TYPE_DATUM = 2;
   STRUCT_TYPE_DATUM_MUTABLE = 3;
-  STRUCT_TYPE_BUILTIN_DEFINITION = 100;
-  STRUCT_TYPE_NODE_DEFINITION = 101;
-  STRUCT_TYPE_TRAIT_DEFINITION = 102;
-  STRUCT_TYPE_STRUCT_DEFINITION = 103;
-  STRUCT_TYPE_ENUM_DEFINITION = 104;
-  STRUCT_TYPE_PROPERTY_DEFINITION = 110;
-  STRUCT_TYPE_PROPERTY_GROUP_DEFINITION = 111;
-  STRUCT_TYPE_OPTION_DEFINITION = 112;
-  STRUCT_TYPE_OPTION_GROUP_DEFINITION = 113;
-  STRUCT_TYPE_CONSTANT_DEFINITION = 120;
-  STRUCT_TYPE_METHOD_DEFINITION = 130;
-  STRUCT_TYPE_ACTION_DEFINITION = 131;
-  STRUCT_TYPE_PERMISSION_DEFINITION = 140;
-  STRUCT_TYPE_INDEX_DEFINITION = 150;
-  STRUCT_TYPE_CONSTRAINT_DEFINITION = 151;
-  STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200;
-  STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 201;
-  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 202;
-  STRUCT_TYPE_NODE_REFERENCE = 250;
-  STRUCT_TYPE_PROPERTY_REFERENCE = 251;
-  STRUCT_TYPE_EXPRESSION = 500;
-  STRUCT_TYPE_FUNCTION = 501;
-  STRUCT_TYPE_JOIN = 502;
-  STRUCT_TYPE_AGGREGATION = 503;
-  STRUCT_TYPE_CONDITION = 504;
-  STRUCT_TYPE_SORT = 505;
-  STRUCT_TYPE_SELECT = 506;
-  STRUCT_TYPE_QUERY = 550;
-  STRUCT_TYPE_QUERY_RESULT = 551;
-  STRUCT_TYPE_QUERY_RESULT_GROUP = 552;
-  STRUCT_TYPE_QUERY_UPDATE = 553;
-  STRUCT_TYPE_HISTOGRAM = 554;
-  STRUCT_TYPE_VALUE = 600;
-  STRUCT_TYPE_TYPE = 601;
-  STRUCT_TYPE_NUMBER_CONSTRAINT = 650;
-  STRUCT_TYPE_STRING_CONSTRAINT = 651;
-  STRUCT_TYPE_COLLECTION_CONSTRAINT = 652;
-  STRUCT_TYPE_NODE_CONSTRAINT = 653;
+  STRUCT_TYPE_VALUE = 100;
+  STRUCT_TYPE_TYPE = 101;
+  STRUCT_TYPE_NUMBER_CONSTRAINT = 110;
+  STRUCT_TYPE_STRING_CONSTRAINT = 111;
+  STRUCT_TYPE_COLLECTION_CONSTRAINT = 112;
+  STRUCT_TYPE_NODE_CONSTRAINT = 113;
+  STRUCT_TYPE_EXPRESSION = 200;
+  STRUCT_TYPE_FUNCTION = 201;
+  STRUCT_TYPE_JOIN = 202;
+  STRUCT_TYPE_AGGREGATION = 203;
+  STRUCT_TYPE_CONDITION = 204;
+  STRUCT_TYPE_SORT = 205;
+  STRUCT_TYPE_SELECT = 206;
+  STRUCT_TYPE_HISTOGRAM = 207;
+  STRUCT_TYPE_QUERY = 300;
+  STRUCT_TYPE_QUERY_RESULT = 301;
+  STRUCT_TYPE_QUERY_RESULT_GROUP = 302;
+  STRUCT_TYPE_QUERY_UPDATE = 303;
+  STRUCT_TYPE_NODE_REFERENCE = 1000;
+  STRUCT_TYPE_PROPERTY_REFERENCE = 1001;
+  STRUCT_TYPE_BUILTIN_DEFINITION = 20000;
+  STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 20001;
+  STRUCT_TYPE_NODE_DEFINITION = 20002;
+  STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 20003;
+  STRUCT_TYPE_TRAIT_DEFINITION = 20004;
+  STRUCT_TYPE_STRUCT_DEFINITION = 20100;
+  STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 20101;
+  STRUCT_TYPE_ENUM_DEFINITION = 20200;
+  STRUCT_TYPE_PROPERTY_DEFINITION = 20300;
+  STRUCT_TYPE_CONSTANT_DEFINITION = 20301;
+  STRUCT_TYPE_OPTION_DEFINITION = 20400;
+  STRUCT_TYPE_INDEX_DEFINITION = 30100;
+  STRUCT_TYPE_CONSTRAINT_DEFINITION = 30200;
+  STRUCT_TYPE_MIGRATION_DEFINITION = 31000;
+  STRUCT_TYPE_MIGRATION_OPERATION_DEFINITION = 31100;
+  STRUCT_TYPE_METHOD_DEFINITION = 32000;
+  STRUCT_TYPE_ACTION_DEFINITION = 32100;
+  STRUCT_TYPE_PERMISSION_DEFINITION = 33000;
   STRUCT_TYPE_TEXT = 400020;
   STRUCT_TYPE_TEXT_SPAN = 400021;
   STRUCT_TYPE_ICON = 400031;
@@ -1452,10 +1463,10 @@ enum ToolTypeProto {
 
 enum TraitTypeProto {
   TRAIT_TYPE_UNSPECIFIED = 0;
-  TRAIT_TYPE_ORDERED = 100;
-  TRAIT_TYPE_CUSTOMIZABLE = 110;
-  TRAIT_TYPE_EXTENSIBLE = 111;
-  TRAIT_TYPE_IRREVERSIBLE = 120;
+  TRAIT_TYPE_ORDERED = 10000;
+  TRAIT_TYPE_CUSTOMIZABLE = 10100;
+  TRAIT_TYPE_EXTENSIBLE = 10200;
+  TRAIT_TYPE_IRREVERSIBLE = 10300;
   TRAIT_TYPE_TAGGABLE = 201000;
   TRAIT_TYPE_OWNABLE = 300000;
   TRAIT_TYPE_OWNED = 300001;
@@ -1915,6 +1926,25 @@ message ConstantDefinitionProto {
   optional string description = 103;
   ValueProto value = 120;
   bool is_deferred = 130;
+}
+
+// Constraint of an Entity.
+message ConstraintProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto preceded_by_ptr = 12;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
+  string name = 50;
+  ConstraintTypeProto type = 100;
+  repeated PropertyDefinitionProto properties = 105;
 }
 
 message ConstraintDefinitionProto {
@@ -3232,6 +3262,25 @@ message IconProto {
   optional ColorProto color = 110;
 }
 
+// Index of an Entity.
+message IndexProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto preceded_by_ptr = 12;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
+  string name = 50;
+  IndexTypeProto type = 100;
+  repeated PropertyDefinitionProto properties = 105;
+}
+
 message IndexDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
@@ -3910,6 +3959,58 @@ message MetricProto {
   optional IconProto icon = 102;
 }
 
+// Migration of an Entity.
+message MigrationProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto preceded_by_ptr = 12;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
+  string name = 50;
+  MigrationTypeProto type = 100;
+}
+
+message MigrationDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  MigrationTypeProto type = 100;
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+}
+
+// MigrationOperation of an Entity.
+message MigrationOperationProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto preceded_by_ptr = 12;
+  google.protobuf.Timestamp created_at = 20;
+  optional NodeReferenceProto created_by_ptr = 21;
+  google.protobuf.Timestamp updated_at = 22;
+  optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
+  string name = 50;
+}
+
+message MigrationOperationDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+}
+
 // A MouseEvent is a PointerEvent that corresponds to some direct user input with a mouse.
 message MouseEventProto {
   NodeTypeProto metatype = 1;
@@ -3957,7 +4058,6 @@ message NodeDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
-  repeated PropertyGroupDefinitionProto groups = 106;
   bool is_abstract = 110;
   bool is_extensible = 111;
   bool is_frozen = 112;
@@ -3975,6 +4075,8 @@ message NodeDefinitionProto {
   repeated NodeTypeProto base_event_types = 141;
   repeated StoreKeyProto primary_store_keys = 150;
   optional StoreDomainProto store_domain = 151;
+  repeated IndexDefinitionProto indexes = 160;
+  repeated ConstraintDefinitionProto constraints = 161;
 }
 
 message NodeDefinitionReferenceProto {
@@ -4167,15 +4269,6 @@ message OptionDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
   EnumTypeProto type = 100;
-  string name = 101;
-  optional IconProto icon = 102;
-  optional string description = 103;
-  optional int64 group_id = 105 [jstype = JS_NUMBER];
-}
-
-message OptionGroupDefinitionProto {
-  StructTypeProto metatype = 1;
-  int64 id = 2 [jstype = JS_NUMBER];
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
@@ -4515,14 +4608,6 @@ message PropertyDefinitionProto {
   bool is_hash = 163;
   bool is_eq = 164;
   bool is_managed = 165;
-}
-
-message PropertyGroupDefinitionProto {
-  StructTypeProto metatype = 1;
-  int64 id = 2 [jstype = JS_NUMBER];
-  string name = 101;
-  optional IconProto icon = 102;
-  optional string description = 103;
 }
 
 message PropertyReferenceProto {
@@ -5621,7 +5706,6 @@ message StructDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
-  repeated PropertyGroupDefinitionProto groups = 106;
   bool is_frozen = 110;
   bool is_abstract = 111;
   bool is_extensible = 112;
@@ -5886,7 +5970,6 @@ message TraitDefinitionProto {
   optional IconProto icon = 102;
   optional string description = 103;
   repeated PropertyDefinitionProto properties = 105;
-  repeated PropertyGroupDefinitionProto groups = 106;
   string alias = 110;
   bool is_extensible = 111;
   repeated TraitTypeProto traits = 120;
@@ -6232,13 +6315,20 @@ message WindowProto {
 
 message SomeNodeProto {
   oneof node {
-    SnapshotProto snapshot = 1300;
-    CustomEventProto custom_event = 102;
-    EditEventProto edit_event = 2001;
-    CustomEnumProto custom_enum = 104;
-    CustomOptionProto custom_option = 120;
-    CustomPropertyProto custom_property = 110;
-    CustomStructProto custom_struct = 103;
+    SnapshotProto snapshot = 10300;
+    CustomEventProto custom_event = 20000;
+    EditEventProto edit_event = 50100;
+    MethodProto method = 32000;
+    ActionProto action = 32100;
+    ConstraintProto constraint = 30200;
+    CustomEnumProto custom_enum = 20200;
+    CustomOptionProto custom_option = 20400;
+    IndexProto index = 30100;
+    MigrationProto migration = 31000;
+    MigrationOperationProto migration_operation = 31100;
+    PermissionProto permission = 33000;
+    CustomPropertyProto custom_property = 20300;
+    CustomStructProto custom_struct = 20100;
     EntitlementRequestedEventProto entitlement_requested_event = 360502;
     EntitlementGrantedEventProto entitlement_granted_event = 360503;
     EntitlementRevokedEventProto entitlement_revoked_event = 360504;
@@ -6252,7 +6342,6 @@ message SomeNodeProto {
     MembershipJoinedEventProto membership_joined_event = 360002;
     MembershipLeftEventProto membership_left_event = 360003;
     MembershipProto membership = 360000;
-    PermissionProto permission = 360300;
     RoleAssignedEventProto role_assigned_event = 360202;
     RoleUnassignedEventProto role_unassigned_event = 360203;
     RoleProto role = 360200;
@@ -6310,12 +6399,10 @@ message SomeNodeProto {
     DoubleClickEventProto double_click_event = 2000203;
     TripleClickEventProto triple_click_event = 2000204;
     WheelEventProto wheel_event = 2000210;
-    MethodProto method = 701000;
-    ActionProto action = 701100;
     EventCursorProto event_cursor = 712100;
     ScreenCursorProto screen_cursor = 712200;
     ScriptProto script = 700000;
-    ServiceProto service = 1400;
+    ServiceProto service = 10400;
     TimerStartedEventProto timer_started_event = 705102;
     TimerCompletedEventProto timer_completed_event = 705103;
     TimerCancelledEventProto timer_cancelled_event = 705104;
@@ -6374,16 +6461,22 @@ message SomeNodeProto {
 
 message SomeEntityProto {
   oneof node {
-    SnapshotProto snapshot = 1300;
-    CustomEventProto custom_event = 102;
-    CustomEnumProto custom_enum = 104;
-    CustomOptionProto custom_option = 120;
-    CustomPropertyProto custom_property = 110;
-    CustomStructProto custom_struct = 103;
+    SnapshotProto snapshot = 10300;
+    CustomEventProto custom_event = 20000;
+    MethodProto method = 32000;
+    ActionProto action = 32100;
+    ConstraintProto constraint = 30200;
+    CustomEnumProto custom_enum = 20200;
+    CustomOptionProto custom_option = 20400;
+    IndexProto index = 30100;
+    MigrationProto migration = 31000;
+    MigrationOperationProto migration_operation = 31100;
+    PermissionProto permission = 33000;
+    CustomPropertyProto custom_property = 20300;
+    CustomStructProto custom_struct = 20100;
     EntitlementProto entitlement = 360500;
     InviteProto invite = 360100;
     MembershipProto membership = 360000;
-    PermissionProto permission = 360300;
     RoleProto role = 360200;
     SanctionProto sanction = 360400;
     FrameViewProto frame_view = 1800200;
@@ -6400,12 +6493,10 @@ message SomeEntityProto {
     EnvironmentProto environment = 1100000;
     DatabaseProto database = 1000000;
     MachineProto machine = 1001000;
-    MethodProto method = 701000;
-    ActionProto action = 701100;
     EventCursorProto event_cursor = 712100;
     ScreenCursorProto screen_cursor = 712200;
     ScriptProto script = 700000;
-    ServiceProto service = 1400;
+    ServiceProto service = 10400;
     TimerProto timer = 705100;
     TriggerProto trigger = 705000;
     GaugeMetricProto gauge_metric = 1200000;
@@ -6444,7 +6535,7 @@ message SomeEntityProto {
 
 message SomeEventProto {
   oneof node {
-    EditEventProto edit_event = 2001;
+    EditEventProto edit_event = 50100;
     EntitlementRequestedEventProto entitlement_requested_event = 360502;
     EntitlementGrantedEventProto entitlement_granted_event = 360503;
     EntitlementRevokedEventProto entitlement_revoked_event = 360504;

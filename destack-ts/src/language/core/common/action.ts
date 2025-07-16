@@ -1,269 +1,317 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import type {
-  Graph,
-  Icon,
-  IsActor,
-  IsCustomizable,
-  IsScriptable,
-  IsSourceable,
-  IsTaggable,
-  NodeClass,
-  NodeReference,
-  QueryConnection,
-  Session,
-  Snapshot,
-  Supergraph,
-  Text,
-  Value,
-} from "@destack/language/core";
-import {
-  ACTIVE_SPACE,
-  Entity,
-  EnumType,
-  Event,
-  Materialization,
-  Node,
-  NodeType,
-  StructType,
-} from "@destack/language/core";
-import type { Script } from "@destack/language/logic/script";
+import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import type { Snapshot } from "@destack/language/core/builtin/entity";
+import { Entity, Materialization } from "@destack/language/core/builtin/entity";
+import { Event } from "@destack/language/core/builtin/event";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
+import type { IsActor, IsRunnable, IsScriptable } from "@destack/language/core/builtin/trait";
+import type { PropertyDefinition } from "@destack/language/core/common/definition";
+import type { Icon } from "@destack/language/core/common/icon";
+import { Method, MethodCardinality, MethodDefinition } from "@destack/language/core/common/method";
+import type { Text } from "@destack/language/core/common/text";
+import type { Value } from "@destack/language/core/common/value";
+import type { QueryConnection } from "@destack/language/core/runtime/connection";
+import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
   registerNodeClass,
+  registerStructClass,
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { MaterializationProto, MethodCardinalityProto, MethodProto } from "@destack/proto";
+import {
+  ActionDefinitionProto,
+  ActionProto,
+  MaterializationProto,
+  MethodCardinalityProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:701001 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:32100 ==== */
 /**
- * MethodCardinality
+ * Definition of a builtin Action.
  */
-export enum MethodCardinality {
-  UNARY = 1,
+export class ActionDefinition extends MethodDefinition {
+  static metatype: StructType = StructType.ACTION_DEFINITION;
+  static __isFrozen__: boolean = true;
+
+  constructor(options: {
+    id: number;
+    name: string;
+    icon?: Icon | null;
+    description?: string | null;
+    properties?: readonly PropertyDefinition[];
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(options);
+
+    // properties
+
+    // identity
+    // ... (already set in parent)
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (this.properties.length != other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
+      if (this.description != null) {
+        propertyReprs.push(`description=${`"${this.description}"`}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<ActionDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = ActionDefinition.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: ActionDefinition): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 32100;
+    objectValue["2"] = object.id;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    if (object.description != null) {
+      objectValue["103"] = object.description;
+    }
+    if (object.properties.length > 0) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toValue());
+      }
+      objectValue["104"] = packedProperties;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ActionDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectValue["104"] != undefined) {
+      for (const item of objectValue["104"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const descriptionValue = objectValue["103"];
+    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    return new ActionDefinition({
+      properties: unpackedProperties,
+      id: Number(objectValue["2"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      description: unpackedDescription,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ActionDefinition {
+    return ActionDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): ActionDefinitionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = ActionDefinition.__packProto__(this);
+    }
+    return this._proto as ActionDefinitionProto;
+  }
+
+  static __packProto__(object: ActionDefinition): ActionDefinitionProto {
+    const objectProto: Partial<ActionDefinitionProto> = { metatype: 32100 };
+    objectProto.id = object.id;
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    if (object.description != null) {
+      objectProto.description = object.description;
+    }
+    if (object.properties) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toProto());
+      }
+      objectProto.properties = packedProperties;
+    }
+    return objectProto as ActionDefinitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ActionDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ActionDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new ActionDefinition({
+      properties: unpackedProperties,
+      id: Number(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      description: objectProto.description != undefined ? objectProto.description : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ActionDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ActionDefinition {
+    return ActionDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): ActionDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ActionDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
-/* ==== DESTACK_GENERATED_END:ENUM:701001 ==== */
+registerStructClass(StructType.ACTION_DEFINITION, ActionDefinition);
+/* ==== DESTACK_GENERATED_END:STRUCT:32100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:701000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:32100 ==== */
 /**
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
  */
-export class Method extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
-  static metatype: NodeType = NodeType.METHOD;
-
-  /**
-   * Method.parent
-   */
-  get parent(): (Entity & IsScriptable) | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsScriptable) | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
-
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly snapshotPtr: NodeReference | null;
-
-  /**
-   * The previous Entity this Entity is based on (from another Snapshot).
-   */
-  get precededBy(): Method | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Method | null;
-    }
-    return null;
-  }
-  readonly precededByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was created.
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * The Actor that created this Entity.
-   */
-  get createdBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was last updated.
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * The Actor that last updated this Entity.
-   */
-  get updatedBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * Entity.deletedAt
-   */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
-  }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
-    this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
-  }
-  _customValues: { readonly [key: string]: Value };
-
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
-   * Entity.name
-   */
-  /**
-   * Entity.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
-  /**
-   * The Script that defines this Node.
-   */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
-  }
-  readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  get key(): string | null {
-    return this._key;
-  }
-  set key(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key"];
-    this._session.updateSetProperty(this, prop, value);
-    this._key = value;
-  }
-  _key: string | null;
-
-  /**
-   * Method.icon
-   */
-  /**
-   * Method.icon
-   */
-  get icon(): Icon | null {
-    return this._icon;
-  }
-  set icon(value: Icon | null) {
-    const prop = (this.constructor as NodeClass).__properties__["icon"];
-    this._session.updateSetProperty(this, prop, value);
-    this._icon = value;
-  }
-  _icon: Icon | null;
-
-  /**
-   * Method.text
-   */
-  /**
-   * Method.text
-   */
-  get text(): Text | null {
-    return this._text;
-  }
-  set text(value: Text | null) {
-    const prop = (this.constructor as NodeClass).__properties__["text"];
-    this._session.updateSetProperty(this, prop, value);
-    this._text = value;
-  }
-  _text: Text | null;
-
-  /**
-   * Method.cardinality
-   */
-  /**
-   * Method.cardinality
-   */
-  get cardinality(): MethodCardinality {
-    return this._cardinality;
-  }
-  set cardinality(value: MethodCardinality) {
-    const prop = (this.constructor as NodeClass).__properties__["cardinality"];
-    this._session.updateSetProperty(this, prop, value);
-    this._cardinality = value;
-  }
-  _cardinality: MethodCardinality;
+export class Action extends Method implements IsRunnable {
+  static metatype: NodeType = NodeType.ACTION;
 
   constructor(options: {
     id?: string;
@@ -271,7 +319,7 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    precededBy?: Method | NodeReference | null;
+    precededBy?: Action | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -290,138 +338,12 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
     _graph?: Graph | null;
     _connection?: QueryConnection | null;
   }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-    );
+    super(options);
 
     // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Method has no Session`);
-      }
-      _space = ACTIVE_SPACE.get();
-      if (_space === null) {
-        throw new Error(`Method has no Space`);
-      }
-      _space = _space.toRef();
-    }
-    if (_space === null) {
-      throw new Error(`Method.space is required`);
-    }
-    this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = 3 /* Materialization.ROOT */;
-    }
-    if (_materialization === null) {
-      throw new Error(`Method.materialization is required`);
-    }
-    this.materialization = _materialization;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    this.snapshotPtr = _snapshot;
-    let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
-      _precededBy = (_precededBy as Node).toRef();
-    }
-    this.precededByPtr = _precededBy;
-    let _deletedAt = options.deletedAt ?? null;
-    this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`Method.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
-    let _name = options.name ?? null;
-    if (_name === null) {
-      _name = "Method";
-    }
-    if (_name === null) {
-      throw new Error(`Method.name is required`);
-    }
-    this._name = _name;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
-    }
-    this.sourcePtr = _source;
-    let _key = options.key ?? null;
-    this._key = _key;
-    let _icon = options.icon ?? null;
-    this._icon = _icon;
-    let _text = options.text ?? null;
-    this._text = _text;
-    let _cardinality = options.cardinality ?? null;
-    if (_cardinality === null) {
-      _cardinality = 1 /* MethodCardinality.UNARY */;
-    }
-    if (_cardinality === null) {
-      throw new Error(`Method.cardinality is required`);
-    }
-    this._cardinality = _cardinality;
 
     // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      this.createdAt = now;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedByPtr = null;
-    } else {
-      if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(`Method.createdAt and Method.updatedAt are required for existing Nodes`);
-      }
-      this.createdAt = options.createdAt;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-            ? (options.updatedBy as NodeReference)
-            : (options.updatedBy as Node).toRef()
-          : null;
-    }
+    // ... (already set in parent)
   }
 
   equals(other: any): boolean {
@@ -488,6 +410,7 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       h = (h * 31 + this._text.hash()) & 0xffffffff;
     }
     h = (h * 31 + this._cardinality) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
     }
@@ -518,7 +441,6 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
@@ -532,7 +454,7 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.METHOD,
+      type: NodeType.ACTION,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -563,16 +485,16 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Method "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Action "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return Method.__packValue__(this);
+    return Action.__packValue__(this);
   }
 
-  static __packValue__(object: Method): { readonly [key: string]: any } {
+  static __packValue__(object: Action): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 701000;
+    objectValue["1"] = 32100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -627,9 +549,9 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Method {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  ): Action {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
@@ -691,11 +613,12 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    return new Method({
+    return new Action({
       parent: unpackedParentPtr,
       icon: unpackedIcon,
       text: unpackedText,
       cardinality: Number(objectValue["110"]),
+      id: String(objectValue["2"]),
       source: unpackedSourcePtr,
       key: unpackedKey,
       customValues: unpackedCustomValues,
@@ -708,7 +631,6 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      id: String(objectValue["2"]),
       orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -723,16 +645,16 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Method {
-    return Method.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Action {
+    return Action.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): MethodProto {
-    return Method.__packProto__(this);
+  toProto(): ActionProto {
+    return Action.__packProto__(this);
   }
 
-  static __packProto__(object: Method): MethodProto {
-    const objectProto: Partial<MethodProto> = { metatype: 701000 };
+  static __packProto__(object: Action): ActionProto {
+    const objectProto: Partial<ActionProto> = { metatype: 32100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -777,18 +699,18 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       objectProto.text = object._text.toProto();
     }
     objectProto.cardinality = Number(object._cardinality) as MethodCardinalityProto;
-    return objectProto as MethodProto;
+    return objectProto as ActionProto;
   }
 
   static __unpackProto__(
-    objectProto: MethodProto,
+    objectProto: ActionProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Method {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  ): Action {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedCustomValues = {} as any;
@@ -800,7 +722,7 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
         );
       }
     }
-    return new Method({
+    return new Action({
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -820,6 +742,7 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
           ? _Text.fromProto(objectProto.text!, _session, _supergraph, _graph, _connection)
           : null,
       cardinality: Number(objectProto.cardinality) as MethodCardinality,
+      id: String(objectProto.id),
       source:
         objectProto.sourcePtr != undefined
           ? _NodeReference.fromProto(
@@ -878,7 +801,6 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -894,18 +816,18 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
   }
 
   static fromProto(
-    objectProto: MethodProto,
+    objectProto: ActionProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Method {
-    return Method.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Action {
+    return Action.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Method {
+  static fromProtoString(packedProtoString: string): Action {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MethodProto.fromBinary(packedProtoBytes);
+    const packedProto = ActionProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -913,5 +835,5 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.METHOD, Method);
-/* ==== DESTACK_GENERATED_END:NODE:701000 ==== */
+registerNodeClass(NodeType.ACTION, Action);
+/* ==== DESTACK_GENERATED_END:NODE:32100 ==== */

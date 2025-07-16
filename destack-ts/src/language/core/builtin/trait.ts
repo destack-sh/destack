@@ -44,104 +44,6 @@ export const INTER_ORDER_TYPES = [
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
-/**
- * An Entity that can be ordered.
- */
-export interface IsOrdered {
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that can be ordered.
- */
-class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
-
-export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
-registerTraitClass(TraitType.ORDERED, IsOrdered);
-/* ==== DESTACK_GENERATED_END:TRAIT:100 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:110 ==== */
-/**
- * An Entity that can be customized with custom Properties.
- */
-export interface IsCustomizable {
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): { readonly [key: string]: Value };
-  set customValues(value: { readonly [key: string]: Value });
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that can be customized with custom Properties.
- */
-class IsCustomizable$Type extends TraitClass<IsCustomizable, TraitType.CUSTOMIZABLE> {}
-
-export const IsCustomizable = new IsCustomizable$Type(TraitType.CUSTOMIZABLE);
-registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
-/* ==== DESTACK_GENERATED_END:TRAIT:110 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:111 ==== */
-/**
- * A Node that be extended by custom Nodes (i.e. used as a base type).
- */
-export interface IsExtensible extends IsCustomizable, IsScriptable {
-  get definition(): Entity | null;
-  readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Whether this Node is extensible (whether it can be instanced).
-   */
-  readonly isExtensible: boolean;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * A Node that be extended by custom Nodes (i.e. used as a base type).
- */
-class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
-
-export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
-registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
-/* ==== DESTACK_GENERATED_END:TRAIT:111 ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:120 ==== */
-/**
- * An Entity that is fixed / forward-only in spacetime.
- */
-export interface IsIrreversible {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that is fixed / forward-only in spacetime.
- */
-class IsIrreversible$Type extends TraitClass<IsIrreversible, TraitType.IRREVERSIBLE> {}
-
-export const IsIrreversible = new IsIrreversible$Type(TraitType.IRREVERSIBLE);
-registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
-/* ==== DESTACK_GENERATED_END:TRAIT:120 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:300000 ==== */
 /**
  * An Entity that can be owned by an Actor.
@@ -405,3 +307,101 @@ class IsRunnable$Type extends TraitClass<IsRunnable, TraitType.RUNNABLE> {}
 export const IsRunnable = new IsRunnable$Type(TraitType.RUNNABLE);
 registerTraitClass(TraitType.RUNNABLE, IsRunnable);
 /* ==== DESTACK_GENERATED_END:TRAIT:700001 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:10000 ==== */
+/**
+ * An Entity that can be ordered.
+ */
+export interface IsOrdered {
+  /**
+   * The absolute order key of this Node in its parent.
+   */
+  readonly orderKey: string;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity that can be ordered.
+ */
+class IsOrdered$Type extends TraitClass<IsOrdered, TraitType.ORDERED> {}
+
+export const IsOrdered = new IsOrdered$Type(TraitType.ORDERED);
+registerTraitClass(TraitType.ORDERED, IsOrdered);
+/* ==== DESTACK_GENERATED_END:TRAIT:10000 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:10100 ==== */
+/**
+ * An Entity that can be customized with custom Properties.
+ */
+export interface IsCustomizable {
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value };
+  set customValues(value: { readonly [key: string]: Value });
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity that can be customized with custom Properties.
+ */
+class IsCustomizable$Type extends TraitClass<IsCustomizable, TraitType.CUSTOMIZABLE> {}
+
+export const IsCustomizable = new IsCustomizable$Type(TraitType.CUSTOMIZABLE);
+registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
+/* ==== DESTACK_GENERATED_END:TRAIT:10100 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:10200 ==== */
+/**
+ * A Node that be extended by custom Nodes (i.e. used as a base type).
+ */
+export interface IsExtensible extends IsCustomizable, IsScriptable {
+  get definition(): Entity | null;
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * A Node that be extended by custom Nodes (i.e. used as a base type).
+ */
+class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
+
+export const IsExtensible = new IsExtensible$Type(TraitType.EXTENSIBLE);
+registerTraitClass(TraitType.EXTENSIBLE, IsExtensible);
+/* ==== DESTACK_GENERATED_END:TRAIT:10200 ==== */
+
+/* ==== DESTACK_GENERATED_START:TRAIT:10300 ==== */
+/**
+ * An Entity that is fixed / forward-only in spacetime.
+ */
+export interface IsIrreversible {
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+
+/**
+ * An Entity that is fixed / forward-only in spacetime.
+ */
+class IsIrreversible$Type extends TraitClass<IsIrreversible, TraitType.IRREVERSIBLE> {}
+
+export const IsIrreversible = new IsIrreversible$Type(TraitType.IRREVERSIBLE);
+registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
+/* ==== DESTACK_GENERATED_END:TRAIT:10300 ==== */

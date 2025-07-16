@@ -1947,8 +1947,8 @@ export class StrokeStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
     const startValue = objectValue["205"];
     const unpackedStart =
@@ -2120,8 +2120,8 @@ export class StrokeStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {

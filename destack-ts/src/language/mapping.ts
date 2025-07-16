@@ -21,7 +21,6 @@ import type {
   MembershipJoinedEvent,
   MembershipLeftEvent,
 } from "@destack/language/access/membership";
-import type { Permission, PermissionType } from "@destack/language/access/permission";
 import type {
   Role,
   RoleAssignedEvent,
@@ -114,27 +113,44 @@ import type {
   IsTaggable,
   IsViewable,
 } from "@destack/language/core/builtin/trait";
+import type { Action, ActionDefinition } from "@destack/language/core/common/action";
 import type {
-  ActionDefinition,
-  BuiltinDefinition,
-  ConstantDefinition,
+  Constraint,
   ConstraintDefinition,
   ConstraintType,
-  EnumDefinition,
+  Index,
   IndexDefinition,
   IndexType,
-  MethodDefinition,
+} from "@destack/language/core/common/constraint";
+import type {
+  BuiltinDefinition,
+  ConstantDefinition,
+  EnumDefinition,
   NodeDefinition,
   OptionDefinition,
-  OptionGroupDefinition,
-  PermissionDefinition,
   PropertyDefinition,
-  PropertyGroupDefinition,
   StructDefinition,
   TraitDefinition,
 } from "@destack/language/core/common/definition";
 import type { CustomEnum, CustomOption } from "@destack/language/core/common/enum";
 import type { Icon, IconType } from "@destack/language/core/common/icon";
+import type {
+  Method,
+  MethodCardinality,
+  MethodDefinition,
+} from "@destack/language/core/common/method";
+import type {
+  Migration,
+  MigrationDefinition,
+  MigrationOperation,
+  MigrationOperationDefinition,
+  MigrationType,
+} from "@destack/language/core/common/migration";
+import type {
+  Permission,
+  PermissionDefinition,
+  PermissionType,
+} from "@destack/language/core/common/permission";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type {
   Aggregation,
@@ -273,14 +289,12 @@ import type {
   PointerOverEvent,
   PointerUpEvent,
 } from "@destack/language/interaction/pointer";
-import type { Action } from "@destack/language/logic/action";
 import type {
   Cursor,
   CursorStatus,
   EventCursor,
   ScreenCursor,
 } from "@destack/language/logic/cursor";
-import type { Method, MethodCardinality } from "@destack/language/logic/method";
 import type { Route } from "@destack/language/logic/route";
 import type {
   DayOfWeek,
@@ -436,8 +450,15 @@ export type NodeTypeMapping = {
   [NodeType.CUSTOM_EVENT]: CustomEvent;
   [NodeType.SIGNAL]: Signal;
   [NodeType.EDIT_EVENT]: EditEvent;
+  [NodeType.METHOD]: Method;
+  [NodeType.ACTION]: Action;
+  [NodeType.CONSTRAINT]: Constraint;
+  [NodeType.INDEX]: Index;
   [NodeType.CUSTOM_ENUM]: CustomEnum;
   [NodeType.CUSTOM_OPTION]: CustomOption;
+  [NodeType.MIGRATION]: Migration;
+  [NodeType.MIGRATION_OPERATION]: MigrationOperation;
+  [NodeType.PERMISSION]: Permission;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
   [NodeType.CUSTOM_STRUCT]: CustomStruct;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
@@ -456,7 +477,6 @@ export type NodeTypeMapping = {
   [NodeType.MEMBERSHIP_JOINED_EVENT]: MembershipJoinedEvent;
   [NodeType.MEMBERSHIP_LEFT_EVENT]: MembershipLeftEvent;
   [NodeType.MEMBERSHIP]: Membership;
-  [NodeType.PERMISSION]: Permission;
   [NodeType.ROLE_EVENT]: RoleEvent;
   [NodeType.ROLE_ASSIGNED_EVENT]: RoleAssignedEvent;
   [NodeType.ROLE_UNASSIGNED_EVENT]: RoleUnassignedEvent;
@@ -532,8 +552,6 @@ export type NodeTypeMapping = {
   [NodeType.DOUBLE_CLICK_EVENT]: DoubleClickEvent;
   [NodeType.TRIPLE_CLICK_EVENT]: TripleClickEvent;
   [NodeType.WHEEL_EVENT]: WheelEvent;
-  [NodeType.METHOD]: Method;
-  [NodeType.ACTION]: Action;
   [NodeType.CURSOR]: Cursor;
   [NodeType.EVENT_CURSOR]: EventCursor;
   [NodeType.SCREEN_CURSOR]: ScreenCursor;
@@ -634,16 +652,16 @@ export type StructTypeMapping = {
   [StructType.STRUCT_DEFINITION]: StructDefinition;
   [StructType.ENUM_DEFINITION]: EnumDefinition;
   [StructType.PROPERTY_DEFINITION]: PropertyDefinition;
-  [StructType.PROPERTY_GROUP_DEFINITION]: PropertyGroupDefinition;
   [StructType.OPTION_DEFINITION]: OptionDefinition;
-  [StructType.OPTION_GROUP_DEFINITION]: OptionGroupDefinition;
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
-  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
-  [StructType.INDEX_DEFINITION]: IndexDefinition;
   [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
+  [StructType.INDEX_DEFINITION]: IndexDefinition;
   [StructType.ICON]: Icon;
+  [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
+  [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
+  [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
   [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
@@ -743,9 +761,12 @@ export type EnumTypeMapping = {
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
-  [EnumType.INDEX_TYPE]: IndexType;
+  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.CONSTRAINT_TYPE]: ConstraintType;
+  [EnumType.INDEX_TYPE]: IndexType;
   [EnumType.ICON_TYPE]: IconType;
+  [EnumType.MIGRATION_TYPE]: MigrationType;
+  [EnumType.PERMISSION_TYPE]: PermissionType;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.FUNCTION_TYPE]: FunctionType;
@@ -767,7 +788,6 @@ export type EnumTypeMapping = {
   [EnumType.POSITION_TYPE]: PositionType;
   [EnumType.DIMENSION_TYPE]: DimensionType;
   [EnumType.ENTITLEMENT_TYPE]: EntitlementType;
-  [EnumType.PERMISSION_TYPE]: PermissionType;
   [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.FILE_SOURCE]: FileSource;
@@ -781,7 +801,6 @@ export type EnumTypeMapping = {
   [EnumType.MODEL_DEVELOPER]: ModelDeveloper;
   [EnumType.MODEL_PROVIDER]: ModelProvider;
   [EnumType.MOUSE_BUTTON]: MouseButton;
-  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.CURSOR_STATUS]: CursorStatus;
   [EnumType.DAY_OF_WEEK]: DayOfWeek;
   [EnumType.MONTH]: Month;

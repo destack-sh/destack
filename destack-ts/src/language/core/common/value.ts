@@ -30,7 +30,7 @@ import {
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:600 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
 /**
  * A generic Value of any Type (encoded as JSON).
  */
@@ -139,7 +139,7 @@ export class Value extends StructFrozen {
 
   static __packValue__(object: Value): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 600;
+    objectValue["1"] = 100;
     objectValue["100"] = object.type.toValue();
     if (object.value != null) {
       objectValue["110"] = object.value;
@@ -184,7 +184,7 @@ export class Value extends StructFrozen {
   }
 
   static __packProto__(object: Value): ValueProto {
-    const objectProto: Partial<ValueProto> = { metatype: 600 };
+    const objectProto: Partial<ValueProto> = { metatype: 100 };
     objectProto.type = object.type.toProto();
     if (object.value != null) {
       objectProto.value = packProtoJson(object.value);
@@ -239,7 +239,7 @@ export class Value extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.VALUE, Value);
-/* ==== DESTACK_GENERATED_END:STRUCT:600 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:100 ==== */
 
 /**
  * Convert an arbitrary (legal) value to a Value.

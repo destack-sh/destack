@@ -38,7 +38,7 @@ import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10200 ==== */
 /**
  * An Entity that represents a Metric.
  */
@@ -144,9 +144,9 @@ export abstract class Metric extends Entity implements IsSourceable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:1200 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2010 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:50200 ==== */
 /**
  * An Event that represents a Measurement.
  */
@@ -215,7 +215,7 @@ export abstract class MeasurementEvent extends Event {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.MEASUREMENT_EVENT, MeasurementEvent);
-/* ==== DESTACK_GENERATED_END:NODE:2010 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:50200 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:1200000 ==== */
 /**

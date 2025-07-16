@@ -33,7 +33,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:1400 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10400 ==== */
 /**
  * A Service provides related functionality via Actions (and Methods).
  * Services may be stateful (with custom Properties and runtime only state).
@@ -629,7 +629,7 @@ export class Service
 
   static __packValue__(object: Service): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1400;
+    objectValue["1"] = 10400;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -691,8 +691,8 @@ export class Service
     _graph?: any | null,
     _connection?: any | null,
   ): Service {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectValue["102"];
     const unpackedIcon =
@@ -806,7 +806,7 @@ export class Service
   }
 
   static __packProto__(object: Service): ServiceProto {
-    const objectProto: Partial<ServiceProto> = { metatype: 1400 };
+    const objectProto: Partial<ServiceProto> = { metatype: 10400 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -867,8 +867,8 @@ export class Service
     _graph?: any | null,
     _connection?: any | null,
   ): Service {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
@@ -1019,4 +1019,4 @@ export class Service
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SERVICE, Service);
-/* ==== DESTACK_GENERATED_END:NODE:1400 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10400 ==== */

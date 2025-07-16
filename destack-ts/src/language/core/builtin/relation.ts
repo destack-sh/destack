@@ -41,7 +41,7 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:200 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20003 ==== */
 /**
  * Reference to a Node definition.
  */
@@ -182,7 +182,7 @@ export class NodeDefinitionReference extends StructFrozen {
 
   static __packValue__(object: NodeDefinitionReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 200;
+    objectValue["1"] = 20003;
     objectValue["100"] = object.type;
     objectValue["101"] = object.nodeType;
     if (object.definitionPtr != null) {
@@ -238,7 +238,7 @@ export class NodeDefinitionReference extends StructFrozen {
   }
 
   static __packProto__(object: NodeDefinitionReference): NodeDefinitionReferenceProto {
-    const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 200 };
+    const objectProto: Partial<NodeDefinitionReferenceProto> = { metatype: 20003 };
     objectProto.type = Number(object.type) as NodeDefinitionTypeProto;
     objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
     if (object.definitionPtr != null) {
@@ -376,338 +376,9 @@ export class NodeDefinitionReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION_REFERENCE, NodeDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:200 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20003 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:201 ==== */
-/**
- * Reference to an object "type" (builtin, custom or trait).
- */
-export class ObjectDefinitionReference extends StructFrozen {
-  static metatype: StructType = StructType.OBJECT_DEFINITION_REFERENCE;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * ObjectDefinitionReference.type
-   */
-  readonly type: ObjectDefinitionType;
-
-  /**
-   * ObjectDefinitionReference.nodeType
-   */
-  readonly nodeType: NodeType | null;
-
-  /**
-   * ObjectDefinitionReference.traitType
-   */
-  readonly traitType: TraitType | null;
-
-  /**
-   * ObjectDefinitionReference.structType
-   */
-  readonly structType: StructType | null;
-
-  /**
-   * ObjectDefinitionReference.definition
-   */
-  get definition(): (Entity & IsExtensible) | CustomEvent | CustomStruct | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as
-        | (Entity & IsExtensible)
-        | CustomEvent
-        | CustomStruct
-        | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  constructor(options: {
-    type: ObjectDefinitionType;
-    nodeType?: NodeType | null;
-    traitType?: TraitType | null;
-    structType?: StructType | null;
-    definition?: (Entity & IsExtensible) | CustomEvent | CustomStruct | NodeReference | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`ObjectDefinitionReference.type is required`);
-    }
-    this.type = _type;
-    let _nodeType = options.nodeType ?? null;
-    this.nodeType = _nodeType;
-    let _traitType = options.traitType ?? null;
-    this.traitType = _traitType;
-    let _structType = options.structType ?? null;
-    this.structType = _structType;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.nodeType === other.nodeType)) {
-      return false;
-    }
-    if (!(this.traitType === other.traitType)) {
-      return false;
-    }
-    if (!(this.structType === other.structType)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${ObjectDefinitionType[this.type]}`);
-      if (this.nodeType != null) {
-        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
-      }
-      if (this.traitType != null) {
-        propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
-      }
-      if (this.structType != null) {
-        propertyReprs.push(`structType=${StructType[this.structType]}`);
-      }
-      if (this.definition != null) {
-        propertyReprs.push(`definition=${this.definition?.repr()}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<ObjectDefinitionReference ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.nodeType != null) {
-      h = (h * 31 + this.nodeType) & 0xffffffff;
-    }
-    if (this.traitType != null) {
-      h = (h * 31 + this.traitType) & 0xffffffff;
-    }
-    if (this.structType != null) {
-      h = (h * 31 + this.structType) & 0xffffffff;
-    }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = ObjectDefinitionReference.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: ObjectDefinitionReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 201;
-    objectValue["100"] = object.type;
-    if (object.nodeType != null) {
-      objectValue["101"] = object.nodeType;
-    }
-    if (object.traitType != null) {
-      objectValue["102"] = object.traitType;
-    }
-    if (object.structType != null) {
-      objectValue["103"] = object.structType;
-    }
-    if (object.definitionPtr != null) {
-      objectValue["105"] = object.definitionPtr.toValue();
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ObjectDefinitionReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodeTypeValue = objectValue["101"];
-    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const traitTypeValue = objectValue["102"];
-    const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
-    const structTypeValue = objectValue["103"];
-    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["105"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    return new ObjectDefinitionReference({
-      type: Number(objectValue["100"]),
-      nodeType: unpackedNodeType,
-      traitType: unpackedTraitType,
-      structType: unpackedStructType,
-      definition: unpackedDefinitionPtr,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ObjectDefinitionReference {
-    return ObjectDefinitionReference.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): ObjectDefinitionReferenceProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = ObjectDefinitionReference.__packProto__(this);
-    }
-    return this._proto as ObjectDefinitionReferenceProto;
-  }
-
-  static __packProto__(object: ObjectDefinitionReference): ObjectDefinitionReferenceProto {
-    const objectProto: Partial<ObjectDefinitionReferenceProto> = { metatype: 201 };
-    objectProto.type = Number(object.type) as ObjectDefinitionTypeProto;
-    if (object.nodeType != null) {
-      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
-    }
-    if (object.traitType != null) {
-      objectProto.traitType = Number(object.traitType) as TraitTypeProto;
-    }
-    if (object.structType != null) {
-      objectProto.structType = Number(object.structType) as StructTypeProto;
-    }
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    return objectProto as ObjectDefinitionReferenceProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ObjectDefinitionReferenceProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ObjectDefinitionReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new ObjectDefinitionReference({
-      type: Number(objectProto.type) as ObjectDefinitionType,
-      nodeType:
-        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
-      traitType:
-        objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
-      structType:
-        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ObjectDefinitionReferenceProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ObjectDefinitionReference {
-    return ObjectDefinitionReference.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): ObjectDefinitionReference {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ObjectDefinitionReferenceProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:201 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:251 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1001 ==== */
 /**
  * A reference to a builtin object's Property.
  */
@@ -900,7 +571,7 @@ export class PropertyReference extends StructFrozen {
 
   static __packValue__(object: PropertyReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 251;
+    objectValue["1"] = 1001;
     objectValue["100"] = object.type;
     if (object.nodeType != null) {
       objectValue["101"] = object.nodeType;
@@ -984,7 +655,7 @@ export class PropertyReference extends StructFrozen {
   }
 
   static __packProto__(object: PropertyReference): PropertyReferenceProto {
-    const objectProto: Partial<PropertyReferenceProto> = { metatype: 251 };
+    const objectProto: Partial<PropertyReferenceProto> = { metatype: 1001 };
     objectProto.type = Number(object.type) as PropertyReferenceTypeProto;
     if (object.nodeType != null) {
       objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
@@ -1114,7 +785,7 @@ export class PropertyReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_REFERENCE, PropertyReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:251 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1001 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:10 ==== */
 /**
@@ -1182,269 +853,7 @@ export enum PropertyReferenceType {
 registerEnumClass(EnumType.PROPERTY_REFERENCE_TYPE, PropertyReferenceType);
 /* ==== DESTACK_GENERATED_END:ENUM:13 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:202 ==== */
-/**
- * Reference to a Struct definition (builtin, custom or by trait).
- */
-export class StructDefinitionReference extends StructFrozen {
-  static metatype: StructType = StructType.STRUCT_DEFINITION_REFERENCE;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * StructDefinitionReference.type
-   */
-  readonly type: StructDefinitionType;
-
-  /**
-   * StructDefinitionReference.structType
-   */
-  readonly structType: StructType | null;
-
-  /**
-   * StructDefinitionReference.definition
-   */
-  get definition(): CustomStruct | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      if (this._supergraph === null) {
-        return null;
-      }
-      return this._supergraph.get(nodePtr.id) as CustomStruct;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference;
-
-  constructor(options: {
-    type: StructDefinitionType;
-    structType?: StructType | null;
-    definition: CustomStruct | NodeReference;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`StructDefinitionReference.type is required`);
-    }
-    this.type = _type;
-    let _structType = options.structType ?? null;
-    this.structType = _structType;
-    let _definition = options.definition;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    if (_definition === null) {
-      throw new Error(`StructDefinitionReference.definition is required`);
-    }
-    this.definitionPtr = _definition;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.structType === other.structType)) {
-      return false;
-    }
-    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${StructDefinitionType[this.type]}`);
-      if (this.structType != null) {
-        propertyReprs.push(`structType=${StructType[this.structType]}`);
-      }
-      propertyReprs.push(`definition=${this.definition?.repr()}`);
-      // @ts-expect-error(readonly)
-      this._repr = `<StructDefinitionReference ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.structType != null) {
-      h = (h * 31 + this.structType) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = StructDefinitionReference.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: StructDefinitionReference): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 202;
-    objectValue["100"] = object.type;
-    if (object.structType != null) {
-      objectValue["101"] = object.structType;
-    }
-    objectValue["105"] = object.definitionPtr.toValue();
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): StructDefinitionReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const structTypeValue = objectValue["101"];
-    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    return new StructDefinitionReference({
-      type: Number(objectValue["100"]),
-      structType: unpackedStructType,
-      definition: _NodeReference.fromValue(
-        objectValue["105"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): StructDefinitionReference {
-    return StructDefinitionReference.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): StructDefinitionReferenceProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = StructDefinitionReference.__packProto__(this);
-    }
-    return this._proto as StructDefinitionReferenceProto;
-  }
-
-  static __packProto__(object: StructDefinitionReference): StructDefinitionReferenceProto {
-    const objectProto: Partial<StructDefinitionReferenceProto> = { metatype: 202 };
-    objectProto.type = Number(object.type) as StructDefinitionTypeProto;
-    if (object.structType != null) {
-      objectProto.structType = Number(object.structType) as StructTypeProto;
-    }
-    objectProto.definitionPtr = object.definitionPtr.toProto();
-    return objectProto as StructDefinitionReferenceProto;
-  }
-
-  static __unpackProto__(
-    objectProto: StructDefinitionReferenceProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): StructDefinitionReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new StructDefinitionReference({
-      type: Number(objectProto.type) as StructDefinitionType,
-      structType:
-        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
-      definition: _NodeReference.fromProto(
-        objectProto.definitionPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: StructDefinitionReferenceProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): StructDefinitionReference {
-    return StructDefinitionReference.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): StructDefinitionReference {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = StructDefinitionReferenceProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.STRUCT_DEFINITION_REFERENCE, StructDefinitionReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:202 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:250 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1000 ==== */
 /**
  * A reference to a Node (builtin or custom).
  */
@@ -1623,7 +1032,7 @@ export class NodeReference extends StructFrozen {
 
   static __packValue__(object: NodeReference): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 250;
+    objectValue["1"] = 1000;
     objectValue["100"] = object.type;
     objectValue["101"] = String(object.id);
     if (object.definitionId != null) {
@@ -1687,7 +1096,7 @@ export class NodeReference extends StructFrozen {
   }
 
   static __packProto__(object: NodeReference): NodeReferenceProto {
-    const objectProto: Partial<NodeReferenceProto> = { metatype: 250 };
+    const objectProto: Partial<NodeReferenceProto> = { metatype: 1000 };
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.id = String(object.id);
     if (object.definitionId != null) {
@@ -1746,4 +1155,595 @@ export class NodeReference extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_REFERENCE, NodeReference);
-/* ==== DESTACK_GENERATED_END:STRUCT:250 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1000 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:20001 ==== */
+/**
+ * Reference to an object "type" (builtin, custom or trait).
+ */
+export class ObjectDefinitionReference extends StructFrozen {
+  static metatype: StructType = StructType.OBJECT_DEFINITION_REFERENCE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * ObjectDefinitionReference.type
+   */
+  readonly type: ObjectDefinitionType;
+
+  /**
+   * ObjectDefinitionReference.nodeType
+   */
+  readonly nodeType: NodeType | null;
+
+  /**
+   * ObjectDefinitionReference.traitType
+   */
+  readonly traitType: TraitType | null;
+
+  /**
+   * ObjectDefinitionReference.structType
+   */
+  readonly structType: StructType | null;
+
+  /**
+   * ObjectDefinitionReference.definition
+   */
+  get definition(): (Entity & IsExtensible) | CustomEvent | CustomStruct | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as
+        | (Entity & IsExtensible)
+        | CustomEvent
+        | CustomStruct
+        | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  constructor(options: {
+    type: ObjectDefinitionType;
+    nodeType?: NodeType | null;
+    traitType?: TraitType | null;
+    structType?: StructType | null;
+    definition?: (Entity & IsExtensible) | CustomEvent | CustomStruct | NodeReference | null;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`ObjectDefinitionReference.type is required`);
+    }
+    this.type = _type;
+    let _nodeType = options.nodeType ?? null;
+    this.nodeType = _nodeType;
+    let _traitType = options.traitType ?? null;
+    this.traitType = _traitType;
+    let _structType = options.structType ?? null;
+    this.structType = _structType;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.nodeType === other.nodeType)) {
+      return false;
+    }
+    if (!(this.traitType === other.traitType)) {
+      return false;
+    }
+    if (!(this.structType === other.structType)) {
+      return false;
+    }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${ObjectDefinitionType[this.type]}`);
+      if (this.nodeType != null) {
+        propertyReprs.push(`nodeType=${NodeType[this.nodeType]}`);
+      }
+      if (this.traitType != null) {
+        propertyReprs.push(`traitType=${TraitType[this.traitType]}`);
+      }
+      if (this.structType != null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      if (this.definition != null) {
+        propertyReprs.push(`definition=${this.definition?.repr()}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<ObjectDefinitionReference ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.nodeType != null) {
+      h = (h * 31 + this.nodeType) & 0xffffffff;
+    }
+    if (this.traitType != null) {
+      h = (h * 31 + this.traitType) & 0xffffffff;
+    }
+    if (this.structType != null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = ObjectDefinitionReference.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: ObjectDefinitionReference): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 20001;
+    objectValue["100"] = object.type;
+    if (object.nodeType != null) {
+      objectValue["101"] = object.nodeType;
+    }
+    if (object.traitType != null) {
+      objectValue["102"] = object.traitType;
+    }
+    if (object.structType != null) {
+      objectValue["103"] = object.structType;
+    }
+    if (object.definitionPtr != null) {
+      objectValue["105"] = object.definitionPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const nodeTypeValue = objectValue["101"];
+    const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
+    const traitTypeValue = objectValue["102"];
+    const unpackedTraitType = traitTypeValue != undefined ? Number(traitTypeValue) : null;
+    const structTypeValue = objectValue["103"];
+    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
+    const definitionPtrValue = objectValue["105"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    return new ObjectDefinitionReference({
+      type: Number(objectValue["100"]),
+      nodeType: unpackedNodeType,
+      traitType: unpackedTraitType,
+      structType: unpackedStructType,
+      definition: unpackedDefinitionPtr,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectDefinitionReference {
+    return ObjectDefinitionReference.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): ObjectDefinitionReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = ObjectDefinitionReference.__packProto__(this);
+    }
+    return this._proto as ObjectDefinitionReferenceProto;
+  }
+
+  static __packProto__(object: ObjectDefinitionReference): ObjectDefinitionReferenceProto {
+    const objectProto: Partial<ObjectDefinitionReferenceProto> = { metatype: 20001 };
+    objectProto.type = Number(object.type) as ObjectDefinitionTypeProto;
+    if (object.nodeType != null) {
+      objectProto.nodeType = Number(object.nodeType) as NodeTypeProto;
+    }
+    if (object.traitType != null) {
+      objectProto.traitType = Number(object.traitType) as TraitTypeProto;
+    }
+    if (object.structType != null) {
+      objectProto.structType = Number(object.structType) as StructTypeProto;
+    }
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    return objectProto as ObjectDefinitionReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ObjectDefinitionReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new ObjectDefinitionReference({
+      type: Number(objectProto.type) as ObjectDefinitionType,
+      nodeType:
+        objectProto.nodeType != undefined ? (Number(objectProto.nodeType) as NodeType) : null,
+      traitType:
+        objectProto.traitType != undefined ? (Number(objectProto.traitType) as TraitType) : null,
+      structType:
+        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ObjectDefinitionReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ObjectDefinitionReference {
+    return ObjectDefinitionReference.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): ObjectDefinitionReference {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ObjectDefinitionReferenceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);
+/* ==== DESTACK_GENERATED_END:STRUCT:20001 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:20101 ==== */
+/**
+ * Reference to a Struct definition (builtin, custom or by trait).
+ */
+export class StructDefinitionReference extends StructFrozen {
+  static metatype: StructType = StructType.STRUCT_DEFINITION_REFERENCE;
+  static __isFrozen__: boolean = true;
+
+  /**
+   * StructDefinitionReference.type
+   */
+  readonly type: StructDefinitionType;
+
+  /**
+   * StructDefinitionReference.structType
+   */
+  readonly structType: StructType | null;
+
+  /**
+   * StructDefinitionReference.definition
+   */
+  get definition(): CustomStruct | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as CustomStruct;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference;
+
+  constructor(options: {
+    type: StructDefinitionType;
+    structType?: StructType | null;
+    definition: CustomStruct | NodeReference;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`StructDefinitionReference.type is required`);
+    }
+    this.type = _type;
+    let _structType = options.structType ?? null;
+    this.structType = _structType;
+    let _definition = options.definition;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    if (_definition === null) {
+      throw new Error(`StructDefinitionReference.definition is required`);
+    }
+    this.definitionPtr = _definition;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (!(this.structType === other.structType)) {
+      return false;
+    }
+    if (!(this.definitionPtr.id === other.definitionPtr.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${StructDefinitionType[this.type]}`);
+      if (this.structType != null) {
+        propertyReprs.push(`structType=${StructType[this.structType]}`);
+      }
+      propertyReprs.push(`definition=${this.definition?.repr()}`);
+      // @ts-expect-error(readonly)
+      this._repr = `<StructDefinitionReference ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.structType != null) {
+      h = (h * 31 + this.structType) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = StructDefinitionReference.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: StructDefinitionReference): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 20101;
+    objectValue["100"] = object.type;
+    if (object.structType != null) {
+      objectValue["101"] = object.structType;
+    }
+    objectValue["105"] = object.definitionPtr.toValue();
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StructDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const structTypeValue = objectValue["101"];
+    const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
+    return new StructDefinitionReference({
+      type: Number(objectValue["100"]),
+      structType: unpackedStructType,
+      definition: _NodeReference.fromValue(
+        objectValue["105"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StructDefinitionReference {
+    return StructDefinitionReference.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): StructDefinitionReferenceProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = StructDefinitionReference.__packProto__(this);
+    }
+    return this._proto as StructDefinitionReferenceProto;
+  }
+
+  static __packProto__(object: StructDefinitionReference): StructDefinitionReferenceProto {
+    const objectProto: Partial<StructDefinitionReferenceProto> = { metatype: 20101 };
+    objectProto.type = Number(object.type) as StructDefinitionTypeProto;
+    if (object.structType != null) {
+      objectProto.structType = Number(object.structType) as StructTypeProto;
+    }
+    objectProto.definitionPtr = object.definitionPtr.toProto();
+    return objectProto as StructDefinitionReferenceProto;
+  }
+
+  static __unpackProto__(
+    objectProto: StructDefinitionReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StructDefinitionReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new StructDefinitionReference({
+      type: Number(objectProto.type) as StructDefinitionType,
+      structType:
+        objectProto.structType != undefined ? (Number(objectProto.structType) as StructType) : null,
+      definition: _NodeReference.fromProto(
+        objectProto.definitionPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: StructDefinitionReferenceProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): StructDefinitionReference {
+    return StructDefinitionReference.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): StructDefinitionReference {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = StructDefinitionReferenceProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.STRUCT_DEFINITION_REFERENCE, StructDefinitionReference);
+/* ==== DESTACK_GENERATED_END:STRUCT:20101 ==== */

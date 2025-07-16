@@ -34,36 +34,45 @@ class EnumType(Enum):
     PLATFORM_TYPE = 30
     RUNTIME_LANGUAGE = 31
     OPERATING_SYSTEM = 40
-    EDIT_TYPE = 50
-    EDIT_OPERATION = 51
-    PRIMITIVE_TYPE = 60
-    TYPE_CARDINALITY = 61
-    SCALAR_TYPE = 62
-    VALUE_FACTORY = 63
-    STRING_FORMAT = 64
-    NUMBER_FORMAT = 65
-    PROPERTY_TYPE = 66
-    EDGE_TYPE = 67
-    EDGE_DIRECTION = 68
-    CASCADE_ACTION = 69
 
-    # nocheckin: reorganize Index/Migration/Constraint.. put all in meta?
-    INDEX_TYPE = 100
-    CONSTRAINT_TYPE = 101
+    # type/value
+    PRIMITIVE_TYPE = 100
+    TYPE_CARDINALITY = 101
+    SCALAR_TYPE = 102
+    VALUE_FACTORY = 103
+    STRING_FORMAT = 104
+    NUMBER_FORMAT = 105
+    PROPERTY_TYPE = 106
+    EDGE_TYPE = 107
+    EDGE_DIRECTION = 108
+    CASCADE_ACTION = 109
 
-    RESOURCE_STATUS = 1100
-    SNAPSHOT_STATUS = 1301
+    # edit
+    EDIT_TYPE = 200
+    EDIT_OPERATION = 201
 
     # query
-    CONDITIONAL_TYPE = 10_103
-    AGGREGATION_TYPE = 10_104
-    SORT_MODE = 10_105
-    SORT_TYPE = 10_106
-    JOIN_TYPE = 10_107
-    FUNCTION_TYPE = 10_108
-    EXPRESSION_TYPE = 10_109
-    QUERY_TYPE = 10_120
-    QUERY_UPDATE_TYPE = 10_121
+    CONDITIONAL_TYPE = 300
+    AGGREGATION_TYPE = 301
+    SORT_MODE = 302
+    SORT_TYPE = 303
+    JOIN_TYPE = 304
+    FUNCTION_TYPE = 305
+    EXPRESSION_TYPE = 306
+    QUERY_TYPE = 320
+    QUERY_UPDATE_TYPE = 321
+
+    # common
+    RESOURCE_STATUS = 10_100
+    SNAPSHOT_STATUS = 10_301
+
+    # custom
+    # ...
+
+    # schema
+    INDEX_TYPE = 30_100
+    CONSTRAINT_TYPE = 30_200
+    MIGRATION_TYPE = 31_000
 
     # universe [100_000-200_000]
     SPACE_STATUS = 100_000
@@ -193,54 +202,58 @@ builtin_enum(EnumType.ENUM_TYPE)(EnumType)
 @builtin_enum(EnumType.STRUCT_TYPE)
 class StructType(Enum):
     # meta [1-100_000]
+    # root
     STRUCT = 1, "Struct", "Root of all Structs", "fas fa-shapes"
     DATUM = 2
     DATUM_MUTABLE = 3
-    # definitions
-    BUILTIN_DEFINITION = 100
-    NODE_DEFINITION = 101
-    TRAIT_DEFINITION = 102
-    STRUCT_DEFINITION = 103
-    ENUM_DEFINITION = 104
-    PROPERTY_DEFINITION = 110
-    PROPERTY_GROUP_DEFINITION = 111
-    OPTION_DEFINITION = 112
-    OPTION_GROUP_DEFINITION = 113
-    CONSTANT_DEFINITION = 120
-    METHOD_DEFINITION = 130
-    ACTION_DEFINITION = 131
-    PERMISSION_DEFINITION = 140
-    INDEX_DEFINITION = 150
-    CONSTRAINT_DEFINITION = 151
-    # MIGRATION_DEFINITION, ...
-    # references
-    NODE_DEFINITION_REFERENCE = 200
-    OBJECT_DEFINITION_REFERENCE = 201
-    STRUCT_DEFINITION_REFERENCE = 202
-    # METHOD_REFERENCE, ACTION_REFERENCE, ...
-    NODE_REFERENCE = 250
-    PROPERTY_REFERENCE = 251
+
+    # type/value
+    VALUE = 100
+    TYPE = 101
+    NUMBER_CONSTRAINT = 110
+    STRING_CONSTRAINT = 111
+    COLLECTION_CONSTRAINT = 112
+    NODE_CONSTRAINT = 113
+
     # expressions
-    EXPRESSION = 500
-    FUNCTION = 501
-    JOIN = 502
-    AGGREGATION = 503
-    CONDITION = 504
-    SORT = 505
-    SELECT = 506
-    QUERY = 550
-    QUERY_RESULT = 551
-    QUERY_RESULT_GROUP = 552
-    QUERY_UPDATE = 553
-    HISTOGRAM = 554
-    # values
-    VALUE = 600
-    TYPE = 601
-    # constraints
-    NUMBER_CONSTRAINT = 650
-    STRING_CONSTRAINT = 651
-    COLLECTION_CONSTRAINT = 652
-    NODE_CONSTRAINT = 653
+    EXPRESSION = 200
+    FUNCTION = 201
+    JOIN = 202
+    AGGREGATION = 203
+    CONDITION = 204
+    SORT = 205
+    SELECT = 206
+    HISTOGRAM = 207
+
+    # query
+    QUERY = 300
+    QUERY_RESULT = 301
+    QUERY_RESULT_GROUP = 302
+    QUERY_UPDATE = 303
+
+    # references
+    NODE_REFERENCE = 1_000
+    PROPERTY_REFERENCE = 1_001
+
+    # definitions
+    BUILTIN_DEFINITION = 20_000
+    OBJECT_DEFINITION_REFERENCE = 20_001
+    NODE_DEFINITION = 20_002
+    NODE_DEFINITION_REFERENCE = 20_003
+    TRAIT_DEFINITION = 20_004
+    STRUCT_DEFINITION = 20_100
+    STRUCT_DEFINITION_REFERENCE = 20_101
+    ENUM_DEFINITION = 20_200
+    PROPERTY_DEFINITION = 20_300
+    CONSTANT_DEFINITION = 20_301
+    OPTION_DEFINITION = 20_400
+    INDEX_DEFINITION = 30_100
+    CONSTRAINT_DEFINITION = 30_200
+    MIGRATION_DEFINITION = 31_000
+    MIGRATION_OPERATION_DEFINITION = 31_100
+    METHOD_DEFINITION = 32_000
+    ACTION_DEFINITION = 32_100
+    PERMISSION_DEFINITION = 33_000
 
     # universe [100_000-200_000]
     # ...
@@ -361,16 +374,16 @@ class TraitType(Enum):
     # RELATIONAL/OLTP, INDEXED; ANALYTIC, ...?
 
     # common
-    ORDERED = 100, "Ordered", "Is ordered", "fas fa-sort"
-    # PAUSABLE?
+    ORDERED = 10_000, "Ordered", "Is ordered", "fas fa-sort"
     CUSTOMIZABLE = (
-        110,
+        10_100,
         "Customizable",
         "Can be customized with custom Properties",
         "fas fa-paint-roller",
     )
-    EXTENSIBLE = 111, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
-    IRREVERSIBLE = 120, "Irreversible", "Cannot be rewound", "fas fa-clock-rotate-left"
+    EXTENSIBLE = 10_200, "Extensible", "Can be extended by custom Nodes", "fas fa-expand"
+    IRREVERSIBLE = 10_300, "Irreversible", "Cannot be rewound", "fas fa-clock-rotate-left"
+    # PAUSABLE?
 
     # universe [100_000-200_000]
     # ...
@@ -464,28 +477,40 @@ class NodeType(Enum):
     NODE = 1, "Node", "Root of all Nodes", "fas fa-dot"
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
-    # custom
-    CUSTOM_EVENT = 102, "Custom Event", "Custom Event Definition", "fas fa-signal"
-    CUSTOM_STRUCT = 103, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
-    CUSTOM_ENUM = 104, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
-    CUSTOM_PROPERTY = 110, "Custom Property", "Custom Property Definition", "fas fa-triangle"
-    CUSTOM_OPTION = 120, "Custom Option", "Custom Option Definition", "fas fa-circle"
     # common
-    RECORD = 1_000, "Record", "Data Entity", "fas fa-database"
-    RESOURCE = 1_100, "Resource", "External asset outside of Destack", "fas fa-dot"
-    METRIC = 1_200, "Metric", None, "fas fa-gauge"
-    SNAPSHOT = 1_300, "Snapshot", "Point in Space-time", "fas fa-save"
-    SERVICE = 1_400, "Service", None, "fas fa-screwdriver-wrench"
-    VARIANT = 1_500, "Variant", "Variant of a Scene", "fas fa-shapes"
+    RECORD = 10_000, "Record", "Data Entity", "fas fa-database"
+    RESOURCE = 10_100, "Resource", "External asset outside of Destack", "fas fa-dot"
+    METRIC = 10_200, "Metric", None, "fas fa-gauge"
+    SNAPSHOT = 10_300, "Snapshot", "Point in Space-time", "fas fa-save"
+    SERVICE = 10_400, "Service", None, "fas fa-screwdriver-wrench"
+    VARIANT = 10_500, "Variant", "Variant of a Scene", "fas fa-shapes"
     # LINK, ...
     # TIMELINE, TRACK, (KEY)FRAME, ...
-    # INDEX, CONSTRAINT, MIGRATION, ...
+    # custom
+    CUSTOM_EVENT = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
+    CUSTOM_STRUCT = 20_100, "Custom Struct", "Custom Struct Definition", "fas fa-shapes"
+    CUSTOM_ENUM = 20_200, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
+    CUSTOM_PROPERTY = 20_300, "Custom Property", "Custom Property Definition", "fas fa-triangle"
+    CUSTOM_OPTION = 20_400, "Custom Option", "Custom Option Definition", "fas fa-circle"
+    # intrinsic
+    INDEX = 30_100, "Index", "Index of an Entity", "fas fa-database"
+    CONSTRAINT = 30_200, "Constraint", "Constraint of an Entity", "fas fa-database"
+    MIGRATION = 31_000, "Migration", "Migration of an Entity", "fas fa-database"
+    MIGRATION_OPERATION = (
+        31_100,
+        "Migration Operation",
+        "Migration Operation of an Entity",
+        "fas fa-database",
+    )
+    METHOD = 32_000, "Method", None, "fas fa-code"
+    ACTION = 32_100, "Action", None, "fas fa-code"
+    PERMISSION = 33_000, "Permission", "Permission for something", "fas fa-user-shield"
 
     # event
-    SIGNAL = 2_000, "Custom Event", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 2_001, "Edit Event", None, "fas fa-file-lines"
+    SIGNAL = 50_000, "Signal", "Custom Event instance", "fas fa-signal"
+    EDIT_EVENT = 50_100, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
-    MEASUREMENT_EVENT = 2_010, "Measurement of a Metric", None, "fas fa-gauge"
+    MEASUREMENT_EVENT = 50_200, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [100_000-200_000]
     SPACE = 100_100, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
@@ -527,7 +552,6 @@ class NodeType(Enum):
     ROLE_EVENT = 360_201, "Role Event", None, "fas fa-user-tag"
     ROLE_ASSIGNED_EVENT = 360_202, "Role Assigned Event", None, "fas fa-user-tag"
     ROLE_UNASSIGNED_EVENT = 360_203, "Role Unassigned Event", None, "fas fa-user-tag"
-    PERMISSION = 360_300, "Permission", "Permission for something", "fas fa-user-shield"
     SANCTION = 360_400, "Sanction", "Temporary or permanent restriction", "fas fa-user-minus"
     SANCTION_EVENT = 360_401, "Sanction Event", None, "fas fa-user-minus"
     SANCTION_REQUESTED_EVENT = 360_402, "Sanction Requested Event", None, "fas fa-user-minus"
@@ -559,8 +583,6 @@ class NodeType(Enum):
 
     # logic [700_000-800_000]
     SCRIPT = 700_000, "Script", None, "fas fa-code"
-    METHOD = 701_000, "Method", None, "fas fa-code"
-    ACTION = 701_100, "Action", None, "fas fa-code"
     TRIGGER = 705_000, "Trigger", None, "fas fa-bolt"
     TRIGGER_EVENT = 705_001, "Trigger Event", None, "fas fa-bolt"
     TIMER = 705_100, "Timer", None, "fas fa-clock"
