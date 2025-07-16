@@ -25,6 +25,7 @@ from ..builtin.common import (
     ValueFactory,
 )
 from ..builtin.constant import ConstantDeclaration, register_constant
+from ..builtin.enum import builtin_enum
 from ..builtin.property import PropertyDeclaration, builtin_property, builtin_property_runtime
 from ..builtin.relation import (
     ObjectDefinitionReference,
@@ -132,6 +133,9 @@ class NodeDefinition(BuiltinDefinition):
 
     primary_store_keys: list[StoreKey] = builtin_property(150)
     store_domain: StoreDomain | None = builtin_property(151)
+
+    indexes: list["IndexDefinition"] = builtin_property(160)
+    constraints: list["ConstraintDefinition"] = builtin_property(161)
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -603,8 +607,39 @@ class ActionDefinition(MethodDefinition):
 class PermissionDefinition(BuiltinDefinition):
     """Definition of a builtin Permission for a builtin Node."""
 
-    type: EnumType = builtin_property(100, is_repr=True)
-    node_type: NodeType = builtin_property(110, is_repr=True)
+    pass
+
+
+@builtin_enum(EnumType.INDEX_TYPE)
+class IndexType(Enum):
+    """Type of a builtin Index."""
+
+    UNIQUE = 1
+    # CHECK, ...
+
+
+@builtin_struct(StructType.INDEX_DEFINITION, frozen=True)
+class IndexDefinition(BuiltinDefinition):
+    """Definition of a builtin Index."""
+
+    type: IndexType = builtin_property(100, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(105)
+
+
+@builtin_enum(EnumType.CONSTRAINT_TYPE)
+class ConstraintType(Enum):
+    """Type of a builtin Constraint."""
+
+    UNIQUE = 1
+    # CHECK, ...
+
+
+@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
+class ConstraintDefinition(BuiltinDefinition):
+    """Definition of a builtin Constraint."""
+
+    type: ConstraintType = builtin_property(100, is_repr=True)
+    properties: list["PropertyDefinition"] = builtin_property(105)
 
 
 register_constant("NODE_DEFINITIONS", lambda: list(NODE_DEFINITION_BY_TYPE.values()))

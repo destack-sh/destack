@@ -115,8 +115,8 @@ class NodeConstraint(StructFrozen):
     # page/thread/base/destack, ...
 
 
-Format = Union[NumberFormat, StringFormat]
-Constraint = Union[NumberConstraint, NodeConstraint, StringConstraint, CollectionConstraint]
+TypeFormat = Union[NumberFormat, StringFormat]
+TypeConstraint = Union[NumberConstraint, NodeConstraint, StringConstraint, CollectionConstraint]
 type Json = Any
 
 

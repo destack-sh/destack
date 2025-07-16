@@ -47,6 +47,10 @@ class EnumType(Enum):
     EDGE_DIRECTION = 68
     CASCADE_ACTION = 69
 
+    # nocheckin: reorganize Index/Migration/Constraint.. put all in meta?
+    INDEX_TYPE = 100
+    CONSTRAINT_TYPE = 101
+
     RESOURCE_STATUS = 1100
     SNAPSHOT_STATUS = 1301
 
@@ -206,6 +210,9 @@ class StructType(Enum):
     METHOD_DEFINITION = 130
     ACTION_DEFINITION = 131
     PERMISSION_DEFINITION = 140
+    INDEX_DEFINITION = 150
+    CONSTRAINT_DEFINITION = 151
+    # MIGRATION_DEFINITION, ...
     # references
     NODE_DEFINITION_REFERENCE = 200
     OBJECT_DEFINITION_REFERENCE = 201
@@ -463,21 +470,22 @@ class NodeType(Enum):
     CUSTOM_ENUM = 104, "Custom Enum", "Custom Enum Definition", "fas fa-shapes"
     CUSTOM_PROPERTY = 110, "Custom Property", "Custom Property Definition", "fas fa-triangle"
     CUSTOM_OPTION = 120, "Custom Option", "Custom Option Definition", "fas fa-circle"
-    # entity
-    RECORD = 1000, "Record", "Data Entity", "fas fa-database"
-    RESOURCE = 1100, "Resource", "External asset outside of Destack", "fas fa-dot"
-    METRIC = 1200, "Metric", None, "fas fa-gauge"
-    SNAPSHOT = 1300, "Snapshot", "Point in Space-time", "fas fa-save"
-    SERVICE = 1400, "Service", None, "fas fa-screwdriver-wrench"
-    VARIANT = 1500, "Variant", "Variant of a Scene", "fas fa-shapes"
+    # common
+    RECORD = 1_000, "Record", "Data Entity", "fas fa-database"
+    RESOURCE = 1_100, "Resource", "External asset outside of Destack", "fas fa-dot"
+    METRIC = 1_200, "Metric", None, "fas fa-gauge"
+    SNAPSHOT = 1_300, "Snapshot", "Point in Space-time", "fas fa-save"
+    SERVICE = 1_400, "Service", None, "fas fa-screwdriver-wrench"
+    VARIANT = 1_500, "Variant", "Variant of a Scene", "fas fa-shapes"
     # LINK, ...
-    # TIMELINE, TRACK, KEYFRAME, ...
+    # TIMELINE, TRACK, (KEY)FRAME, ...
+    # INDEX, CONSTRAINT, MIGRATION, ...
 
     # event
-    SIGNAL = 2000, "Custom Event", "Custom Event", "fas fa-signal"
-    EDIT_EVENT = 2001, "Edit Event", None, "fas fa-file-lines"
+    SIGNAL = 2_000, "Custom Event", "Custom Event", "fas fa-signal"
+    EDIT_EVENT = 2_001, "Edit Event", None, "fas fa-file-lines"
     # CHANGE_EVENT?
-    MEASUREMENT_EVENT = 2010, "Measurement of a Metric", None, "fas fa-gauge"
+    MEASUREMENT_EVENT = 2_010, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [100_000-200_000]
     SPACE = 100_100, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
@@ -538,6 +546,7 @@ class NodeType(Enum):
     FILE = 480_000, "File", None, "fas fa-file"
     # DIRECTORY, SYNC, ...
     # INDEX, CONSTRAINT, MIGRATION, ...
+    # REMOTE, ...
     # SECRET, ...
 
     # media [500_000-600_000]
@@ -583,7 +592,7 @@ class NodeType(Enum):
     # infrastructure [1_000_000-1_100_000]
     DATABASE = 1_000_000, "Database", "Database for Postgres data", "fas fa-database"
     MACHINE = 1_001_000, "Machine", "Machine for ephemeral computing", "fas fa-machine-classic"
-    # SEARCH/INDEX, VAULT, CACHE, S3, ...
+    # SEARCH, VAULT, CACHE, S3, ...
     # GALAXY, ...
     # HOST, ENDPOINT, DEPLOYMENT, NETWORK, AUTOSCALER, ...
 

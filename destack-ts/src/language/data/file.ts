@@ -333,6 +333,36 @@ export class File extends Resource {
   _customValues: { readonly [key: string]: Value };
 
   /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
+
+  /**
    * Resource.status
    */
   /**
@@ -701,6 +731,7 @@ export class File extends Resource {
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     status?: ResourceStatus;
     name?: string;
     script?: Script | NodeReference | null;
@@ -803,6 +834,11 @@ export class File extends Resource {
       _customValues = {};
     }
     this._customValues = _customValues;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
+    }
+    this._ownedByPtr = _ownedBy;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 1 /* ResourceStatus.PENDING */;
@@ -977,6 +1013,9 @@ export class File extends Resource {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1067,6 +1106,9 @@ export class File extends Resource {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1152,6 +1194,9 @@ export class File extends Resource {
     if (this.url != null) {
       propertyReprs.push(`url=${`"${this.url}"`}`);
     }
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
     return `<File "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1195,6 +1240,9 @@ export class File extends Resource {
         packedCustomValues[String(String(key))] = value.toValue();
       }
       objectValue["26"] = packedCustomValues;
+    }
+    if (object._ownedByPtr != null) {
+      objectValue["28"] = object._ownedByPtr.toValue();
     }
     objectValue["40"] = object._status;
     objectValue["50"] = object._name;
@@ -1309,6 +1357,11 @@ export class File extends Resource {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const ownedByPtrValue = objectValue["28"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1374,6 +1427,7 @@ export class File extends Resource {
       status: Number(objectValue["40"]),
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
+      ownedBy: unpackedOwnedByPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -1440,6 +1494,9 @@ export class File extends Resource {
       for (const [key, value] of Object.entries(object._customValues)) {
         objectProto.customValues![String(key)] = value.toProto();
       }
+    }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
     objectProto.status = Number(object._status) as ResourceStatusProto;
     objectProto.name = object._name;
@@ -1562,6 +1619,16 @@ export class File extends Resource {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
