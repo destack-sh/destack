@@ -41,6 +41,12 @@ export abstract class ViewEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  abstract get precededBy(): Event | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -105,7 +111,7 @@ export abstract class View
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -122,8 +128,8 @@ export abstract class View
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): View | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): View | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

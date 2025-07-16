@@ -51,8 +51,8 @@ export abstract class Route
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Route | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Route | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

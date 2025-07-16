@@ -44,7 +44,7 @@ export abstract class Style
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -61,8 +61,8 @@ export abstract class Style
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Style | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Style | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

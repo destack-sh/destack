@@ -77,7 +77,6 @@ from .entity import (
     Resource,
     Snapshot,
     SnapshotStatus,
-    SnapshotType,
 )
 from .enum import Enum, builtin_enum
 from .event import CustomEvent, Event, EventStatus
@@ -219,7 +218,6 @@ __all__ = [
     "ScalarType",
     "Snapshot",
     "SnapshotStatus",
-    "SnapshotType",
     "StoreDomain",
     "StoreKey",
     "StoreTier",

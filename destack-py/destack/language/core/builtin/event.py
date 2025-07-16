@@ -64,6 +64,13 @@ class Event[N: Node = Node](Node):
         node_space_from="self",
         description="The Snapshot this Event originated from.",
     )
+    preceded_by: Optional["Event"] = builtin_property(
+        12,
+        is_readonly=True,
+        is_managed=True,
+        node_space_from="self",
+        description="The previous Event this Event is based on (from another Snapshot).",
+    )
     # 20-40: node tracking
     created_at: datetime = builtin_property(
         20,
@@ -93,6 +100,7 @@ class Event[N: Node = Node](Node):
     # caused_by/cascaded_from? (other Events that caused this event, like InputEvent or for cascading edits)
     if TYPE_CHECKING:
         snapshot_ptr: Optional[NodeReference] = None
+        preceded_by_ptr: Optional[NodeReference] = None
         created_by_ptr: Optional[NodeReference] = None
         client_ptr: Optional[NodeReference] = None
 

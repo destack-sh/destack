@@ -5,9 +5,8 @@ import {
   StructType,
   TraitType,
 } from "@destack/language/core/builtin/common";
-import type { CustomEntityDefinition } from "@destack/language/core/builtin/entity";
 import { Entity } from "@destack/language/core/builtin/entity";
-import type { CustomEvent, CustomEventDefinition } from "@destack/language/core/builtin/event";
+import type { CustomEvent } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
@@ -333,26 +332,23 @@ export class NodeDefinitionReference extends StructFrozen {
     return property;
   }
 
-  static of(base: NodeType | NodeClass | NodeReference) {
-    if (typeof base == "number") {
+  static of(base: NodeType | NodeClass | NodeReference): NodeDefinitionReference {
+    if (typeof base === "number") {
       return new NodeDefinitionReference({ type: NodeDefinitionType.BUILTIN, nodeType: base });
-    } else if (
-      isNode(base, NodeType.CUSTOM_EVENT_DEFINITION) ||
-      isNode(base, NodeType.CUSTOM_ENTITY_DEFINITION)
-    ) {
+    } else if (typeof base === "function") {
       return new NodeDefinitionReference({
-        type: NodeDefinitionType.CUSTOM,
+        type: NodeDefinitionType.BUILTIN,
         nodeType: base.metatype,
-        definition: base,
       });
     } else if (isStruct(base, StructType.NODE_REFERENCE)) {
       if (base.definitionId != null) {
         const nodeClass = NODE_CLASS_BY_TYPE[base.type];
         let definitionNodeType: NodeType;
         if (nodeClass.__definition__.inherits.includes(NodeType.ENTITY)) {
-          definitionNodeType = NodeType.CUSTOM_ENTITY_DEFINITION;
+          // same as instance for entities
+          definitionNodeType = base.type;
         } else if (nodeClass.__definition__.inherits.includes(NodeType.EVENT)) {
-          definitionNodeType = NodeType.CUSTOM_EVENT_DEFINITION;
+          definitionNodeType = NodeType.CUSTOM_EVENT;
         } else {
           throw new Error(`unexpected node reference: ${base.repr()}`);
         }
@@ -373,10 +369,7 @@ export class NodeDefinitionReference extends StructFrozen {
         });
       }
     } else {
-      return new NodeDefinitionReference({
-        type: NodeDefinitionType.BUILTIN,
-        nodeType: base.metatype,
-      });
+      assertNever(base);
     }
   }
 
@@ -708,29 +701,7 @@ export class ObjectDefinitionReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
-  static of(base: NodeType | NodeClass | CustomEventDefinition | CustomEntityDefinition) {
-    if (typeof base == "number") {
-      return new ObjectDefinitionReference({
-        type: ObjectDefinitionType.BUILTIN_NODE,
-        nodeType: base,
-      });
-    } else if (
-      isNode(base, NodeType.CUSTOM_EVENT_DEFINITION) ||
-      isNode(base, NodeType.CUSTOM_ENTITY_DEFINITION)
-    ) {
-      return new ObjectDefinitionReference({
-        type: ObjectDefinitionType.CUSTOM_NODE,
-        definition: base,
-      });
-    } else {
-      return new ObjectDefinitionReference({
-        type: ObjectDefinitionType.BUILTIN_NODE,
-        nodeType: base.metatype,
-      });
-    }
-  }
-
+  // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OBJECT_DEFINITION_REFERENCE, ObjectDefinitionReference);

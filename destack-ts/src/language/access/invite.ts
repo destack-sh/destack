@@ -63,6 +63,12 @@ export abstract class InviteEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  abstract get precededBy(): Event | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -144,6 +150,18 @@ export class InviteSentEvent extends InviteEvent {
     return null;
   }
   readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * Event.createdAt
@@ -241,6 +259,7 @@ export class InviteSentEvent extends InviteEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -297,6 +316,11 @@ export class InviteSentEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -391,6 +415,9 @@ export class InviteSentEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -416,6 +443,9 @@ export class InviteSentEvent extends InviteEvent {
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -487,6 +517,9 @@ export class InviteSentEvent extends InviteEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -518,6 +551,11 @@ export class InviteSentEvent extends InviteEvent {
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -562,6 +600,7 @@ export class InviteSentEvent extends InviteEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -595,6 +634,9 @@ export class InviteSentEvent extends InviteEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -657,6 +699,16 @@ export class InviteSentEvent extends InviteEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -755,6 +807,18 @@ export class InviteRescindedEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -833,6 +897,7 @@ export class InviteRescindedEvent extends InviteEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -887,6 +952,11 @@ export class InviteRescindedEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -962,6 +1032,9 @@ export class InviteRescindedEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -985,6 +1058,9 @@ export class InviteRescindedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1056,6 +1132,9 @@ export class InviteRescindedEvent extends InviteEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1085,6 +1164,11 @@ export class InviteRescindedEvent extends InviteEvent {
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1121,6 +1205,7 @@ export class InviteRescindedEvent extends InviteEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -1160,6 +1245,9 @@ export class InviteRescindedEvent extends InviteEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1212,6 +1300,16 @@ export class InviteRescindedEvent extends InviteEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1316,6 +1414,18 @@ export class InviteAcceptedEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1411,6 +1521,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -1467,6 +1578,11 @@ export class InviteAcceptedEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1561,6 +1677,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -1586,6 +1705,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1657,6 +1779,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1688,6 +1813,11 @@ export class InviteAcceptedEvent extends InviteEvent {
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1732,6 +1862,7 @@ export class InviteAcceptedEvent extends InviteEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -1771,6 +1902,9 @@ export class InviteAcceptedEvent extends InviteEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1833,6 +1967,16 @@ export class InviteAcceptedEvent extends InviteEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1937,6 +2081,18 @@ export class InviteRejectedEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2015,6 +2171,7 @@ export class InviteRejectedEvent extends InviteEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -2069,6 +2226,11 @@ export class InviteRejectedEvent extends InviteEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2144,6 +2306,9 @@ export class InviteRejectedEvent extends InviteEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -2167,6 +2332,9 @@ export class InviteRejectedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2238,6 +2406,9 @@ export class InviteRejectedEvent extends InviteEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2267,6 +2438,11 @@ export class InviteRejectedEvent extends InviteEvent {
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -2303,6 +2479,7 @@ export class InviteRejectedEvent extends InviteEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -2342,6 +2519,9 @@ export class InviteRejectedEvent extends InviteEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2394,6 +2574,16 @@ export class InviteRejectedEvent extends InviteEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2500,10 +2690,10 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
   /**
    * The definition this CustomEntity is an instance of.
    */
-  get definition(): (Entity & IsExtensible) | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -2529,14 +2719,14 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): Invite | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
+  get precededBy(): Invite | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Invite | null;
     }
     return null;
   }
-  readonly predecessorPtr: NodeReference | null;
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -2750,10 +2940,10 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
     id?: string;
     parent?: (Entity & IsJoinable) | NodeReference | null;
     space?: Space | NodeReference;
-    definition?: (Entity & IsExtensible) | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: Invite | NodeReference | null;
+    precededBy?: Invite | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -2835,11 +3025,11 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
     }
-    this.predecessorPtr = _predecessor;
+    this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -2942,7 +3132,7 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -2994,8 +3184,8 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3085,8 +3275,8 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -3165,10 +3355,10 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -3214,7 +3404,7 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
       isExtensible: objectValue["90"],
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -3258,8 +3448,8 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3378,10 +3568,10 @@ export class Invite extends Entity implements IsOwnable, IsDeletable, IsExtensib
               _connection,
             )
           : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,

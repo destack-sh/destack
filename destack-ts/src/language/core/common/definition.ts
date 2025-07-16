@@ -3066,9 +3066,9 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly isReadonly: boolean;
 
   /**
-   * PropertyDefinition.isRoot
+   * PropertyDefinition.isMain
    */
-  readonly isRoot: boolean;
+  readonly isMain: boolean;
 
   /**
    * PropertyDefinition.isWired
@@ -3129,7 +3129,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     isRequired: boolean;
     isUnique: boolean;
     isReadonly: boolean;
-    isRoot: boolean;
+    isMain: boolean;
     isWired: boolean;
     isStored: boolean;
     isRepr: boolean;
@@ -3246,11 +3246,11 @@ export class PropertyDefinition extends BuiltinDefinition {
       throw new Error(`PropertyDefinition.isReadonly is required`);
     }
     this.isReadonly = _isReadonly;
-    let _isRoot = options.isRoot;
-    if (_isRoot === null) {
-      throw new Error(`PropertyDefinition.isRoot is required`);
+    let _isMain = options.isMain;
+    if (_isMain === null) {
+      throw new Error(`PropertyDefinition.isMain is required`);
     }
-    this.isRoot = _isRoot;
+    this.isMain = _isMain;
     let _isWired = options.isWired;
     if (_isWired === null) {
       throw new Error(`PropertyDefinition.isWired is required`);
@@ -3388,7 +3388,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (!(this.isReadonly === other.isReadonly)) {
       return false;
     }
-    if (!(this.isRoot === other.isRoot)) {
+    if (!(this.isMain === other.isMain)) {
       return false;
     }
     if (!(this.isWired === other.isWired)) {
@@ -3525,7 +3525,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isUnique)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isReadonly)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.isRoot)) & 0xffffffff;
+    h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isWired)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isStored)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isRepr)) & 0xffffffff;
@@ -3621,7 +3621,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     objectValue["150"] = object.isRequired;
     objectValue["151"] = object.isUnique;
     objectValue["153"] = object.isReadonly;
-    objectValue["154"] = object.isRoot;
+    objectValue["154"] = object.isMain;
     objectValue["160"] = object.isWired;
     objectValue["161"] = object.isStored;
     objectValue["162"] = object.isRepr;
@@ -3765,7 +3765,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       isRequired: objectValue["150"],
       isUnique: objectValue["151"],
       isReadonly: objectValue["153"],
-      isRoot: objectValue["154"],
+      isMain: objectValue["154"],
       isWired: objectValue["160"],
       isStored: objectValue["161"],
       isRepr: objectValue["162"],
@@ -3867,7 +3867,7 @@ export class PropertyDefinition extends BuiltinDefinition {
     objectProto.isRequired = object.isRequired;
     objectProto.isUnique = object.isUnique;
     objectProto.isReadonly = object.isReadonly;
-    objectProto.isRoot = object.isRoot;
+    objectProto.isMain = object.isMain;
     objectProto.isWired = object.isWired;
     objectProto.isStored = object.isStored;
     objectProto.isRepr = object.isRepr;
@@ -3992,7 +3992,7 @@ export class PropertyDefinition extends BuiltinDefinition {
       isRequired: objectProto.isRequired,
       isUnique: objectProto.isUnique,
       isReadonly: objectProto.isReadonly,
-      isRoot: objectProto.isRoot,
+      isMain: objectProto.isMain,
       isWired: objectProto.isWired,
       isStored: objectProto.isStored,
       isRepr: objectProto.isRepr,

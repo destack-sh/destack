@@ -29,6 +29,7 @@ from .property import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        Entity,
         Node,
         NodeReference,
         Script,
@@ -356,7 +357,7 @@ class IsCustomizable(Trait):
 class IsExtensible(IsCustomizable, IsScriptable):
     """A Node that be extended by custom Nodes (i.e. used as a base type)."""
 
-    definition: Union["IsExtensible", None] = builtin_property(
+    definition: Union["Entity", None] = builtin_property(
         6,
         is_managed=True,
         is_readonly=True,

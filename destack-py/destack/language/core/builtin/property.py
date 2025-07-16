@@ -127,7 +127,7 @@ class TypeDeclaration:
     key_type: "TypeDeclaration | None" = None
     is_required: bool = True
     is_self: bool = False
-    is_root: bool = False
+    is_main: bool = False
 
     default: Any = UNSET
     default_factory: ValueFactory | None = None
@@ -380,7 +380,7 @@ class PropertyDeclaration(TypeDeclaration):
     is_managed: bool = False  # set automatically by the system
     is_computed: bool = False  # set automatically at runtime
     is_readonly: bool = False  # can only be set once (at init time)
-    is_root: bool = False  # root property (for return types with single value)
+    is_main: bool = False  # root property (for return types with single value)
 
     can_read: RoleType = RoleType.SPECTATOR
     can_write: RoleType | None = RoleType.SPECTATOR
@@ -654,7 +654,7 @@ def builtin_property(
     is_eq: bool = True,
     is_unique: bool = False,
     is_readonly: bool = False,
-    is_root: bool = False,
+    is_main: bool = False,
     can_read: RoleType = RoleType.SPECTATOR,
     can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
@@ -677,7 +677,7 @@ def builtin_property(
         is_eq=is_eq,
         is_unique=is_unique,
         is_readonly=is_readonly,
-        is_root=is_root,
+        is_main=is_main,
         can_read=can_read,
         can_write=can_write,
     )

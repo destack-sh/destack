@@ -260,7 +260,6 @@ AnyStructProto = Union[
     ArrowProto,
     LineProto,
     DatabaseInfoProto,
-    GalaxyInfoProto,
     ScheduleProto,
     ColorProto,
     BorderProto,

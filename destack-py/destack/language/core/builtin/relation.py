@@ -192,8 +192,10 @@ class ObjectDefinitionReference(StructFrozen):
             "type[Trait]",
             "type[Struct]",
             "CustomEvent",
+            "CustomStruct",
         ],
     ) -> "ObjectDefinitionReference":
+        from ..common.struct import CustomStruct
         from .event import CustomEvent
         from .node import Node
 
@@ -221,7 +223,7 @@ class ObjectDefinitionReference(StructFrozen):
                 )
             else:
                 raise ValueError(f"invalid object reference type: {base!r}")
-        elif isinstance(base, CustomEvent):
+        elif isinstance(base, (CustomEvent, CustomStruct)):
             raise NotImplementedError(f"unexpected object definition reference: {base!r}")
         else:
             assert_never(base)

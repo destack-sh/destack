@@ -82,7 +82,6 @@ import type {
   Resource,
   Snapshot,
   SnapshotStatus,
-  SnapshotType,
   Variant,
 } from "@destack/language/core/builtin/entity";
 import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
@@ -228,7 +227,6 @@ import type {
   DatabaseInfo,
   DatabaseType,
 } from "@destack/language/infrastructure/database";
-import type { GalaxyInfo } from "@destack/language/infrastructure/galaxy";
 import type { Machine, MachineType } from "@destack/language/infrastructure/machine";
 import type { ModelDeveloper, ModelProvider } from "@destack/language/intelligence/model";
 import type {
@@ -687,7 +685,6 @@ export type StructTypeMapping = {
   [StructType.ARROW]: Arrow;
   [StructType.LINE]: Line;
   [StructType.DATABASE_INFO]: DatabaseInfo;
-  [StructType.GALAXY_INFO]: GalaxyInfo;
   [StructType.SCHEDULE]: Schedule;
   [StructType.COLOR]: Color;
   [StructType.BORDER]: Border;
@@ -736,7 +733,6 @@ export type EnumTypeMapping = {
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
   [EnumType.MATERIALIZATION]: Materialization;
-  [EnumType.SNAPSHOT_TYPE]: SnapshotType;
   [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;

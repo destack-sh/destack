@@ -88,7 +88,7 @@ class Entity(Node):
         node_space_from="self",
         description="The Snapshot this Entity is part of.",
     )
-    predecessor: Optional[Self] = builtin_property(
+    preceded_by: Optional[Self] = builtin_property(
         12,
         is_readonly=True,
         is_managed=True,
@@ -105,7 +105,7 @@ class Entity(Node):
     # Entity.set_properties: 15
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None
-        predecessor_ptr: Optional["NodeReference"] = None
+        preceded_by_ptr: Optional["NodeReference"] = None
         # instance_root_ptr: Optional["NodeReference"] = None
 
     # 20-40: node tracking
@@ -462,15 +462,6 @@ class Resource(
     status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
 
 
-@builtin_enum(EnumType.SNAPSHOT_TYPE)
-class SnapshotType(Enum):
-    """The type of a Snapshot."""
-
-    PARTIAL = 1, "Partial", "Partial Snapshot (partial/full Nodes, partial Graph)"
-    COPY = 2, "Copy", "Full Snapshot (full Nodes, full Graph)"
-    ROOT = 3, "Root", "Root Snapshot (full Nodes, full Graph)"
-
-
 @builtin_enum(EnumType.SNAPSHOT_STATUS)
 class SnapshotStatus(Enum):
     """The status of a Snapshot."""
@@ -502,18 +493,12 @@ class Snapshot(
         default_factory=ValueFactory.SELF,
         description="The Snapshot itself. Cannot be any other Snapshot than this Snapshot",
     )
-    predecessor: Optional["Snapshot"] = builtin_property(
+    preceded_by: Optional["Snapshot"] = builtin_property(
         12,
         is_readonly=True,
         is_managed=True,
         node_space_from="self",
         description="The previous Snapshot this Snapshot is based on.",
-    )
-
-    type: SnapshotType = builtin_property(
-        100,
-        is_readonly=True,
-        default=SnapshotType.PARTIAL,
     )
 
     status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
