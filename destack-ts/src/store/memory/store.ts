@@ -17,7 +17,7 @@ import { assertNever } from "@destack/utils";
 
 /** A combined in-memory Store for Events and Entities. */
 export class MemoryStore implements EventStore, EntityStore {
-  public types: StoreKey[];
+  public keys: StoreKey[];
   public nodeTypes: NodeType[];
   public database: MemoryDatabase;
   public context: MemoryContext;
@@ -25,14 +25,14 @@ export class MemoryStore implements EventStore, EntityStore {
   public eventStore: MemoryEventStore;
   public entityStore: MemoryEntityStore;
 
-  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
-    this.types = options.types;
-    this.nodeTypes = getNodeTypesForStores(this.types);
+  constructor(options: { keys: StoreKey[]; database?: MemoryDatabase }) {
+    this.keys = options.keys;
+    this.nodeTypes = getNodeTypesForStores(this.keys);
     this.database = options.database ?? new MemoryDatabase();
     this.context = new MemoryContext(this.database);
 
-    this.eventStore = new MemoryEventStore({ types: this.types, database: this.database });
-    this.entityStore = new MemoryEntityStore({ types: this.types, database: this.database });
+    this.eventStore = new MemoryEventStore({ keys: this.keys, database: this.database });
+    this.entityStore = new MemoryEntityStore({ keys: this.keys, database: this.database });
   }
 
   toString(): string {
@@ -41,6 +41,16 @@ export class MemoryStore implements EventStore, EntityStore {
 
   repr(): string {
     return `<MemoryStore ${this.toString()}>`;
+  }
+
+  async open(): Promise<void> {
+    await this.eventStore.open();
+    await this.entityStore.open();
+  }
+
+  async close(): Promise<void> {
+    await this.eventStore.close();
+    await this.entityStore.close();
   }
 
   query(query: Query): Promise<QueryResult> {

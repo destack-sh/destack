@@ -1,4 +1,6 @@
 import { IndexedDBStore } from "@destack-web/store/indexeddb";
+import { PostgresEntityStore } from "@desys/store/postgres";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   ACTIVE_SPACE,
   Client,
@@ -6,6 +8,7 @@ import {
   Folder,
   FolderType,
   FrameView,
+  getFromEnv,
   Join,
   JoinType,
   LabelView,
@@ -28,14 +31,13 @@ import {
 } from "destack";
 import { IDBFactory } from "fake-indexeddb";
 import "fake-indexeddb/auto";
-import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 const storeImplementations = [
   {
     name: "MemoryStore",
     createStore: async () => {
       const store = new MemoryStore({
-        types: [StoreKey.ENTITY_PRIMARY],
+        keys: [StoreKey.ENTITY_PRIMARY],
       });
       return store;
     },
@@ -48,7 +50,7 @@ const storeImplementations = [
       globalThis.indexedDB = new IDBFactory();
 
       const store = new IndexedDBStore({
-        types: [StoreKey.ENTITY_PRIMARY],
+        keys: [StoreKey.ENTITY_PRIMARY],
       });
       await store.open();
       return store;
@@ -57,11 +59,26 @@ const storeImplementations = [
       await store.close();
     },
   },
+  {
+    name: "PostgresEntityStore",
+    createStore: async () => {
+      const postgresUrl = await getFromEnv("POSTGRES_URL", "string");
+      const store = new PostgresEntityStore({
+        database: { url: postgresUrl },
+        keys: [StoreKey.ENTITY_PRIMARY],
+      });
+      await store.open();
+      return store;
+    },
+    tearDown: async (store: PostgresEntityStore) => {
+      await store.close();
+    },
+  },
 ];
 
 describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   let session: Session;
-  let store: MemoryStore | IndexedDBStore;
+  let store: MemoryStore | IndexedDBStore | PostgresEntityStore;
 
   beforeEach(async () => {
     store = await createStore();

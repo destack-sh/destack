@@ -38,6 +38,14 @@ class MemoryEventStore(EventStore):
         return f"<MemoryEventStore {self!s}>"
 
     @override
+    async def open(self) -> None:
+        pass
+
+    @override
+    async def close(self) -> None:
+        pass
+
+    @override
     @tracer.start_as_current_span("memory.query")
     async def query(self, query: Query) -> QueryResult:
         result = execute_query(self.context, query)

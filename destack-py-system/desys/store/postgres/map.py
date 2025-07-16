@@ -3,7 +3,6 @@ from cachetools import cached
 from destack.language import (
     EdgeType,
     Node,
-    NodeReference,
     NodeType,
     PrimitiveType,
     PropertyDeclaration,
@@ -24,10 +23,6 @@ from .core import (
 from .core import PostgresTable as PostgresTable
 
 POSTGRES_BUILTIN_TABLE_PREFIX = "destack_"
-
-
-def get_table_name(node_ptr: NodeReference) -> str:
-    return f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node_ptr.type.name.lower()}"
 
 
 def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
@@ -122,7 +117,7 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
 
 @cached({})
 def get_builtin_schema(*store_keys: StoreKey) -> PostgresSchema:
-    """Gets the builtin schema for the given traits."""
+    """Gets the builtin schema for the given Stores."""
 
     node_types: tuple[NodeType, ...] = tuple(
         {

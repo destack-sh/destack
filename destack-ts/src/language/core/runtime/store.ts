@@ -16,7 +16,7 @@ export interface Store {
   /**
    * The StoreKeys this Store represents.
    */
-  readonly types: StoreKey[];
+  readonly keys: StoreKey[];
 
   /**
    * The NodeTypes this Store supports.
@@ -27,6 +27,16 @@ export interface Store {
    * Repr the Store.
    */
   repr(): string;
+
+  /**
+   * Open the Store.
+   */
+  open(): Promise<void>;
+
+  /**
+   * Close the Store.
+   */
+  close(): Promise<void>;
 
   /**
    * Query the Store.
