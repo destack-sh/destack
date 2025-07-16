@@ -213,6 +213,11 @@ export class Trigger extends Entity implements IsSourceable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
@@ -366,6 +371,7 @@ export class Trigger extends Entity implements IsSourceable {
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name?: string;
     source?: Script | NodeReference | null;
@@ -443,6 +449,8 @@ export class Trigger extends Entity implements IsSourceable {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -612,6 +620,9 @@ export class Trigger extends Entity implements IsSourceable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -687,6 +698,9 @@ export class Trigger extends Entity implements IsSourceable {
     objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["27"] = object.orderKey;
     objectValue["50"] = object._name;
@@ -796,6 +810,11 @@ export class Trigger extends Entity implements IsSourceable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Trigger({
       icon: unpackedIcon,
       event: unpackedEvent,
@@ -812,6 +831,7 @@ export class Trigger extends Entity implements IsSourceable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       orderKey: objectValue["27"],
       id: String(objectValue["2"]),
@@ -857,6 +877,9 @@ export class Trigger extends Entity implements IsSourceable {
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
@@ -1004,6 +1027,8 @@ export class Trigger extends Entity implements IsSourceable {
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
       id: String(objectProto.id),

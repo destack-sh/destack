@@ -13,7 +13,7 @@ import {
   EditEvent,
   EditOperation,
   EditType,
-  IsDeletable,
+  Entity,
   NodeDefinitionReference,
   NodeReference,
   ScalarType,
@@ -22,7 +22,7 @@ import { IDBPTransaction } from "idb";
 import { Temporal } from "temporal-polyfill";
 
 // define these constants since they're not in Indexeddb core yet
-const NODE_DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
+const NODE_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
 
 /**
  * Execute the Edits in IndexedDB.
@@ -279,7 +279,7 @@ async function executeEdit(options: {
       }
       await Promise.all(editPromises);
       if (rootDts.size > 0) {
-        where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
+        where = Entity.property("deleted_at").in(...Array.from(rootDts));
       }
     }
 

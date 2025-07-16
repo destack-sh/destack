@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
-  IsDeletable,
   IsOwned,
   IsReactable,
   NodeClass,
@@ -40,7 +39,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Reaction is a relationship between a Actor and a Reaction Node.
  */
-export class Reaction extends Entity implements IsDeletable, IsOwned {
+export class Reaction extends Entity implements IsOwned {
   static metatype: NodeType = NodeType.REACTION;
 
   /**
@@ -131,7 +130,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -362,9 +361,6 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._content)) & 0xffffffff;
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -379,6 +375,9 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
     h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
@@ -458,7 +457,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["28"] = object._ownedByPtr.toValue();
     objectValue["50"] = object._name;
@@ -478,11 +477,6 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["25"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -504,10 +498,14 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Reaction({
       parent: unpackedParentPtr,
       content: objectValue["101"],
-      deletedAt: unpackedDeletedAt,
       ownedBy: _NodeReference.fromValue(
         objectValue["28"],
         _session,
@@ -522,6 +520,7 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -596,8 +595,6 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
             )
           : null,
       content: objectProto.content,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       ownedBy: _NodeReference.fromProto(
         objectProto.ownedByPtr!,
         _session,
@@ -648,6 +645,8 @@ export class Reaction extends Entity implements IsDeletable, IsOwned {
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

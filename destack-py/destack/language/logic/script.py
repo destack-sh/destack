@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from destack.language.core import (
     Entity,
     IsCustomizable,
-    IsDeletable,
     IsOrdered,
     IsScriptable,
     NodeType,
@@ -21,7 +20,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SCRIPT)
 class Script(
     IsOrdered,
-    IsDeletable,
     IsCustomizable,
     Entity,
 ):

@@ -5,7 +5,6 @@ from ..builtin import (
     EdgeType,
     Entity,
     EnumType,
-    IsDeletable,
     IsSourceable,
     IsTaggable,
     NodeType,
@@ -46,7 +45,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_PROPERTY)
 class CustomProperty(
     IsTaggable,
-    IsDeletable,
     IsSourceable,
     Entity,
 ):

@@ -5,7 +5,6 @@ import type { PropertyDefinition, TraitDefinition } from "@destack/language/core
 import type { Value } from "@destack/language/core/common/value";
 import type { Script } from "@destack/language/logic";
 import { registerTraitClass } from "@destack/language/registry";
-import { Temporal } from "temporal-polyfill";
 
 /** Internal base class for Trait companion objects.*/
 export class TraitClass<N = any, T extends TraitType = TraitType> {
@@ -44,30 +43,6 @@ export const INTER_ORDER_TYPES = [
 ];
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
-
-/* ==== DESTACK_GENERATED_START:TRAIT:102 ==== */
-/**
- * An Entity that can be deleted.
- */
-export interface IsDeletable {
-  /**
-   * IsDeletable.deletedAt
-   */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that can be deleted.
- */
-class IsDeletable$Type extends TraitClass<IsDeletable, TraitType.DELETABLE> {}
-
-export const IsDeletable = new IsDeletable$Type(TraitType.DELETABLE);
-registerTraitClass(TraitType.DELETABLE, IsDeletable);
-/* ==== DESTACK_GENERATED_END:TRAIT:102 ==== */
 
 /* ==== DESTACK_GENERATED_START:TRAIT:100 ==== */
 /**

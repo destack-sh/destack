@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     IsOrdered,
     IsTaggable,
     NodeType,
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
 class Theme(
     IsOrdered,
     IsTaggable,
-    IsDeletable,
     Entity,
 ):
     """A Theme with common Styles."""

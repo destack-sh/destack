@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -16,7 +15,7 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.ENVIRONMENT)
-class Environment(IsDeletable, Entity):
+class Environment(Entity):
     """An Environment is a deployment scenario of a Space."""
 
     parent: Optional["Space"] = builtin_property_parent()

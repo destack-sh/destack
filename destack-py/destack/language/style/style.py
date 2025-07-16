@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     IsExtensible,
     IsOrdered,
     IsTaggable,
@@ -22,7 +21,6 @@ class Style(
     Entity,
     IsOrdered,
     IsTaggable,
-    IsDeletable,
     IsExtensible,
 ):
     """A Style defines a base visual appearance in some context."""

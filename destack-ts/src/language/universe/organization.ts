@@ -142,6 +142,11 @@ export class Organization extends Entity implements IsActor, IsJoinable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
+   * Entity.deletedAt
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
    * Entity.name
    */
   /**
@@ -223,6 +228,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
     name?: string;
     slug: string;
     status?: OrganizationStatus;
@@ -295,6 +301,8 @@ export class Organization extends Entity implements IsActor, IsJoinable {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Organization";
@@ -405,6 +413,9 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     if (this.updatedByPtr != null) {
       h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
     }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -482,6 +493,9 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
+    if (object.deletedAt != null) {
+      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
     objectValue["50"] = object._name;
     objectValue["101"] = object._slug;
     objectValue["102"] = object._status;
@@ -529,6 +543,11 @@ export class Organization extends Entity implements IsActor, IsJoinable {
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const deletedAtValue = objectValue["24"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
     return new Organization({
       parent: unpackedParentPtr,
       slug: objectValue["101"],
@@ -541,6 +560,7 @@ export class Organization extends Entity implements IsActor, IsJoinable {
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
       updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
@@ -585,6 +605,9 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
     objectProto.name = object._name;
     objectProto.slug = object._slug;
@@ -669,6 +692,8 @@ export class Organization extends Entity implements IsActor, IsJoinable {
               _connection,
             )
           : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

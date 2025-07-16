@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     IsOrdered,
     IsTaggable,
     NodeType,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 class Palette(
     IsOrdered,
     IsTaggable,
-    IsDeletable,
     Entity,
 ):
     """A Palette of Colors."""

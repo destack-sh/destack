@@ -16,7 +16,6 @@ from destack.language import (
     EditOperation,
     EditType,
     Entity,
-    IsDeletable,
     NodeDefinitionReference,
     NodeReference,
     NodeType,
@@ -32,8 +31,7 @@ logger = structlog.get_logger(__name__)
 MAX_RECURSION_DEPTH = 100
 
 ENTITY_PARENT_KEY = str(Entity.property("parent").id)
-
-DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
+DELETED_AT_KEY = str(Entity.property("deleted_at").id)
 
 
 @tracer.start_as_current_span("memory.execute_edits")
@@ -260,7 +258,7 @@ def _execute_edit(
                 else:
                     assert_never(edit_type)
             if root_dts:
-                where = IsDeletable.property("deleted_at").in_(*root_dts)
+                where = Entity.property("deleted_at").in_(*root_dts)
         cascaded_node_ptrs, source_id_by_node_id = _execute_cascade(
             context=context,
             definition=definition,

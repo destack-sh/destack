@@ -1437,7 +1437,6 @@ enum ToolTypeProto {
 enum TraitTypeProto {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_ORDERED = 100;
-  TRAIT_TYPE_DELETABLE = 102;
   TRAIT_TYPE_CUSTOMIZABLE = 110;
   TRAIT_TYPE_EXTENSIBLE = 111;
   TRAIT_TYPE_IRREVERSIBLE = 120;
@@ -1545,7 +1544,7 @@ message ActionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -1585,7 +1584,7 @@ message AnnotationShapeProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -1645,7 +1644,7 @@ message ArrowShapeProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -1723,7 +1722,7 @@ message BorderStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -1748,7 +1747,7 @@ message BranchProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   optional IconProto icon = 102;
@@ -1802,7 +1801,7 @@ message ClientProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional string browser_version = 44;
   string name = 50;
   ClientTypeProto type = 100;
@@ -1870,7 +1869,7 @@ message ColorStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -1917,7 +1916,7 @@ message ContainerViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -1967,7 +1966,7 @@ message ContentViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -2044,6 +2043,7 @@ message CounterMetricProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -2064,6 +2064,7 @@ message CursorProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   CursorStatusProto status = 101;
@@ -2083,7 +2084,7 @@ message CustomEnumProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -2105,6 +2106,7 @@ message CustomEventProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeDefinitionReferenceProto base_type = 40;
@@ -2128,7 +2130,7 @@ message CustomOptionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -2149,7 +2151,7 @@ message CustomPropertyProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -2192,7 +2194,7 @@ message CustomStructProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional StructDefinitionReferenceProto base_type = 41;
@@ -2236,7 +2238,7 @@ message DatabaseProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
   string name = 50;
@@ -2505,7 +2507,7 @@ message EffectStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -2541,7 +2543,7 @@ message EntitlementProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   EntitlementTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
@@ -2636,6 +2638,7 @@ message EntityProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
 }
 
@@ -2662,7 +2665,7 @@ message EnvironmentProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   optional IconProto icon = 102;
 }
@@ -2696,6 +2699,7 @@ message EventCursorProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   CursorStatusProto status = 101;
@@ -2727,7 +2731,7 @@ message FileProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
   string name = 50;
@@ -2778,7 +2782,7 @@ message FillStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -2862,7 +2866,7 @@ message FolderProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -2885,7 +2889,7 @@ message FollowProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
 }
@@ -2960,7 +2964,7 @@ message FontStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -2991,7 +2995,7 @@ message FrameViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3063,6 +3067,7 @@ message GaugeMetricProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -3099,7 +3104,7 @@ message GradientStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3140,6 +3145,7 @@ message HandleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   string slug = 101;
 }
@@ -3179,6 +3185,7 @@ message HistogramMetricProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -3230,7 +3237,7 @@ message InputViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3272,7 +3279,7 @@ message InternalViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3303,7 +3310,7 @@ message InviteProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -3534,7 +3541,7 @@ message LabelViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3583,7 +3590,7 @@ message LayerProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -3623,7 +3630,7 @@ message LineShapeProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3694,7 +3701,7 @@ message MachineProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
   string name = 50;
@@ -3745,7 +3752,7 @@ message MembershipProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -3823,7 +3830,7 @@ message MethodProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -3856,6 +3863,7 @@ message MetricProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -3961,6 +3969,7 @@ message NotificationProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -4085,7 +4094,7 @@ message NumberInputViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -4146,6 +4155,7 @@ message OrganizationProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   string slug = 101;
   OrganizationStatusProto status = 102;
@@ -4165,7 +4175,7 @@ message PaletteProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional IconProto icon = 102;
@@ -4203,7 +4213,7 @@ message PermissionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -4551,7 +4561,7 @@ message ReactionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   string content = 101;
@@ -4619,7 +4629,7 @@ message RecordProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -4642,7 +4652,7 @@ message ResourceProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   ResourceStatusProto status = 40;
   string name = 50;
@@ -4664,7 +4674,7 @@ message RoleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -4735,7 +4745,7 @@ message RouteProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -4754,6 +4764,7 @@ message RunProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string name = 50;
   optional NodeReferenceProto target_ptr = 111;
@@ -4923,7 +4934,7 @@ message SanctionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   SanctionTypeProto type = 100;
   optional google.protobuf.Timestamp expires_at = 110;
@@ -5018,7 +5029,7 @@ message SceneProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -5074,6 +5085,7 @@ message ScreenCursorProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   CursorStatusProto status = 101;
@@ -5094,7 +5106,7 @@ message ScriptProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5121,7 +5133,7 @@ message ServiceProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
@@ -5159,7 +5171,7 @@ message ShadowStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5188,7 +5200,7 @@ message ShapeProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5284,7 +5296,7 @@ message SliderInputViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5321,7 +5333,7 @@ message SnapshotProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   SnapshotStatusProto status = 110;
@@ -5347,6 +5359,7 @@ message SpaceProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
   string slug = 102;
@@ -5388,7 +5401,7 @@ message SplitViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5437,7 +5450,7 @@ message StarProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
 }
@@ -5542,7 +5555,7 @@ message StrokeStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5601,7 +5614,7 @@ message StyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5622,7 +5635,7 @@ message TagProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -5643,7 +5656,7 @@ message TaggingProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto tag_ptr = 110;
@@ -5662,6 +5675,7 @@ message TeamProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   string slug = 102;
 }
@@ -5703,7 +5717,7 @@ message TextViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5739,7 +5753,7 @@ message ThemeProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
 }
@@ -5757,6 +5771,7 @@ message TimerProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -5870,7 +5885,7 @@ message TransitionStyleProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -5900,6 +5915,7 @@ message TriggerProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
@@ -5986,6 +6002,7 @@ message UserProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string name = 50;
   string slug = 102;
@@ -6019,7 +6036,7 @@ message VariantProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
@@ -6096,7 +6113,7 @@ message ViewProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
   string order_key = 27;
   string name = 50;
@@ -6168,7 +6185,7 @@ message WindowProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp deleted_at = 25;
+  optional google.protobuf.Timestamp deleted_at = 24;
   string order_key = 27;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional, Union
 from destack.language.core import (
     Entity,
     Event,
-    IsDeletable,
     IsExtensible,
     IsSourceable,
     IsTaggable,
@@ -50,7 +49,6 @@ class View(
     IsViewable,
     IsTaggable,
     IsExtensible,
-    IsDeletable,
     IsSourceable,
     Entity,
 ):

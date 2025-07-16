@@ -99,7 +99,6 @@ import type {
 import type {
   IsActor,
   IsCustomizable,
-  IsDeletable,
   IsExtensible,
   IsFollowable,
   IsIrreversible,
@@ -613,7 +612,6 @@ export type TraitTypeMapping = {
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
-  [TraitType.DELETABLE]: IsDeletable;
   [TraitType.CUSTOMIZABLE]: IsCustomizable;
   [TraitType.EXTENSIBLE]: IsExtensible;
   [TraitType.IRREVERSIBLE]: IsIrreversible;

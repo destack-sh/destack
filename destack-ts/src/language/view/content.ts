@@ -82,7 +82,7 @@ export abstract class ContentView extends View {
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

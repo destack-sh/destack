@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     IsOrdered,
     IsOwnable,
     IsScriptable,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.ROUTE, is_abstract=True)
 class Route(
-    IsDeletable,
     IsOrdered,
     IsOwnable,
     IsTaggable,

@@ -81,7 +81,7 @@ export abstract class InputView extends View {
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

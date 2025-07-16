@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from typing import (
     TYPE_CHECKING,
     ClassVar,
@@ -291,29 +290,6 @@ class IsRunnable(Trait):
 #
 # Common
 #
-
-
-@builtin_trait(TraitType.DELETABLE, is_extensible=True)
-class IsDeletable(Trait):
-    """An Entity that can be deleted."""
-
-    deleted_at: Optional[datetime] = builtin_property(25, is_managed=True, is_eq=False)
-
-    def delete(self):
-        """Delete this Node."""
-        from destack.language.core.builtin import Entity
-
-        assert isinstance(self, Entity), f"{self!r} is not an Entity"
-        assert not self.deleted_at, f"{self!r} is already deleted"
-        self._session.delete(self)
-
-    def restore(self):
-        """Restore this deleted Node from the trash."""
-        from destack.language.core.builtin import Entity
-
-        assert isinstance(self, Entity), f"{self!r} is not an Entity"
-        assert self.deleted_at, f"{self!r} is not deleted"
-        self._session.restore(self)
 
 
 @builtin_trait(TraitType.CUSTOMIZABLE)

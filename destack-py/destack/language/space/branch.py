@@ -2,7 +2,6 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
-    IsDeletable,
     IsOwnable,
     NodeType,
     builtin_node,
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.BRANCH)
 class Branch(
     IsOwnable,
-    IsDeletable,
     Entity,
 ):
     """A Branch is a version of a Snapshot."""

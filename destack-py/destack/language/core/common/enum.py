@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Union
 from ..builtin import (
     Entity,
     IsCustomizable,
-    IsDeletable,
     IsSourceable,
     IsTaggable,
     NodeType,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.CUSTOM_ENUM)
 class CustomEnum(
     IsTaggable,
-    IsDeletable,
     IsSourceable,
     IsCustomizable,
     Entity,
@@ -33,7 +31,6 @@ class CustomEnum(
 @builtin_node(NodeType.CUSTOM_OPTION)
 class CustomOption(
     IsTaggable,
-    IsDeletable,
     IsSourceable,
     Entity,
 ):

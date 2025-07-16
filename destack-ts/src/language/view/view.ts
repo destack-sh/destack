@@ -2,7 +2,6 @@ import type {
   Dimension,
   EventStatus,
   IsActor,
-  IsDeletable,
   IsExtensible,
   IsSourceable,
   IsTaggable,
@@ -92,7 +91,7 @@ registerNodeClass(NodeType.VIEW_EVENT, ViewEvent);
  */
 export abstract class View
   extends Entity
-  implements IsViewable, IsTaggable, IsExtensible, IsDeletable, IsSourceable
+  implements IsViewable, IsTaggable, IsExtensible, IsSourceable
 {
   static metatype: NodeType = NodeType.VIEW;
 
@@ -154,7 +153,7 @@ export abstract class View
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

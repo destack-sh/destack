@@ -17,7 +17,6 @@ from destack.language import (
     EditOperation,
     EditType,
     Entity,
-    IsDeletable,
     NodeDefinitionReference,
     NodeReference,
     ScalarType,
@@ -314,7 +313,7 @@ WHERE id = ${len(update_template) + 1}
             for row in root_rows:
                 if deleted_at := row["deleted_at"]:
                     root_dts.add(deleted_at.replace(tzinfo=UTC))
-            where = IsDeletable.property("deleted_at").in_(*root_dts)
+            where = Entity.property("deleted_at").in_(*root_dts)
 
         cascaded_node_ptrs, source_id_by_node_id = await _execute_cascade(
             conn=conn,

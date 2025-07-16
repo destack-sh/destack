@@ -5,7 +5,6 @@ from destack.language.core import (
     Enum,
     EnumType,
     IsCustomizable,
-    IsDeletable,
     IsScriptable,
     IsSourceable,
     IsTaggable,
@@ -37,7 +36,6 @@ class Method(
     IsTaggable,
     IsSourceable,
     IsCustomizable,
-    IsDeletable,
     Entity,
 ):
     """

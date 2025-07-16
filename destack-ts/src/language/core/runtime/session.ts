@@ -197,33 +197,6 @@ export class Session {
     this.pendingEvents.push(edit);
   }
 
-  /** Archive an Entity. */
-  archive(node: Entity): void {
-    if (this.closedAt) {
-      throw new Error(`${this.repr()} is closed`);
-    }
-    const edit = new EditEvent({
-      type: EditType.ARCHIVE,
-      node,
-      value: toValue(node, null, { nodeAsValue: true }),
-      space: node.spacePtr,
-    });
-    this.pendingEvents.push(edit);
-  }
-
-  /** Unarchive an Entity. */
-  unarchive(node: Entity): void {
-    if (this.closedAt) {
-      throw new Error(`${this.repr()} is closed`);
-    }
-    const edit = new EditEvent({
-      type: EditType.UNARCHIVE,
-      node,
-      space: node.spacePtr,
-    });
-    this.pendingEvents.push(edit);
-  }
-
   /** Delete an Entity. */
   delete(node: Entity): void {
     if (this.closedAt) {

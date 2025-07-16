@@ -5,7 +5,7 @@ import {
   EditEvent,
   EditOperation,
   EditType,
-  IsDeletable,
+  Entity,
   NodeDefinitionReference,
   NodeReference,
   ScalarType,
@@ -274,7 +274,7 @@ function executeEdit(options: {
         }
       }
       if (rootDts.size > 0) {
-        where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
+        where = Entity.property("deleted_at").in(...Array.from(rootDts));
       }
     }
 

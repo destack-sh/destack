@@ -1,6 +1,5 @@
 import type {
   IsActor,
-  IsDeletable,
   IsOrdered,
   IsOwnable,
   IsScriptable,
@@ -19,10 +18,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Route is a path to something (a Scene, a View in a Scene, an Action, etc.).
  */
-export abstract class Route
-  extends Entity
-  implements IsDeletable, IsOrdered, IsOwnable, IsTaggable
-{
+export abstract class Route extends Entity implements IsOrdered, IsOwnable, IsTaggable {
   static metatype: NodeType = NodeType.ROUTE;
 
   /**
@@ -77,7 +73,7 @@ export abstract class Route
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsDeletable.deletedAt
+   * Entity.deletedAt
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
