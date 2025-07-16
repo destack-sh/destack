@@ -168,44 +168,7 @@ export function toType(valueOrType: any, options?: { nodeAsValue: boolean }): Ty
   throw new Error(`cannot infer type of ${valueOrType}`);
 }
 
-/* ==== DESTACK_GENERATED_START:ENUM:64 ==== */
-/**
- * StringFormat
- */
-export enum StringFormat {
-  NAME = 1,
-  SLUG = 2,
-  EMAIL = 3,
-  UUID = 10,
-  URL = 11,
-  EMOJI = 12,
-  MIME = 13,
-  BASE64 = 20,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:64 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:65 ==== */
-/**
- * NumberFormat
- */
-export enum NumberFormat {
-  PERCENTAGE = 1,
-  ANGLE = 2,
-  CURRENCY = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
-/* ==== DESTACK_GENERATED_END:ENUM:65 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:651 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:111 ==== */
 /**
  * The constraint of a string.
  */
@@ -335,7 +298,7 @@ export class StringConstraint extends StructFrozen {
 
   static __packValue__(object: StringConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 651;
+    objectValue["1"] = 111;
     if (object.format != null) {
       objectValue["40"] = object.format;
     }
@@ -401,7 +364,7 @@ export class StringConstraint extends StructFrozen {
   }
 
   static __packProto__(object: StringConstraint): StringConstraintProto {
-    const objectProto: Partial<StringConstraintProto> = { metatype: 651 };
+    const objectProto: Partial<StringConstraintProto> = { metatype: 111 };
     if (object.format != null) {
       objectProto.format = Number(object.format) as StringFormatProto;
     }
@@ -461,9 +424,9 @@ export class StringConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRING_CONSTRAINT, StringConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:651 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:111 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:650 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:110 ==== */
 /**
  * The constraint of a number.
  */
@@ -633,7 +596,7 @@ export class NumberConstraint extends StructFrozen {
 
   static __packValue__(object: NumberConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 650;
+    objectValue["1"] = 110;
     if (object.format != null) {
       objectValue["40"] = object.format;
     }
@@ -711,7 +674,7 @@ export class NumberConstraint extends StructFrozen {
   }
 
   static __packProto__(object: NumberConstraint): NumberConstraintProto {
-    const objectProto: Partial<NumberConstraintProto> = { metatype: 650 };
+    const objectProto: Partial<NumberConstraintProto> = { metatype: 110 };
     if (object.format != null) {
       objectProto.format = Number(object.format) as NumberFormatProto;
     }
@@ -779,9 +742,9 @@ export class NumberConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NUMBER_CONSTRAINT, NumberConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:650 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:110 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:652 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:112 ==== */
 /**
  * The constraint of a collection.
  */
@@ -883,7 +846,7 @@ export class CollectionConstraint extends StructFrozen {
 
   static __packValue__(object: CollectionConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 652;
+    objectValue["1"] = 112;
     if (object.minLength != null) {
       objectValue["41"] = object.minLength;
     }
@@ -937,7 +900,7 @@ export class CollectionConstraint extends StructFrozen {
   }
 
   static __packProto__(object: CollectionConstraint): CollectionConstraintProto {
-    const objectProto: Partial<CollectionConstraintProto> = { metatype: 652 };
+    const objectProto: Partial<CollectionConstraintProto> = { metatype: 112 };
     if (object.minLength != null) {
       objectProto.minLength = object.minLength;
     }
@@ -989,9 +952,9 @@ export class CollectionConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.COLLECTION_CONSTRAINT, CollectionConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:652 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:112 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:653 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:113 ==== */
 /**
  * The constraint of a node.
  */
@@ -1113,7 +1076,7 @@ export class NodeConstraint extends StructFrozen {
 
   static __packValue__(object: NodeConstraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 653;
+    objectValue["1"] = 113;
     if (object.nodeTypes.length > 0) {
       const packedNodeTypes: any[] = [];
       for (const item of object.nodeTypes) {
@@ -1177,7 +1140,7 @@ export class NodeConstraint extends StructFrozen {
   }
 
   static __packProto__(object: NodeConstraint): NodeConstraintProto {
-    const objectProto: Partial<NodeConstraintProto> = { metatype: 653 };
+    const objectProto: Partial<NodeConstraintProto> = { metatype: 113 };
     if (object.nodeTypes) {
       const packedNodeTypes: any[] = [];
       for (const item of object.nodeTypes) {
@@ -1243,9 +1206,9 @@ export class NodeConstraint extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_CONSTRAINT, NodeConstraint);
-/* ==== DESTACK_GENERATED_END:STRUCT:653 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:113 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:601 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
 /**
  * A Type in the type system.
  */
@@ -1633,7 +1596,7 @@ export class Type extends StructFrozen {
 
   static __packValue__(object: Type): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 601;
+    objectValue["1"] = 101;
     if (object.name != null) {
       objectValue["101"] = object.name;
     }
@@ -1691,7 +1654,6 @@ export class Type extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Type {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -1706,6 +1668,7 @@ export class Type extends StructFrozen {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const nameValue = objectValue["101"];
     const unpackedName = nameValue != undefined ? nameValue : null;
     const primitiveTypeValue = objectValue["112"];
@@ -1818,7 +1781,7 @@ export class Type extends StructFrozen {
   }
 
   static __packProto__(object: Type): TypeProto {
-    const objectProto: Partial<TypeProto> = { metatype: 601 };
+    const objectProto: Partial<TypeProto> = { metatype: 101 };
     if (object.name != null) {
       objectProto.name = object.name;
     }
@@ -1876,7 +1839,6 @@ export class Type extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Type {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -1891,6 +1853,7 @@ export class Type extends StructFrozen {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Type({
       name: objectProto.name != undefined ? objectProto.name : null,
       cardinality: Number(objectProto.cardinality) as TypeCardinality,
@@ -1995,4 +1958,41 @@ export class Type extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TYPE, Type);
-/* ==== DESTACK_GENERATED_END:STRUCT:601 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:104 ==== */
+/**
+ * StringFormat
+ */
+export enum StringFormat {
+  NAME = 1,
+  SLUG = 2,
+  EMAIL = 3,
+  UUID = 10,
+  URL = 11,
+  EMOJI = 12,
+  MIME = 13,
+  BASE64 = 20,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.STRING_FORMAT, StringFormat);
+/* ==== DESTACK_GENERATED_END:ENUM:104 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:105 ==== */
+/**
+ * NumberFormat
+ */
+export enum NumberFormat {
+  PERCENTAGE = 1,
+  ANGLE = 2,
+  CURRENCY = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.NUMBER_FORMAT, NumberFormat);
+/* ==== DESTACK_GENERATED_END:ENUM:105 ==== */

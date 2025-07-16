@@ -1494,8 +1494,8 @@ export class FontStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): FontStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const weightValue = objectValue["102"];
@@ -1697,8 +1697,8 @@ export class FontStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): FontStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const unpackedCustomValues = {} as any;

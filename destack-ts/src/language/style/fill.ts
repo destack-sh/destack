@@ -1244,8 +1244,8 @@ export class FillStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): FillStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
     const colorValue = objectValue["200"];
@@ -1429,8 +1429,8 @@ export class FillStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): FillStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
     const unpackedCustomValues = {} as any;

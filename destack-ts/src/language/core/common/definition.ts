@@ -20,6 +20,10 @@ import {
   PropertyReferenceType,
 } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
+import type {
+  ConstraintDefinition,
+  IndexDefinition,
+} from "@destack/language/core/common/constraint";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type {
@@ -36,29 +40,19 @@ import {
   NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
   TRAIT_CLASS_BY_TYPE,
-  registerEnumClass,
   registerStructClass,
 } from "@destack/language/registry";
 import {
-  ActionDefinitionProto,
   CascadeActionProto,
   ConstantDefinitionProto,
-  ConstraintDefinitionProto,
-  ConstraintTypeProto,
   EdgeTypeProto,
   EnumDefinitionProto,
   EnumTypeProto,
-  IndexDefinitionProto,
-  IndexTypeProto,
-  MethodDefinitionProto,
   NodeDefinitionProto,
   NodeTypeProto,
   OptionDefinitionProto,
-  OptionGroupDefinitionProto,
-  PermissionDefinitionProto,
   PrimitiveTypeProto,
   PropertyDefinitionProto,
-  PropertyGroupDefinitionProto,
   PropertyTypeProto,
   ScalarTypeProto,
   StoreDomainProto,
@@ -73,7 +67,7 @@ import {
 import { assertNever, base64Decode } from "@destack/utils";
 import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 
-/* ==== DESTACK_GENERATED_START:STRUCT:100 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20000 ==== */
 /**
  * Definition of a builtin object.
  */
@@ -106,9 +100,9 @@ export abstract class BuiltinDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.BUILTIN_DEFINITION, BuiltinDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:100 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20000 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:101 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20002 ==== */
 /**
  * Definition of a builtin Node.
  */
@@ -145,11 +139,6 @@ export class NodeDefinition extends BuiltinDefinition {
    * NodeDefinition.properties
    */
   readonly properties: readonly PropertyDefinition[];
-
-  /**
-   * NodeDefinition.groups
-   */
-  readonly groups: readonly PropertyGroupDefinition[];
 
   /**
    * Whether this Node cannot be instantiated directly.
@@ -236,6 +225,16 @@ export class NodeDefinition extends BuiltinDefinition {
    */
   readonly storeDomain: StoreDomain | null;
 
+  /**
+   * NodeDefinition.indexes
+   */
+  readonly indexes: readonly IndexDefinition[];
+
+  /**
+   * NodeDefinition.constraints
+   */
+  readonly constraints: readonly ConstraintDefinition[];
+
   constructor(options: {
     id: number;
     type: NodeType;
@@ -243,7 +242,6 @@ export class NodeDefinition extends BuiltinDefinition {
     icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyDefinition[];
-    groups?: readonly PropertyGroupDefinition[];
     isAbstract: boolean;
     isExtensible: boolean;
     isFrozen: boolean;
@@ -261,6 +259,8 @@ export class NodeDefinition extends BuiltinDefinition {
     baseEventTypes?: readonly NodeType[];
     primaryStoreKeys?: readonly StoreKey[];
     storeDomain?: StoreDomain | null;
+    indexes?: readonly IndexDefinition[];
+    constraints?: readonly ConstraintDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -300,11 +300,6 @@ export class NodeDefinition extends BuiltinDefinition {
       _properties = [];
     }
     this.properties = _properties;
-    let _groups = options.groups ?? null;
-    if (_groups === null) {
-      _groups = [];
-    }
-    this.groups = _groups;
     let _isAbstract = options.isAbstract;
     if (_isAbstract === null) {
       throw new Error(`NodeDefinition.isAbstract is required`);
@@ -384,6 +379,16 @@ export class NodeDefinition extends BuiltinDefinition {
     this.primaryStoreKeys = _primaryStoreKeys;
     let _storeDomain = options.storeDomain ?? null;
     this.storeDomain = _storeDomain;
+    let _indexes = options.indexes ?? null;
+    if (_indexes === null) {
+      _indexes = [];
+    }
+    this.indexes = _indexes;
+    let _constraints = options.constraints ?? null;
+    if (_constraints === null) {
+      _constraints = [];
+    }
+    this.constraints = _constraints;
 
     // identity
     // @ts-expect-error(readonly)
@@ -408,14 +413,6 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.properties.length; i++) {
       if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (this.groups.length != other.groups.length) {
-      return false;
-    }
-    for (let i = 0; i < this.groups.length; i++) {
-      if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
     }
@@ -530,6 +527,22 @@ export class NodeDefinition extends BuiltinDefinition {
     if (!(this.storeDomain === other.storeDomain)) {
       return false;
     }
+    if (this.indexes.length != other.indexes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.indexes.length; i++) {
+      if (!this.indexes[i].equals(other.indexes[i])) {
+        return false;
+      }
+    }
+    if (this.constraints.length != other.constraints.length) {
+      return false;
+    }
+    for (let i = 0; i < this.constraints.length; i++) {
+      if (!this.constraints[i].equals(other.constraints[i])) {
+        return false;
+      }
+    }
     if (!(this.id === other.id)) {
       return false;
     }
@@ -576,11 +589,6 @@ export class NodeDefinition extends BuiltinDefinition {
     h = (h * 31 + this.type) & 0xffffffff;
     if (this.properties && this.properties.length > 0) {
       for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    if (this.groups && this.groups.length > 0) {
-      for (const _item of this.groups) {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
@@ -653,6 +661,16 @@ export class NodeDefinition extends BuiltinDefinition {
     if (this.storeDomain != null) {
       h = (h * 31 + this.storeDomain) & 0xffffffff;
     }
+    if (this.indexes && this.indexes.length > 0) {
+      for (const _item of this.indexes) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    if (this.constraints && this.constraints.length > 0) {
+      for (const _item of this.constraints) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
@@ -681,7 +699,7 @@ export class NodeDefinition extends BuiltinDefinition {
 
   static __packValue__(object: NodeDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 101;
+    objectValue["1"] = 20002;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -697,13 +715,6 @@ export class NodeDefinition extends BuiltinDefinition {
         packedProperties.push(item.toValue());
       }
       objectValue["105"] = packedProperties;
-    }
-    if (object.groups.length > 0) {
-      const packedGroups: any[] = [];
-      for (const item of object.groups) {
-        packedGroups.push(item.toValue());
-      }
-      objectValue["106"] = packedGroups;
     }
     objectValue["110"] = object.isAbstract;
     objectValue["111"] = object.isExtensible;
@@ -798,6 +809,20 @@ export class NodeDefinition extends BuiltinDefinition {
     if (object.storeDomain != null) {
       objectValue["151"] = object.storeDomain;
     }
+    if (object.indexes.length > 0) {
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.toValue());
+      }
+      objectValue["160"] = packedIndexes;
+    }
+    if (object.constraints.length > 0) {
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.toValue());
+      }
+      objectValue["161"] = packedConstraints;
+    }
     return objectValue;
   }
 
@@ -811,23 +836,18 @@ export class NodeDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
-    const _PropertyGroupDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_GROUP_DEFINITION
-    ] as typeof PropertyGroupDefinition;
+    const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.INDEX_DEFINITION
+    ] as typeof IndexDefinition;
+    const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTRAINT_DEFINITION
+    ] as typeof ConstraintDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectValue["106"] != undefined) {
-      for (const item of objectValue["106"]) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -907,6 +927,22 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     const storeDomainValue = objectValue["151"];
     const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
+    const unpackedIndexes: any[] = [];
+    if (objectValue["160"] != undefined) {
+      for (const item of objectValue["160"]) {
+        unpackedIndexes.push(
+          _IndexDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstraints: any[] = [];
+    if (objectValue["161"] != undefined) {
+      for (const item of objectValue["161"]) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -917,7 +953,6 @@ export class NodeDefinition extends BuiltinDefinition {
     return new NodeDefinition({
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
-      groups: unpackedGroups,
       isAbstract: objectValue["110"],
       isExtensible: objectValue["111"],
       isFrozen: objectValue["112"],
@@ -935,6 +970,8 @@ export class NodeDefinition extends BuiltinDefinition {
       baseEventTypes: unpackedBaseEventTypes,
       primaryStoreKeys: unpackedPrimaryStoreKeys,
       storeDomain: unpackedStoreDomain,
+      indexes: unpackedIndexes,
+      constraints: unpackedConstraints,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -963,7 +1000,7 @@ export class NodeDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: NodeDefinition): NodeDefinitionProto {
-    const objectProto: Partial<NodeDefinitionProto> = { metatype: 101 };
+    const objectProto: Partial<NodeDefinitionProto> = { metatype: 20002 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as NodeTypeProto;
     objectProto.name = object.name;
@@ -979,13 +1016,6 @@ export class NodeDefinition extends BuiltinDefinition {
         packedProperties.push(item.toProto());
       }
       objectProto.properties = packedProperties;
-    }
-    if (object.groups) {
-      const packedGroups: any[] = [];
-      for (const item of object.groups) {
-        packedGroups.push(item.toProto());
-      }
-      objectProto.groups = packedGroups;
     }
     objectProto.isAbstract = object.isAbstract;
     objectProto.isExtensible = object.isExtensible;
@@ -1080,6 +1110,20 @@ export class NodeDefinition extends BuiltinDefinition {
     if (object.storeDomain != null) {
       objectProto.storeDomain = Number(object.storeDomain) as StoreDomainProto;
     }
+    if (object.indexes) {
+      const packedIndexes: any[] = [];
+      for (const item of object.indexes) {
+        packedIndexes.push(item.toProto());
+      }
+      objectProto.indexes = packedIndexes;
+    }
+    if (object.constraints) {
+      const packedConstraints: any[] = [];
+      for (const item of object.constraints) {
+        packedConstraints.push(item.toProto());
+      }
+      objectProto.constraints = packedConstraints;
+    }
     return objectProto as NodeDefinitionProto;
   }
 
@@ -1093,23 +1137,18 @@ export class NodeDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
-    const _PropertyGroupDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_GROUP_DEFINITION
-    ] as typeof PropertyGroupDefinition;
+    const _IndexDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.INDEX_DEFINITION
+    ] as typeof IndexDefinition;
+    const _ConstraintDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.CONSTRAINT_DEFINITION
+    ] as typeof ConstraintDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
           _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectProto.groups) {
-      for (const item of objectProto.groups) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1185,10 +1224,25 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedPrimaryStoreKeys.push(Number(item) as StoreKey);
       }
     }
+    const unpackedIndexes: any[] = [];
+    if (objectProto.indexes) {
+      for (const item of objectProto.indexes) {
+        unpackedIndexes.push(
+          _IndexDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const unpackedConstraints: any[] = [];
+    if (objectProto.constraints) {
+      for (const item of objectProto.constraints) {
+        unpackedConstraints.push(
+          _ConstraintDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new NodeDefinition({
       type: Number(objectProto.type) as NodeType,
       properties: unpackedProperties,
-      groups: unpackedGroups,
       isAbstract: objectProto.isAbstract,
       isExtensible: objectProto.isExtensible,
       isFrozen: objectProto.isFrozen,
@@ -1210,6 +1264,8 @@ export class NodeDefinition extends BuiltinDefinition {
         objectProto.storeDomain != undefined
           ? (Number(objectProto.storeDomain) as StoreDomain)
           : null,
+      indexes: unpackedIndexes,
+      constraints: unpackedConstraints,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1262,9 +1318,9 @@ export class NodeDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.NODE_DEFINITION, NodeDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:101 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20002 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:102 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20004 ==== */
 /**
  * Definition of a builtin Trait.
  */
@@ -1303,11 +1359,6 @@ export class TraitDefinition extends BuiltinDefinition {
   readonly properties: readonly PropertyDefinition[];
 
   /**
-   * TraitDefinition.groups
-   */
-  readonly groups: readonly PropertyGroupDefinition[];
-
-  /**
    * TraitDefinition.alias
    */
   readonly alias: string;
@@ -1344,7 +1395,6 @@ export class TraitDefinition extends BuiltinDefinition {
     icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyDefinition[];
-    groups?: readonly PropertyGroupDefinition[];
     alias: string;
     isExtensible: boolean;
     traits?: readonly TraitType[];
@@ -1390,11 +1440,6 @@ export class TraitDefinition extends BuiltinDefinition {
       _properties = [];
     }
     this.properties = _properties;
-    let _groups = options.groups ?? null;
-    if (_groups === null) {
-      _groups = [];
-    }
-    this.groups = _groups;
     let _alias = options.alias;
     if (_alias === null) {
       throw new Error(`TraitDefinition.alias is required`);
@@ -1449,14 +1494,6 @@ export class TraitDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.properties.length; i++) {
       if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (this.groups.length != other.groups.length) {
-      return false;
-    }
-    for (let i = 0; i < this.groups.length; i++) {
-      if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
     }
@@ -1546,11 +1583,6 @@ export class TraitDefinition extends BuiltinDefinition {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.groups && this.groups.length > 0) {
-      for (const _item of this.groups) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
     h = (h * 31 + hashString(this.alias)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.traits && this.traits.length > 0) {
@@ -1601,7 +1633,7 @@ export class TraitDefinition extends BuiltinDefinition {
 
   static __packValue__(object: TraitDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 102;
+    objectValue["1"] = 20004;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -1617,13 +1649,6 @@ export class TraitDefinition extends BuiltinDefinition {
         packedProperties.push(item.toValue());
       }
       objectValue["105"] = packedProperties;
-    }
-    if (object.groups.length > 0) {
-      const packedGroups: any[] = [];
-      for (const item of object.groups) {
-        packedGroups.push(item.toValue());
-      }
-      objectValue["106"] = packedGroups;
     }
     objectValue["110"] = object.alias;
     objectValue["111"] = object.isExtensible;
@@ -1668,23 +1693,12 @@ export class TraitDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
-    const _PropertyGroupDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_GROUP_DEFINITION
-    ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectValue["106"] != undefined) {
-      for (const item of objectValue["106"]) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1722,7 +1736,6 @@ export class TraitDefinition extends BuiltinDefinition {
     return new TraitDefinition({
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
-      groups: unpackedGroups,
       alias: objectValue["110"],
       isExtensible: objectValue["111"],
       traits: unpackedTraits,
@@ -1757,7 +1770,7 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: TraitDefinition): TraitDefinitionProto {
-    const objectProto: Partial<TraitDefinitionProto> = { metatype: 102 };
+    const objectProto: Partial<TraitDefinitionProto> = { metatype: 20004 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as TraitTypeProto;
     objectProto.name = object.name;
@@ -1773,13 +1786,6 @@ export class TraitDefinition extends BuiltinDefinition {
         packedProperties.push(item.toProto());
       }
       objectProto.properties = packedProperties;
-    }
-    if (object.groups) {
-      const packedGroups: any[] = [];
-      for (const item of object.groups) {
-        packedGroups.push(item.toProto());
-      }
-      objectProto.groups = packedGroups;
     }
     objectProto.alias = object.alias;
     objectProto.isExtensible = object.isExtensible;
@@ -1824,23 +1830,12 @@ export class TraitDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
-    const _PropertyGroupDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_GROUP_DEFINITION
-    ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
           _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectProto.groups) {
-      for (const item of objectProto.groups) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -1871,7 +1866,6 @@ export class TraitDefinition extends BuiltinDefinition {
     return new TraitDefinition({
       type: Number(objectProto.type) as TraitType,
       properties: unpackedProperties,
-      groups: unpackedGroups,
       alias: objectProto.alias,
       isExtensible: objectProto.isExtensible,
       traits: unpackedTraits,
@@ -1930,9 +1924,9 @@ export class TraitDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:102 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20004 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:103 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20100 ==== */
 /**
  * Definition of a builtin Struct.
  */
@@ -1969,11 +1963,6 @@ export class StructDefinition extends BuiltinDefinition {
    * StructDefinition.properties
    */
   readonly properties: readonly PropertyDefinition[];
-
-  /**
-   * StructDefinition.groups
-   */
-  readonly groups: readonly PropertyGroupDefinition[];
 
   /**
    * Whether this Struct cannot be modified.
@@ -2017,7 +2006,6 @@ export class StructDefinition extends BuiltinDefinition {
     icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyDefinition[];
-    groups?: readonly PropertyGroupDefinition[];
     isFrozen: boolean;
     isAbstract: boolean;
     isExtensible: boolean;
@@ -2064,11 +2052,6 @@ export class StructDefinition extends BuiltinDefinition {
       _properties = [];
     }
     this.properties = _properties;
-    let _groups = options.groups ?? null;
-    if (_groups === null) {
-      _groups = [];
-    }
-    this.groups = _groups;
     let _isFrozen = options.isFrozen;
     if (_isFrozen === null) {
       throw new Error(`StructDefinition.isFrozen is required`);
@@ -2125,14 +2108,6 @@ export class StructDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.properties.length; i++) {
       if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (this.groups.length != other.groups.length) {
-      return false;
-    }
-    for (let i = 0; i < this.groups.length; i++) {
-      if (!this.groups[i].equals(other.groups[i])) {
         return false;
       }
     }
@@ -2218,11 +2193,6 @@ export class StructDefinition extends BuiltinDefinition {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.groups && this.groups.length > 0) {
-      for (const _item of this.groups) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
     h = (h * 31 + hashBool(this.isFrozen)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isAbstract)) & 0xffffffff;
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
@@ -2272,7 +2242,7 @@ export class StructDefinition extends BuiltinDefinition {
 
   static __packValue__(object: StructDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 103;
+    objectValue["1"] = 20100;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -2288,13 +2258,6 @@ export class StructDefinition extends BuiltinDefinition {
         packedProperties.push(item.toValue());
       }
       objectValue["105"] = packedProperties;
-    }
-    if (object.groups.length > 0) {
-      const packedGroups: any[] = [];
-      for (const item of object.groups) {
-        packedGroups.push(item.toValue());
-      }
-      objectValue["106"] = packedGroups;
     }
     objectValue["110"] = object.isFrozen;
     objectValue["111"] = object.isAbstract;
@@ -2336,23 +2299,12 @@ export class StructDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
-    const _PropertyGroupDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_GROUP_DEFINITION
-    ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectValue["105"] != undefined) {
       for (const item of objectValue["105"]) {
         unpackedProperties.push(
           _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectValue["106"] != undefined) {
-      for (const item of objectValue["106"]) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -2386,7 +2338,6 @@ export class StructDefinition extends BuiltinDefinition {
     return new StructDefinition({
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
-      groups: unpackedGroups,
       isFrozen: objectValue["110"],
       isAbstract: objectValue["111"],
       isExtensible: objectValue["112"],
@@ -2428,7 +2379,7 @@ export class StructDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: StructDefinition): StructDefinitionProto {
-    const objectProto: Partial<StructDefinitionProto> = { metatype: 103 };
+    const objectProto: Partial<StructDefinitionProto> = { metatype: 20100 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as StructTypeProto;
     objectProto.name = object.name;
@@ -2444,13 +2395,6 @@ export class StructDefinition extends BuiltinDefinition {
         packedProperties.push(item.toProto());
       }
       objectProto.properties = packedProperties;
-    }
-    if (object.groups) {
-      const packedGroups: any[] = [];
-      for (const item of object.groups) {
-        packedGroups.push(item.toProto());
-      }
-      objectProto.groups = packedGroups;
     }
     objectProto.isFrozen = object.isFrozen;
     objectProto.isAbstract = object.isAbstract;
@@ -2492,23 +2436,12 @@ export class StructDefinition extends BuiltinDefinition {
     const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_DEFINITION
     ] as typeof PropertyDefinition;
-    const _PropertyGroupDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_GROUP_DEFINITION
-    ] as typeof PropertyGroupDefinition;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
     if (objectProto.properties) {
       for (const item of objectProto.properties) {
         unpackedProperties.push(
           _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const unpackedGroups: any[] = [];
-    if (objectProto.groups) {
-      for (const item of objectProto.groups) {
-        unpackedGroups.push(
-          _PropertyGroupDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
@@ -2533,7 +2466,6 @@ export class StructDefinition extends BuiltinDefinition {
     return new StructDefinition({
       type: Number(objectProto.type) as StructType,
       properties: unpackedProperties,
-      groups: unpackedGroups,
       isFrozen: objectProto.isFrozen,
       isAbstract: objectProto.isAbstract,
       isExtensible: objectProto.isExtensible,
@@ -2581,9 +2513,9 @@ export class StructDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.STRUCT_DEFINITION, StructDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:103 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20100 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:104 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20200 ==== */
 /**
  * Definition of a builtin Enum.
  */
@@ -2768,7 +2700,7 @@ export class EnumDefinition extends BuiltinDefinition {
 
   static __packValue__(object: EnumDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 104;
+    objectValue["1"] = 20200;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -2845,7 +2777,7 @@ export class EnumDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: EnumDefinition): EnumDefinitionProto {
-    const objectProto: Partial<EnumDefinitionProto> = { metatype: 104 };
+    const objectProto: Partial<EnumDefinitionProto> = { metatype: 20200 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -2920,9 +2852,9 @@ export class EnumDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.ENUM_DEFINITION, EnumDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:104 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20200 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:110 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20300 ==== */
 /**
  * Definition of a builtin Property.
  */
@@ -3565,7 +3497,7 @@ export class PropertyDefinition extends BuiltinDefinition {
 
   static __packValue__(object: PropertyDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 110;
+    objectValue["1"] = 20300;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -3643,9 +3575,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
-    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.OBJECT_DEFINITION_REFERENCE
-    ] as typeof ObjectDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -3660,6 +3589,9 @@ export class PropertyDefinition extends BuiltinDefinition {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.OBJECT_DEFINITION_REFERENCE
+    ] as typeof ObjectDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const groupIdValue = objectValue["106"];
     const unpackedGroupId = groupIdValue != undefined ? Number(groupIdValue) : null;
@@ -3811,7 +3743,7 @@ export class PropertyDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: PropertyDefinition): PropertyDefinitionProto {
-    const objectProto: Partial<PropertyDefinitionProto> = { metatype: 110 };
+    const objectProto: Partial<PropertyDefinitionProto> = { metatype: 20300 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as PropertyTypeProto;
     objectProto.name = object.name;
@@ -3889,9 +3821,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     _graph?: any | null,
     _connection?: any | null,
   ): PropertyDefinition {
-    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
-      StructType.OBJECT_DEFINITION_REFERENCE
-    ] as typeof ObjectDefinitionReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
     const _NumberConstraint = STRUCT_CLASS_BY_TYPE[
@@ -3906,6 +3835,9 @@ export class PropertyDefinition extends BuiltinDefinition {
     const _NodeConstraint = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
+    const _ObjectDefinitionReference = STRUCT_CLASS_BY_TYPE[
+      StructType.OBJECT_DEFINITION_REFERENCE
+    ] as typeof ObjectDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new PropertyDefinition({
       type: Number(objectProto.type) as PropertyType,
@@ -4176,278 +4108,9 @@ export class PropertyDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.PROPERTY_DEFINITION, PropertyDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:110 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20300 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:111 ==== */
-/**
- * Definition of a builtin Property Group.
- */
-export class PropertyGroupDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.PROPERTY_GROUP_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`PropertyGroupDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`PropertyGroupDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<PropertyGroupDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = PropertyGroupDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: PropertyGroupDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 111;
-    objectValue["2"] = object.id;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PropertyGroupDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new PropertyGroupDefinition({
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PropertyGroupDefinition {
-    return PropertyGroupDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): PropertyGroupDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = PropertyGroupDefinition.__packProto__(this);
-    }
-    return this._proto as PropertyGroupDefinitionProto;
-  }
-
-  static __packProto__(object: PropertyGroupDefinition): PropertyGroupDefinitionProto {
-    const objectProto: Partial<PropertyGroupDefinitionProto> = { metatype: 111 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as PropertyGroupDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: PropertyGroupDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PropertyGroupDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new PropertyGroupDefinition({
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: PropertyGroupDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PropertyGroupDefinition {
-    return PropertyGroupDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): PropertyGroupDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PropertyGroupDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.PROPERTY_GROUP_DEFINITION, PropertyGroupDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:111 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:112 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20400 ==== */
 /**
  * Definition of a builtin Enum Option.
  */
@@ -4480,18 +4143,12 @@ export class OptionDefinition extends BuiltinDefinition {
    */
   readonly description: string | null;
 
-  /**
-   * OptionDefinition.groupId
-   */
-  readonly groupId: number | null;
-
   constructor(options: {
     id: number;
     type: EnumType;
     name: string;
     icon?: Icon | null;
     description?: string | null;
-    groupId?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -4526,8 +4183,6 @@ export class OptionDefinition extends BuiltinDefinition {
     this.icon = _icon;
     let _description = options.description ?? null;
     this.description = _description;
-    let _groupId = options.groupId ?? null;
-    this.groupId = _groupId;
 
     // identity
     // @ts-expect-error(readonly)
@@ -4545,9 +4200,6 @@ export class OptionDefinition extends BuiltinDefinition {
       return false;
     }
     if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.groupId === other.groupId)) {
       return false;
     }
     if (!(this.id === other.id)) {
@@ -4591,9 +4243,6 @@ export class OptionDefinition extends BuiltinDefinition {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + this.type) & 0xffffffff;
-    if (this.groupId != null) {
-      h = (h * 31 + hashInt(this.groupId)) & 0xffffffff;
-    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
@@ -4622,7 +4271,7 @@ export class OptionDefinition extends BuiltinDefinition {
 
   static __packValue__(object: OptionDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112;
+    objectValue["1"] = 20400;
     objectValue["2"] = object.id;
     objectValue["100"] = object.type;
     objectValue["101"] = object.name;
@@ -4631,9 +4280,6 @@ export class OptionDefinition extends BuiltinDefinition {
     }
     if (object.description != null) {
       objectValue["103"] = object.description;
-    }
-    if (object.groupId != null) {
-      objectValue["105"] = object.groupId;
     }
     return objectValue;
   }
@@ -4646,8 +4292,6 @@ export class OptionDefinition extends BuiltinDefinition {
     _connection?: any | null,
   ): OptionDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const groupIdValue = objectValue["105"];
-    const unpackedGroupId = groupIdValue != undefined ? Number(groupIdValue) : null;
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -4657,7 +4301,6 @@ export class OptionDefinition extends BuiltinDefinition {
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new OptionDefinition({
       type: Number(objectValue["100"]),
-      groupId: unpackedGroupId,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -4692,7 +4335,7 @@ export class OptionDefinition extends BuiltinDefinition {
   }
 
   static __packProto__(object: OptionDefinition): OptionDefinitionProto {
-    const objectProto: Partial<OptionDefinitionProto> = { metatype: 112 };
+    const objectProto: Partial<OptionDefinitionProto> = { metatype: 20400 };
     objectProto.id = object.id;
     objectProto.type = Number(object.type) as EnumTypeProto;
     objectProto.name = object.name;
@@ -4701,9 +4344,6 @@ export class OptionDefinition extends BuiltinDefinition {
     }
     if (object.description != null) {
       objectProto.description = object.description;
-    }
-    if (object.groupId != null) {
-      objectProto.groupId = object.groupId;
     }
     return objectProto as OptionDefinitionProto;
   }
@@ -4718,7 +4358,6 @@ export class OptionDefinition extends BuiltinDefinition {
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new OptionDefinition({
       type: Number(objectProto.type) as EnumType,
-      groupId: objectProto.groupId != undefined ? Number(objectProto.groupId) : null,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -4758,278 +4397,9 @@ export class OptionDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.OPTION_DEFINITION, OptionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:112 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20400 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:113 ==== */
-/**
- * Definition of a builtin Enum Option Group.
- */
-export class OptionGroupDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.OPTION_GROUP_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`OptionGroupDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`OptionGroupDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<OptionGroupDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = OptionGroupDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: OptionGroupDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 113;
-    objectValue["2"] = object.id;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): OptionGroupDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new OptionGroupDefinition({
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): OptionGroupDefinition {
-    return OptionGroupDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): OptionGroupDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = OptionGroupDefinition.__packProto__(this);
-    }
-    return this._proto as OptionGroupDefinitionProto;
-  }
-
-  static __packProto__(object: OptionGroupDefinition): OptionGroupDefinitionProto {
-    const objectProto: Partial<OptionGroupDefinitionProto> = { metatype: 113 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as OptionGroupDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: OptionGroupDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): OptionGroupDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new OptionGroupDefinition({
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: OptionGroupDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): OptionGroupDefinition {
-    return OptionGroupDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): OptionGroupDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = OptionGroupDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.OPTION_GROUP_DEFINITION, OptionGroupDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:113 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:120 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:20301 ==== */
 /**
  * Definition of a builtin Constant.
  */
@@ -5171,7 +4541,7 @@ export class ConstantDefinition extends StructFrozen {
 
   static __packValue__(object: ConstantDefinition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 120;
+    objectValue["1"] = 20301;
     objectValue["101"] = object.name;
     if (object.description != null) {
       objectValue["103"] = object.description;
@@ -5226,7 +4596,7 @@ export class ConstantDefinition extends StructFrozen {
   }
 
   static __packProto__(object: ConstantDefinition): ConstantDefinitionProto {
-    const objectProto: Partial<ConstantDefinitionProto> = { metatype: 120 };
+    const objectProto: Partial<ConstantDefinitionProto> = { metatype: 20301 };
     objectProto.name = object.name;
     if (object.description != null) {
       objectProto.description = object.description;
@@ -5281,1597 +4651,4 @@ export class ConstantDefinition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CONSTANT_DEFINITION, ConstantDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:120 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:130 ==== */
-/**
- * Definition of a builtin Method.
- */
-export class MethodDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.METHOD_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  /**
-   * MethodDefinition.properties
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    properties?: readonly PropertyDefinition[];
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`MethodDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`MethodDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<MethodDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = MethodDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: MethodDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 130;
-    objectValue["2"] = object.id;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    if (object.properties.length > 0) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toValue());
-      }
-      objectValue["104"] = packedProperties;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MethodDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectValue["104"] != undefined) {
-      for (const item of objectValue["104"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new MethodDefinition({
-      properties: unpackedProperties,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MethodDefinition {
-    return MethodDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): MethodDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = MethodDefinition.__packProto__(this);
-    }
-    return this._proto as MethodDefinitionProto;
-  }
-
-  static __packProto__(object: MethodDefinition): MethodDefinitionProto {
-    const objectProto: Partial<MethodDefinitionProto> = { metatype: 130 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    if (object.properties) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toProto());
-      }
-      objectProto.properties = packedProperties;
-    }
-    return objectProto as MethodDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: MethodDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MethodDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new MethodDefinition({
-      properties: unpackedProperties,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: MethodDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MethodDefinition {
-    return MethodDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): MethodDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MethodDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.METHOD_DEFINITION, MethodDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:130 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:131 ==== */
-/**
- * Definition of a builtin Action.
- */
-export class ActionDefinition extends MethodDefinition {
-  static metatype: StructType = StructType.ACTION_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    properties?: readonly PropertyDefinition[];
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(options);
-
-    // properties
-
-    // identity
-    // ... (already set in parent)
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<ActionDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = ActionDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: ActionDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 131;
-    objectValue["2"] = object.id;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    if (object.properties.length > 0) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toValue());
-      }
-      objectValue["104"] = packedProperties;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ActionDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectValue["104"] != undefined) {
-      for (const item of objectValue["104"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new ActionDefinition({
-      properties: unpackedProperties,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ActionDefinition {
-    return ActionDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): ActionDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = ActionDefinition.__packProto__(this);
-    }
-    return this._proto as ActionDefinitionProto;
-  }
-
-  static __packProto__(object: ActionDefinition): ActionDefinitionProto {
-    const objectProto: Partial<ActionDefinitionProto> = { metatype: 131 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    if (object.properties) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toProto());
-      }
-      objectProto.properties = packedProperties;
-    }
-    return objectProto as ActionDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ActionDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ActionDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new ActionDefinition({
-      properties: unpackedProperties,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ActionDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ActionDefinition {
-    return ActionDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): ActionDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ActionDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.ACTION_DEFINITION, ActionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:131 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:140 ==== */
-/**
- * Definition of a builtin Permission for a builtin Node.
- */
-export class PermissionDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.PERMISSION_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`PermissionDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`PermissionDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<PermissionDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = PermissionDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: PermissionDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 140;
-    objectValue["2"] = object.id;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PermissionDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new PermissionDefinition({
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PermissionDefinition {
-    return PermissionDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): PermissionDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = PermissionDefinition.__packProto__(this);
-    }
-    return this._proto as PermissionDefinitionProto;
-  }
-
-  static __packProto__(object: PermissionDefinition): PermissionDefinitionProto {
-    const objectProto: Partial<PermissionDefinitionProto> = { metatype: 140 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as PermissionDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: PermissionDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PermissionDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new PermissionDefinition({
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: PermissionDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): PermissionDefinition {
-    return PermissionDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): PermissionDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = PermissionDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.PERMISSION_DEFINITION, PermissionDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:140 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:100 ==== */
-/**
- * IndexType
- */
-export enum IndexType {
-  UNIQUE = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.INDEX_TYPE, IndexType);
-/* ==== DESTACK_GENERATED_END:ENUM:100 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:101 ==== */
-/**
- * ConstraintType
- */
-export enum ConstraintType {
-  UNIQUE = 1,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.CONSTRAINT_TYPE, ConstraintType);
-/* ==== DESTACK_GENERATED_END:ENUM:101 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:150 ==== */
-/**
- * Definition of a builtin Index.
- */
-export class IndexDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.INDEX_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * IndexDefinition.type
-   */
-  readonly type: IndexType;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  /**
-   * IndexDefinition.properties
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  constructor(options: {
-    id: number;
-    type: IndexType;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    properties?: readonly PropertyDefinition[];
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`IndexDefinition.id is required`);
-    }
-    this.id = _id;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`IndexDefinition.type is required`);
-    }
-    this.type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`IndexDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${IndexType[this.type]}`);
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<IndexDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = IndexDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: IndexDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 150;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    if (object.properties.length > 0) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toValue());
-      }
-      objectValue["105"] = packedProperties;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): IndexDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new IndexDefinition({
-      type: Number(objectValue["100"]),
-      properties: unpackedProperties,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): IndexDefinition {
-    return IndexDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): IndexDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = IndexDefinition.__packProto__(this);
-    }
-    return this._proto as IndexDefinitionProto;
-  }
-
-  static __packProto__(object: IndexDefinition): IndexDefinitionProto {
-    const objectProto: Partial<IndexDefinitionProto> = { metatype: 150 };
-    objectProto.id = object.id;
-    objectProto.type = Number(object.type) as IndexTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    if (object.properties) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toProto());
-      }
-      objectProto.properties = packedProperties;
-    }
-    return objectProto as IndexDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: IndexDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): IndexDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new IndexDefinition({
-      type: Number(objectProto.type) as IndexType,
-      properties: unpackedProperties,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: IndexDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): IndexDefinition {
-    return IndexDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): IndexDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = IndexDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.INDEX_DEFINITION, IndexDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:150 ==== */
-
-/* ==== DESTACK_GENERATED_START:STRUCT:151 ==== */
-/**
- * Definition of a builtin Constraint.
- */
-export class ConstraintDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.CONSTRAINT_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * ConstraintDefinition.type
-   */
-  readonly type: ConstraintType;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  /**
-   * ConstraintDefinition.properties
-   */
-  readonly properties: readonly PropertyDefinition[];
-
-  constructor(options: {
-    id: number;
-    type: ConstraintType;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    properties?: readonly PropertyDefinition[];
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`ConstraintDefinition.id is required`);
-    }
-    this.id = _id;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`ConstraintDefinition.type is required`);
-    }
-    this.type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`ConstraintDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-    let _properties = options.properties ?? null;
-    if (_properties === null) {
-      _properties = [];
-    }
-    this.properties = _properties;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (this.properties.length != other.properties.length) {
-      return false;
-    }
-    for (let i = 0; i < this.properties.length; i++) {
-      if (!this.properties[i].equals(other.properties[i])) {
-        return false;
-      }
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${ConstraintType[this.type]}`);
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<ConstraintDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    if (this.properties && this.properties.length > 0) {
-      for (const _item of this.properties) {
-        h = (h * 31 + _item.hash()) & 0xffffffff;
-      }
-    }
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = ConstraintDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: ConstraintDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 151;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    if (object.properties.length > 0) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toValue());
-      }
-      objectValue["105"] = packedProperties;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ConstraintDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new ConstraintDefinition({
-      type: Number(objectValue["100"]),
-      properties: unpackedProperties,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ConstraintDefinition {
-    return ConstraintDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): ConstraintDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = ConstraintDefinition.__packProto__(this);
-    }
-    return this._proto as ConstraintDefinitionProto;
-  }
-
-  static __packProto__(object: ConstraintDefinition): ConstraintDefinitionProto {
-    const objectProto: Partial<ConstraintDefinitionProto> = { metatype: 151 };
-    objectProto.id = object.id;
-    objectProto.type = Number(object.type) as ConstraintTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    if (object.properties) {
-      const packedProperties: any[] = [];
-      for (const item of object.properties) {
-        packedProperties.push(item.toProto());
-      }
-      objectProto.properties = packedProperties;
-    }
-    return objectProto as ConstraintDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: ConstraintDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ConstraintDefinition {
-    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
-      StructType.PROPERTY_DEFINITION
-    ] as typeof PropertyDefinition;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedProperties: any[] = [];
-    if (objectProto.properties) {
-      for (const item of objectProto.properties) {
-        unpackedProperties.push(
-          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
-        );
-      }
-    }
-    return new ConstraintDefinition({
-      type: Number(objectProto.type) as ConstraintType,
-      properties: unpackedProperties,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: ConstraintDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): ConstraintDefinition {
-    return ConstraintDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): ConstraintDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = ConstraintDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.CONSTRAINT_DEFINITION, ConstraintDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:151 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:20301 ==== */

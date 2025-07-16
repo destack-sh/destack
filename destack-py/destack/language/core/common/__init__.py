@@ -1,9 +1,16 @@
+from .action import Action
+from .constraint import (
+    Constraint,
+    ConstraintDefinition,
+    ConstraintType,
+    Index,
+    IndexDefinition,
+    IndexType,
+)
 from .definition import (
     BuiltinDefinition,
     ConstantDefinition,
-    ConstraintDefinition,
     EnumDefinition,
-    IndexDefinition,
     NodeDefinition,
     OptionDefinition,
     PropertyDefinition,
@@ -12,6 +19,15 @@ from .definition import (
 )
 from .enum import CustomEnum, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
+from .method import Method
+from .migration import (
+    Migration,
+    MigrationDefinition,
+    MigrationOperation,
+    MigrationOperationDefinition,
+    MigrationType,
+)
+from .permission import Permission, PermissionType
 from .property import CustomProperty
 from .query import (
     Aggregation,
@@ -99,6 +115,7 @@ from .view import (
 )
 
 __all__ = [
+    "Action",
     "Aggregation",
     "AggregationType",
     "Align",
@@ -109,7 +126,9 @@ __all__ = [
     "Condition",
     "ConditionalType",
     "ConstantDefinition",
+    "Constraint",
     "ConstraintDefinition",
+    "ConstraintType",
     "Corners",
     "CustomEnum",
     "CustomOption",
@@ -131,7 +150,9 @@ __all__ = [
     "Icon",
     "IconIn",
     "IconType",
+    "Index",
     "IndexDefinition",
+    "IndexType",
     "Insets",
     "Join",
     "JoinIn",
@@ -140,12 +161,20 @@ __all__ = [
     "Layout",
     "Length",
     "LengthUnit",
+    "Method",
+    "Migration",
+    "MigrationDefinition",
+    "MigrationOperation",
+    "MigrationOperationDefinition",
+    "MigrationType",
     "NodeConstraint",
     "NodeDefinition",
     "NumberConstraint",
     "NumberFormat",
     "OptionDefinition",
     "Overflow",
+    "Permission",
+    "PermissionType",
     "Position",
     "PositionType",
     "PropertyDefinition",

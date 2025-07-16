@@ -1336,8 +1336,8 @@ export class GradientStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
     const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;
@@ -1523,8 +1523,8 @@ export class GradientStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): GradientStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis2 = STRUCT_CLASS_BY_TYPE[StructType.AXIS2] as typeof Axis2;
     const _Gradient = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT] as typeof Gradient;
     const _GradientStop = STRUCT_CLASS_BY_TYPE[StructType.GRADIENT_STOP] as typeof GradientStop;

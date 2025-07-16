@@ -331,7 +331,39 @@ export abstract class Entity extends Node {
 registerNodeClass(NodeType.ENTITY, Entity);
 /* ==== DESTACK_GENERATED_END:NODE:2 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:14 ==== */
+/**
+ * Materialization
+ */
+export enum Materialization {
+  INSTANCE = 1,
+  COPY = 2,
+  ROOT = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.MATERIALIZATION, Materialization);
+/* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:10301 ==== */
+/**
+ * SnapshotStatus
+ */
+export enum SnapshotStatus {
+  CREATING = 1,
+  ACTIVE = 10,
+  READONLY = 50,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:10301 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
 /**
  * A generic Record instance of a CustomEntityDefinition like a relational Table.
  * The Archivable, Deletable, and Ownable traits are always present for plain Records
@@ -453,9 +485,9 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RECORD, Record);
-/* ==== DESTACK_GENERATED_END:NODE:1000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
 /**
  * A Resource represents an external asset outside of Destack.
  * The lifecycle of a Resource may be managed by some Provisioner (Service).
@@ -584,9 +616,9 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:NODE:1100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:1300 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10300 ==== */
 /**
  * A Snapshot is a point in Space time.
  * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
@@ -998,7 +1030,7 @@ export class Snapshot extends Entity implements IsOwnable {
 
   static __packValue__(object: Snapshot): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1300;
+    objectValue["1"] = 10300;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1108,7 +1140,7 @@ export class Snapshot extends Entity implements IsOwnable {
   }
 
   static __packProto__(object: Snapshot): SnapshotProto {
-    const objectProto: Partial<SnapshotProto> = { metatype: 1300 };
+    const objectProto: Partial<SnapshotProto> = { metatype: 10300 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1246,41 +1278,9 @@ export class Snapshot extends Entity implements IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SNAPSHOT, Snapshot);
-/* ==== DESTACK_GENERATED_END:NODE:1300 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10300 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:14 ==== */
-/**
- * Materialization
- */
-export enum Materialization {
-  INSTANCE = 1,
-  COPY = 2,
-  ROOT = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.MATERIALIZATION, Materialization);
-/* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:1301 ==== */
-/**
- * SnapshotStatus
- */
-export enum SnapshotStatus {
-  CREATING = 1,
-  ACTIVE = 10,
-  READONLY = 50,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:1301 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:1500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:10500 ==== */
 /**
  * A Variant is an alternative version of an Entity.
  */
@@ -1408,4 +1408,4 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VARIANT, Variant);
-/* ==== DESTACK_GENERATED_END:NODE:1500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:10500 ==== */

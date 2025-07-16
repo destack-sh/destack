@@ -1,16 +1,18 @@
 from typing import TYPE_CHECKING, Union
 
-from destack.language.core import (
+from ..builtin import (
     Entity,
     Enum,
     EnumType,
     IsJoinable,
     IsSourceable,
     NodeType,
+    StructType,
     builtin_enum,
     builtin_node,
     builtin_property,
     builtin_property_parent,
+    builtin_struct,
 )
 
 if TYPE_CHECKING:
@@ -18,12 +20,21 @@ if TYPE_CHECKING:
 
 # pyright: reportIncompatibleVariableOverride=false
 
+from .definition import BuiltinDefinition
+
 
 @builtin_enum(EnumType.PERMISSION_TYPE)
 class PermissionType(Enum):
     """A Type of Permission."""
 
     GENERAL = 1
+
+
+@builtin_struct(StructType.PERMISSION_DEFINITION, frozen=True)
+class PermissionDefinition(BuiltinDefinition):
+    """Definition of a builtin Permission for a builtin Node."""
+
+    pass
 
 
 @builtin_node(NodeType.PERMISSION)

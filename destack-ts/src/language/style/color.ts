@@ -1298,8 +1298,8 @@ export class ColorStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): ColorStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const hueValue = objectValue["200"];
     const unpackedHue = hueValue != undefined ? Number(hueValue) : null;
@@ -1494,8 +1494,8 @@ export class ColorStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): ColorStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {

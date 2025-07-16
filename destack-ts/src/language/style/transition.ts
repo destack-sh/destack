@@ -1417,8 +1417,8 @@ export class TransitionStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): TransitionStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const delayValue = objectValue["102"];
     const unpackedDelay = delayValue != undefined ? delayValue : null;
     const durationValue = objectValue["103"];
@@ -1617,8 +1617,8 @@ export class TransitionStyle extends Style {
     _graph?: any | null,
     _connection?: any | null,
   ): TransitionStyle {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedEase: any[] = [];
     if (objectProto.ease) {
       for (const item of objectProto.ease) {

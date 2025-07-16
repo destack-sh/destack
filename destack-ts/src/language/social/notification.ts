@@ -3393,8 +3393,8 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     _graph?: any | null,
     _connection?: any | null,
   ): Notification {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const textValue = objectValue["120"];
     const unpackedText =
@@ -3556,8 +3556,8 @@ export class Notification extends Entity implements IsOwnable, IsExtensible {
     _graph?: any | null,
     _connection?: any | null,
   ): Notification {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Text = STRUCT_CLASS_BY_TYPE[StructType.TEXT] as typeof Text;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {

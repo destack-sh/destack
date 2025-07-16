@@ -102,7 +102,26 @@ export abstract class Event extends Node {
 registerNodeClass(NodeType.EVENT, Event);
 /* ==== DESTACK_GENERATED_END:NODE:3 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:102 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:8 ==== */
+/**
+ * EventStatus
+ */
+export enum EventStatus {
+  PENDING = 1,
+  STAGED = 2,
+  APPROVED = 10,
+  SKIPPED = 11,
+  FAILED = 12,
+  REJECTED = 13,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.EVENT_STATUS, EventStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:8 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:20000 ==== */
 /**
  * A CustomEvent defines a custom Event with custom Properties.
  */
@@ -658,7 +677,7 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
 
   static __packValue__(object: CustomEvent): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 102;
+    objectValue["1"] = 20000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -721,11 +740,11 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEvent {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const baseTypeValue = objectValue["40"];
     const unpackedBaseType =
@@ -842,7 +861,7 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
   }
 
   static __packProto__(object: CustomEvent): CustomEventProto {
-    const objectProto: Partial<CustomEventProto> = { metatype: 102 };
+    const objectProto: Partial<CustomEventProto> = { metatype: 20000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -904,11 +923,11 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
     _graph?: any | null,
     _connection?: any | null,
   ): CustomEvent {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _NodeDefinitionReference = STRUCT_CLASS_BY_TYPE[
       StructType.NODE_DEFINITION_REFERENCE
     ] as typeof NodeDefinitionReference;
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedBaseTraits: any[] = [];
     if (objectProto.baseTraits) {
@@ -1048,9 +1067,9 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.CUSTOM_EVENT, CustomEvent);
-/* ==== DESTACK_GENERATED_END:NODE:102 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:20000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:2000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:50000 ==== */
 /**
  * A generic Event of a CustomEventDefinition.
  */
@@ -1135,23 +1154,4 @@ export abstract class Signal extends Event implements IsExtensible {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.SIGNAL, Signal);
-/* ==== DESTACK_GENERATED_END:NODE:2000 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:8 ==== */
-/**
- * EventStatus
- */
-export enum EventStatus {
-  PENDING = 1,
-  STAGED = 2,
-  APPROVED = 10,
-  SKIPPED = 11,
-  FAILED = 12,
-  REJECTED = 13,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.EVENT_STATUS, EventStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:8 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:50000 ==== */

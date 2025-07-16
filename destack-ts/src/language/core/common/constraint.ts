@@ -1,5 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
-import { NodeType, StructType } from "@destack/language/core/builtin/common";
+import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
 import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
@@ -7,39 +7,411 @@ import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type {
-  IsActor,
-  IsCustomizable,
-  IsSourceable,
-  IsTaggable,
-} from "@destack/language/core/builtin/trait";
+import type { IsActor, IsExtensible, IsTaggable } from "@destack/language/core/builtin/trait";
+import { BuiltinDefinition, type PropertyDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
-import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
-import type { Script } from "@destack/language/logic";
-import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
+import {
+  STRUCT_CLASS_BY_TYPE,
+  registerEnumClass,
+  registerNodeClass,
+  registerStructClass,
+} from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { CustomEnumProto, CustomOptionProto, MaterializationProto } from "@destack/proto";
+import {
+  ConstraintDefinitionProto,
+  ConstraintProto,
+  ConstraintTypeProto,
+  IndexDefinitionProto,
+  IndexProto,
+  IndexTypeProto,
+  MaterializationProto,
+} from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:NODE:20200 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:30200 ==== */
 /**
- * A CustomEnum describes a custom Enum with custom Options.
+ * ConstraintType
  */
-export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
-  static metatype: NodeType = NodeType.CUSTOM_ENUM;
+export enum ConstraintType {
+  UNIQUE = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.CONSTRAINT_TYPE, ConstraintType);
+/* ==== DESTACK_GENERATED_END:ENUM:30200 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:30200 ==== */
+/**
+ * Definition of a builtin Constraint.
+ */
+export class ConstraintDefinition extends BuiltinDefinition {
+  static metatype: StructType = StructType.CONSTRAINT_DEFINITION;
+  static __isFrozen__: boolean = true;
 
   /**
-   * Entity.parent
+   * BuiltinDefinition.id
    */
-  get parent(): Entity | null {
+  readonly id: number;
+
+  /**
+   * ConstraintDefinition.type
+   */
+  readonly type: ConstraintType;
+
+  /**
+   * BuiltinDefinition.name
+   */
+  readonly name: string;
+
+  /**
+   * BuiltinDefinition.icon
+   */
+  readonly icon: Icon | null;
+
+  /**
+   * BuiltinDefinition.description
+   */
+  readonly description: string | null;
+
+  /**
+   * ConstraintDefinition.properties
+   */
+  readonly properties: readonly PropertyDefinition[];
+
+  constructor(options: {
+    id: number;
+    type: ConstraintType;
+    name: string;
+    icon?: Icon | null;
+    description?: string | null;
+    properties?: readonly PropertyDefinition[];
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`ConstraintDefinition.id is required`);
+    }
+    this.id = _id;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`ConstraintDefinition.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`ConstraintDefinition.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    let _description = options.description ?? null;
+    this.description = _description;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this.properties = _properties;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (this.properties.length != other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${ConstraintType[this.type]}`);
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
+      if (this.description != null) {
+        propertyReprs.push(`description=${`"${this.description}"`}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<ConstraintDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = ConstraintDefinition.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: ConstraintDefinition): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 30200;
+    objectValue["2"] = object.id;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    if (object.description != null) {
+      objectValue["103"] = object.description;
+    }
+    if (object.properties.length > 0) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toValue());
+      }
+      objectValue["105"] = packedProperties;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ConstraintDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const descriptionValue = objectValue["103"];
+    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    return new ConstraintDefinition({
+      type: Number(objectValue["100"]),
+      properties: unpackedProperties,
+      id: Number(objectValue["2"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      description: unpackedDescription,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ConstraintDefinition {
+    return ConstraintDefinition.__unpackValue__(
+      objectValue,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  toProto(): ConstraintDefinitionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = ConstraintDefinition.__packProto__(this);
+    }
+    return this._proto as ConstraintDefinitionProto;
+  }
+
+  static __packProto__(object: ConstraintDefinition): ConstraintDefinitionProto {
+    const objectProto: Partial<ConstraintDefinitionProto> = { metatype: 30200 };
+    objectProto.id = object.id;
+    objectProto.type = Number(object.type) as ConstraintTypeProto;
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    if (object.description != null) {
+      objectProto.description = object.description;
+    }
+    if (object.properties) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toProto());
+      }
+      objectProto.properties = packedProperties;
+    }
+    return objectProto as ConstraintDefinitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: ConstraintDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ConstraintDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new ConstraintDefinition({
+      type: Number(objectProto.type) as ConstraintType,
+      properties: unpackedProperties,
+      id: Number(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      description: objectProto.description != undefined ? objectProto.description : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: ConstraintDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): ConstraintDefinition {
+    return ConstraintDefinition.__unpackProto__(
+      objectProto,
+      _session,
+      _supergraph,
+      _graph,
+      _connection,
+    );
+  }
+
+  static fromProtoString(packedProtoString: string): ConstraintDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = ConstraintDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.CONSTRAINT_DEFINITION, ConstraintDefinition);
+/* ==== DESTACK_GENERATED_END:STRUCT:30200 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:30200 ==== */
+/**
+ * Constraint of an Entity.
+ */
+export class Constraint extends Entity implements IsTaggable {
+  static metatype: NodeType = NodeType.CONSTRAINT;
+
+  /**
+   * Constraint.parent
+   */
+  get parent(): (Entity & IsExtensible) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
     }
     return null;
   }
@@ -77,10 +449,10 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get precededBy(): CustomEnum | null {
+  get precededBy(): Constraint | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEnum | null;
+      return this._supergraph.get(nodePtr.id) as Constraint | null;
     }
     return null;
   }
@@ -126,27 +498,6 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  /**
-   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
-   */
-  get customValues(): { readonly [key: string]: Value } {
-    return this._customValues;
-  }
-  set customValues(value: { readonly [key: string]: Value }) {
-    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
-    this._session.updateSetProperty(this, prop, value);
-    this._customValues = value;
-  }
-  _customValues: { readonly [key: string]: Value };
-
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -163,67 +514,52 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   _name: string;
 
   /**
-   * The Script that defines this Node.
+   * Constraint.type
    */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
+  /**
+   * Constraint.type
+   */
+  get type(): ConstraintType {
+    return this._type;
   }
-  readonly sourcePtr: NodeReference | null;
+  set type(value: ConstraintType) {
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
+    this._type = value;
+  }
+  _type: ConstraintType;
 
   /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   * Constraint.properties
    */
   /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   * Constraint.properties
    */
-  get key(): string | null {
-    return this._key;
+  get properties(): readonly PropertyDefinition[] {
+    return this._properties;
   }
-  set key(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key"];
+  set properties(value: readonly PropertyDefinition[]) {
+    const prop = (this.constructor as NodeClass).__properties__["properties"];
     this._session.updateSetProperty(this, prop, value);
-    this._key = value;
+    this._properties = value;
   }
-  _key: string | null;
-
-  /**
-   * CustomEnum.icon
-   */
-  /**
-   * CustomEnum.icon
-   */
-  get icon(): Icon | null {
-    return this._icon;
-  }
-  set icon(value: Icon | null) {
-    const prop = (this.constructor as NodeClass).__properties__["icon"];
-    this._session.updateSetProperty(this, prop, value);
-    this._icon = value;
-  }
-  _icon: Icon | null;
+  _properties: readonly PropertyDefinition[];
 
   constructor(options: {
     id?: string;
-    parent?: Entity | NodeReference | null;
+    parent?: (Entity & IsExtensible) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    precededBy?: CustomEnum | NodeReference | null;
+    precededBy?: Constraint | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    customValues?: { readonly [key: string]: Value };
-    orderKey?: string;
     name?: string;
-    source?: Script | NodeReference | null;
-    key?: string | null;
-    icon?: Icon | null;
+    type: ConstraintType;
+    properties?: readonly PropertyDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -262,16 +598,16 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomEnum has no Session`);
+        throw new Error(`Constraint has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CustomEnum has no Space`);
+        throw new Error(`Constraint has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`CustomEnum.space is required`);
+      throw new Error(`Constraint.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -279,7 +615,7 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`CustomEnum.materialization is required`);
+      throw new Error(`Constraint.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -294,36 +630,24 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _customValues = options.customValues ?? null;
-    if (_customValues === null) {
-      _customValues = {};
-    }
-    this._customValues = _customValues;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`CustomEnum.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "CustomEnum";
+      _name = "Constraint";
     }
     if (_name === null) {
-      throw new Error(`CustomEnum.name is required`);
+      throw new Error(`Constraint.name is required`);
     }
     this._name = _name;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Constraint.type is required`);
     }
-    this.sourcePtr = _source;
-    let _key = options.key ?? null;
-    this._key = _key;
-    let _icon = options.icon ?? null;
-    this._icon = _icon;
+    this._type = _type;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this._properties = _properties;
 
     // identity
     if (options.id == null) {
@@ -335,7 +659,7 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
         throw new Error(
-          `CustomEnum.createdAt and CustomEnum.updatedAt are required for existing Nodes`,
+          `Constraint.createdAt and Constraint.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -359,26 +683,14 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this._icon == null) !== (other._icon == null) ||
-      (this._icon != null && !this._icon.equals(other._icon))
-    ) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (this._properties.length != other._properties.length) {
       return false;
     }
-    if (!(this._key === other._key)) {
-      return false;
-    }
-    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
-      return false;
-    }
-    for (const key in this._customValues) {
-      if (!(key in other._customValues)) {
-        return false;
-      }
-      if (!this._customValues[key].equals(other._customValues[key])) {
+    for (let i = 0; i < this._properties.length; i++) {
+      if (!this._properties[i].equals(other._properties[i])) {
         return false;
       }
     }
@@ -400,23 +712,14 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this._icon != null) {
-      h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
-    }
-    if (this._customValues && Object.keys(this._customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this._customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
-    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._properties && this._properties.length > 0) {
+      for (const _item of this._properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -437,7 +740,6 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -450,7 +752,7 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.CUSTOM_ENUM,
+      type: NodeType.CONSTRAINT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -480,17 +782,18 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${ConstraintType[this.type]}`);
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<CustomEnum "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Constraint "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return CustomEnum.__packValue__(this);
+    return Constraint.__packValue__(this);
   }
 
-  static __packValue__(object: CustomEnum): { readonly [key: string]: any } {
+  static __packValue__(object: Constraint): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20200;
+    objectValue["1"] = 30200;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -514,23 +817,14 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     if (object.deletedAt != null) {
       objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    if (Object.keys(object._customValues).length > 0) {
-      const packedCustomValues: { [key: string]: any } = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
-      }
-      objectValue["26"] = packedCustomValues;
-    }
-    objectValue["27"] = object.orderKey;
     objectValue["50"] = object._name;
-    if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
-    }
-    if (object._key != null) {
-      objectValue["70"] = object._key;
-    }
-    if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+    objectValue["100"] = object._type;
+    if (object._properties.length > 0) {
+      const packedProperties: any[] = [];
+      for (const item of object._properties) {
+        packedProperties.push(item.toValue());
+      }
+      objectValue["105"] = packedProperties;
     }
     return objectValue;
   }
@@ -541,39 +835,24 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnum {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+  ): Constraint {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourcePtrValue = objectValue["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectValue["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
-    const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -599,12 +878,10 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    return new CustomEnum({
-      icon: unpackedIcon,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
-      customValues: unpackedCustomValues,
+    return new Constraint({
       parent: unpackedParentPtr,
+      type: Number(objectValue["100"]),
+      properties: unpackedProperties,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -615,7 +892,6 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
-      orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -629,16 +905,16 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnum {
-    return CustomEnum.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Constraint {
+    return Constraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CustomEnumProto {
-    return CustomEnum.__packProto__(this);
+  toProto(): ConstraintProto {
+    return Constraint.__packProto__(this);
   }
 
-  static __packProto__(object: CustomEnum): CustomEnumProto {
-    const objectProto: Partial<CustomEnumProto> = { metatype: 20200 };
+  static __packProto__(object: Constraint): ConstraintProto {
+    const objectProto: Partial<ConstraintProto> = { metatype: 30200 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -662,62 +938,38 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    if (object._customValues) {
-      objectProto.customValues = {} as any;
-      for (const [key, value] of Object.entries(object._customValues)) {
-        objectProto.customValues![String(key)] = value.toProto();
-      }
-    }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
+    objectProto.type = Number(object._type) as ConstraintTypeProto;
+    if (object._properties) {
+      const packedProperties: any[] = [];
+      for (const item of object._properties) {
+        packedProperties.push(item.toProto());
+      }
+      objectProto.properties = packedProperties;
     }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
-    return objectProto as CustomEnumProto;
+    return objectProto as ConstraintProto;
   }
 
   static __unpackProto__(
-    objectProto: CustomEnumProto,
+    objectProto: ConstraintProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnum {
-    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
+  ): Constraint {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const unpackedCustomValues = {} as any;
-    if (objectProto.customValues) {
-      for (const [key, value] of Object.entries(objectProto.customValues)) {
-        unpackedCustomValues.set(
-          String(key),
-          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    return new CustomEnum({
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
-      customValues: unpackedCustomValues,
+    return new Constraint({
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -728,6 +980,8 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
               _connection,
             )
           : null,
+      type: Number(objectProto.type) as ConstraintType,
+      properties: unpackedProperties,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -775,7 +1029,6 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
-      orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -790,18 +1043,18 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   }
 
   static fromProto(
-    objectProto: CustomEnumProto,
+    objectProto: ConstraintProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomEnum {
-    return CustomEnum.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Constraint {
+    return Constraint.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): CustomEnum {
+  static fromProtoString(packedProtoString: string): Constraint {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomEnumProto.fromBinary(packedProtoBytes);
+    const packedProto = ConstraintProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -809,23 +1062,376 @@ export class CustomEnum extends Entity implements IsTaggable, IsSourceable, IsCu
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.CUSTOM_ENUM, CustomEnum);
-/* ==== DESTACK_GENERATED_END:NODE:20200 ==== */
+registerNodeClass(NodeType.CONSTRAINT, Constraint);
+/* ==== DESTACK_GENERATED_END:NODE:30200 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:20400 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:30100 ==== */
 /**
- * CustomOption
+ * IndexType
  */
-export class CustomOption extends Entity implements IsTaggable, IsSourceable {
-  static metatype: NodeType = NodeType.CUSTOM_OPTION;
+export enum IndexType {
+  BTREE = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.INDEX_TYPE, IndexType);
+/* ==== DESTACK_GENERATED_END:ENUM:30100 ==== */
+
+/* ==== DESTACK_GENERATED_START:STRUCT:30100 ==== */
+/**
+ * Definition of a builtin Index.
+ */
+export class IndexDefinition extends BuiltinDefinition {
+  static metatype: StructType = StructType.INDEX_DEFINITION;
+  static __isFrozen__: boolean = true;
 
   /**
-   * CustomOption.parent
+   * BuiltinDefinition.id
    */
-  get parent(): CustomEnum | null {
+  readonly id: number;
+
+  /**
+   * IndexDefinition.type
+   */
+  readonly type: IndexType;
+
+  /**
+   * BuiltinDefinition.name
+   */
+  readonly name: string;
+
+  /**
+   * BuiltinDefinition.icon
+   */
+  readonly icon: Icon | null;
+
+  /**
+   * BuiltinDefinition.description
+   */
+  readonly description: string | null;
+
+  /**
+   * IndexDefinition.properties
+   */
+  readonly properties: readonly PropertyDefinition[];
+
+  constructor(options: {
+    id: number;
+    type: IndexType;
+    name: string;
+    icon?: Icon | null;
+    description?: string | null;
+    properties?: readonly PropertyDefinition[];
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _hash?: number | null;
+    _repr?: string | null;
+    _proto?: any | null;
+    _value?: { [key: string]: any } | null;
+  }) {
+    super(
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+    );
+
+    // properties
+    let _id = options.id;
+    if (_id === null) {
+      throw new Error(`IndexDefinition.id is required`);
+    }
+    this.id = _id;
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`IndexDefinition.type is required`);
+    }
+    this.type = _type;
+    let _name = options.name;
+    if (_name === null) {
+      throw new Error(`IndexDefinition.name is required`);
+    }
+    this.name = _name;
+    let _icon = options.icon ?? null;
+    this.icon = _icon;
+    let _description = options.description ?? null;
+    this.description = _description;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this.properties = _properties;
+
+    // identity
+    // @ts-expect-error(readonly)
+    this._hash = options._hash ?? null;
+    // @ts-expect-error(readonly)
+    this._repr = options._repr ?? null;
+    // @ts-expect-error(readonly)
+    this._proto = options._proto ?? null;
+    // @ts-expect-error(readonly)
+    this._value = options._value ?? null;
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.type === other.type)) {
+      return false;
+    }
+    if (this.properties.length != other.properties.length) {
+      return false;
+    }
+    for (let i = 0; i < this.properties.length; i++) {
+      if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (!(this.id === other.id)) {
+      return false;
+    }
+    if (!(this.name === other.name)) {
+      return false;
+    }
+    if (
+      (this.icon == null) !== (other.icon == null) ||
+      (this.icon != null && !this.icon.equals(other.icon))
+    ) {
+      return false;
+    }
+    if (!(this.description === other.description)) {
+      return false;
+    }
+    return true;
+  }
+
+  repr(): string {
+    if (this._repr === null) {
+      const propertyReprs: string[] = [];
+      propertyReprs.push(`type=${IndexType[this.type]}`);
+      propertyReprs.push(`id=${this.id}`);
+      propertyReprs.push(`name=${`"${this.name}"`}`);
+      if (this.description != null) {
+        propertyReprs.push(`description=${`"${this.description}"`}`);
+      }
+      // @ts-expect-error(readonly)
+      this._repr = `<IndexDefinition ${propertyReprs.join(" ")}>`;
+    }
+    return this._repr;
+  }
+
+  hash(): number {
+    if (this._hash != null) {
+      return this._hash;
+    }
+
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + this.type) & 0xffffffff;
+    if (this.properties && this.properties.length > 0) {
+      for (const _item of this.properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
+    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.name)) & 0xffffffff;
+    if (this.icon != null) {
+      h = (h * 31 + this.icon.hash()) & 0xffffffff;
+    }
+    if (this.description != null) {
+      h = (h * 31 + hashString(this.description)) & 0xffffffff;
+    }
+
+    // @ts-expect-error(readonly)
+    this._hash = h;
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    if (this._value === null) {
+      // @ts-expect-error(readonly)
+      this._value = IndexDefinition.__packValue__(this);
+    }
+    return this._value;
+  }
+
+  static __packValue__(object: IndexDefinition): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 30100;
+    objectValue["2"] = object.id;
+    objectValue["100"] = object.type;
+    objectValue["101"] = object.name;
+    if (object.icon != null) {
+      objectValue["102"] = object.icon.toValue();
+    }
+    if (object.description != null) {
+      objectValue["103"] = object.description;
+    }
+    if (object.properties.length > 0) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toValue());
+      }
+      objectValue["105"] = packedProperties;
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): IndexDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const descriptionValue = objectValue["103"];
+    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
+    return new IndexDefinition({
+      type: Number(objectValue["100"]),
+      properties: unpackedProperties,
+      id: Number(objectValue["2"]),
+      name: objectValue["101"],
+      icon: unpackedIcon,
+      description: unpackedDescription,
+      _value: objectValue,
+      _supergraph,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): IndexDefinition {
+    return IndexDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): IndexDefinitionProto {
+    if (this._proto === null) {
+      // @ts-expect-error(readonly)
+      this._proto = IndexDefinition.__packProto__(this);
+    }
+    return this._proto as IndexDefinitionProto;
+  }
+
+  static __packProto__(object: IndexDefinition): IndexDefinitionProto {
+    const objectProto: Partial<IndexDefinitionProto> = { metatype: 30100 };
+    objectProto.id = object.id;
+    objectProto.type = Number(object.type) as IndexTypeProto;
+    objectProto.name = object.name;
+    if (object.icon != null) {
+      objectProto.icon = object.icon.toProto();
+    }
+    if (object.description != null) {
+      objectProto.description = object.description;
+    }
+    if (object.properties) {
+      const packedProperties: any[] = [];
+      for (const item of object.properties) {
+        packedProperties.push(item.toProto());
+      }
+      objectProto.properties = packedProperties;
+    }
+    return objectProto as IndexDefinitionProto;
+  }
+
+  static __unpackProto__(
+    objectProto: IndexDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): IndexDefinition {
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new IndexDefinition({
+      type: Number(objectProto.type) as IndexType,
+      properties: unpackedProperties,
+      id: Number(objectProto.id),
+      name: objectProto.name,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      description: objectProto.description != undefined ? objectProto.description : null,
+      _proto: objectProto,
+      _supergraph,
+    });
+  }
+
+  static fromProto(
+    objectProto: IndexDefinitionProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): IndexDefinition {
+    return IndexDefinition.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): IndexDefinition {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = IndexDefinitionProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerStructClass(StructType.INDEX_DEFINITION, IndexDefinition);
+/* ==== DESTACK_GENERATED_END:STRUCT:30100 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:30100 ==== */
+/**
+ * Index of an Entity.
+ */
+export class Index extends Entity implements IsTaggable {
+  static metatype: NodeType = NodeType.INDEX;
+
+  /**
+   * Index.parent
+   */
+  get parent(): (Entity & IsExtensible) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomEnum | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
     }
     return null;
   }
@@ -863,10 +1469,10 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get precededBy(): CustomOption | null {
+  get precededBy(): Index | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as CustomOption | null;
+      return this._supergraph.get(nodePtr.id) as Index | null;
     }
     return null;
   }
@@ -912,11 +1518,6 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
-   * The absolute order key of this Node in its parent.
-   */
-  readonly orderKey: string;
-
-  /**
    * Entity.name
    */
   /**
@@ -933,66 +1534,52 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   _name: string;
 
   /**
-   * The Script that defines this Node.
+   * Index.type
    */
-  get source(): Script | null {
-    const nodePtr: NodeReference | null = this.sourcePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Script | null;
-    }
-    return null;
+  /**
+   * Index.type
+   */
+  get type(): IndexType {
+    return this._type;
   }
-  readonly sourcePtr: NodeReference | null;
+  set type(value: IndexType) {
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
+    this._type = value;
+  }
+  _type: IndexType;
 
   /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   * Index.properties
    */
   /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   * Index.properties
    */
-  get key(): string | null {
-    return this._key;
+  get properties(): readonly PropertyDefinition[] {
+    return this._properties;
   }
-  set key(value: string | null) {
-    const prop = (this.constructor as NodeClass).__properties__["key"];
+  set properties(value: readonly PropertyDefinition[]) {
+    const prop = (this.constructor as NodeClass).__properties__["properties"];
     this._session.updateSetProperty(this, prop, value);
-    this._key = value;
+    this._properties = value;
   }
-  _key: string | null;
-
-  /**
-   * CustomOption.icon
-   */
-  /**
-   * CustomOption.icon
-   */
-  get icon(): Icon | null {
-    return this._icon;
-  }
-  set icon(value: Icon | null) {
-    const prop = (this.constructor as NodeClass).__properties__["icon"];
-    this._session.updateSetProperty(this, prop, value);
-    this._icon = value;
-  }
-  _icon: Icon | null;
+  _properties: readonly PropertyDefinition[];
 
   constructor(options: {
     id?: string;
-    parent?: CustomEnum | NodeReference | null;
+    parent?: (Entity & IsExtensible) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    precededBy?: CustomOption | NodeReference | null;
+    precededBy?: Index | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
-    orderKey?: string;
     name?: string;
-    source?: Script | NodeReference | null;
-    key?: string | null;
-    icon?: Icon | null;
+    type: IndexType;
+    properties?: readonly PropertyDefinition[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1031,16 +1618,16 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`CustomOption has no Session`);
+        throw new Error(`Index has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CustomOption has no Space`);
+        throw new Error(`Index has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`CustomOption.space is required`);
+      throw new Error(`Index.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -1048,7 +1635,7 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`CustomOption.materialization is required`);
+      throw new Error(`Index.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -1063,31 +1650,24 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
-    let _orderKey = options.orderKey ?? null;
-    if (_orderKey === null) {
-      _orderKey = "a0";
-    }
-    if (_orderKey === null) {
-      throw new Error(`CustomOption.orderKey is required`);
-    }
-    this.orderKey = _orderKey;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "CustomOption";
+      _name = "Index";
     }
     if (_name === null) {
-      throw new Error(`CustomOption.name is required`);
+      throw new Error(`Index.name is required`);
     }
     this._name = _name;
-    let _source = options.source ?? null;
-    if (_source != null && _source.metatype != StructType.NODE_REFERENCE) {
-      _source = (_source as Node).toRef();
+    let _type = options.type;
+    if (_type === null) {
+      throw new Error(`Index.type is required`);
     }
-    this.sourcePtr = _source;
-    let _key = options.key ?? null;
-    this._key = _key;
-    let _icon = options.icon ?? null;
-    this._icon = _icon;
+    this._type = _type;
+    let _properties = options.properties ?? null;
+    if (_properties === null) {
+      _properties = [];
+    }
+    this._properties = _properties;
 
     // identity
     if (options.id == null) {
@@ -1098,9 +1678,7 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
       this.updatedByPtr = null;
     } else {
       if (options.createdAt == null || options.updatedAt == null) {
-        throw new Error(
-          `CustomOption.createdAt and CustomOption.updatedAt are required for existing Nodes`,
-        );
+        throw new Error(`Index.createdAt and Index.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdByPtr =
@@ -1123,17 +1701,16 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this._icon == null) !== (other._icon == null) ||
-      (this._icon != null && !this._icon.equals(other._icon))
-    ) {
+    if (!(this._type === other._type)) {
       return false;
     }
-    if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
+    if (this._properties.length != other._properties.length) {
       return false;
     }
-    if (!(this._key === other._key)) {
-      return false;
+    for (let i = 0; i < this._properties.length; i++) {
+      if (!this._properties[i].equals(other._properties[i])) {
+        return false;
+      }
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
@@ -1156,14 +1733,11 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this._icon != null) {
-      h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.sourcePtr != null) {
-      h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
-    }
-    if (this._key != null) {
-      h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    h = (h * 31 + this._type) & 0xffffffff;
+    if (this._properties && this._properties.length > 0) {
+      for (const _item of this._properties) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -1184,7 +1758,6 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -1197,7 +1770,7 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.CUSTOM_OPTION,
+      type: NodeType.INDEX,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -1227,17 +1800,18 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`type=${IndexType[this.type]}`);
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<CustomOption "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Index "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return CustomOption.__packValue__(this);
+    return Index.__packValue__(this);
   }
 
-  static __packValue__(object: CustomOption): { readonly [key: string]: any } {
+  static __packValue__(object: Index): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20400;
+    objectValue["1"] = 30100;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1261,16 +1835,14 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     if (object.deletedAt != null) {
       objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["27"] = object.orderKey;
     objectValue["50"] = object._name;
-    if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
-    }
-    if (object._key != null) {
-      objectValue["70"] = object._key;
-    }
-    if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+    objectValue["100"] = object._type;
+    if (object._properties.length > 0) {
+      const packedProperties: any[] = [];
+      for (const item of object._properties) {
+        packedProperties.push(item.toValue());
+      }
+      objectValue["105"] = packedProperties;
     }
     return objectValue;
   }
@@ -1281,26 +1853,24 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomOption {
+  ): Index {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const sourcePtrValue = objectValue["60"];
-    const unpackedSourcePtr =
-      sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const keyValue = objectValue["70"];
-    const unpackedKey = keyValue != undefined ? keyValue : null;
+    const unpackedProperties: any[] = [];
+    if (objectValue["105"] != undefined) {
+      for (const item of objectValue["105"]) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1326,11 +1896,10 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    return new CustomOption({
+    return new Index({
       parent: unpackedParentPtr,
-      icon: unpackedIcon,
-      source: unpackedSourcePtr,
-      key: unpackedKey,
+      type: Number(objectValue["100"]),
+      properties: unpackedProperties,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -1341,7 +1910,6 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
-      orderKey: objectValue["27"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -1355,16 +1923,16 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomOption {
-    return CustomOption.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Index {
+    return Index.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): CustomOptionProto {
-    return CustomOption.__packProto__(this);
+  toProto(): IndexProto {
+    return Index.__packProto__(this);
   }
 
-  static __packProto__(object: CustomOption): CustomOptionProto {
-    const objectProto: Partial<CustomOptionProto> = { metatype: 20400 };
+  static __packProto__(object: Index): IndexProto {
+    const objectProto: Partial<IndexProto> = { metatype: 30100 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1388,30 +1956,38 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
-    objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object.sourcePtr != null) {
-      objectProto.sourcePtr = object.sourcePtr.toProto();
+    objectProto.type = Number(object._type) as IndexTypeProto;
+    if (object._properties) {
+      const packedProperties: any[] = [];
+      for (const item of object._properties) {
+        packedProperties.push(item.toProto());
+      }
+      objectProto.properties = packedProperties;
     }
-    if (object._key != null) {
-      objectProto.key = object._key;
-    }
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
-    return objectProto as CustomOptionProto;
+    return objectProto as IndexProto;
   }
 
   static __unpackProto__(
-    objectProto: CustomOptionProto,
+    objectProto: IndexProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomOption {
+  ): Index {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new CustomOption({
+    const _PropertyDefinition = STRUCT_CLASS_BY_TYPE[
+      StructType.PROPERTY_DEFINITION
+    ] as typeof PropertyDefinition;
+    const unpackedProperties: any[] = [];
+    if (objectProto.properties) {
+      for (const item of objectProto.properties) {
+        unpackedProperties.push(
+          _PropertyDefinition.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
+    return new Index({
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1422,21 +1998,8 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
               _connection,
             )
           : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      source:
-        objectProto.sourcePtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.sourcePtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      key: objectProto.key != undefined ? objectProto.key : null,
+      type: Number(objectProto.type) as IndexType,
+      properties: unpackedProperties,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1484,7 +2047,6 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
-      orderKey: objectProto.orderKey,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,
@@ -1499,18 +2061,18 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   }
 
   static fromProto(
-    objectProto: CustomOptionProto,
+    objectProto: IndexProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): CustomOption {
-    return CustomOption.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Index {
+    return Index.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): CustomOption {
+  static fromProtoString(packedProtoString: string): Index {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = CustomOptionProto.fromBinary(packedProtoBytes);
+    const packedProto = IndexProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1518,5 +2080,5 @@ export class CustomOption extends Entity implements IsTaggable, IsSourceable {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.CUSTOM_OPTION, CustomOption);
-/* ==== DESTACK_GENERATED_END:NODE:20400 ==== */
+registerNodeClass(NodeType.INDEX, Index);
+/* ==== DESTACK_GENERATED_END:NODE:30100 ==== */
