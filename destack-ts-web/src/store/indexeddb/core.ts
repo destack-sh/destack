@@ -69,7 +69,7 @@ export const EVENT_KEYS_TO_INDEX_PREFIXED: Record<string, string> = EVENT_KEYS_T
 
 /** Base class for all IndexedDB stores. */
 export abstract class IndexedDBStoreBase {
-  types: StoreKey[];
+  keys: StoreKey[];
   nodeTypes: NodeType[];
   schema: IndexedDBSchema;
   context: IndexedDBContext;
@@ -79,15 +79,15 @@ export abstract class IndexedDBStoreBase {
   db: IDBPDatabase | null;
 
   constructor(options: {
-    types: StoreKey[];
+    keys: StoreKey[];
     schema: IndexedDBSchema;
     context?: IndexedDBContext;
     dbIsBorrowed: boolean;
     dbName?: string;
     db?: IDBPDatabase;
   }) {
-    this.types = options.types;
-    this.nodeTypes = getNodeTypesForStores(this.types);
+    this.keys = options.keys;
+    this.nodeTypes = getNodeTypesForStores(this.keys);
     this.schema = options.schema;
     this.context = options.context ?? new IndexedDBContext(this.schema);
 

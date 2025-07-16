@@ -19,7 +19,7 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
   public entityStore: IndexedDBEntityStore;
   public eventStore: IndexedDBEventStore;
 
-  constructor(options: { types: StoreKey[]; dbName?: string }) {
+  constructor(options: { keys: StoreKey[]; dbName?: string }) {
     super({
       ...options,
       schema: getIndexedDBSchema(),
@@ -27,14 +27,14 @@ export class IndexedDBStore extends IndexedDBStoreBase implements EventStore, En
     });
 
     this.entityStore = new IndexedDBEntityStore({
-      types: this.types,
+      keys: this.keys,
       schema: this.schema,
       context: this.context,
       dbIsBorrowed: true,
       dbName: this.dbName,
     });
     this.eventStore = new IndexedDBEventStore({
-      types: this.types,
+      keys: this.keys,
       schema: this.schema,
       context: this.context,
       dbIsBorrowed: true,

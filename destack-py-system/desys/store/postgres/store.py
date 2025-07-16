@@ -26,7 +26,7 @@ logger = structlog.get_logger(__name__)
 
 class PostgresEntityStore(EntityStore):
     """
-    A Store backed by a Postgres Database.
+    An EntityStore backed by a Postgres Database.
     """
 
     __slots__ = ("context", "database")
@@ -44,6 +44,14 @@ class PostgresEntityStore(EntityStore):
 
     def __repr__(self) -> str:
         return f"<{self.__class__.__name__} {self!s}>"
+
+    @override
+    async def open(self) -> None:
+        pass
+
+    @override
+    async def close(self) -> None:
+        pass
 
     @override
     @tracer.start_as_current_span("postgres.query")

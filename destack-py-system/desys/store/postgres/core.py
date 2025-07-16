@@ -30,6 +30,10 @@ if TYPE_CHECKING:
 
 @dataclass(slots=True)
 class PostgresSchema:
+    """
+    A Postgres schema.
+    """
+
     extensions: tuple["PostgresExtension", ...]
     tables: tuple["PostgresTable", ...]
     _tables_by_name: dict[str, "PostgresTable"] = dataclasses.field(init=False)

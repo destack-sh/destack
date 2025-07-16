@@ -13,14 +13,14 @@ import { executeQuery } from "@destack/store/memory/entity/query";
 
 /** An in-memory Store for Entities. */
 export class MemoryEntityStore implements EntityStore {
-  public types: StoreKey[];
+  public keys: StoreKey[];
   public nodeTypes: NodeType[];
   public database: MemoryDatabase;
   public context: MemoryContext;
 
-  constructor(options: { types: StoreKey[]; database?: MemoryDatabase }) {
-    this.types = options.types;
-    this.nodeTypes = getNodeTypesForStores(this.types);
+  constructor(options: { keys: StoreKey[]; database?: MemoryDatabase }) {
+    this.keys = options.keys;
+    this.nodeTypes = getNodeTypesForStores(this.keys);
     this.database = options.database ?? new MemoryDatabase();
     this.context = new MemoryContext(this.database);
   }
@@ -35,6 +35,14 @@ export class MemoryEntityStore implements EntityStore {
 
   repr(): string {
     return `<MemoryEntityStore ${this.toString()}>`;
+  }
+
+  async open(): Promise<void> {
+    // nothing to do
+  }
+
+  async close(): Promise<void> {
+    // nothing to do
   }
 
   async query(query: Query): Promise<QueryResult> {

@@ -49,7 +49,7 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 def get_global_database_from_env() -> DatabaseInfo:
     """Get the default global database configured in the environment"""
-    sql_url = get_from_env("GLOBAL_DATABASE_URL", description="Global database URL")
+    sql_url = get_from_env("POSTGRES_URL", description="Global database URL")
     return DatabaseInfo(
         type=DatabaseType.POSTGRES,
         connection_url=sql_url,
@@ -60,7 +60,7 @@ def get_global_database_from_env() -> DatabaseInfo:
 
 def get_database(name: str) -> DatabaseInfo:
     """Creates a global database for testing.."""
-    pg = get_from_env("GLOBAL_DATABASE_URL", description="Global Postgres connection string")
+    pg = get_from_env("POSTGRES_URL", description="Global Postgres connection string")
     pg_url_parsed = urlparse(pg)
     connection_url = pg_url_parsed._replace(path=f"/{name}").geturl()
     database = DatabaseInfo(

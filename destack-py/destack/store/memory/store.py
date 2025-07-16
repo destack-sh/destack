@@ -37,6 +37,16 @@ class MemoryStore(EntityStore, EventStore):
         return f"<MemoryStore {self!s}>"
 
     @override
+    async def open(self) -> None:
+        await self.entity_store.open()
+        await self.event_store.open()
+
+    @override
+    async def close(self) -> None:
+        await self.entity_store.close()
+        await self.event_store.close()
+
+    @override
     async def query(self, query: Query) -> QueryResult:
         if query.domain == StoreDomain.ENTITY:
             return await self.entity_store.query(query)

@@ -24,6 +24,16 @@ class Store(abc.ABC):
     node_types: tuple["NodeType", ...]
 
     @abc.abstractmethod
+    async def open(self) -> None:
+        """Open the Store."""
+        ...
+
+    @abc.abstractmethod
+    async def close(self) -> None:
+        """Close the Store."""
+        ...
+
+    @abc.abstractmethod
     async def query(self, query: "Query") -> "QueryResult":
         """
         Query the Store. Some Stores only support a subset of Queries.

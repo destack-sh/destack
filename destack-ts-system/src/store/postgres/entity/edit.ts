@@ -1,0 +1,419 @@
+import { walkNode } from "@destack/store/memory/entity/query";
+import { TransactionSQL } from "bun";
+import {
+  CASCADING_EDIT_TYPES,
+  Condition,
+  EdgeDirection,
+  EditEvent,
+  EditOperation,
+  EditType,
+  Entity,
+  Node,
+  NODE_CLASS_BY_TYPE,
+  NodeDefinitionReference,
+  NodeReference,
+  ScalarType,
+} from "destack";
+import { Temporal } from "temporal-polyfill";
+import { PostgresContext } from "./core";
+import { packColumnWide, packNodeRow } from "./wiring";
+
+const MAX_RECURSION_DEPTH = 100;
+
+const NODE_ID_KEY = String(Node.property("id").id);
+const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
+const ENTITY_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
+
+/**
+ * Optimize the Edits while retaining semantic equivalence.
+ * Reorder and batch non-interfering Edits to minimize roundtrips.
+ */
+function optimizeEdits(options: { context: PostgresContext; edits: EditEvent[] }): EditEvent[] {
+  const { context, edits } = options;
+  const optimizedEdits: EditEvent[] = [];
+  const buffer: EditEvent[] = [];
+
+  function flush(): void {
+    if (buffer.length === 0) {
+      return;
+    }
+    const grouped = new Map<string, EditEvent[]>();
+    for (const e of buffer) {
+      const definition = NodeDefinitionReference.of(e.nodePtr);
+      const table = context.get(definition);
+      const key = `${table.name}:${e.type}`;
+      if (!grouped.has(key)) {
+        grouped.set(key, []);
+      }
+      grouped.get(key)!.push(e);
+    }
+    for (const batch of grouped.values()) {
+      optimizedEdits.push(...batch); // contiguously batched
+    }
+    buffer.length = 0;
+  }
+
+  for (const edit of edits) {
+    if (CASCADING_EDIT_TYPES.includes(edit.type)) {
+      flush(); // close current segment
+      optimizedEdits.push(edit); // keep position
+    } else {
+      buffer.push(edit); // postpone
+    }
+  }
+
+  flush(); // trailing segment
+  return optimizedEdits;
+}
+
+/**
+ * Get the cascaded Nodes for an Edit.
+ */
+async function executeCascade(options: {
+  tx: TransactionSQL;
+  context: PostgresContext;
+  definition: NodeDefinitionReference;
+  nodePtrs: NodeReference[];
+  where: Condition | null;
+}): Promise<{ cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
+  const { tx, context, definition, nodePtrs, where } = options;
+
+  const childPtrs = await walkNode({
+    tx,
+    context,
+    definition,
+    nodesPtrs: nodePtrs,
+    direction: EdgeDirection.CHILD,
+    depth: MAX_RECURSION_DEPTH,
+    where,
+  });
+
+  return childPtrs;
+}
+
+/**
+ * Execute the Edits to the data (data only, no schema).
+ * Returns the Edits and any cascaded Edits.
+ */
+async function executeEdit(options: {
+  tx: TransactionSQL;
+  context: PostgresContext;
+  definition: NodeDefinitionReference;
+  editType: EditType;
+  edits: EditEvent[];
+}): Promise<{ edits: EditEvent[]; cascadedEdits: EditEvent[] }> {
+  const { tx, context, definition, editType, edits } = options;
+
+  const table = context.get(definition);
+  const nodeType = table.nodeType;
+  const nodeCls = NODE_CLASS_BY_TYPE[nodeType];
+
+  // create/upsert
+  if (editType === EditType.CREATE || editType === EditType.UPSERT) {
+    let stmt = `INSERT INTO "${table.name}" (${table.columns.map((col) => `"${col.name}"`).join(", ")})
+VALUES (${table.columns.map((_, i) => `$${i + 1}`).join(", ")})`;
+
+    if (editType === EditType.UPSERT) {
+      const overrideColumns = table.columns.filter(
+        (col) => !col.isPrimaryKey && !col.name.startsWith("created_"),
+      );
+      stmt += `
+ON CONFLICT ("${NODE_ID_KEY}") DO UPDATE
+SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).join(", ")}`;
+    }
+    stmt += ";";
+
+    const valuesPacked: any[][] = [];
+    for (const edit of edits) {
+      if (!edit.value) {
+        throw new Error(`no value for ${JSON.stringify(edit)}`);
+      }
+      const rowValuesPacked = packNodeRow({ table, value: edit.value });
+      valuesPacked.push(rowValuesPacked);
+    }
+
+    await tx.query(stmt, valuesPacked);
+
+    return { edits, cascadedEdits: [] };
+  }
+
+  // update
+  else if (editType === EditType.UPDATE) {
+    // gather all db-columns possibly touched in this batch
+    const allUpdatedColumns = new Set<string>();
+    for (const edit of edits) {
+      if (!edit.propertyId) {
+        throw new Error(`no property_id for ${JSON.stringify(edit)}`);
+      }
+      const prop = definition.resolveProperty(edit.propertyId);
+      if (!prop) {
+        throw new Error(`no property for ${JSON.stringify(edit)}`);
+      }
+      const update: Record<string, any> = {};
+      packColumnWide({
+        type: prop.toType(),
+        value: null,
+        table,
+        columnName: String(prop.id),
+        columnOut: update,
+      });
+      for (const key of Object.keys(update)) {
+        allUpdatedColumns.add(key);
+      }
+    }
+
+    const updatedColumnNames = Array.from(allUpdatedColumns).sort();
+    const updatedColumnIdx = Object.fromEntries(updatedColumnNames.map((column, i) => [column, i]));
+
+    // build "CASE WHEN changed THEN value ELSE col END" for every column
+    const setClauses: string[] = [];
+    let paramI = 1;
+    for (const column of updatedColumnNames) {
+      const valueParam = `$${paramI}`; // new value (may be NULL)
+      const changedParam = `$${paramI + 1}`; // whether the value changed (bool)
+      setClauses.push(
+        `"${column}" = CASE WHEN ${changedParam} THEN ${valueParam} ELSE "${column}" END`,
+      );
+      paramI += 2;
+    }
+    const stmt = `UPDATE "${table.name}"
+SET ${setClauses.join(", ")}
+WHERE "${NODE_ID_KEY}" = $${paramI}`;
+
+    // prepare parameters row-by-row
+    const valuesPacked: any[][] = [];
+    for (const edit of edits) {
+      if (!edit.propertyId) {
+        throw new Error(`no property_id for ${JSON.stringify(edit)}`);
+      }
+      const prop = definition.resolveProperty(edit.propertyId);
+      if (!prop) {
+        throw new Error(`no property for ${JSON.stringify(edit)}`);
+      }
+
+      let valuePacked: any;
+      if (edit.operation === EditOperation.SET) {
+        if (!edit.value) {
+          throw new Error(`no value for ${JSON.stringify(edit)}`);
+        }
+        valuePacked = edit.value.value;
+      } else if (edit.operation === EditOperation.CLEAR) {
+        valuePacked = null;
+      } else {
+        throw new Error(`unsupported operation: ${JSON.stringify(edit)}`);
+      }
+
+      const updateRow: any[] = new Array(updatedColumnNames.length * 2).fill(null);
+      // set defaults: keep existing values
+      for (let i = 1; i < updateRow.length; i += 2) {
+        updateRow[i] = false;
+      }
+
+      const update: Record<string, any> = {};
+      packColumnWide({
+        type: prop.toType(),
+        value: valuePacked,
+        table,
+        columnName: String(prop.id),
+        columnOut: update,
+      });
+      for (const [column, value] of Object.entries(update)) {
+        const i = updatedColumnIdx[column] * 2;
+        updateRow[i] = value;
+        updateRow[i + 1] = true;
+      }
+      updateRow.push(edit.nodePtr.id); // WHERE id = …
+      valuesPacked.push(updateRow);
+    }
+
+    await tx.query(stmt, valuesPacked);
+
+    return { edits, cascadedEdits: [] };
+  }
+
+  // move
+  else if (editType === EditType.MOVE) {
+    // prepare statement
+    if (!nodeCls.prototype.__parent_property__) {
+      throw new Error(`cannot move non-Entity ${nodeCls.name} in ${JSON.stringify(edits)}`);
+    }
+    const parentProp = nodeCls.__parent_property__;
+    const parentPropType = parentProp.toType();
+    const updateTemplate: Record<string, any> = {};
+    packColumnWide({
+      type: parentPropType,
+      value: null,
+      table,
+      columnName: String(parentProp.id),
+      columnOut: updateTemplate,
+    });
+    const stmt = `UPDATE "${table.name}"
+SET ${Object.keys(updateTemplate)
+      .map((key, i) => `"${key}" = $${i + 1}`)
+      .join(", ")}
+WHERE "${NODE_ID_KEY}" = $${Object.keys(updateTemplate).length + 1}`;
+
+    // prepare values
+    const valuesPacked: any[][] = [];
+    for (const edit of edits) {
+      let parentPtrValue: any = null;
+      if (edit.value?.value !== null && edit.value?.value !== undefined) {
+        if (edit.value.type.scalarType !== ScalarType.NODE_REFERENCE) {
+          throw new Error(`unexpected value: ${JSON.stringify(edit)}`);
+        }
+        parentPtrValue = edit.value.value;
+      }
+
+      const update: Record<string, any> = {};
+      packColumnWide({
+        type: parentPropType,
+        value: parentPtrValue,
+        table,
+        columnName: String(parentProp.id),
+        columnOut: update,
+      });
+      const rowValues = [...Object.values(update), edit.nodePtr.id];
+      valuesPacked.push(rowValues);
+    }
+
+    await tx.query(stmt, valuesPacked);
+
+    return { edits, cascadedEdits: [] };
+  }
+
+  // delete/restore
+  else if (editType === EditType.DELETE || editType === EditType.RESTORE) {
+    // cascade
+    const nodePtrs = edits.map((edit) => edit.nodePtr);
+    const editedAtByNodeId = new Map<string, Temporal.ZonedDateTime>();
+    for (const edit of edits) {
+      editedAtByNodeId.set(String(edit.nodePtr.id), edit.createdAt);
+    }
+
+    let where: Condition | null = null;
+    if (editType === EditType.RESTORE) {
+      // restrict to nodes with same deleted_at
+      const rootDts = new Set<Temporal.ZonedDateTime>();
+      const rootStmt = `SELECT "${NODE_ID_KEY}", "${ENTITY_DELETED_AT_KEY}" FROM "${table.name}" WHERE "${NODE_ID_KEY}" IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
+      const rootRows = await tx.query(
+        rootStmt,
+        nodePtrs.map((n) => n.id),
+      );
+      for (const row of rootRows) {
+        if (row[ENTITY_DELETED_AT_KEY]) {
+          rootDts.add(Temporal.Instant.from(row[ENTITY_DELETED_AT_KEY]).toZonedDateTimeISO("UTC"));
+        }
+      }
+      where = Entity.property("deleted_at").in(...Array.from(rootDts));
+    }
+
+    const { cascadedNodePtrs, sourceIdByNodeId } = await executeCascade({
+      tx,
+      context,
+      definition,
+      nodePtrs,
+      where,
+    });
+    const cascadedEdits = cascadedNodePtrs.map(
+      (nodePtr) => new EditEvent({ type: editType, nodePtr }),
+    );
+
+    // update
+    const editedNodePtrsByTable = new Map<string, string[]>();
+    for (const nodePtr of [...nodePtrs, ...cascadedNodePtrs]) {
+      const tableName = context.get(nodePtr).name;
+      const nodeIdPacked = String(nodePtr.id);
+      if (!editedNodePtrsByTable.has(tableName)) {
+        editedNodePtrsByTable.set(tableName, []);
+      }
+      editedNodePtrsByTable.get(tableName)!.push(nodeIdPacked);
+    }
+
+    for (const [tableName, tableNodeIds] of editedNodePtrsByTable) {
+      const arguments_: any[][] = [];
+      let updateStmt: string;
+
+      if (editType === EditType.DELETE) {
+        updateStmt = `"${ENTITY_DELETED_AT_KEY}" = $2`;
+        for (const nodeId of tableNodeIds) {
+          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodeId) || nodeId);
+          arguments_.push([nodeId, editedAt]);
+        }
+      } else if (editType === EditType.RESTORE) {
+        updateStmt = `"${ENTITY_DELETED_AT_KEY}" = NULL`;
+        for (const nodeId of tableNodeIds) {
+          arguments_.push([nodeId]);
+        }
+      } else {
+        throw new Error(`unexpected edit type: ${editType}`);
+      }
+
+      const stmt = `UPDATE "${tableName}"   
+SET ${updateStmt}
+WHERE "${NODE_ID_KEY}" = $1`;
+
+      await tx(stmt, arguments_);
+    }
+
+    return { edits, cascadedEdits };
+  } else {
+    throw new Error(`unexpected edit type: ${editType}`);
+  }
+}
+
+/**
+ * Execute the Edits in Postgres.
+ */
+export async function executeEdits(options: {
+  tx: TransactionSQL;
+  context: PostgresContext;
+  edits: EditEvent[];
+}): Promise<{ edits: EditEvent[]; cascadedEdits: EditEvent[] }> {
+  const { tx, context, edits } = options;
+
+  if (!edits || edits.length === 0) {
+    return { edits: [], cascadedEdits: [] };
+  }
+
+  const optimizedEdits = optimizeEdits({ context, edits });
+  const cascadedEdits: EditEvent[] = [];
+  const appliedEdits: EditEvent[] = [];
+
+  let currentDefinition = NodeDefinitionReference.of(optimizedEdits[0].nodePtr);
+  let currentEditType = optimizedEdits[0].type;
+  let currentBatch: EditEvent[] = [];
+
+  for (const edit of optimizedEdits) {
+    const editDefinition = NodeDefinitionReference.of(edit.nodePtr);
+    if (editDefinition.nodeType !== currentDefinition.nodeType || edit.type !== currentEditType) {
+      const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = await executeEdit({
+        tx,
+        context,
+        definition: currentDefinition,
+        editType: currentEditType,
+        edits: currentBatch,
+      });
+      appliedEdits.push(...batchAppliedEdits);
+      cascadedEdits.push(...batchCascadedEdits);
+      currentDefinition = editDefinition;
+      currentEditType = edit.type;
+      currentBatch = [];
+    }
+
+    currentBatch.push(edit);
+  }
+
+  if (currentBatch.length > 0) {
+    const { edits: batchAppliedEdits, cascadedEdits: batchCascadedEdits } = await executeEdit({
+      tx,
+      context,
+      definition: currentDefinition,
+      editType: currentEditType,
+      edits: currentBatch,
+    });
+    appliedEdits.push(...batchAppliedEdits);
+    cascadedEdits.push(...batchCascadedEdits);
+  }
+
+  return { edits: appliedEdits, cascadedEdits };
+}
