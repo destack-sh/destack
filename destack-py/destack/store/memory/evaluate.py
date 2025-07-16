@@ -54,7 +54,7 @@ def evaluate_expression(value: dict[str, Any], expression: Expression) -> Any:
         assert expression.attribute is not None, f"no attribute for {expression!r}"
         attr = expression.attribute
         if attr.type == PropertyReferenceType.BUILTIN:
-            prop = attr.resolve_or_error()
+            prop = attr.resolve()
             if prop.scalar_type == ScalarType.NODE_REFERENCE:
                 node_ptr_packed = value.get(str(prop.id))
                 return (

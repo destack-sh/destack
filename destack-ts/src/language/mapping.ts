@@ -84,6 +84,7 @@ import type {
   Variant,
 } from "@destack/language/core/builtin/entity";
 import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
+import type { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
 import type {
   NodeDefinitionReference,
   NodeDefinitionType,
@@ -117,10 +118,8 @@ import type { Action, ActionDefinition } from "@destack/language/core/common/act
 import type {
   Constraint,
   ConstraintDefinition,
-  ConstraintType,
   Index,
   IndexDefinition,
-  IndexType,
 } from "@destack/language/core/common/constraint";
 import type {
   BuiltinDefinition,
@@ -146,11 +145,7 @@ import type {
   MigrationOperationDefinition,
   MigrationType,
 } from "@destack/language/core/common/migration";
-import type {
-  Permission,
-  PermissionDefinition,
-  PermissionType,
-} from "@destack/language/core/common/permission";
+import type { Permission, PermissionDefinition } from "@destack/language/core/common/permission";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type {
   Aggregation,
@@ -761,12 +756,11 @@ export type EnumTypeMapping = {
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
-  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.CONSTRAINT_TYPE]: ConstraintType;
   [EnumType.INDEX_TYPE]: IndexType;
+  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.ICON_TYPE]: IconType;
   [EnumType.MIGRATION_TYPE]: MigrationType;
-  [EnumType.PERMISSION_TYPE]: PermissionType;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.FUNCTION_TYPE]: FunctionType;

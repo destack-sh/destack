@@ -40,7 +40,7 @@ export function evaluateExpression(options: {
     }
     const attr = expression.attribute;
     if (attr.type === PropertyReferenceType.BUILTIN) {
-      const prop = attr.resolveOrError();
+      const prop = attr.resolve();
       if (prop.scalarType === ScalarType.NODE_REFERENCE) {
         const nodePtrPacked = value[String(prop.id)];
         return nodePtrPacked && nodePtrPacked[NODE_REFERENCE_ID_KEY]

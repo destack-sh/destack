@@ -27,20 +27,25 @@ from .property import (
     builtin_property,
     builtin_property_runtime,
 )
-from .trait import (
-    IndexIn,
-)
 
 if TYPE_CHECKING:
     from destack.language import (
+        ActionDefinition,
         Condition,
+        ConstraintDeclaration,
+        ConstraintDefinition,
         ExpressionIn,
         Graph,
+        IndexDeclaration,
+        IndexDefinition,
         JoinIn,
+        MethodDefinition,
         Node,
         NodeDefinition,
         NodeDefinitionReference,
         NodeReference,
+        PermissionDeclaration,
+        PermissionDefinition,
         Query,
         QueryConnection,
         Session,
@@ -57,16 +62,15 @@ type_ = type
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_node(
     node_type: NodeType | None,
+    *,
     frozen: bool = False,
-    index: tuple[IndexIn, ...] = (),
-    event_types: tuple[NodeType, ...] = (),
     is_abstract: bool = False,
+    event_types: tuple[NodeType, ...] = (),
+    indexes: tuple["IndexDeclaration", ...] = (),
+    constraints: tuple["ConstraintDeclaration", ...] = (),
+    permissions: tuple["PermissionDeclaration", ...] = (),
 ):
     """Register a class as a concrete node for the given node type."""
-
-    # default index for nodes with parents
-    if node_type != NodeType.SPACE:
-        index = (*index, IndexIn(columns=("parent_id",), cover=("id",)))
 
     def decorate(cls: type) -> type:
         nonlocal frozen
@@ -103,7 +107,7 @@ def builtin_node(
                 f"{cls.__name__} is abstract but extends non-abstract {cls.__bases__[0].__name__}"
             )
         if NodeType.EVENT in inherits:
-            frozen = True  # Events are frozen by default
+            frozen = True  # Events are always frozen
 
         # process class
         is_entity = any(base.__name__ == "Entity" for base in cls.__bases__)
@@ -121,7 +125,26 @@ def builtin_node(
             traits=cls.__traits__,
             inherits=cls.__inherits__,
         )
-        cls.__indexes__ = index
+
+        # meta
+        if indexes:
+            from ..common import IndexDefinition
+
+            cls.__indexes__ = tuple(
+                IndexDefinition.from_declaration(cls, index) for index in indexes
+            )
+        if constraints:
+            from ..common import ConstraintDefinition
+
+            cls.__constraints__ = tuple(
+                ConstraintDefinition.from_declaration(cls, constraint) for constraint in constraints
+            )
+        if permissions:
+            from ..common import PermissionDefinition
+
+            cls.__permissions__ = tuple(
+                PermissionDefinition.from_declaration(permission) for permission in permissions
+            )
 
         # register
         if node_type is not None:
@@ -145,18 +168,17 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     A Node with Properties and a persistent identity.
     """
 
+    """The specific metatype of this Node."""
     metatype: ClassVar[NodeType]
-    __is_node__: ClassVar[bool] = True
-
-    __definition__: ClassVar["NodeDefinition"]
-    __definition_reference__: ClassVar["NodeDefinitionReference"]
-
     """Whether this class is an actual Node (not a Trait)."""
     __is_node__: ClassVar[bool] = True
     """Whether this class is a Trait (not a Node)."""
     __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
-    """Indexes for this Node."""
-    __indexes__: ClassVar[tuple[IndexIn, ...]] = ()
+
+    """The definition this Node is an instance of."""
+    __definition__: ClassVar["NodeDefinition"]
+    """The reference to the definition this Node is an instance of."""
+    __definition_reference__: ClassVar["NodeDefinitionReference"]
 
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
@@ -194,6 +216,17 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The event types of this Node type (directly and indirectly)."""
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    """The indexes for this Node type."""
+    __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
+    """The constraints for this Node type."""
+    __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
+    """The permissions for this Node type."""
+    __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
+    """The methods for this Node type."""
+    __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
+    """The actions for this Node type."""
+    __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
 
     # 1-20: node identity
     # Node.metatype: 1

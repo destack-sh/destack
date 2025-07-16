@@ -1,12 +1,5 @@
-from .action import Action
-from .constraint import (
-    Constraint,
-    ConstraintDefinition,
-    ConstraintType,
-    Index,
-    IndexDefinition,
-    IndexType,
-)
+from .action import Action, ActionDefinition
+from .constraint import Constraint, ConstraintDefinition, Index, IndexDefinition
 from .definition import (
     BuiltinDefinition,
     ConstantDefinition,
@@ -19,7 +12,7 @@ from .definition import (
 )
 from .enum import CustomEnum, CustomOption
 from .icon import Icon, IconIn, IconType, icon, reverse_icon, to_icon
-from .method import Method
+from .method import Method, MethodDefinition
 from .migration import (
     Migration,
     MigrationDefinition,
@@ -27,7 +20,7 @@ from .migration import (
     MigrationOperationDefinition,
     MigrationType,
 )
-from .permission import Permission, PermissionType
+from .permission import Permission, PermissionDefinition
 from .property import CustomProperty
 from .query import (
     Aggregation,
@@ -116,6 +109,7 @@ from .view import (
 
 __all__ = [
     "Action",
+    "ActionDefinition",
     "Aggregation",
     "AggregationType",
     "Align",
@@ -128,7 +122,6 @@ __all__ = [
     "ConstantDefinition",
     "Constraint",
     "ConstraintDefinition",
-    "ConstraintType",
     "Corners",
     "CustomEnum",
     "CustomOption",
@@ -152,7 +145,6 @@ __all__ = [
     "IconType",
     "Index",
     "IndexDefinition",
-    "IndexType",
     "Insets",
     "Join",
     "JoinIn",
@@ -162,6 +154,7 @@ __all__ = [
     "Length",
     "LengthUnit",
     "Method",
+    "MethodDefinition",
     "Migration",
     "MigrationDefinition",
     "MigrationOperation",
@@ -174,7 +167,7 @@ __all__ = [
     "OptionDefinition",
     "Overflow",
     "Permission",
-    "PermissionType",
+    "PermissionDefinition",
     "Position",
     "PositionType",
     "PropertyDefinition",

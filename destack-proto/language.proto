@@ -339,7 +339,6 @@ enum EnumTypeProto {
   ENUM_TYPE_CLIENT_TYPE = 102000;
   ENUM_TYPE_FOLDER_TYPE = 200000;
   ENUM_TYPE_ROLE_TYPE = 300200;
-  ENUM_TYPE_PERMISSION_TYPE = 300300;
   ENUM_TYPE_SANCTION_TYPE = 300400;
   ENUM_TYPE_ENTITLEMENT_TYPE = 300500;
   ENUM_TYPE_FILE_RETENTION_MODE = 400000;
@@ -1021,12 +1020,6 @@ enum OverflowProto {
   OVERFLOW_HIDDEN = 2;
   OVERFLOW_VISIBLE = 3;
   OVERFLOW_SCROLL = 4;
-}
-
-// A Type of Permission.
-enum PermissionTypeProto {
-  PERMISSION_TYPE_UNSPECIFIED = 0;
-  PERMISSION_TYPE_GENERAL = 1;
 }
 
 enum PlatformTypeProto {
@@ -1944,7 +1937,7 @@ message ConstraintProto {
   optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   ConstraintTypeProto type = 100;
-  repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyReferenceProto properties = 105;
 }
 
 message ConstraintDefinitionProto {
@@ -1954,7 +1947,7 @@ message ConstraintDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyReferenceProto properties = 105;
 }
 
 // A container View contains other Views.
@@ -3278,7 +3271,7 @@ message IndexProto {
   optional google.protobuf.Timestamp deleted_at = 24;
   string name = 50;
   IndexTypeProto type = 100;
-  repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyReferenceProto properties = 105;
 }
 
 message IndexDefinitionProto {
@@ -3288,7 +3281,7 @@ message IndexDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 105;
+  repeated PropertyReferenceProto properties = 105;
 }
 
 // An InputEvent is an Event that corresponds to some direct user input.
@@ -4077,6 +4070,7 @@ message NodeDefinitionProto {
   optional StoreDomainProto store_domain = 151;
   repeated IndexDefinitionProto indexes = 160;
   repeated ConstraintDefinitionProto constraints = 161;
+  repeated PermissionDefinitionProto permissions = 162;
 }
 
 message NodeDefinitionReferenceProto {
@@ -4350,8 +4344,6 @@ message PermissionProto {
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
-  PermissionTypeProto type = 100;
-  optional IconProto icon = 102;
 }
 
 message PermissionDefinitionProto {
@@ -5976,6 +5968,9 @@ message TraitDefinitionProto {
   repeated TraitTypeProto base_traits = 121;
   repeated NodeTypeProto event_types = 140;
   repeated NodeTypeProto base_event_types = 141;
+  repeated IndexDefinitionProto indexes = 160;
+  repeated ConstraintDefinitionProto constraints = 161;
+  repeated PermissionDefinitionProto permissions = 162;
 }
 
 message TransitionProto {
@@ -6321,9 +6316,9 @@ message SomeNodeProto {
     MethodProto method = 32000;
     ActionProto action = 32100;
     ConstraintProto constraint = 30200;
+    IndexProto index = 30100;
     CustomEnumProto custom_enum = 20200;
     CustomOptionProto custom_option = 20400;
-    IndexProto index = 30100;
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
     PermissionProto permission = 33000;
@@ -6466,9 +6461,9 @@ message SomeEntityProto {
     MethodProto method = 32000;
     ActionProto action = 32100;
     ConstraintProto constraint = 30200;
+    IndexProto index = 30100;
     CustomEnumProto custom_enum = 20200;
     CustomOptionProto custom_option = 20400;
-    IndexProto index = 30100;
     MigrationProto migration = 31000;
     MigrationOperationProto migration_operation = 31100;
     PermissionProto permission = 33000;

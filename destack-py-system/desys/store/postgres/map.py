@@ -105,10 +105,8 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
 
     # extras
     for index in node.__indexes__:
-        assert not index.name or not index.name.startswith("destack_"), f"bad idnex name: {index!r}"
-        extra_index = PostgresIndex.from_index_in(
-            f"space_idx_{index.name or '_'.join(index.columns)}", index
-        )
+        assert not index.name or not index.name.startswith("destack_"), f"bad index name: {index!r}"
+        extra_index = PostgresIndex.from_index(index)
         indexes.append(extra_index)
 
     table = PostgresTable(

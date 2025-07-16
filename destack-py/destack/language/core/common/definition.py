@@ -46,6 +46,7 @@ if TYPE_CHECKING:
         NodeConstraint,
         NumberConstraint,
         ObjectDefinitionReference,
+        PermissionDefinition,
         Sort,
         SortType,
         StringConstraint,
@@ -136,6 +137,7 @@ class NodeDefinition(BuiltinDefinition):
 
     indexes: list["IndexDefinition"] = builtin_property(160)
     constraints: list["ConstraintDefinition"] = builtin_property(161)
+    permissions: list["PermissionDefinition"] = builtin_property(162)
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -168,6 +170,9 @@ class NodeDefinition(BuiltinDefinition):
             base_event_types=list(node_cls.__base_event_types__),
             primary_store_keys=list(node_cls.__primary_store_keys__),
             store_domain=node_cls.__store_domain__,
+            indexes=list(node_cls.__indexes__),
+            constraints=list(node_cls.__constraints__),
+            permissions=list(node_cls.__permissions__),
         )
 
 
@@ -199,6 +204,10 @@ class TraitDefinition(BuiltinDefinition):
         141, description="The base event types of this Trait (directly)."
     )
 
+    indexes: list["IndexDefinition"] = builtin_property(160)
+    constraints: list["ConstraintDefinition"] = builtin_property(161)
+    permissions: list["PermissionDefinition"] = builtin_property(162)
+
     @classmethod
     def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
         """Create TraitDefinition from a Trait class."""
@@ -220,6 +229,9 @@ class TraitDefinition(BuiltinDefinition):
             base_traits=list(trait_cls.__base_traits__),
             event_types=list(trait_cls.__event_types__),
             base_event_types=list(trait_cls.__base_event_types__),
+            indexes=list(trait_cls.__indexes__),
+            constraints=list(trait_cls.__constraints__),
+            permissions=list(trait_cls.__permissions__),
         )
 
 

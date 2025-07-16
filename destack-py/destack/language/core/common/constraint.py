@@ -1,33 +1,41 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Self, Union
 
-from ..builtin import (
-    Entity,
-    Enum,
-    EnumType,
-    IsExtensible,
-    IsTaggable,
-    NodeType,
-    StructType,
-    builtin_enum,
-    builtin_node,
-    builtin_property,
-    builtin_property_parent,
-    builtin_struct,
-)
+from ..builtin.common import NodeType, StructType
+from ..builtin.entity import Entity
+from ..builtin.meta import ConstraintDeclaration, ConstraintType, IndexDeclaration, IndexType
+from ..builtin.node import builtin_node
+from ..builtin.object import BuiltinObject
+from ..builtin.property import builtin_property, builtin_property_parent
+from ..builtin.struct import builtin_struct
+from ..builtin.trait import IsExtensible, IsTaggable
 from .definition import BuiltinDefinition
 
 if TYPE_CHECKING:
-    from destack.language import PropertyDefinition
+    from destack.language import PropertyReference
 
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 
-@builtin_enum(EnumType.CONSTRAINT_TYPE)
-class ConstraintType(Enum):
-    """Type of a Constraint."""
+type_ = type
 
-    UNIQUE = 1
-    # CHECK, ...
+
+@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
+class ConstraintDefinition(BuiltinDefinition):
+    """Definition of a builtin Constraint."""
+
+    type: "ConstraintType" = builtin_property(100, is_repr=True)
+    properties: list["PropertyReference"] = builtin_property(105)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["BuiltinObject"], declaration: "ConstraintDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=ConstraintType.UNIQUE,
+            name=declaration.name or "Constraint",
+            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
+        )
 
 
 @builtin_node(NodeType.CONSTRAINT)
@@ -36,23 +44,7 @@ class Constraint(IsTaggable, Entity):
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
     type: ConstraintType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
-
-
-@builtin_struct(StructType.CONSTRAINT_DEFINITION, frozen=True)
-class ConstraintDefinition(BuiltinDefinition):
-    """Definition of a builtin Constraint."""
-
-    type: "ConstraintType" = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
-
-
-@builtin_enum(EnumType.INDEX_TYPE)
-class IndexType(Enum):
-    """Type of an Index."""
-
-    BTREE = 1
-    # HASH, ...
+    properties: list["PropertyReference"] = builtin_property(105)
 
 
 @builtin_struct(StructType.INDEX_DEFINITION, frozen=True)
@@ -60,7 +52,20 @@ class IndexDefinition(BuiltinDefinition):
     """Definition of a builtin Index."""
 
     type: "IndexType" = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
+    properties: list["PropertyReference"] = builtin_property(105)
+    cover: list["PropertyReference"] = builtin_property(106)
+
+    @classmethod
+    def from_declaration(
+        cls, object_cls: type_["BuiltinObject"], declaration: "IndexDeclaration"
+    ) -> "Self":
+        return cls(
+            id=declaration.id,
+            type=declaration.type,
+            name=declaration.name or "Index",
+            properties=[object_cls.property(p).to_ref() for p in declaration.properties],
+            cover=[object_cls.property(p).to_ref() for p in declaration.cover],
+        )
 
 
 @builtin_node(NodeType.INDEX)
@@ -69,4 +74,4 @@ class Index(IsTaggable, Entity):
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
     type: IndexType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
+    properties: list["PropertyReference"] = builtin_property(105)

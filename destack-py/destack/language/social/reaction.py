@@ -1,9 +1,10 @@
 from typing import TYPE_CHECKING, Union
 
 from destack.language.core import (
+    ConstraintDeclaration,
+    ConstraintType,
     Entity,
     Event,
-    IndexIn,
     IsOwned,
     IsReactable,
     NodeType,
@@ -20,7 +21,13 @@ if TYPE_CHECKING:
 
 @builtin_node(
     NodeType.REACTION,
-    index=(IndexIn(columns=("parent_id", "owned_by_id", "content"), is_unique=True),),
+    constraints=(
+        ConstraintDeclaration(
+            id=1,
+            type=ConstraintType.UNIQUE,
+            properties=("parent", "owned_by", "content"),
+        ),
+    ),
 )
 class Reaction(IsOwned, Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""

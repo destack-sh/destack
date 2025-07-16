@@ -350,9 +350,8 @@ def get_class_name(
 class PropertyDeclaration(TypeDeclaration):
     """
     A system-defined attribute of a BuiltinObject (Struct or Node).
-    PropertyDeclarations are turned into PropertyDefinitions at runtime.
-    (We can't get rid of PropertyDeclarations because it would be circular.)
-    TODO :Cleanup: should probably use PropertyDefinition wherever possible instead of PropertyDeclaration?
+    PropertyDeclarations are turned into PropertyDefinitions during construction,
+     PropertyDeclarations (like their *Declaration brethren) are only for internal use.
     """
 
     # meta
@@ -420,15 +419,21 @@ class PropertyDeclaration(TypeDeclaration):
 
             if self.component.__is_trait__:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN, trait_type=metatype, id=self.id
+                    type=PropertyReferenceType.BUILTIN,
+                    trait_type=metatype,
+                    id=self.id,
                 )
             elif self.component.__is_node__:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN, node_type=metatype, id=self.id
+                    type=PropertyReferenceType.BUILTIN,
+                    node_type=metatype,
+                    id=self.id,
                 )
             else:
                 ref = PropertyReference(
-                    type=PropertyReferenceType.BUILTIN, struct_type=metatype, id=self.id
+                    type=PropertyReferenceType.BUILTIN,
+                    struct_type=metatype,
+                    id=self.id,
                 )
             self._ref = ref
         return self._ref
