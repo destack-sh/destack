@@ -139,10 +139,13 @@ class StructMutable[StructProtoT: AnyStructProto](Struct[StructProtoT]):
 class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     """An immutable Struct."""
 
-    # cached for frozen Structs
+    """Cached hash of the Struct."""
     _hash: "int | None" = builtin_property_runtime()
+    """Cached repr of the Struct."""
     _repr: "str | None" = builtin_property_runtime()
+    """Cached proto representation of the Struct."""
     _proto: "StructProtoT | None" = builtin_property_runtime()
+    """Cached value representation of the Struct."""
     _value: "Json | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:

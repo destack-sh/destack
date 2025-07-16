@@ -13,7 +13,7 @@
   "scripts": {
     "dev": "bun run --env-file ../.env.dev --env-file ../.env.dev.local src/cli/index.tsx",
     "build": "tsc",
-    "test": "vitest",
+    "test": "bun test",
     "lint": "eslint .",
     "format": "prettier --write src/"
   },
@@ -58,7 +58,6 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.37.0",
     "vite": "^6.3.5",
-    "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.4"
+    "vite-tsconfig-paths": "^5.1.4"
   }
 }

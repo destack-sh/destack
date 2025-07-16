@@ -1,16 +1,18 @@
 import { ACTIVE_SPACE, Folder, Region, Session, Space, SpaceStatus, Tag } from "@destack/language";
-import { expect, test } from "vitest";
+import { expect, test, beforeEach, afterEach } from "bun:test";
 
-const sessionTest = test.extend<{ session: Session }>({
-  session: async ({ task }, use) => {
-    const session = new Session({});
-    await session.open();
-    await use(session);
-    await session.close();
-  },
+let session: Session;
+
+beforeEach(async () => {
+  session = new Session({});
+  await session.open();
 });
 
-sessionTest("node space ptr", async ({ session }) => {
+afterEach(async () => {
+  await session.close();
+});
+
+test("node space ptr", async () => {
   // add nodes that are spatial and check that they have the same space_ptr
   const space = new Space({
     name: "MySpace",
@@ -37,7 +39,7 @@ sessionTest("node space ptr", async ({ session }) => {
   }
 });
 
-sessionTest("node ordering", async ({ session }) => {
+test("node ordering", async () => {
   // add nodes that are IsOrdered and check that they are ordered
   const folder = new Folder({
     name: "MyFolder",

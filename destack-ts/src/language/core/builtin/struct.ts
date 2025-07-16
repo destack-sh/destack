@@ -29,9 +29,13 @@ registerStructClass(StructType.STRUCT, Struct);
 export abstract class StructFrozen extends Struct {
   static readonly __isFrozen__: boolean = true;
 
+  /** Cached hash of the Struct. */
   readonly _hash: number | null = null;
+  /** Cached repr of the Struct. */
   readonly _repr: string | null = null;
+  /** Cached proto representation of the Struct. */
   readonly _proto: AnyStructProto | null = null;
+  /** Cached value representation of the Struct. */
   readonly _value: Record<string, any> | null = null;
 
   _invalidateFrozenCache(): void {

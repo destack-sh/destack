@@ -28,8 +28,7 @@ import {
 } from "destack";
 import { IDBFactory } from "fake-indexeddb";
 import "fake-indexeddb/auto";
-
-import { describe, expect, test } from "vitest";
+import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 
 const storeImplementations = [
   {
@@ -61,30 +60,31 @@ const storeImplementations = [
 ];
 
 describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
-  const sessionTest = test.extend<{ session: Session }>({
-    session: async ({ task }, use) => {
-      const store = await createStore();
-      // session
-      const session = new Session({ store });
-      await session.open();
-      // space
-      const space = new Space({
-        name: "My Space",
-        slug: "my-space",
-        status: SpaceStatus.ACTIVE,
-        region: Region.ZURICH,
-      });
-      ACTIVE_SPACE.set(space);
+  let session: Session;
+  let store: MemoryStore | IndexedDBStore;
 
-      await use(session);
-
-      // teardown
-      await session.close();
-      await tearDown(store as any);
-    },
+  beforeEach(async () => {
+    store = await createStore();
+    // session
+    session = new Session({ store });
+    await session.open();
+    // space
+    const space = new Space({
+      name: "My Space",
+      slug: "my-space",
+      status: SpaceStatus.ACTIVE,
+      region: Region.ZURICH,
+    });
+    ACTIVE_SPACE.set(space);
   });
 
-  sessionTest("create user with clients", async ({ session }) => {
+  afterEach(async () => {
+    // teardown
+    await session.close();
+    await tearDown(store as any);
+  });
+
+  test("create user with clients", async () => {
     // create user
     const user = new User({
       status: UserStatus.ACTIVE,
@@ -148,7 +148,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     expect(clientsUnpackedWithParent[1].equals(clientB));
   });
 
-  sessionTest("create star", async ({ session }) => {
+  test("create star", async () => {
     const users = Array.from(
       { length: 20 },
       (_, i) =>
@@ -177,7 +177,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   });
 
   const NUM_FOLDERS_PER_LEVEL = 4;
-  sessionTest("create folders recursive", async ({ session }) => {
+  test("create folders recursive", async () => {
     // create
     const rootFolder = new Folder({ name: "Folder", type: FolderType.HOME });
     session.create(rootFolder);
@@ -294,7 +294,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }
   });
 
-  sessionTest("create layer with heterogeneous views", async ({ session }) => {
+  test("create layer with heterogeneous views", async () => {
     // create layer
     const layer = new Layer({ name: "Layer" });
     session.create(layer);
@@ -360,7 +360,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     expect(layerUnpacked3[0].equals(layer));
   });
 
-  sessionTest("create reaction groups", async ({ session }) => {
+  test("create reaction groups", async () => {
     // create users
     const users = Array.from(
       { length: 10 },
@@ -428,7 +428,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }
   });
 
-  sessionTest("move views", async ({ session }) => {
+  test("move views", async () => {
     const layer = new Layer({ name: "Layer" });
     session.create(layer);
     await session.commit();
