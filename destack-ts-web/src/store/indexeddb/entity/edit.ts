@@ -1,7 +1,7 @@
 import {
+  ENTITY_PARENT_KEY,
   IndexedDBContext,
   MAX_RECURSION_DEPTH,
-  ENTITY_PARENT_KEY,
 } from "@destack-web/store/indexeddb/core";
 import { walkNode } from "@destack-web/store/indexeddb/entity/query";
 import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
@@ -13,7 +13,6 @@ import {
   EditEvent,
   EditOperation,
   EditType,
-  IsArchivable,
   IsDeletable,
   NodeDefinitionReference,
   NodeReference,
@@ -23,7 +22,6 @@ import { IDBPTransaction } from "idb";
 import { Temporal } from "temporal-polyfill";
 
 // define these constants since they're not in Indexeddb core yet
-const NODE_ARCHIVED_AT_KEY = String(IsArchivable.property("archived_at").id);
 const NODE_DELETED_AT_KEY = String(IsDeletable.property("deleted_at").id);
 
 /**
@@ -242,13 +240,8 @@ async function executeEdit(options: {
     return { edits, cascadedEdits: [] };
   }
 
-  // archive/unarchive/delete/restore
-  else if (
-    editType === EditType.ARCHIVE ||
-    editType === EditType.UNARCHIVE ||
-    editType === EditType.DELETE ||
-    editType === EditType.RESTORE
-  ) {
+  // delete/restore
+  else if (editType === EditType.DELETE || editType === EditType.RESTORE) {
     // cascade
     const nodesPtrs = edits.map((edit) => edit.nodePtr);
     const editByNodeId = new Map<string, EditEvent>();
@@ -257,8 +250,8 @@ async function executeEdit(options: {
     }
 
     let where: Condition | null = null;
-    if (editType === EditType.UNARCHIVE || editType === EditType.RESTORE) {
-      // restrict to nodes with same deleted_at/archived_at
+    if (editType === EditType.RESTORE) {
+      // restrict to nodes with same deleted_at
       const rootDts = new Set<Temporal.ZonedDateTime>();
       const editPromises: Promise<any>[] = [];
 
@@ -275,11 +268,6 @@ async function executeEdit(options: {
           store.get(nodeKey).then((row) => {
             if (!row) {
               throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
-            } else if (editType === EditType.UNARCHIVE) {
-              const archivedAt = row[NODE_ARCHIVED_AT_KEY];
-              if (archivedAt) {
-                rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
-              }
             } else if (editType === EditType.RESTORE) {
               const deletedAt = row[NODE_DELETED_AT_KEY];
               if (deletedAt) {
@@ -291,11 +279,7 @@ async function executeEdit(options: {
       }
       await Promise.all(editPromises);
       if (rootDts.size > 0) {
-        if (editType === EditType.UNARCHIVE) {
-          where = IsArchivable.property("archived_at").in(...Array.from(rootDts));
-        } else if (editType === EditType.RESTORE) {
-          where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
-        }
+        where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
       }
     }
 
@@ -325,10 +309,6 @@ async function executeEdit(options: {
         store.get(nodeKey).then((row) => {
           if (!row) {
             throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
-          } else if (editType === EditType.ARCHIVE) {
-            row[NODE_ARCHIVED_AT_KEY] = edit!.createdAt.toString({ timeZoneName: "never" });
-          } else if (editType === EditType.UNARCHIVE) {
-            delete row[NODE_ARCHIVED_AT_KEY];
           } else if (editType === EditType.DELETE) {
             row[NODE_DELETED_AT_KEY] = edit!.createdAt.toString({ timeZoneName: "never" });
           } else if (editType === EditType.RESTORE) {
@@ -342,34 +322,8 @@ async function executeEdit(options: {
     return { edits, cascadedEdits };
   }
 
-  // erase
-  else if (editType === EditType.ERASE) {
-    // cascade
-    const nodesPtrs = edits.map((edit) => edit.nodePtr);
-    const { cascadedNodePtrs } = await executeCascade({
-      tx,
-      context,
-      definition,
-      nodePtrs: nodesPtrs,
-      where: null,
-    });
-    const cascadedEdits = cascadedNodePtrs.map(
-      (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
-    );
-
-    // delete rows
-    const editPromises: Promise<void>[] = [];
-    for (const nodePtr of [...nodesPtrs, ...cascadedNodePtrs]) {
-      const table = context.getEntityTable(nodePtr);
-      const store = tx.objectStore(table.name);
-      const snapshotId = nodePtr.snapshotId ? nodePtr.snapshotId : null;
-      const nodeKey = getEntityKey(nodePtr.id, snapshotId);
-      editPromises.push(store.delete(nodeKey));
-    }
-    await Promise.all(editPromises);
-
-    return { edits, cascadedEdits };
-  } else {
-    throw new Error(`Unsupported edit type: ${editType}`);
+  //
+  else {
+    throw new Error(`unsupported edit type: ${EditType[editType]}`);
   }
 }

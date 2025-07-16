@@ -21,7 +21,6 @@ import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
-  IsArchivable,
   IsCustomizable,
   IsDeletable,
   IsExtensible,
@@ -68,10 +67,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
  */
-export class CustomProperty
-  extends Entity
-  implements IsTaggable, IsArchivable, IsDeletable, IsSourceable
-{
+export class CustomProperty extends Entity implements IsTaggable, IsDeletable, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
 
   /**
@@ -160,11 +156,6 @@ export class CustomProperty
     return null;
   }
   readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * IsArchivable.archivedAt
-   */
-  readonly archivedAt: Temporal.ZonedDateTime | null;
 
   /**
    * IsDeletable.deletedAt
@@ -618,7 +609,6 @@ export class CustomProperty
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
-    archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name?: string;
@@ -721,8 +711,6 @@ export class CustomProperty
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _archivedAt = options.archivedAt ?? null;
-    this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -1028,9 +1016,6 @@ export class CustomProperty
     if (this._isMain != null) {
       h = (h * 31 + hashBool(this._isMain)) & 0xffffffff;
     }
-    if (this.archivedAt != null) {
-      h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -1149,9 +1134,6 @@ export class CustomProperty
     objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
-    }
-    if (object.archivedAt != null) {
-      objectValue["24"] = object.archivedAt.toString({ timeZoneName: "never" });
     }
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
@@ -1341,11 +1323,6 @@ export class CustomProperty
     const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
     const isMainValue = objectValue["154"];
     const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
-    const archivedAtValue = objectValue["24"];
-    const unpackedArchivedAt =
-      archivedAtValue != undefined
-        ? Temporal.Instant.from(archivedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -1403,7 +1380,6 @@ export class CustomProperty
       isComputed: unpackedIsComputed,
       isReadonly: unpackedIsReadonly,
       isMain: unpackedIsMain,
-      archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -1459,9 +1435,6 @@ export class CustomProperty
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.archivedAt != null) {
-      objectProto.archivedAt = packProtoTimestamp(object.archivedAt);
     }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
@@ -1662,8 +1635,6 @@ export class CustomProperty
       isComputed: objectProto.isComputed != undefined ? objectProto.isComputed : null,
       isReadonly: objectProto.isReadonly != undefined ? objectProto.isReadonly : null,
       isMain: objectProto.isMain != undefined ? objectProto.isMain : null,
-      archivedAt:
-        objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:

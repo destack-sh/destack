@@ -8,7 +8,6 @@ import { Node, hasTrait } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
-  IsArchivable,
   IsDeletable,
   IsExtensible,
   IsOwnable,
@@ -339,10 +338,7 @@ registerNodeClass(NodeType.ENTITY, Entity);
  *  (but must be explicitly added to the CustomEntityDefinition to use them).
  * More specific base Entity types will be instanced of that base type instead.
  */
-export abstract class Record
-  extends Entity
-  implements IsExtensible, IsArchivable, IsDeletable, IsOwnable
-{
+export abstract class Record extends Entity implements IsExtensible, IsDeletable, IsOwnable {
   static metatype: NodeType = NodeType.RECORD;
 
   /**
@@ -401,11 +397,6 @@ export abstract class Record
    */
   abstract get updatedBy(): (Entity & IsActor) | null;
   declare readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * IsArchivable.archivedAt
-   */
-  declare readonly archivedAt: Temporal.ZonedDateTime | null;
 
   /**
    * IsDeletable.deletedAt
@@ -589,7 +580,7 @@ registerNodeClass(NodeType.RESOURCE, Resource);
  * A Snapshot is a point in Space time.
  * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
  */
-export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDeletable {
+export class Snapshot extends Entity implements IsOwnable, IsDeletable {
   static metatype: NodeType = NodeType.SNAPSHOT;
 
   /**
@@ -680,11 +671,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsArchivable.archivedAt
-   */
-  readonly archivedAt: Temporal.ZonedDateTime | null;
-
-  /**
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
@@ -762,7 +748,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
-    archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
@@ -841,8 +826,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _archivedAt = options.archivedAt ?? null;
-    this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _ownedBy = options.ownedBy ?? null;
@@ -936,9 +919,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
-    if (this.archivedAt != null) {
-      h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
@@ -1026,9 +1006,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.archivedAt != null) {
-      objectValue["24"] = object.archivedAt.toString({ timeZoneName: "never" });
-    }
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
@@ -1063,11 +1040,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const archivedAtValue = objectValue["24"];
-    const unpackedArchivedAt =
-      archivedAtValue != undefined
-        ? Temporal.Instant.from(archivedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -1095,7 +1067,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       precededBy: unpackedPrecededByPtr,
       status: Number(objectValue["110"]),
       ownedBy: unpackedOwnedByPtr,
-      archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1144,9 +1115,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.archivedAt != null) {
-      objectProto.archivedAt = packProtoTimestamp(object.archivedAt);
     }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
@@ -1206,8 +1174,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
               _connection,
             )
           : null,
-      archivedAt:
-        objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       materialization: Number(objectProto.materialization) as Materialization,

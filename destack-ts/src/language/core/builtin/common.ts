@@ -224,7 +224,6 @@ registerEnumClass(EnumType.STRUCT_TYPE, StructType);
  */
 export enum TraitType {
   ORDERED = 100,
-  ARCHIVABLE = 101,
   DELETABLE = 102,
   CUSTOMIZABLE = 110,
   EXTENSIBLE = 111,

@@ -37,11 +37,8 @@ export enum EditType {
   UPSERT = 2,
   UPDATE = 3,
   MOVE = 4,
-  ARCHIVE = 5,
-  UNARCHIVE = 6,
   DELETE = 7,
   RESTORE = 8,
-  ERASE = 9,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -855,11 +852,8 @@ registerNodeClass(NodeType.EDIT_EVENT, EditEvent);
  */
 // prettier-ignore
 export const CASCADING_EDIT_TYPES = [
-  (5 /* EditType.ARCHIVE */),
-  (6 /* EditType.UNARCHIVE */),
   (7 /* EditType.DELETE */),
-  (8 /* EditType.RESTORE */),
-  (9 /* EditType.ERASE */)
+  (8 /* EditType.RESTORE */)
 ];
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:CASCADING_EDIT_TYPES ==== */

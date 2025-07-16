@@ -105,7 +105,6 @@ from .struct import Struct, StructFrozen, StructMutable, builtin_struct
 from .trait import (
     TRAIT_PREFIXES,
     IsActor,
-    IsArchivable,
     IsCustomizable,
     IsDeletable,
     IsExtensible,
@@ -174,7 +173,6 @@ __all__ = [
     "IndexIn",
     "IsActor",
     "IsActor",
-    "IsArchivable",
     "IsCustomizable",
     "IsDeletable",
     "IsExtensible",

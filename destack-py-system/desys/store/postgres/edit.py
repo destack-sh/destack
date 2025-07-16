@@ -17,7 +17,6 @@ from destack.language import (
     EditOperation,
     EditType,
     Entity,
-    IsArchivable,
     IsDeletable,
     NodeDefinitionReference,
     NodeReference,
@@ -297,8 +296,6 @@ WHERE id = ${len(update_template) + 1}
 
     # archive/unarchive/delete/restore
     elif edit_type in (
-        EditType.ARCHIVE,
-        EditType.UNARCHIVE,
         EditType.DELETE,
         EditType.RESTORE,
     ):
@@ -309,28 +306,15 @@ WHERE id = ${len(update_template) + 1}
             for edit in edits
         }
         where: Condition | None = None
-        if edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE:
+        if edit_type == EditType.RESTORE:
             # restrict to nodes with same deleted_at/archived_at
             root_dts: set[datetime] = set()
-            if edit_type == EditType.UNARCHIVE:
-                root_stmt = f"SELECT id, archived_at FROM {table.name} WHERE id IN ($1)"
-            elif edit_type == EditType.RESTORE:
-                root_stmt = f"SELECT id, deleted_at FROM {table.name} WHERE id IN ($1)"
-            else:
-                assert_never(edit_type)
+            root_stmt = f"SELECT id, deleted_at FROM {table.name} WHERE id IN ($1)"
             root_rows = await conn.fetch(root_stmt, *(n.id for n in nodes_ptr))
-            if edit_type == EditType.UNARCHIVE:
-                for row in root_rows:
-                    if archived_at := row["archived_at"]:
-                        root_dts.add(archived_at.replace(tzinfo=UTC))
-                where = IsArchivable.property("archived_at").in_(*root_dts)
-            elif edit_type == EditType.RESTORE:
-                for row in root_rows:
-                    if deleted_at := row["deleted_at"]:
-                        root_dts.add(deleted_at.replace(tzinfo=UTC))
-                where = IsDeletable.property("deleted_at").in_(*root_dts)
-            else:
-                assert_never(edit_type)
+            for row in root_rows:
+                if deleted_at := row["deleted_at"]:
+                    root_dts.add(deleted_at.replace(tzinfo=UTC))
+            where = IsDeletable.property("deleted_at").in_(*root_dts)
 
         cascaded_node_ptrs, source_id_by_node_id = await _execute_cascade(
             conn=conn,
@@ -351,16 +335,7 @@ WHERE id = ${len(update_template) + 1}
             edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():
             arguments: list[Any] = []
-            if edit_type == EditType.ARCHIVE:
-                update_stmt = "archived_at = $2"
-                for node_id in table_node_ids:
-                    edited_at = edited_at_by_node_id[source_id_by_node_id[node_id]]
-                    arguments.append((node_id, edited_at))
-            elif edit_type == EditType.UNARCHIVE:
-                update_stmt = "archived_at = NULL"
-                for node_id in table_node_ids:
-                    arguments.append((node_id,))
-            elif edit_type == EditType.DELETE:
+            if edit_type == EditType.DELETE:
                 update_stmt = "deleted_at = $2"
                 for node_id in table_node_ids:
                     edited_at = edited_at_by_node_id[source_id_by_node_id[node_id]]
@@ -380,41 +355,6 @@ WHERE id = $1
 
         logger.trace(
             f"postgres.{edit_type.name.lower()}",
-            edits=len(edits),
-            cascaded_edits=len(cascaded_edits),
-            span="current",
-        )
-        return edits, cascaded_edits
-
-    # erase
-    elif edit_type == EditType.ERASE:
-        # cascade
-        cascaded_node_ptrs, _ = await _execute_cascade(
-            conn=conn,
-            context=context,
-            definition=definition,
-            node_ptrs=tuple(edit.node_ptr for edit in edits),
-            where=None,
-        )
-        cascaded_edits = tuple(
-            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
-        )
-
-        # delete
-        edited_node_ptrs_by_table: dict[str, list[uuid.UUID]] = defaultdict(list)
-        for node_ptr in cascaded_node_ptrs:
-            table_name = context.get(node_ptr).name
-            node_id_packed = uuid.UUID(str(node_ptr.id))
-            edited_node_ptrs_by_table.setdefault(table_name, []).append(node_id_packed)
-        for table_name, table_node_ids in edited_node_ptrs_by_table.items():
-            stmt = f"""\
-DELETE FROM {table_name}
-WHERE id = $1
-"""
-            await conn.executemany(stmt, table_node_ids)
-
-        logger.trace(
-            "postgres.erase",
             edits=len(edits),
             cascaded_edits=len(cascaded_edits),
             span="current",

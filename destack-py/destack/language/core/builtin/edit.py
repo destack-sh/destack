@@ -27,20 +27,11 @@ class EditType(Enum):
     UPSERT = 2, "Upsert an Entity (create if not exists, update if exists)"
     UPDATE = 3, "Update an existing Entity"
     MOVE = 4, "Move an Entity to a new parent Entity (or detach)"
-    ARCHIVE = 5, "Archive an Entity (and its descendants)"
-    UNARCHIVE = 6, "Unarchive an Entity (and its descendants)"
     DELETE = 7, "Delete an Entity (and its descendants)"
     RESTORE = 8, "Restore a deleted Entity (and its descendants)"
-    ERASE = 9, "Erase an Entity forever (and its descendants)"
 
 
-CASCADING_EDIT_TYPES: tuple[EditType, ...] = (
-    EditType.ARCHIVE,
-    EditType.UNARCHIVE,
-    EditType.DELETE,
-    EditType.RESTORE,
-    EditType.ERASE,
-)
+CASCADING_EDIT_TYPES: tuple[EditType, ...] = (EditType.DELETE, EditType.RESTORE)
 register_constant("CASCADING_EDIT_TYPES", CASCADING_EDIT_TYPES)
 
 

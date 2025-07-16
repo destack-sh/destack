@@ -24,7 +24,6 @@ from .property import (
 )
 from .trait import (
     INTER_ORDER_TYPES,
-    IsArchivable,
     IsDeletable,
     IsExtensible,
     IsOrdered,
@@ -433,7 +432,6 @@ class Entity(Node):
 @builtin_node(NodeType.RECORD, is_abstract=True)
 class Record(
     IsExtensible,
-    IsArchivable,
     IsDeletable,
     IsOwnable,
     Entity,
@@ -474,7 +472,6 @@ class SnapshotStatus(Enum):
 @builtin_node(NodeType.SNAPSHOT)
 class Snapshot(
     IsOwnable,
-    IsArchivable,
     IsDeletable,
     Entity,
 ):

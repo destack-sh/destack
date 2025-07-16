@@ -355,7 +355,6 @@ class TraitType(Enum):
 
     # common
     ORDERED = 100, "Ordered", "Is ordered", "fas fa-sort"
-    ARCHIVABLE = 101, "Archivable", "Can be archived", "fas fa-box-archive"
     DELETABLE = 102, "Deletable", "Can be deleted", "fas fa-trash"
     # PAUSABLE?
     CUSTOMIZABLE = (
