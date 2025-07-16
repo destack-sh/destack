@@ -5,18 +5,16 @@ import {
   EditEvent,
   EditOperation,
   EditType,
-  IsArchivable,
   IsDeletable,
   NodeDefinitionReference,
   NodeReference,
   ScalarType,
 } from "@destack/language";
 import {
+  ENTITY_PARENT_KEY,
   MAX_RECURSION_DEPTH,
   MemoryContext,
-  NODE_ARCHIVED_AT_KEY,
   NODE_DELETED_AT_KEY,
-  ENTITY_PARENT_KEY,
 } from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/entity/query";
 import { packEntityRow } from "@destack/store/memory/entity/wiring";
@@ -250,12 +248,7 @@ function executeEdit(options: {
   }
 
   // archive/unarchive/delete/restore
-  else if (
-    editType === EditType.ARCHIVE ||
-    editType === EditType.UNARCHIVE ||
-    editType === EditType.DELETE ||
-    editType === EditType.RESTORE
-  ) {
+  else if (editType === EditType.DELETE || editType === EditType.RESTORE) {
     // cascade
     const nodesPtrs = edits.map((edit) => edit.nodePtr);
     const editByNodeId = new Map<string, EditEvent>();
@@ -264,8 +257,8 @@ function executeEdit(options: {
     }
 
     let where: Condition | null = null;
-    if (editType === EditType.UNARCHIVE || editType === EditType.RESTORE) {
-      // restrict to nodes with same deleted_at/archived_at
+    if (editType === EditType.RESTORE) {
+      // restrict to nodes with same deleted_at
       const rootDts = new Set<Temporal.ZonedDateTime>();
       for (const nodePtr of nodesPtrs) {
         const snapshotId = nodePtr.snapshotId || null;
@@ -273,12 +266,7 @@ function executeEdit(options: {
         const row = table.rows.get(nodeKey);
         if (!row) {
           throw new Error(`node not found: ${nodePtr.repr()}`);
-        } else if (editType === EditType.UNARCHIVE) {
-          const archivedAt = row.value[NODE_ARCHIVED_AT_KEY];
-          if (archivedAt) {
-            rootDts.add(Temporal.Instant.from(archivedAt).toZonedDateTimeISO("UTC"));
-          }
-        } else if (editType === EditType.RESTORE) {
+        } else {
           const deletedAt = row.value[NODE_DELETED_AT_KEY];
           if (deletedAt) {
             rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
@@ -286,11 +274,7 @@ function executeEdit(options: {
         }
       }
       if (rootDts.size > 0) {
-        if (editType === EditType.UNARCHIVE) {
-          where = IsArchivable.property("archived_at").in(...Array.from(rootDts));
-        } else if (editType === EditType.RESTORE) {
-          where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
-        }
+        where = IsDeletable.property("deleted_at").in(...Array.from(rootDts));
       }
     }
 
@@ -315,10 +299,6 @@ function executeEdit(options: {
       const row = table.rows.get(nodeKey);
       if (!row) {
         throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
-      } else if (editType === EditType.ARCHIVE) {
-        row.value[NODE_ARCHIVED_AT_KEY] = edit.createdAt.toString({ timeZoneName: "never" });
-      } else if (editType === EditType.UNARCHIVE) {
-        delete row.value[NODE_ARCHIVED_AT_KEY];
       } else if (editType === EditType.DELETE) {
         row.value[NODE_DELETED_AT_KEY] = edit.createdAt.toString({ timeZoneName: "never" });
       } else if (editType === EditType.RESTORE) {
@@ -329,63 +309,8 @@ function executeEdit(options: {
     return { edits, cascadedEdits };
   }
 
-  // erase
-  else if (editType === EditType.ERASE) {
-    // cascade
-    const editByNodeId = new Map<string, EditEvent>();
-    for (const edit of edits) {
-      editByNodeId.set(edit.nodePtr.id, edit);
-    }
-    const nodesPtrs = edits.map((edit) => edit.nodePtr);
-    const { cascadedNodePtrs } = executeCascade({
-      context,
-      definition,
-      nodePtrs: nodesPtrs,
-      where: null,
-    });
-    const cascadedEdits = cascadedNodePtrs.map(
-      (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
-    );
-
-    // delete rows
-    for (const nodePtr of cascadedNodePtrs) {
-      const edit = editByNodeId.get(nodePtr.id);
-      if (!edit) {
-        throw new Error(`edit not found for ${nodePtr.repr()}`);
-      }
-      const nodeTable = context.getEntityTable(nodePtr);
-      const snapshotId = edit.snapshotPtr?.id || null;
-      const nodeKey = nodeTable.getNodeKey({ id: nodePtr.id, snapshotId });
-      const row = nodeTable.rows.get(nodeKey);
-      if (!row) {
-        throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
-      }
-      // remove from main table
-      nodeTable.rows.delete(nodeKey);
-      // remove from rowsBySnapshot
-      const snapshotRows = nodeTable.rowsBySnapshot.get(snapshotId);
-      if (snapshotRows) {
-        snapshotRows.delete(nodePtr.id);
-        if (snapshotRows.size === 0) {
-          nodeTable.rowsBySnapshot.delete(snapshotId);
-        }
-      }
-      // remove from parent's children
-      if (row.parentPtr) {
-        const parentTable = context.getEntityTable(row.parentPtr);
-        const parentKey = parentTable.getNodeKey({ id: row.parentPtr.id, snapshotId });
-        const children = parentTable.rowsByParent.get(parentKey);
-        if (children) {
-          const index = children.indexOf(row);
-          if (index >= 0) {
-            children.splice(index, 1);
-          }
-        }
-      }
-    }
-
-    return { edits, cascadedEdits };
-  } else {
-    throw new Error(`Unsupported edit type: ${editType}`);
+  //
+  else {
+    throw new Error(`unsupported edit type: ${EditType[editType]}`);
   }
 }

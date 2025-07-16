@@ -98,7 +98,6 @@ import type {
 } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
-  IsArchivable,
   IsCustomizable,
   IsDeletable,
   IsExtensible,
@@ -614,7 +613,6 @@ export type TraitTypeMapping = {
   [TraitType.SOURCEABLE]: IsSourceable;
   [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
-  [TraitType.ARCHIVABLE]: IsArchivable;
   [TraitType.DELETABLE]: IsDeletable;
   [TraitType.CUSTOMIZABLE]: IsCustomizable;
   [TraitType.EXTENSIBLE]: IsExtensible;

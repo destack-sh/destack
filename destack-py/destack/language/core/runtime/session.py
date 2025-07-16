@@ -184,28 +184,6 @@ class Session:
         )
         self.pending_events.append(edit)
 
-    def archive(self, node: Entity):
-        """Archives an Entity."""
-        assert self.closed_at is None, f"{self!r} is closed"
-        reverse_value = to_value(node, node_as_value=True)
-        edit = EditEvent(
-            type=EditType.ARCHIVE,
-            node=node,
-            reverse_value=reverse_value,
-            space_ptr=node.space_ptr,
-        )
-        self.pending_events.append(edit)
-
-    def unarchive(self, node: Entity):
-        """Unarchives an Entity."""
-        assert self.closed_at is None, f"{self!r} is closed"
-        edit = EditEvent(
-            type=EditType.UNARCHIVE,
-            node=node,
-            space_ptr=node.space_ptr,
-        )
-        self.pending_events.append(edit)
-
     def delete(self, node: Entity):
         """Deletes an Entity."""
         assert self.closed_at is None, f"{self!r} is closed"

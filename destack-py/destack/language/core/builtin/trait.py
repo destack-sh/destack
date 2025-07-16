@@ -157,7 +157,7 @@ class IsOrdered(Trait):
 
 @builtin_trait(TraitType.OWNABLE, is_extensible=True)
 class IsOwnable(Trait):
-    """An Entity that can be owned by another Entity."""
+    """An Entity that can be owned by an Actor."""
 
     owned_by: Optional["IsActor"] = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
@@ -166,7 +166,7 @@ class IsOwnable(Trait):
 
 @builtin_trait(TraitType.OWNED)
 class IsOwned(IsOwnable):
-    """An Entity that must be owned by another Entity."""
+    """An Entity that must be owned by an Actor."""
 
     owned_by: "IsActor" = builtin_property(28, is_repr=True)
     if TYPE_CHECKING:
@@ -291,33 +291,6 @@ class IsRunnable(Trait):
 #
 # Common
 #
-
-
-@builtin_trait(TraitType.ARCHIVABLE, is_extensible=True)
-class IsArchivable(Trait):
-    """An Entity that can be archived."""
-
-    archived_at: Optional[datetime] = builtin_property(24, is_managed=True, is_eq=False)
-
-    @property
-    def is_archived(self) -> bool:
-        return self.archived_at is not None
-
-    def archive(self):
-        """Archive this Node."""
-        from destack.language.core.builtin import Entity
-
-        assert isinstance(self, Entity), f"{self!r} is not an Entity"
-        assert not self.archived_at, f"{self!r} is already archived"
-        self._session.archive(self)
-
-    def unarchive(self):
-        """Unarchive this Node."""
-        from destack.language.core.builtin import Entity
-
-        assert isinstance(self, Entity), f"{self!r} is not an Entity"
-        assert self.archived_at, f"{self!r} is not archived"
-        self._session.unarchive(self)
 
 
 @builtin_trait(TraitType.DELETABLE, is_extensible=True)

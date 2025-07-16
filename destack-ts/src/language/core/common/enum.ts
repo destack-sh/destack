@@ -9,7 +9,6 @@ import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
-  IsArchivable,
   IsCustomizable,
   IsDeletable,
   IsSourceable,
@@ -821,10 +820,7 @@ registerNodeClass(NodeType.CUSTOM_ENUM, CustomEnum);
 /**
  * CustomOption
  */
-export class CustomOption
-  extends Entity
-  implements IsTaggable, IsArchivable, IsDeletable, IsSourceable
-{
+export class CustomOption extends Entity implements IsTaggable, IsDeletable, IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_OPTION;
 
   /**
@@ -915,11 +911,6 @@ export class CustomOption
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * IsArchivable.archivedAt
-   */
-  readonly archivedAt: Temporal.ZonedDateTime | null;
-
-  /**
    * IsDeletable.deletedAt
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
@@ -1000,7 +991,6 @@ export class CustomOption
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
-    archivedAt?: Temporal.ZonedDateTime | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name?: string;
@@ -1075,8 +1065,6 @@ export class CustomOption
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
-    let _archivedAt = options.archivedAt ?? null;
-    this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -1174,9 +1162,6 @@ export class CustomOption
     }
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this.archivedAt != null) {
-      h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     if (this.deletedAt != null) {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1277,9 +1262,6 @@ export class CustomOption
     if (object.updatedByPtr != null) {
       objectValue["23"] = object.updatedByPtr.toValue();
     }
-    if (object.archivedAt != null) {
-      objectValue["24"] = object.archivedAt.toString({ timeZoneName: "never" });
-    }
     if (object.deletedAt != null) {
       objectValue["25"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
@@ -1316,11 +1298,6 @@ export class CustomOption
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const archivedAtValue = objectValue["24"];
-    const unpackedArchivedAt =
-      archivedAtValue != undefined
-        ? Temporal.Instant.from(archivedAtValue).toZonedDateTimeISO("UTC")
-        : null;
     const deletedAtValue = objectValue["25"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
@@ -1356,7 +1333,6 @@ export class CustomOption
     return new CustomOption({
       parent: unpackedParentPtr,
       icon: unpackedIcon,
-      archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
@@ -1413,9 +1389,6 @@ export class CustomOption
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
-    if (object.archivedAt != null) {
-      objectProto.archivedAt = packProtoTimestamp(object.archivedAt);
-    }
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
@@ -1457,8 +1430,6 @@ export class CustomOption
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
-      archivedAt:
-        objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       source:

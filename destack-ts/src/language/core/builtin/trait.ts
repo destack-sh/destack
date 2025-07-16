@@ -45,30 +45,6 @@ export const INTER_ORDER_TYPES = [
 
 /* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:101 ==== */
-/**
- * An Entity that can be archived.
- */
-export interface IsArchivable {
-  /**
-   * IsArchivable.archivedAt
-   */
-  readonly archivedAt: Temporal.ZonedDateTime | null;
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that can be archived.
- */
-class IsArchivable$Type extends TraitClass<IsArchivable, TraitType.ARCHIVABLE> {}
-
-export const IsArchivable = new IsArchivable$Type(TraitType.ARCHIVABLE);
-registerTraitClass(TraitType.ARCHIVABLE, IsArchivable);
-/* ==== DESTACK_GENERATED_END:TRAIT:101 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:102 ==== */
 /**
  * An Entity that can be deleted.
@@ -193,7 +169,7 @@ registerTraitClass(TraitType.IRREVERSIBLE, IsIrreversible);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:300000 ==== */
 /**
- * An Entity that can be owned by another Entity.
+ * An Entity that can be owned by an Actor.
  */
 export interface IsOwnable {
   get ownedBy(): (Entity & IsActor) | null;
@@ -210,7 +186,7 @@ export interface IsOwnable {
 }
 
 /**
- * An Entity that can be owned by another Entity.
+ * An Entity that can be owned by an Actor.
  */
 class IsOwnable$Type extends TraitClass<IsOwnable, TraitType.OWNABLE> {}
 
@@ -220,7 +196,7 @@ registerTraitClass(TraitType.OWNABLE, IsOwnable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:300001 ==== */
 /**
- * An Entity that must be owned by another Entity.
+ * An Entity that must be owned by an Actor.
  */
 export interface IsOwned extends IsOwnable {
   get ownedBy(): (Entity & IsActor) | null;
@@ -237,7 +213,7 @@ export interface IsOwned extends IsOwnable {
 }
 
 /**
- * An Entity that must be owned by another Entity.
+ * An Entity that must be owned by an Actor.
  */
 class IsOwned$Type extends TraitClass<IsOwned, TraitType.OWNED> {}
 

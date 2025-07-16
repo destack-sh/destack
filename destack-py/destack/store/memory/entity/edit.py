@@ -16,7 +16,6 @@ from destack.language import (
     EditOperation,
     EditType,
     Entity,
-    IsArchivable,
     IsDeletable,
     NodeDefinitionReference,
     NodeReference,
@@ -34,7 +33,6 @@ MAX_RECURSION_DEPTH = 100
 
 ENTITY_PARENT_KEY = str(Entity.property("parent").id)
 
-ARCHIVED_AT_KEY = str(IsArchivable.property("archived_at").id)
 DELETED_AT_KEY = str(IsDeletable.property("deleted_at").id)
 
 
@@ -239,8 +237,6 @@ def _execute_edit(
 
     # archive/unarchive/delete/restore
     elif edit_type in (
-        EditType.ARCHIVE,
-        EditType.UNARCHIVE,
         EditType.DELETE,
         EditType.RESTORE,
     ):
@@ -248,7 +244,7 @@ def _execute_edit(
         nodes_ptr = tuple(edit.node_ptr for edit in edits)
         edit_by_node_id: dict[UUID, EditEvent] = {edit.node_ptr.id: edit for edit in edits}
         where: Condition | None = None
-        if edit_type == EditType.UNARCHIVE or edit_type == EditType.RESTORE:
+        if edit_type == EditType.RESTORE:
             # restrict to nodes with same deleted_at/archived_at
             root_dts: set[datetime] = set()
             for node_ptr in nodes_ptr:
@@ -258,21 +254,13 @@ def _execute_edit(
                     raise LookupError(
                         f"node not found for {edit_by_node_id[node_ptr.id]!r}: {node_ptr!r}"
                     )
-                elif edit_type == EditType.UNARCHIVE:
-                    if archived_at := row.value.get(ARCHIVED_AT_KEY):
-                        root_dts.add(datetime.fromisoformat(archived_at).astimezone(UTC))
                 elif edit_type == EditType.RESTORE:
                     if deleted_at := row.value.get(DELETED_AT_KEY):
                         root_dts.add(datetime.fromisoformat(deleted_at).astimezone(UTC))
                 else:
                     assert_never(edit_type)
             if root_dts:
-                if edit_type == EditType.UNARCHIVE:
-                    where = IsArchivable.property("archived_at").in_(*root_dts)
-                elif edit_type == EditType.RESTORE:
-                    where = IsDeletable.property("deleted_at").in_(*root_dts)
-                else:
-                    assert_never(edit_type)
+                where = IsDeletable.property("deleted_at").in_(*root_dts)
         cascaded_node_ptrs, source_id_by_node_id = _execute_cascade(
             context=context,
             definition=definition,
@@ -290,55 +278,12 @@ def _execute_edit(
             node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
             if not (row := table.rows.get(node_key)):
                 raise LookupError(f"node not found for {edit!r}: {node_ptr!r}")
-            elif edit_type == EditType.ARCHIVE:
-                row.value[ARCHIVED_AT_KEY] = edit.created_at.astimezone(UTC).isoformat()
-            elif edit_type == EditType.UNARCHIVE:
-                row.value.pop(ARCHIVED_AT_KEY, None)
             elif edit_type == EditType.DELETE:
                 row.value[DELETED_AT_KEY] = edit.created_at.astimezone(UTC).isoformat()
             elif edit_type == EditType.RESTORE:
                 row.value.pop(DELETED_AT_KEY, None)
             else:
                 assert_never(edit_type)
-
-        logger.trace(
-            f"memory.{edit_type.name.lower()}",
-            edits=len(edits),
-            cascaded_edits=len(cascaded_edits),
-            span="current",
-        )
-        return edits, cascaded_edits
-
-    # erase
-    elif edit_type == EditType.ERASE:
-        # cascade
-        nodes_ptr = tuple(edit.node_ptr for edit in edits)
-        edit_by_node_id: dict[UUID, EditEvent] = {edit.node_ptr.id: edit for edit in edits}
-        cascaded_node_ptrs, source_id_by_node_id = _execute_cascade(
-            context=context,
-            definition=definition,
-            node_ptrs=nodes_ptr,
-            where=None,
-        )
-        cascaded_edits = tuple(
-            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
-        )
-
-        # delete rows
-        for node_ptr in chain(nodes_ptr, cascaded_node_ptrs):
-            edit = edit_by_node_id[source_id_by_node_id[node_ptr.id]]
-            snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
-            node_table = context.get_entity_table(node_ptr)
-            node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
-            if not (row := node_table.rows.pop(node_key, None)):
-                raise LookupError(f"node not found for {edit!r}: {node_ptr!r}")
-            node_table.rows_by_snapshot[snapshot_id].pop(node_key.id, None)
-            if not node_table.rows_by_snapshot[snapshot_id]:
-                node_table.rows_by_snapshot.pop(snapshot_id, None)
-            if row.parent_ptr is not None:
-                parent_table = context.get_entity_table(row.parent_ptr)
-                parent_key = VersionedNodeKey(id=row.parent_ptr.id, snapshot_id=snapshot_id)
-                parent_table.rows_by_parent[parent_key].remove(row)
 
         logger.trace(
             f"memory.{edit_type.name.lower()}",

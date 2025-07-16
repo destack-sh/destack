@@ -258,11 +258,8 @@ enum EditTypeProto {
   EDIT_TYPE_UPSERT = 2;
   EDIT_TYPE_UPDATE = 3;
   EDIT_TYPE_MOVE = 4;
-  EDIT_TYPE_ARCHIVE = 5;
-  EDIT_TYPE_UNARCHIVE = 6;
   EDIT_TYPE_DELETE = 7;
   EDIT_TYPE_RESTORE = 8;
-  EDIT_TYPE_ERASE = 9;
 }
 
 // When the effect fires.
@@ -1440,7 +1437,6 @@ enum ToolTypeProto {
 enum TraitTypeProto {
   TRAIT_TYPE_UNSPECIFIED = 0;
   TRAIT_TYPE_ORDERED = 100;
-  TRAIT_TYPE_ARCHIVABLE = 101;
   TRAIT_TYPE_DELETABLE = 102;
   TRAIT_TYPE_CUSTOMIZABLE = 110;
   TRAIT_TYPE_EXTENSIBLE = 111;
@@ -2132,7 +2128,6 @@ message CustomOptionProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   string name = 50;
@@ -2154,7 +2149,6 @@ message CustomPropertyProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   string order_key = 27;
   string name = 50;
@@ -4625,7 +4619,6 @@ message RecordProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   map<string, ValueProto> custom_values = 26;
   optional NodeReferenceProto owned_by_ptr = 28;
@@ -5328,7 +5321,6 @@ message SnapshotProto {
   optional NodeReferenceProto created_by_ptr = 21;
   google.protobuf.Timestamp updated_at = 22;
   optional NodeReferenceProto updated_by_ptr = 23;
-  optional google.protobuf.Timestamp archived_at = 24;
   optional google.protobuf.Timestamp deleted_at = 25;
   optional NodeReferenceProto owned_by_ptr = 28;
   string name = 50;
