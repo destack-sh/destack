@@ -29,6 +29,14 @@ class Follow(
 
     parent: Union["IsFollowable", None] = builtin_property_parent()
 
+    # nocheckin
+
+    # methods, actions, ...
+
+    # class Meta:
+    # pass  # indexes, constraints, permissions, ...
+    # __meta__
+
 
 @builtin_node(NodeType.FOLLOW_EVENT, frozen=True)
 class FollowEvent(Event["Follow"]):
