@@ -76,13 +76,14 @@ def builtin_struct(
             inherits=cls.__inherits__,
             traits=(),
         )
+        if struct_type is not None:
+            cls.metatype = struct_type
 
         # register struct
         if struct_type is not None:
             assert cls.__name__ == "Struct" or issubclass(cls, Struct), (
                 f"struct class {cls} is not a Struct"
             )
-            cls.metatype = struct_type
             if struct_type in STRUCT_CLASS_BY_TYPE:
                 raise ValueError(
                     f"struct class conflict for {struct_type}: {cls}, {STRUCT_CLASS_BY_TYPE[struct_type]}"

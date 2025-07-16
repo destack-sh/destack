@@ -125,6 +125,8 @@ def builtin_node(
             traits=cls.__traits__,
             inherits=cls.__inherits__,
         )
+        if node_type is not None:
+            cls.metatype = node_type
 
         # meta
         if indexes:
@@ -148,7 +150,6 @@ def builtin_node(
 
         # register
         if node_type is not None:
-            cls.metatype = node_type
             NODE_CLASS_BY_TYPE[node_type] = cls
             NODE_TYPE_BY_CLASS[cls] = node_type
             NODE_CLASS_BY_TYPE[node_type] = cls

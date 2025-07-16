@@ -32,7 +32,7 @@ class ConstraintDefinition(BuiltinDefinition):
     ) -> "Self":
         return cls(
             id=declaration.id,
-            type=ConstraintType.UNIQUE,
+            type=declaration.type,
             name=declaration.name or "Constraint",
             properties=[object_cls.property(p).to_ref() for p in declaration.properties],
         )

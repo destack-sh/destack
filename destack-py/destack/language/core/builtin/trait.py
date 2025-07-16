@@ -70,6 +70,8 @@ def builtin_trait(
             base_type=None,
             traits=(),
         )
+        if trait_type is not None:
+            cls.metatype = trait_type
         cls.__is_trait__ = True
         cls.__is_abstract__ = True
 
@@ -103,7 +105,6 @@ def builtin_trait(
 
         # register
         if trait_type is not None:
-            cls.metatype = trait_type
             TRAIT_CLASS_BY_TYPE[trait_type] = cls
             TRAIT_TYPE_BY_CLASS[cast(type["Trait"], cls)] = trait_type
 

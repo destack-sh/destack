@@ -405,10 +405,17 @@ class PropertyDeclaration(TypeDeclaration):
     __hash__ = hash  # type: ignore
 
     def clone(self):
-        return dataclasses.replace(self, component=None, original_component=self.original_component)
+        return dataclasses.replace(
+            self,
+            component=None,
+            original_component=self.original_component,
+            _ref=None,
+            _type=None,
+            _definition=None,
+        )
 
     def to_ref(self) -> "PropertyReference":
-        """A pointer to this property. `to_ref()` for consistency with `Node.to_ref()`."""
+        """A pointer to this Property. `to_ref()` for consistency with `Node.to_ref()`."""
 
         if self._ref is None:
             from .relation import PropertyReference, PropertyReferenceType
@@ -436,6 +443,7 @@ class PropertyDeclaration(TypeDeclaration):
                     id=self.id,
                 )
             self._ref = ref
+
         return self._ref
 
     @property
