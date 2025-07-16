@@ -19,7 +19,7 @@ from .focus import (
     FocusOutEvent,
 )
 from .input import InputEvent
-from .keyboard import (
+from .key import (
     KeyDownEvent,
     KeyEvent,
     KeyPressEvent,

@@ -250,7 +250,7 @@ import type {
   KeyEvent,
   KeyPressEvent,
   KeyUpEvent,
-} from "@destack/language/interaction/keyboard";
+} from "@destack/language/interaction/key";
 import type {
   ClickEvent,
   DoubleClickEvent,
