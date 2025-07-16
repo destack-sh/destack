@@ -18,7 +18,6 @@ from destack.utils.uuid import UUID
 
 from .common import NodeType, TraitType
 from .const import UNSET
-from .constant import register_constant
 from .object import BuiltinObject, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -41,8 +40,6 @@ if TYPE_CHECKING:
 TRAIT_PREFIXES = ("Is",)
 
 # traits where all matching nodes are ordered together
-INTER_ORDER_TYPES = (NodeType.VIEW, NodeType.STYLE)
-register_constant("INTER_ORDER_TYPES", INTER_ORDER_TYPES)
 
 
 # nocheckin: remove IndexIn, use IndexDefinition

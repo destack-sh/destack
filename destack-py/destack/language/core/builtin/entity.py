@@ -10,6 +10,7 @@ from typing import (
     cast,
 )
 
+from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import get_order_key
 
 from .common import EnumType, ResourceStatus, RoleType, StoreDomain, TraitType, ValueFactory
@@ -23,7 +24,6 @@ from .property import (
     builtin_property_runtime,
 )
 from .trait import (
-    INTER_ORDER_TYPES,
     IsExtensible,
     IsOrdered,
     IsOwnable,
@@ -185,12 +185,17 @@ class Entity(Node):
         _existing_nodes: Sequence["Entity"] | None = None,
     ):
         """Assign an order key to a child Entity."""
-        order_trait = next(
-            (trait for trait in child.__traits__ if trait in INTER_ORDER_TYPES), None
+        order_base = next(
+            (
+                node_type
+                for node_type in child.__inherits__
+                if TraitType.OWNED in NODE_CLASS_BY_TYPE[node_type].__traits__
+            ),
+            child.metatype,
         )
         if _existing_nodes is None:
             _existing_nodes = cast(
-                Sequence[Entity], self._graph.get_children(self, type=order_trait or child.metatype)
+                Sequence[Entity], self._graph.get_children(self, type=order_base)
             )
         if _existing_nodes:
             if after is None:

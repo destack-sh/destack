@@ -32,18 +32,6 @@ export class TraitClass<N = any, T extends TraitType = TraitType> {
   }
 }
 
-/* ==== DESTACK_GENERATED_START:CONSTANT:INTER_ORDER_TYPES ==== */
-/**
- * INTER_ORDER_TYPES
- */
-// prettier-ignore
-export const INTER_ORDER_TYPES = [
-  (1800000 /* NodeType.VIEW */),
-  (2100200 /* NodeType.STYLE */)
-];
-
-/* ==== DESTACK_GENERATED_END:CONSTANT:INTER_ORDER_TYPES ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:300000 ==== */
 /**
  * An Entity that can be owned by an Actor.

@@ -7,7 +7,7 @@ import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, hasTrait } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor, IsExtensible, IsOwnable } from "@destack/language/core/builtin/trait";
-import { INTER_ORDER_TYPES, IsOrdered } from "@destack/language/core/builtin/trait";
+import { IsOrdered } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -290,7 +290,10 @@ export abstract class Entity extends Node {
     before?: Entity,
     existingNodes?: Entity[],
   ): void {
-    const orderTrait = child.__inherits__.find((trait) => INTER_ORDER_TYPES.includes(trait));
+    const orderTrait =
+      child.__inherits__.find((nodeType) =>
+        NODE_CLASS_BY_TYPE[nodeType].__definition__.traits.includes(TraitType.ORDERED),
+      ) ?? child.metatype;
 
     if (existingNodes === undefined) {
       const nodeClass = orderTrait
