@@ -29,12 +29,7 @@ import {
   registerNodeClass,
 } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import {
-  MaterializationProto,
-  SnapshotProto,
-  SnapshotStatusProto,
-  SnapshotTypeProto,
-} from "@destack/proto";
+import { MaterializationProto, SnapshotProto, SnapshotStatusProto } from "@destack/proto";
 import { base64Decode, getOrderKey } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
@@ -72,8 +67,8 @@ export abstract class Entity extends Node {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Entity | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Entity | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -365,7 +360,7 @@ export abstract class Record
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -382,8 +377,8 @@ export abstract class Record
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Record | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Record | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -492,7 +487,7 @@ export abstract class Resource extends Entity implements IsExtensible, IsDeletab
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -509,8 +504,8 @@ export abstract class Resource extends Entity implements IsExtensible, IsDeletab
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Resource | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Resource | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -641,14 +636,14 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   /**
    * The previous Snapshot this Snapshot is based on.
    */
-  get predecessor(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
+  get precededBy(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as Snapshot | null;
     }
     return null;
   }
-  readonly predecessorPtr: NodeReference | null;
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -741,11 +736,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
   _name: string;
 
   /**
-   * Snapshot.type
-   */
-  readonly type: SnapshotType;
-
-  /**
    * Snapshot.status
    */
   /**
@@ -767,7 +757,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference;
-    predecessor?: Snapshot | NodeReference | null;
+    precededBy?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -776,7 +766,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
-    type?: SnapshotType;
     status?: SnapshotStatus;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -847,11 +836,11 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       throw new Error(`Snapshot.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
     }
-    this.predecessorPtr = _predecessor;
+    this.precededByPtr = _precededBy;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -869,14 +858,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       throw new Error(`Snapshot.name is required`);
     }
     this._name = _name;
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = 1 /* SnapshotType.PARTIAL */;
-    }
-    if (_type === null) {
-      throw new Error(`Snapshot.type is required`);
-    }
-    this.type = _type;
     let _status = options.status ?? null;
     if (_status === null) {
       _status = 10 /* SnapshotStatus.ACTIVE */;
@@ -923,10 +904,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._status === other._status)) {
@@ -951,10 +929,9 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + this.type) & 0xffffffff;
     h = (h * 31 + this._status) & 0xffffffff;
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
@@ -1038,8 +1015,8 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
     objectValue["11"] = object.snapshotPtr.toValue();
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1059,7 +1036,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       objectValue["28"] = object._ownedByPtr.toValue();
     }
     objectValue["50"] = object._name;
-    objectValue["100"] = object.type;
     objectValue["110"] = object._status;
     return objectValue;
   }
@@ -1077,10 +1053,10 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["28"];
     const unpackedOwnedByPtr =
@@ -1116,8 +1092,7 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
         _graph,
         _connection,
       ),
-      predecessor: unpackedPredecessorPtr,
-      type: Number(objectValue["100"]),
+      precededBy: unpackedPrecededByPtr,
       status: Number(objectValue["110"]),
       ownedBy: unpackedOwnedByPtr,
       archivedAt: unpackedArchivedAt,
@@ -1159,8 +1134,8 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1180,7 +1155,6 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
     objectProto.name = object._name;
-    objectProto.type = Number(object.type) as SnapshotTypeProto;
     objectProto.status = Number(object._status) as SnapshotStatusProto;
     return objectProto as SnapshotProto;
   }
@@ -1211,17 +1185,16 @@ export class Snapshot extends Entity implements IsOwnable, IsArchivable, IsDelet
         _graph,
         _connection,
       ),
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
-      type: Number(objectProto.type) as SnapshotType,
       status: Number(objectProto.status) as SnapshotStatus,
       ownedBy:
         objectProto.ownedByPtr != undefined
@@ -1314,22 +1287,6 @@ export enum Materialization {
 registerEnumClass(EnumType.MATERIALIZATION, Materialization);
 /* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:1300 ==== */
-/**
- * SnapshotType
- */
-export enum SnapshotType {
-  PARTIAL = 1,
-  COPY = 2,
-  ROOT = 3,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SNAPSHOT_TYPE, SnapshotType);
-/* ==== DESTACK_GENERATED_END:ENUM:1300 ==== */
-
 /* ==== DESTACK_GENERATED_START:ENUM:1301 ==== */
 /**
  * SnapshotStatus
@@ -1368,7 +1325,7 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable,
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -1385,8 +1342,8 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable,
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Variant | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Variant | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

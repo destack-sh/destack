@@ -158,13 +158,13 @@ class Type(StructFrozen):
 
     # flags
     is_required: bool | None = builtin_property(150)
-    is_root: bool | None = builtin_property(154)
+    is_main: bool | None = builtin_property(154)
 
 
 def to_type(value_or_type: Any, node_as_value: bool = False) -> "Type":
     """
     Guess the Type of a value or class.
-    For values, we infer the most specific Type that can represent the value.
+    For values, we try to infer the most specific Type that can represent the value.
     """
     from destack.language import Node, NodeReference
 

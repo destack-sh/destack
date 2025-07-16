@@ -2,7 +2,6 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
-  IsExtensible,
   NodeReference,
   QueryConnection,
   Session,
@@ -50,7 +49,7 @@ export abstract class KeyEvent extends InputEvent {
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -58,6 +57,12 @@ export abstract class KeyEvent extends InputEvent {
    */
   abstract get snapshot(): Snapshot | null;
   declare readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  abstract get precededBy(): Event | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * Event.createdAt
@@ -177,10 +182,10 @@ export class KeyDownEvent extends KeyEvent {
   /**
    * The definition this CustomEntity is an instance of.
    */
-  get definition(): (Entity & IsExtensible) | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -197,6 +202,18 @@ export class KeyDownEvent extends KeyEvent {
     return null;
   }
   readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * Event.createdAt
@@ -314,8 +331,9 @@ export class KeyDownEvent extends KeyEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: (Entity & IsExtensible) | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -384,6 +402,11 @@ export class KeyDownEvent extends KeyEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -522,6 +545,9 @@ export class KeyDownEvent extends KeyEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -571,6 +597,9 @@ export class KeyDownEvent extends KeyEvent {
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -658,6 +687,9 @@ export class KeyDownEvent extends KeyEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -718,6 +750,11 @@ export class KeyDownEvent extends KeyEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -760,6 +797,7 @@ export class KeyDownEvent extends KeyEvent {
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -798,6 +836,9 @@ export class KeyDownEvent extends KeyEvent {
     }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -886,6 +927,16 @@ export class KeyDownEvent extends KeyEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -985,10 +1036,10 @@ export class KeyUpEvent extends KeyEvent {
   /**
    * The definition this CustomEntity is an instance of.
    */
-  get definition(): (Entity & IsExtensible) | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1005,6 +1056,18 @@ export class KeyUpEvent extends KeyEvent {
     return null;
   }
   readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * Event.createdAt
@@ -1122,8 +1185,9 @@ export class KeyUpEvent extends KeyEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: (Entity & IsExtensible) | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -1192,6 +1256,11 @@ export class KeyUpEvent extends KeyEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1330,6 +1399,9 @@ export class KeyUpEvent extends KeyEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -1379,6 +1451,9 @@ export class KeyUpEvent extends KeyEvent {
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1466,6 +1541,9 @@ export class KeyUpEvent extends KeyEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1526,6 +1604,11 @@ export class KeyUpEvent extends KeyEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1568,6 +1651,7 @@ export class KeyUpEvent extends KeyEvent {
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -1606,6 +1690,9 @@ export class KeyUpEvent extends KeyEvent {
     }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1694,6 +1781,16 @@ export class KeyUpEvent extends KeyEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1793,10 +1890,10 @@ export class KeyPressEvent extends KeyEvent {
   /**
    * The definition this CustomEntity is an instance of.
    */
-  get definition(): (Entity & IsExtensible) | null {
+  get definition(): Entity | null {
     const nodePtr: NodeReference | null = this.definitionPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -1813,6 +1910,18 @@ export class KeyPressEvent extends KeyEvent {
     return null;
   }
   readonly snapshotPtr: NodeReference | null;
+
+  /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * Event.createdAt
@@ -1930,8 +2039,9 @@ export class KeyPressEvent extends KeyEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: (Entity & IsExtensible) | NodeReference | null;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -2000,6 +2110,11 @@ export class KeyPressEvent extends KeyEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2138,6 +2253,9 @@ export class KeyPressEvent extends KeyEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -2187,6 +2305,9 @@ export class KeyPressEvent extends KeyEvent {
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2274,6 +2395,9 @@ export class KeyPressEvent extends KeyEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2334,6 +2458,11 @@ export class KeyPressEvent extends KeyEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2376,6 +2505,7 @@ export class KeyPressEvent extends KeyEvent {
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -2414,6 +2544,9 @@ export class KeyPressEvent extends KeyEvent {
     }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2502,6 +2635,16 @@ export class KeyPressEvent extends KeyEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,

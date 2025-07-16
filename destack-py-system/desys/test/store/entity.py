@@ -434,7 +434,7 @@ async def test_edit_partial_node_in_snapshot(session: Session):
         snapshot_user = user.into(snapshot)
         assert snapshot_user.id == user.id
         assert snapshot_user.snapshot == snapshot
-        assert snapshot_user.predecessor is user
+        assert snapshot_user.preceded_by is user
         assert snapshot_user
 
         snapshot_user.name = "Bob"

@@ -85,6 +85,12 @@ export abstract class RunEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  abstract get precededBy(): Event | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -162,6 +168,18 @@ export class RunStartedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -228,6 +246,7 @@ export class RunStartedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -281,6 +300,11 @@ export class RunStartedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -342,6 +366,9 @@ export class RunStartedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -366,6 +393,9 @@ export class RunStartedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -437,6 +467,9 @@ export class RunStartedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -473,6 +506,11 @@ export class RunStartedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -495,6 +533,7 @@ export class RunStartedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -528,6 +567,9 @@ export class RunStartedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -577,6 +619,16 @@ export class RunStartedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -675,6 +727,18 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -741,6 +805,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -794,6 +859,11 @@ export class RunPauseRequestedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -855,6 +925,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -879,6 +952,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -950,6 +1026,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -986,6 +1065,11 @@ export class RunPauseRequestedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1008,6 +1092,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -1047,6 +1132,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1096,6 +1184,16 @@ export class RunPauseRequestedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1200,6 +1298,18 @@ export class RunPausedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1266,6 +1376,7 @@ export class RunPausedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -1319,6 +1430,11 @@ export class RunPausedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1380,6 +1496,9 @@ export class RunPausedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -1404,6 +1523,9 @@ export class RunPausedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1475,6 +1597,9 @@ export class RunPausedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1511,6 +1636,11 @@ export class RunPausedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1533,6 +1663,7 @@ export class RunPausedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -1566,6 +1697,9 @@ export class RunPausedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1615,6 +1749,16 @@ export class RunPausedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1713,6 +1857,18 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -1779,6 +1935,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -1832,6 +1989,11 @@ export class RunResumeRequestedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1893,6 +2055,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -1917,6 +2082,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1988,6 +2156,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2024,6 +2195,11 @@ export class RunResumeRequestedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2046,6 +2222,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -2085,6 +2262,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2134,6 +2314,16 @@ export class RunResumeRequestedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2238,6 +2428,18 @@ export class RunResumedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2304,6 +2506,7 @@ export class RunResumedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -2357,6 +2560,11 @@ export class RunResumedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2418,6 +2626,9 @@ export class RunResumedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -2442,6 +2653,9 @@ export class RunResumedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2513,6 +2727,9 @@ export class RunResumedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2549,6 +2766,11 @@ export class RunResumedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2571,6 +2793,7 @@ export class RunResumedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -2604,6 +2827,9 @@ export class RunResumedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2653,6 +2879,16 @@ export class RunResumedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2751,6 +2987,18 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2817,6 +3065,7 @@ export class RunStopRequestedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -2870,6 +3119,11 @@ export class RunStopRequestedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2931,6 +3185,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -2955,6 +3212,9 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3026,6 +3286,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -3062,6 +3325,11 @@ export class RunStopRequestedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3084,6 +3352,7 @@ export class RunStopRequestedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -3123,6 +3392,9 @@ export class RunStopRequestedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3172,6 +3444,16 @@ export class RunStopRequestedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3276,6 +3558,18 @@ export class RunFailedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -3342,6 +3636,7 @@ export class RunFailedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -3395,6 +3690,11 @@ export class RunFailedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -3456,6 +3756,9 @@ export class RunFailedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -3480,6 +3783,9 @@ export class RunFailedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3551,6 +3857,9 @@ export class RunFailedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -3587,6 +3896,11 @@ export class RunFailedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3609,6 +3923,7 @@ export class RunFailedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -3642,6 +3957,9 @@ export class RunFailedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3691,6 +4009,16 @@ export class RunFailedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3789,6 +4117,18 @@ export class RunCompletedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -3855,6 +4195,7 @@ export class RunCompletedEvent extends RunEvent {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -3908,6 +4249,11 @@ export class RunCompletedEvent extends RunEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -3969,6 +4315,9 @@ export class RunCompletedEvent extends RunEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -3993,6 +4342,9 @@ export class RunCompletedEvent extends RunEvent {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -4064,6 +4416,9 @@ export class RunCompletedEvent extends RunEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -4100,6 +4455,11 @@ export class RunCompletedEvent extends RunEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -4122,6 +4482,7 @@ export class RunCompletedEvent extends RunEvent {
       ),
       target: unpackedTargetPtr,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -4161,6 +4522,9 @@ export class RunCompletedEvent extends RunEvent {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -4210,6 +4574,16 @@ export class RunCompletedEvent extends RunEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -4315,8 +4689,8 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Run | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Run | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

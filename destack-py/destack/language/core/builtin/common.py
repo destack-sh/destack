@@ -48,7 +48,6 @@ class EnumType(Enum):
     CASCADE_ACTION = 69
 
     RESOURCE_STATUS = 1100
-    SNAPSHOT_TYPE = 1300
     SNAPSHOT_STATUS = 1301
 
     # query

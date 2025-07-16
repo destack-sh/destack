@@ -1349,9 +1349,9 @@ export class Type extends StructFrozen {
   readonly isRequired: boolean | null;
 
   /**
-   * Type.isRoot
+   * Type.isMain
    */
-  readonly isRoot: boolean | null;
+  readonly isMain: boolean | null;
 
   constructor(options: {
     name?: string | null;
@@ -1376,7 +1376,7 @@ export class Type extends StructFrozen {
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
     isRequired?: boolean | null;
-    isRoot?: boolean | null;
+    isMain?: boolean | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1436,8 +1436,8 @@ export class Type extends StructFrozen {
     this.nodeConstraint = _nodeConstraint;
     let _isRequired = options.isRequired ?? null;
     this.isRequired = _isRequired;
-    let _isRoot = options.isRoot ?? null;
-    this.isRoot = _isRoot;
+    let _isMain = options.isMain ?? null;
+    this.isMain = _isMain;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1521,7 +1521,7 @@ export class Type extends StructFrozen {
     if (!(this.isRequired === other.isRequired)) {
       return false;
     }
-    if (!(this.isRoot === other.isRoot)) {
+    if (!(this.isMain === other.isMain)) {
       return false;
     }
     return true;
@@ -1610,8 +1610,8 @@ export class Type extends StructFrozen {
     if (this.isRequired != null) {
       h = (h * 31 + hashBool(this.isRequired)) & 0xffffffff;
     }
-    if (this.isRoot != null) {
-      h = (h * 31 + hashBool(this.isRoot)) & 0xffffffff;
+    if (this.isMain != null) {
+      h = (h * 31 + hashBool(this.isMain)) & 0xffffffff;
     }
 
     // @ts-expect-error(readonly)
@@ -1678,8 +1678,8 @@ export class Type extends StructFrozen {
     if (object.isRequired != null) {
       objectValue["150"] = object.isRequired;
     }
-    if (object.isRoot != null) {
-      objectValue["154"] = object.isRoot;
+    if (object.isMain != null) {
+      objectValue["154"] = object.isMain;
     }
     return objectValue;
   }
@@ -1774,8 +1774,8 @@ export class Type extends StructFrozen {
         : null;
     const isRequiredValue = objectValue["150"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isRootValue = objectValue["154"];
-    const unpackedIsRoot = isRootValue != undefined ? isRootValue : null;
+    const isMainValue = objectValue["154"];
+    const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
     return new Type({
       name: unpackedName,
       cardinality: Number(objectValue["110"]),
@@ -1793,7 +1793,7 @@ export class Type extends StructFrozen {
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
       isRequired: unpackedIsRequired,
-      isRoot: unpackedIsRoot,
+      isMain: unpackedIsMain,
       _value: objectValue,
       _supergraph,
     });
@@ -1863,8 +1863,8 @@ export class Type extends StructFrozen {
     if (object.isRequired != null) {
       objectProto.isRequired = object.isRequired;
     }
-    if (object.isRoot != null) {
-      objectProto.isRoot = object.isRoot;
+    if (object.isMain != null) {
+      objectProto.isMain = object.isMain;
     }
     return objectProto as TypeProto;
   }
@@ -1968,7 +1968,7 @@ export class Type extends StructFrozen {
             )
           : null,
       isRequired: objectProto.isRequired != undefined ? objectProto.isRequired : null,
-      isRoot: objectProto.isRoot != undefined ? objectProto.isRoot : null,
+      isMain: objectProto.isMain != undefined ? objectProto.isMain : null,
       _proto: objectProto,
       _supergraph,
     });

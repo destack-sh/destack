@@ -97,6 +97,18 @@ export class EditEvent extends Event {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -198,6 +210,7 @@ export class EditEvent extends Event {
     id?: string;
     space?: Space | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -258,6 +271,11 @@ export class EditEvent extends Event {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -366,6 +384,9 @@ export class EditEvent extends Event {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -409,6 +430,9 @@ export class EditEvent extends Event {
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -500,6 +524,9 @@ export class EditEvent extends Event {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -584,6 +611,11 @@ export class EditEvent extends Event {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -613,6 +645,7 @@ export class EditEvent extends Event {
       reverseOperation: unpackedReverseOperation,
       reverseValue: unpackedReverseValue,
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -646,6 +679,9 @@ export class EditEvent extends Event {
     objectProto.spacePtr = object.spacePtr.toProto();
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -737,6 +773,16 @@ export class EditEvent extends Event {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,

@@ -37,7 +37,7 @@ export class Action extends Method implements IsRunnable {
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: Action | NodeReference | null;
+    precededBy?: Action | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -103,7 +103,7 @@ export class Action extends Method implements IsRunnable {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -147,8 +147,8 @@ export class Action extends Method implements IsRunnable {
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -222,8 +222,8 @@ export class Action extends Method implements IsRunnable {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -316,10 +316,10 @@ export class Action extends Method implements IsRunnable {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -343,7 +343,7 @@ export class Action extends Method implements IsRunnable {
       deletedAt: unpackedDeletedAt,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -382,8 +382,8 @@ export class Action extends Method implements IsRunnable {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -486,10 +486,10 @@ export class Action extends Method implements IsRunnable {
               _connection,
             )
           : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,

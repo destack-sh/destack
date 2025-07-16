@@ -344,7 +344,7 @@ class PropertyDefinition(BuiltinDefinition):
     is_required: bool = builtin_property(150, is_repr=True)
     is_unique: bool = builtin_property(151, is_repr=True)
     is_readonly: bool = builtin_property(153)
-    is_root: bool = builtin_property(154)
+    is_main: bool = builtin_property(154)
     is_wired: bool = builtin_property(160)
     is_stored: bool = builtin_property(161)
     is_repr: bool = builtin_property(162)
@@ -392,7 +392,7 @@ class PropertyDefinition(BuiltinDefinition):
             is_required=prop.is_required,
             is_unique=prop.is_unique,
             is_readonly=prop.is_readonly,
-            is_root=prop.is_root,
+            is_main=prop.is_main,
             is_wired=prop.is_wired,
             is_stored=prop.is_stored,
             is_repr=prop.is_repr,

@@ -3,5 +3,4 @@ export * from "@destack/language/universe/handle";
 export * from "@destack/language/universe/organization";
 export * from "@destack/language/universe/space";
 export * from "@destack/language/universe/team";
-export * from "@destack/language/universe/universe";
 export * from "@destack/language/universe/user";

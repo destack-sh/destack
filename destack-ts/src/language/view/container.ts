@@ -10,7 +10,6 @@ import type {
   GridSpan,
   Insets,
   IsActor,
-  IsExtensible,
   Layout,
   Materialization,
   NodeReference,
@@ -51,7 +50,7 @@ export abstract class ContainerView extends View {
   /**
    * The definition this CustomEntity is an instance of.
    */
-  abstract get definition(): (Entity & IsExtensible) | null;
+  abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
 
   /**
@@ -68,8 +67,8 @@ export abstract class ContainerView extends View {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): ContainerView | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): ContainerView | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.

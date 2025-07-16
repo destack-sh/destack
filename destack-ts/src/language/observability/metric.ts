@@ -71,8 +71,8 @@ export abstract class Metric extends Entity implements IsSourceable {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  abstract get predecessor(): Metric | null;
-  declare readonly predecessorPtr: NodeReference | null;
+  abstract get precededBy(): Metric | null;
+  declare readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -167,6 +167,12 @@ export abstract class MeasurementEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  abstract get precededBy(): Event | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
@@ -257,14 +263,14 @@ export class GaugeMetric extends Metric {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): GaugeMetric | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
+  get precededBy(): GaugeMetric | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as GaugeMetric | null;
     }
     return null;
   }
-  readonly predecessorPtr: NodeReference | null;
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -371,7 +377,7 @@ export class GaugeMetric extends Metric {
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: GaugeMetric | NodeReference | null;
+    precededBy?: GaugeMetric | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -444,11 +450,11 @@ export class GaugeMetric extends Metric {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
     }
-    this.predecessorPtr = _predecessor;
+    this.precededByPtr = _precededBy;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -524,7 +530,7 @@ export class GaugeMetric extends Metric {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -554,8 +560,8 @@ export class GaugeMetric extends Metric {
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -630,8 +636,8 @@ export class GaugeMetric extends Metric {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -686,10 +692,10 @@ export class GaugeMetric extends Metric {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -708,7 +714,7 @@ export class GaugeMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -748,8 +754,8 @@ export class GaugeMetric extends Metric {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -819,10 +825,10 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -934,6 +940,18 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -989,6 +1007,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     space?: Space | NodeReference;
     definition: GaugeMetric | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -1049,6 +1068,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1099,6 +1123,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -1123,6 +1150,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1198,6 +1228,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -1228,6 +1261,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -1254,6 +1292,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -1296,6 +1335,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -1333,6 +1375,16 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1466,14 +1518,14 @@ export class CounterMetric extends Metric {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): CounterMetric | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
+  get precededBy(): CounterMetric | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CounterMetric | null;
     }
     return null;
   }
-  readonly predecessorPtr: NodeReference | null;
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -1580,7 +1632,7 @@ export class CounterMetric extends Metric {
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: CounterMetric | NodeReference | null;
+    precededBy?: CounterMetric | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -1653,11 +1705,11 @@ export class CounterMetric extends Metric {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
     }
-    this.predecessorPtr = _predecessor;
+    this.precededByPtr = _precededBy;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -1733,7 +1785,7 @@ export class CounterMetric extends Metric {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -1763,8 +1815,8 @@ export class CounterMetric extends Metric {
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1839,8 +1891,8 @@ export class CounterMetric extends Metric {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1895,10 +1947,10 @@ export class CounterMetric extends Metric {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1917,7 +1969,7 @@ export class CounterMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -1957,8 +2009,8 @@ export class CounterMetric extends Metric {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -2028,10 +2080,10 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2143,6 +2195,18 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -2198,6 +2262,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     space?: Space | NodeReference;
     definition: CounterMetric | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -2258,6 +2323,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2308,6 +2378,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -2332,6 +2405,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2407,6 +2483,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -2437,6 +2516,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -2463,6 +2547,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -2505,6 +2590,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -2542,6 +2630,16 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2675,14 +2773,14 @@ export class HistogramMetric extends Metric {
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): HistogramMetric | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
+  get precededBy(): HistogramMetric | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as HistogramMetric | null;
     }
     return null;
   }
-  readonly predecessorPtr: NodeReference | null;
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -2789,7 +2887,7 @@ export class HistogramMetric extends Metric {
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: HistogramMetric | NodeReference | null;
+    precededBy?: HistogramMetric | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -2862,11 +2960,11 @@ export class HistogramMetric extends Metric {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
     }
-    this.predecessorPtr = _predecessor;
+    this.precededByPtr = _precededBy;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -2942,7 +3040,7 @@ export class HistogramMetric extends Metric {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -2972,8 +3070,8 @@ export class HistogramMetric extends Metric {
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3048,8 +3146,8 @@ export class HistogramMetric extends Metric {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -3104,10 +3202,10 @@ export class HistogramMetric extends Metric {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -3126,7 +3224,7 @@ export class HistogramMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -3166,8 +3264,8 @@ export class HistogramMetric extends Metric {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -3237,10 +3335,10 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3352,6 +3450,18 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
+   * The previous Event this Event is based on (from another Snapshot).
+   */
+  get precededBy(): Event | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
    * Event.createdAt
    */
   readonly createdAt: Temporal.ZonedDateTime;
@@ -3407,6 +3517,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     space?: Space | NodeReference;
     definition: HistogramMetric | NodeReference;
     snapshot?: Snapshot | NodeReference | null;
+    precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
@@ -3467,6 +3578,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -3517,6 +3633,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
       return false;
     }
@@ -3541,6 +3660,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    }
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3616,6 +3738,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
+    }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
       objectValue["21"] = object.createdByPtr.toValue();
@@ -3646,6 +3771,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
@@ -3672,6 +3802,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         _connection,
       ),
       snapshot: unpackedSnapshotPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
@@ -3714,6 +3845,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
@@ -3751,6 +3885,16 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.snapshotPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,

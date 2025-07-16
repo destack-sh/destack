@@ -97,7 +97,7 @@ class CustomProperty(
     is_unique: bool | None = builtin_property(151)
     is_computed: bool | None = builtin_property(152)
     is_readonly: bool | None = builtin_property(153)
-    is_root: bool | None = builtin_property(154)
+    is_main: bool | None = builtin_property(154)
 
     def eq(self, value: Any) -> Condition:
         if value is None:

@@ -118,14 +118,14 @@ export class CustomProperty
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get predecessor(): CustomProperty | null {
-    const nodePtr: NodeReference | null = this.predecessorPtr;
+  get precededBy(): CustomProperty | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
       return this._supergraph.get(nodePtr.id) as CustomProperty | null;
     }
     return null;
   }
-  readonly predecessorPtr: NodeReference | null;
+  readonly precededByPtr: NodeReference | null;
 
   /**
    * The time this Entity was created.
@@ -592,20 +592,20 @@ export class CustomProperty
   _isReadonly: boolean | null;
 
   /**
-   * CustomProperty.isRoot
+   * CustomProperty.isMain
    */
   /**
-   * CustomProperty.isRoot
+   * CustomProperty.isMain
    */
-  get isRoot(): boolean | null {
-    return this._isRoot;
+  get isMain(): boolean | null {
+    return this._isMain;
   }
-  set isRoot(value: boolean | null) {
-    const prop = (this.constructor as NodeClass).__properties__["is_root"];
+  set isMain(value: boolean | null) {
+    const prop = (this.constructor as NodeClass).__properties__["is_main"];
     this._session.updateSetProperty(this, prop, value);
-    this._isRoot = value;
+    this._isMain = value;
   }
-  _isRoot: boolean | null;
+  _isMain: boolean | null;
 
   constructor(options: {
     id?: string;
@@ -613,7 +613,7 @@ export class CustomProperty
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    predecessor?: CustomProperty | NodeReference | null;
+    precededBy?: CustomProperty | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
@@ -652,7 +652,7 @@ export class CustomProperty
     isUnique?: boolean | null;
     isComputed?: boolean | null;
     isReadonly?: boolean | null;
-    isRoot?: boolean | null;
+    isMain?: boolean | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -716,11 +716,11 @@ export class CustomProperty
       _snapshot = (_snapshot as Node).toRef();
     }
     this.snapshotPtr = _snapshot;
-    let _predecessor = options.predecessor ?? null;
-    if (_predecessor != null && _predecessor.metatype != StructType.NODE_REFERENCE) {
-      _predecessor = (_predecessor as Node).toRef();
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
     }
-    this.predecessorPtr = _predecessor;
+    this.precededByPtr = _precededBy;
     let _archivedAt = options.archivedAt ?? null;
     this.archivedAt = _archivedAt;
     let _deletedAt = options.deletedAt ?? null;
@@ -810,8 +810,8 @@ export class CustomProperty
     this._isComputed = _isComputed;
     let _isReadonly = options.isReadonly ?? null;
     this._isReadonly = _isReadonly;
-    let _isRoot = options.isRoot ?? null;
-    this._isRoot = _isRoot;
+    let _isMain = options.isMain ?? null;
+    this._isMain = _isMain;
 
     // identity
     if (options.id == null) {
@@ -935,7 +935,7 @@ export class CustomProperty
     if (!(this._isReadonly === other._isReadonly)) {
       return false;
     }
-    if (!(this._isRoot === other._isRoot)) {
+    if (!(this._isMain === other._isMain)) {
       return false;
     }
     if (!(this.sourcePtr?.id === other.sourcePtr?.id)) {
@@ -947,7 +947,7 @@ export class CustomProperty
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
-    if (!(this.predecessorPtr?.id === other.predecessorPtr?.id)) {
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -1025,8 +1025,8 @@ export class CustomProperty
     if (this._isReadonly != null) {
       h = (h * 31 + hashBool(this._isReadonly)) & 0xffffffff;
     }
-    if (this._isRoot != null) {
-      h = (h * 31 + hashBool(this._isRoot)) & 0xffffffff;
+    if (this._isMain != null) {
+      h = (h * 31 + hashBool(this._isMain)) & 0xffffffff;
     }
     if (this.archivedAt != null) {
       h = (h * 31 + hashString(this.archivedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
@@ -1043,8 +1043,8 @@ export class CustomProperty
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
-    if (this.predecessorPtr != null) {
-      h = (h * 31 + hashString(this.predecessorPtr.id)) & 0xffffffff;
+    if (this.precededByPtr != null) {
+      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1139,8 +1139,8 @@ export class CustomProperty
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
-    if (object.predecessorPtr != null) {
-      objectValue["12"] = object.predecessorPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     if (object.createdByPtr != null) {
@@ -1224,8 +1224,8 @@ export class CustomProperty
     if (object._isReadonly != null) {
       objectValue["153"] = object._isReadonly;
     }
-    if (object._isRoot != null) {
-      objectValue["154"] = object._isRoot;
+    if (object._isMain != null) {
+      objectValue["154"] = object._isMain;
     }
     return objectValue;
   }
@@ -1339,8 +1339,8 @@ export class CustomProperty
     const unpackedIsComputed = isComputedValue != undefined ? isComputedValue : null;
     const isReadonlyValue = objectValue["153"];
     const unpackedIsReadonly = isReadonlyValue != undefined ? isReadonlyValue : null;
-    const isRootValue = objectValue["154"];
-    const unpackedIsRoot = isRootValue != undefined ? isRootValue : null;
+    const isMainValue = objectValue["154"];
+    const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
     const archivedAtValue = objectValue["24"];
     const unpackedArchivedAt =
       archivedAtValue != undefined
@@ -1363,10 +1363,10 @@ export class CustomProperty
       snapshotPtrValue != undefined
         ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const predecessorPtrValue = objectValue["12"];
-    const unpackedPredecessorPtr =
-      predecessorPtrValue != undefined
-        ? _NodeReference.fromValue(predecessorPtrValue, _session, _supergraph, _graph, _connection)
+    const precededByPtrValue = objectValue["12"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["21"];
     const unpackedCreatedByPtr =
@@ -1402,14 +1402,14 @@ export class CustomProperty
       isUnique: unpackedIsUnique,
       isComputed: unpackedIsComputed,
       isReadonly: unpackedIsReadonly,
-      isRoot: unpackedIsRoot,
+      isMain: unpackedIsMain,
       archivedAt: unpackedArchivedAt,
       deletedAt: unpackedDeletedAt,
       source: unpackedSourcePtr,
       key: unpackedKey,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
-      predecessor: unpackedPredecessorPtr,
+      precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdBy: unpackedCreatedByPtr,
       updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
@@ -1449,8 +1449,8 @@ export class CustomProperty
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
-    if (object.predecessorPtr != null) {
-      objectProto.predecessorPtr = object.predecessorPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     if (object.createdByPtr != null) {
@@ -1534,8 +1534,8 @@ export class CustomProperty
     if (object._isReadonly != null) {
       objectProto.isReadonly = object._isReadonly;
     }
-    if (object._isRoot != null) {
-      objectProto.isRoot = object._isRoot;
+    if (object._isMain != null) {
+      objectProto.isMain = object._isMain;
     }
     return objectProto as CustomPropertyProto;
   }
@@ -1661,7 +1661,7 @@ export class CustomProperty
       isUnique: objectProto.isUnique != undefined ? objectProto.isUnique : null,
       isComputed: objectProto.isComputed != undefined ? objectProto.isComputed : null,
       isReadonly: objectProto.isReadonly != undefined ? objectProto.isReadonly : null,
-      isRoot: objectProto.isRoot != undefined ? objectProto.isRoot : null,
+      isMain: objectProto.isMain != undefined ? objectProto.isMain : null,
       archivedAt:
         objectProto.archivedAt != undefined ? unpackProtoTimestamp(objectProto.archivedAt!) : null,
       deletedAt:
@@ -1688,10 +1688,10 @@ export class CustomProperty
               _connection,
             )
           : null,
-      predecessor:
-        objectProto.predecessorPtr != undefined
+      precededBy:
+        objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.predecessorPtr!,
+              objectProto.precededByPtr!,
               _session,
               _supergraph,
               _graph,
