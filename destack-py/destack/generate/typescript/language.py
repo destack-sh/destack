@@ -1424,7 +1424,7 @@ def _get_builtin_object_dependencies(
     value_dependencies: set[str] = set()
 
     # base classes
-    if issubclass(cls, (Trait, Node)):
+    if issubclass(cls, (Trait, Struct, Node)):
         for super_cls in cls.__bases__:
             if (
                 super_cls != cls
@@ -1437,6 +1437,9 @@ def _get_builtin_object_dependencies(
                     dependencies[super_cls.__name__] = TRAIT_DEFINITION_BY_TYPE[super_type]
                 elif isinstance(super_type, NodeType):
                     dependencies[super_cls.__name__] = NODE_DEFINITION_BY_TYPE[super_type]
+                    value_dependencies.add(super_cls.__name__)
+                elif isinstance(super_type, StructType):
+                    dependencies[super_cls.__name__] = STRUCT_DEFINITION_BY_TYPE[super_type]
                     value_dependencies.add(super_cls.__name__)
                 else:
                     assert_never(super_type)
