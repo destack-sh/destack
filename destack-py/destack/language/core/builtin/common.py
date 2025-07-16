@@ -721,7 +721,7 @@ class NodeType(Enum):
     DOUBLE_CLICK_EVENT = 2_000_203, "Double Click Event", None, "fas fa-mouse-pointer"
     TRIPLE_CLICK_EVENT = 2_000_204, "Triple Click Event", None, "fas fa-mouse-pointer"
     WHEEL_EVENT = 2_000_210, "Wheel Event", None, "fas fa-mouse-pointer"
-    # keyboard events
+    # key events
     KEY_EVENT = 2_000_300, "Key Event", None, "fas fa-keyboard"
     KEY_DOWN_EVENT = 2_000_301, "Key Down Event", None, "fas fa-keyboard"
     KEY_UP_EVENT = 2_000_302, "Key Up Event", None, "fas fa-keyboard"
