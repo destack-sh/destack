@@ -1,5 +1,5 @@
 import { Folder } from "@destack/language";
-import { expect, test } from "vitest";
+import { expect, test } from "bun:test";
 
 test("repr query", () => {
   // create query with sort and limit

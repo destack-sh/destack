@@ -1,5 +1,5 @@
 import { timedeltaFromISOFormat, timedeltaToISOFormat } from "@destack/utils/time";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test } from "bun:test";
 
 describe("timedeltaFromISOFormat", () => {
   test.each([

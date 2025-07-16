@@ -16,25 +16,27 @@ import {
 } from "@destack/language";
 import { NodeReferenceProto, QueryProto, UserProto } from "@destack/proto";
 import { uuid4 } from "@destack/utils";
-import { expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test } from "bun:test";
 
-const sessionTest = test.extend<{ session: Session }>({
-  session: async ({ task }, use) => {
-    const session = new Session();
-    await session.open();
-    const space = new Space({
-      name: "My Space",
-      slug: "my-space",
-      status: SpaceStatus.ACTIVE,
-      region: Region.ZURICH,
-    });
-    ACTIVE_SPACE.set(space);
-    await use(session);
-    await session.close();
-  },
+let session: Session;
+
+beforeEach(async () => {
+  session = new Session();
+  await session.open();
+  const space = new Space({
+    name: "My Space",
+    slug: "my-space",
+    status: SpaceStatus.ACTIVE,
+    region: Region.ZURICH,
+  });
+  ACTIVE_SPACE.set(space);
 });
 
-sessionTest("roundtrip node reference", ({ session }) => {
+afterEach(async () => {
+  await session.close();
+});
+
+test("roundtrip node reference", () => {
   // pack and unpack a NodeReference as value
   const nodeRef = new NodeReference({
     type: NodeType.FOLDER,
@@ -61,7 +63,7 @@ sessionTest("roundtrip node reference", ({ session }) => {
   expect(unpackedNodeRef2.hash()).toEqual(nodeRef.hash());
 });
 
-sessionTest("roundtrip query", ({ session }) => {
+test("roundtrip query", () => {
   // pack and unpack a Query as value
   const query = Folder.search({
     sort: [Folder.property("created_at").asc()],
@@ -89,7 +91,7 @@ sessionTest("roundtrip query", ({ session }) => {
   expect(unpackedQuery2.hash()).toEqual(query.hash());
 });
 
-sessionTest("roundtrip user", ({ session }) => {
+test("roundtrip user", () => {
   // pack and unpack a User as value
   const user = new User({
     status: UserStatus.ACTIVE,
