@@ -470,6 +470,10 @@ class PostgresIndex(PostgresTableObject):
         )
 
 
+# nocheckin: use property/node/... ids instead of names in Postgres
+#  (then migrate PostgresStore to TS)
+
+
 @dataclass(slots=True)
 class PostgresTable(PostgresTableObject):
     """
