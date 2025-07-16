@@ -41,12 +41,12 @@ if TYPE_CHECKING:
     from destack.language import (
         BuiltinObject,
         Condition,
-        Constraint,
-        Format,
         PropertyDefinition,
         PropertyReference,
         Sort,
         Type,
+        TypeConstraint,
+        TypeFormat,
     )
 
 type_ = type
@@ -131,8 +131,8 @@ class TypeDeclaration:
 
     default: Any = UNSET
     default_factory: ValueFactory | None = None
-    format: "Format | None" = None
-    constraint: "Constraint | None" = None
+    format: "TypeFormat | None" = None
+    constraint: "TypeConstraint | None" = None
 
     def _to_type(self) -> "Type":
         """Create the Type for this Property."""
@@ -643,8 +643,8 @@ def builtin_property(
     default: Any = UNSET,
     default_factory: ValueFactory | None = None,
     primitive_type: PrimitiveType | None = UNSET,
-    format: "Format | None" = None,
-    constraint: "Constraint | None" = None,
+    format: "TypeFormat | None" = None,
+    constraint: "TypeConstraint | None" = None,
     node_space_from: Literal["self"] | None = None,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,

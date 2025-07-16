@@ -151,6 +151,12 @@ enum ConditionalTypeProto {
   CONDITIONAL_TYPE_NOT_EXISTS = 41;
 }
 
+// Type of a builtin Constraint.
+enum ConstraintTypeProto {
+  CONSTRAINT_TYPE_UNSPECIFIED = 0;
+  CONSTRAINT_TYPE_UNIQUE = 1;
+}
+
 // The status of a Cursor.
 enum CursorStatusProto {
   CURSOR_STATUS_UNSPECIFIED = 0;
@@ -313,6 +319,8 @@ enum EnumTypeProto {
   ENUM_TYPE_EDGE_TYPE = 67;
   ENUM_TYPE_EDGE_DIRECTION = 68;
   ENUM_TYPE_CASCADE_ACTION = 69;
+  ENUM_TYPE_INDEX_TYPE = 100;
+  ENUM_TYPE_CONSTRAINT_TYPE = 101;
   ENUM_TYPE_RESOURCE_STATUS = 1100;
   ENUM_TYPE_SNAPSHOT_STATUS = 1301;
   ENUM_TYPE_CONDITIONAL_TYPE = 10103;
@@ -645,6 +653,12 @@ enum IconTypeProto {
   ICON_TYPE_VS_CODE = 4;
   ICON_TYPE_FILE = 10;
   ICON_TYPE_FILE_URL = 11;
+}
+
+// Type of a builtin Index.
+enum IndexTypeProto {
+  INDEX_TYPE_UNSPECIFIED = 0;
+  INDEX_TYPE_UNIQUE = 1;
 }
 
 enum JoinTypeProto {
@@ -1307,6 +1321,8 @@ enum StructTypeProto {
   STRUCT_TYPE_METHOD_DEFINITION = 130;
   STRUCT_TYPE_ACTION_DEFINITION = 131;
   STRUCT_TYPE_PERMISSION_DEFINITION = 140;
+  STRUCT_TYPE_INDEX_DEFINITION = 150;
+  STRUCT_TYPE_CONSTRAINT_DEFINITION = 151;
   STRUCT_TYPE_NODE_DEFINITION_REFERENCE = 200;
   STRUCT_TYPE_OBJECT_DEFINITION_REFERENCE = 201;
   STRUCT_TYPE_STRUCT_DEFINITION_REFERENCE = 202;
@@ -1901,6 +1917,16 @@ message ConstantDefinitionProto {
   bool is_deferred = 130;
 }
 
+message ConstraintDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  ConstraintTypeProto type = 100;
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  repeated PropertyDefinitionProto properties = 105;
+}
+
 // A container View contains other Views.
 // Containers can be laid out as stacks or grids.
 message ContainerViewProto {
@@ -2240,6 +2266,7 @@ message DatabaseProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto owned_by_ptr = 28;
   ResourceStatusProto status = 40;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
@@ -2733,6 +2760,7 @@ message FileProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto owned_by_ptr = 28;
   ResourceStatusProto status = 40;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
@@ -3202,6 +3230,16 @@ message IconProto {
   optional NodeReferenceProto file_ptr = 104;
   optional string file_url = 105;
   optional ColorProto color = 110;
+}
+
+message IndexDefinitionProto {
+  StructTypeProto metatype = 1;
+  int64 id = 2 [jstype = JS_NUMBER];
+  IndexTypeProto type = 100;
+  string name = 101;
+  optional IconProto icon = 102;
+  optional string description = 103;
+  repeated PropertyDefinitionProto properties = 105;
 }
 
 // An InputEvent is an Event that corresponds to some direct user input.
@@ -3703,6 +3741,7 @@ message MachineProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto owned_by_ptr = 28;
   ResourceStatusProto status = 40;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;
@@ -4225,11 +4264,9 @@ message PermissionProto {
 message PermissionDefinitionProto {
   StructTypeProto metatype = 1;
   int64 id = 2 [jstype = JS_NUMBER];
-  EnumTypeProto type = 100;
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  NodeTypeProto node_type = 110;
 }
 
 // A PointerDownEvent is a PointerEvent when a pointer is pressed down.
@@ -4654,6 +4691,7 @@ message ResourceProto {
   optional NodeReferenceProto updated_by_ptr = 23;
   optional google.protobuf.Timestamp deleted_at = 24;
   map<string, ValueProto> custom_values = 26;
+  optional NodeReferenceProto owned_by_ptr = 28;
   ResourceStatusProto status = 40;
   string name = 50;
   optional NodeReferenceProto script_ptr = 80;

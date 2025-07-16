@@ -216,6 +216,8 @@ AnyStructProto = Union[
     MethodDefinitionProto,
     ActionDefinitionProto,
     PermissionDefinitionProto,
+    IndexDefinitionProto,
+    ConstraintDefinitionProto,
     IconProto,
     StringConstraintProto,
     NumberConstraintProto,

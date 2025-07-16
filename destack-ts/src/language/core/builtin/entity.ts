@@ -460,7 +460,7 @@ registerNodeClass(NodeType.RECORD, Record);
  * A Resource represents an external asset outside of Destack.
  * The lifecycle of a Resource may be managed by some Provisioner (Service).
  */
-export abstract class Resource extends Entity implements IsExtensible {
+export abstract class Resource extends Entity implements IsExtensible, IsOwnable {
   static metatype: NodeType = NodeType.RESOURCE;
 
   /**
@@ -533,6 +533,17 @@ export abstract class Resource extends Entity implements IsExtensible {
    */
   abstract get customValues(): { readonly [key: string]: Value };
   abstract set customValues(value: { readonly [key: string]: Value });
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  abstract get ownedBy(): (Entity & IsActor) | null;
+  abstract set ownedBy(value: (Entity & IsActor) | null);
+  /**
+   * IsOwnable.ownedBy
+   */
+  abstract get ownedByPtr(): NodeReference | null;
+  abstract set ownedByPtr(value: NodeReference | null);
 
   /**
    * Resource.status

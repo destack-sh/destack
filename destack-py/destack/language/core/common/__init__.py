@@ -1,7 +1,9 @@
 from .definition import (
     BuiltinDefinition,
     ConstantDefinition,
+    ConstraintDefinition,
     EnumDefinition,
+    IndexDefinition,
     NodeDefinition,
     OptionDefinition,
     PropertyDefinition,
@@ -49,8 +51,6 @@ from .text import (
 )
 from .type import (
     CollectionConstraint,
-    Constraint,
-    Format,
     Json,
     NodeConstraint,
     NumberConstraint,
@@ -58,6 +58,8 @@ from .type import (
     StringConstraint,
     StringFormat,
     Type,
+    TypeConstraint,
+    TypeFormat,
     to_type,
 )
 from .validation import ValidationError
@@ -107,7 +109,7 @@ __all__ = [
     "Condition",
     "ConditionalType",
     "ConstantDefinition",
-    "Constraint",
+    "ConstraintDefinition",
     "Corners",
     "CustomEnum",
     "CustomOption",
@@ -122,7 +124,6 @@ __all__ = [
     "Expression",
     "ExpressionIn",
     "ExpressionType",
-    "Format",
     "Function",
     "FunctionType",
     "Grid",
@@ -130,6 +131,7 @@ __all__ = [
     "Icon",
     "IconIn",
     "IconType",
+    "IndexDefinition",
     "Insets",
     "Join",
     "JoinIn",
@@ -166,6 +168,8 @@ __all__ = [
     "TextSpanType",
     "TraitDefinition",
     "Type",
+    "TypeConstraint",
+    "TypeFormat",
     "ValidationError",
     "Value",
     "Vector2f",

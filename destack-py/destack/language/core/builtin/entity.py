@@ -458,6 +458,7 @@ class Record(
 @builtin_node(NodeType.RESOURCE, is_abstract=True)
 class Resource(
     IsExtensible,
+    IsOwnable,
     Entity,
 ):
     """

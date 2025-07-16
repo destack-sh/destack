@@ -118,7 +118,11 @@ import type {
   ActionDefinition,
   BuiltinDefinition,
   ConstantDefinition,
+  ConstraintDefinition,
+  ConstraintType,
   EnumDefinition,
+  IndexDefinition,
+  IndexType,
   MethodDefinition,
   NodeDefinition,
   OptionDefinition,
@@ -637,6 +641,8 @@ export type StructTypeMapping = {
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
   [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
+  [StructType.INDEX_DEFINITION]: IndexDefinition;
+  [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
   [StructType.ICON]: Icon;
   [StructType.STRING_CONSTRAINT]: StringConstraint;
   [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
@@ -737,6 +743,8 @@ export type EnumTypeMapping = {
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
+  [EnumType.INDEX_TYPE]: IndexType;
+  [EnumType.CONSTRAINT_TYPE]: ConstraintType;
   [EnumType.ICON_TYPE]: IconType;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;

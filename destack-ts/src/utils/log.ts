@@ -13,30 +13,21 @@ if (IS_WEB) {
         const levelLabel = pino.levels.labels[log.level];
         let colorStart = "";
         let colorEnd = "\x1b[0m";
-        switch (levelLabel) {
-          case "trace":
-            colorStart = "\x1b[90m"; // gray
-            break;
-          case "debug":
-            colorStart = "\x1b[36m"; // cyan
-            break;
-          case "info":
-            colorStart = "\x1b[32m"; // green
-            break;
-          case "warn":
-            colorStart = "\x1b[33m"; // yellow
-            break;
-          case "error":
-            colorStart = "\x1b[31m"; // red
-            break;
-          case "fatal":
-            colorStart = "\x1b[35m"; // magenta
-            break;
-          default:
-            colorStart = "";
-            colorEnd = "";
+        if (levelLabel === "trace") {
+          colorStart = "\x1b[90m"; // gray
+        } else if (levelLabel === "debug") {
+          colorStart = "\x1b[36m"; // cyan
+        } else if (levelLabel === "info") {
+          colorStart = "\x1b[32m"; // green
+        } else if (levelLabel === "warn") {
+          colorStart = "\x1b[33m"; // yellow
+        } else if (levelLabel === "error" || levelLabel === "fatal") {
+          colorStart = "\x1b[31m"; // red
+        } else {
+          colorStart = "";
+          colorEnd = "";
         }
-        console.log(`${colorStart}[${levelLabel}] ${log.msg}${colorEnd}`);
+        console.log(`${colorStart}[${levelLabel}]${colorEnd} ${log.msg}`);
       },
     },
   });
