@@ -88,7 +88,7 @@ class PostgresContext:
             node_type = definition.type
         else:
             node_type = definition.node_type
-        table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node_type.name.lower()}"
+        table_name = f"{POSTGRES_BUILTIN_TABLE_PREFIX}{node_type.id}"
         table = self.tables_by_name.get(table_name)
         if table is None:
             raise LookupError(f"no table for {table_name!r} in {self.store_keys!r}")
@@ -228,7 +228,7 @@ class PostgresCascadeAction(enum.StrEnum):
 @dataclass(slots=True)
 class PostgresColumn(PostgresTableObject):
     """
-    A Postgres column definition.
+    A Postgres column.
     """
 
     FLAT_DATA_FIELDS: ClassVar[tuple[str, ...]] = (
@@ -383,9 +383,9 @@ class PostgresConstraint(PostgresTableObject):
             parts.append(f"({self.condition})")
         elif self.type == PostgresConstraintType.UNIQUE:
             if self.index is not None:
-                parts.append(f"USING INDEX {self.table_name}_{self.index}")
+                parts.append(f'USING INDEX "{self.table_name}_{self.index}"')
             else:
-                parts.append(f"({', '.join(self.columns or ())})")
+                parts.append(f"({', '.join(f'"{col}"' for col in (self.columns or ()))})")
         return " ".join(parts)
 
 
@@ -449,8 +449,8 @@ class PostgresIndex(PostgresTableObject):
         parts = [
             f'"{self.name}"',
             f'ON "{self._table.name}"',
-            f"USING {self.type}",
-            f"({', '.join(self.columns)})",
+            f"USING {self.type.name}",
+            f"({', '.join(f'"{col}"' for col in self.columns)})",
         ]
         if self.cover:
             parts.append(f"INCLUDE ({', '.join(self.cover)})")
@@ -467,10 +467,6 @@ class PostgresIndex(PostgresTableObject):
             cover=tuple(p.resolve().name for p in index.cover),
             is_unique=False,
         )
-
-
-# nocheckin: use property/node/... ids instead of names in Postgres
-#  (then migrate PostgresStore to TS)
 
 
 @dataclass(slots=True)

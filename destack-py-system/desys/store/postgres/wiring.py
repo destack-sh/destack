@@ -214,7 +214,7 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
         assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
         node_types = expand_node_traits(prop.node_types or ())
         unpack_lines = [
-            f"if (_node_id := row['{prop.name}_id']) is not None:",
+            f"if (_node_id := row['{prop.id}_id']) is not None:",
             "    _node_ref = {",
             f"        '1': {StructType.NODE_REFERENCE.value},",
             f"        '{NODE_REFERENCE_ID_KEY}': str(_node_id),",
@@ -223,7 +223,7 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
         # node_type
         if prop.node_is_heterogenous:
             unpack_lines.append(
-                f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = row['{prop.name}_type']"
+                f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = row['{prop.id}_type']"
             )
         else:
             assert node_types and len(node_types) == 1, (
@@ -234,12 +234,12 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
             unpack_lines.append(f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = {node_type.value}")
         # space_id
         unpack_lines.append(
-            f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['{prop.name}_space_id']) if row.get('{prop.name}_space_id') else None"
+            f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['{prop.id}_space_id']) if row.get('{prop.id}_space_id') else None"
         )
         # definition_id
         if prop.node_is_extensible:
             unpack_lines.append(
-                f"    _node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}'] = str(row['{prop.name}_definition_id']) if row.get('{prop.name}_definition_id') else None"
+                f"    _node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}'] = str(row['{prop.id}_definition_id']) if row.get('{prop.id}_definition_id') else None"
             )
 
         unpack_lines.append(f"    node_value['{prop.id}'] = _node_ref")
@@ -247,22 +247,22 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
     else:
         # regular properties
         if prop.cardinality == TypeCardinality.SCALAR:
-            unpack_expr = _generate_unpack_scalar_value(prop, f"row['{prop.name}']")
+            unpack_expr = _generate_unpack_scalar_value(prop, f"row['{prop.id}']")
             if prop.is_required:
                 return f"node_value['{prop.id}'] = {unpack_expr}"
             else:
                 unpack_expr_opt = _generate_unpack_scalar_value(prop, "_value")
                 return f"""\
-if (_value := row['{prop.name}']) is not None:
+if (_value := row['{prop.id}']) is not None:
     node_value['{prop.id}'] = {unpack_expr_opt}"""
         elif prop.cardinality == TypeCardinality.LIST:
             unpack_expr = _generate_unpack_scalar_value(prop, "v")
             return f"""\
-if (_value := row['{prop.name}']) and _value:
+if (_value := row['{prop.id}']) and _value:
     node_value['{prop.id}'] = [{unpack_expr} for v in _value]"""
         elif prop.cardinality == TypeCardinality.MAP:
             return f"""\
-if (_value := row['{prop.name}']) and _value and (_unpacked_value := orjson.loads(_value)):
+if (_value := row['{prop.id}']) and _value and (_unpacked_value := orjson.loads(_value)):
     node_value['{prop.id}'] = _unpacked_value"""
         else:
             assert_never(prop.cardinality)

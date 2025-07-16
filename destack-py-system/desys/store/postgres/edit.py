@@ -17,6 +17,7 @@ from destack.language import (
     EditOperation,
     EditType,
     Entity,
+    Node,
     NodeDefinitionReference,
     NodeReference,
     ScalarType,
@@ -27,6 +28,11 @@ from .core import PostgresContext
 from .wiring import pack_column_wide, pack_node_row
 
 MAX_RECURSION_DEPTH = 100
+
+NODE_ID_KEY = str(Node.property("id").id)
+ENTITY_PARENT_KEY = str(Entity.property("parent").id)
+ENTITY_DELETED_AT_KEY = str(Entity.property("deleted_at").id)
+
 
 tracer = trace.get_tracer(__name__)
 logger = structlog.get_logger(__name__)
@@ -161,7 +167,7 @@ async def _execute_edit(
     # create/upsert
     if edit_type == EditType.CREATE or edit_type == EditType.UPSERT:
         stmt = f"""\
-INSERT INTO {table.name} ({", ".join(f'"{col.name}"' for col in table.columns)})
+INSERT INTO "{table.name}" ({", ".join(f'"{col.name}"' for col in table.columns)})
 VALUES ({", ".join(f"${i + 1}" for i in range(len(table.columns)))})
 """
         if edit_type == EditType.UPSERT:
@@ -171,7 +177,7 @@ VALUES ({", ".join(f"${i + 1}" for i in range(len(table.columns)))})
                 if not col.is_primary_key and not col.name.startswith("created_")
             )
             stmt += f"""\
-ON CONFLICT (id) DO UPDATE
+ON CONFLICT ("{NODE_ID_KEY}") DO UPDATE
 SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_columns)}
 """
         stmt += ";"
@@ -198,7 +204,7 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
             prop = definition.resolve_property(edit.property_id)
             assert prop is not None, f"no property for {edit!r}"
             update: dict[str, Any] = {}
-            pack_column_wide(prop, None, table, prop.name, update)
+            pack_column_wide(prop, None, table, str(prop.id), update)
             all_updated_columns.update(update.keys())
 
         updated_column_names = list(all_updated_columns)
@@ -216,9 +222,9 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
             )
             param_i += 2
         stmt = f"""\
-UPDATE {table.name}
+UPDATE "{table.name}"
 SET {", ".join(set_clauses)}
-WHERE id = ${param_i}
+WHERE "{NODE_ID_KEY}" = ${param_i}
 """
 
         # prepare parameters row-by-row
@@ -237,7 +243,7 @@ WHERE id = ${param_i}
 
             update_row: list[Any] = [None, False] * len(updated_column_names)  # default: keep
             update: dict[str, Any] = {}
-            pack_column_wide(prop, value_packed, table, prop.name, update)
+            pack_column_wide(prop, value_packed, table, str(prop.id), update)
             for column, value in update.items():  # mark touched cols
                 i = updated_column_idx[column] * 2
                 update_row[i] = value
@@ -263,11 +269,11 @@ WHERE id = ${param_i}
         parent_prop = node_cls.__parent_property__
         parent_prop_type = parent_prop.to_type()
         update_template: dict[str, Any] = {}
-        pack_column_wide(parent_prop_type, None, table, parent_prop.name, update_template)
+        pack_column_wide(parent_prop_type, None, table, str(parent_prop.id), update_template)
         stmt = f"""\
-UPDATE {table.name}
+UPDATE "{table.name}"
 SET {", ".join(f'"{key}" = ${i + 1}' for i, key in enumerate(update_template.keys()))}
-WHERE id = ${len(update_template) + 1}
+WHERE "{NODE_ID_KEY}" = ${len(update_template) + 1}
 """
         # prepare values
         values_packed: list[Sequence[Any]] = []
@@ -280,7 +286,7 @@ WHERE id = ${len(update_template) + 1}
             else:
                 parent_ptr_value = None
             update: dict[str, Any] = {}
-            pack_column_wide(parent_prop_type, parent_ptr_value, table, parent_prop.name, update)
+            pack_column_wide(parent_prop_type, parent_ptr_value, table, str(parent_prop.id), update)
             row_values = (*update.values(), edit.node_ptr.id)
             values_packed.append(row_values)
         await conn.executemany(stmt, values_packed)
@@ -293,7 +299,7 @@ WHERE id = ${len(update_template) + 1}
 
         return edits, ()
 
-    # archive/unarchive/delete/restore
+    # delete/restore
     elif edit_type in (
         EditType.DELETE,
         EditType.RESTORE,
@@ -306,12 +312,12 @@ WHERE id = ${len(update_template) + 1}
         }
         where: Condition | None = None
         if edit_type == EditType.RESTORE:
-            # restrict to nodes with same deleted_at/archived_at
+            # restrict to nodes with same deleted_at
             root_dts: set[datetime] = set()
-            root_stmt = f"SELECT id, deleted_at FROM {table.name} WHERE id IN ($1)"
+            root_stmt = f'SELECT "{NODE_ID_KEY}", "{ENTITY_DELETED_AT_KEY}" FROM "{table.name}" WHERE "{NODE_ID_KEY}" IN ($1)'
             root_rows = await conn.fetch(root_stmt, *(n.id for n in nodes_ptr))
             for row in root_rows:
-                if deleted_at := row["deleted_at"]:
+                if deleted_at := row[ENTITY_DELETED_AT_KEY]:
                     root_dts.add(deleted_at.replace(tzinfo=UTC))
             where = Entity.property("deleted_at").in_(*root_dts)
 
@@ -335,20 +341,20 @@ WHERE id = ${len(update_template) + 1}
         for table_name, table_node_ids in edited_node_ptrs_by_table.items():
             arguments: list[Any] = []
             if edit_type == EditType.DELETE:
-                update_stmt = "deleted_at = $2"
+                update_stmt = f'"{ENTITY_DELETED_AT_KEY}" = $2'
                 for node_id in table_node_ids:
                     edited_at = edited_at_by_node_id[source_id_by_node_id[node_id]]
                     arguments.append((node_id, edited_at))
             elif edit_type == EditType.RESTORE:
-                update_stmt = "deleted_at = NULL"
+                update_stmt = f'"{ENTITY_DELETED_AT_KEY}" = NULL'
                 for node_id in table_node_ids:
                     arguments.append((node_id,))
             else:
                 assert_never(edit_type)
             stmt = f"""\
-UPDATE {table_name}
+UPDATE "{table_name}"   
 SET {update_stmt}
-WHERE id = $1
+WHERE "{NODE_ID_KEY}" = $1
 """
             await conn.executemany(stmt, arguments)
 
