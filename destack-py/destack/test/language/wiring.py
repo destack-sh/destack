@@ -60,7 +60,7 @@ def test_roundtrip_query_proto(session: Session, space: Space):
         sort=[Folder.property("created_at").asc()],
         limit=25,
         Cursor=EventCursor.get(
-            join=Join.of(JoinType.LEFT, on=EventCursor.property("owned_by").eq(5)),
+            join=Join.of(JoinType.LEFT, on=EventCursor.property("created_epoch").eq(5)),
         ),
     )
 

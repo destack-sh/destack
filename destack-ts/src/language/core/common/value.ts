@@ -12,7 +12,8 @@ import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
 import { PropertyDefinition } from "@destack/language/core/common/definition";
 import { CustomProperty } from "@destack/language/core/common/property";
-import { Type, toType } from "@destack/language/core/common/type";
+import type { Type } from "@destack/language/core/common/type";
+import { toType } from "@destack/language/core/common/type";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {

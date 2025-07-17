@@ -30,7 +30,7 @@ import type { CustomEnum } from "@destack/language/core/common/enum";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type { CustomStruct } from "@destack/language/core/common/struct";
-import {
+import type {
   CollectionConstraint,
   NodeConstraint,
   NumberConstraint,
