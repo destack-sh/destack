@@ -174,33 +174,33 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     expect(clientsUnpackedWithParent[1].equals(clientB));
   });
 
-  // test("create star", async () => {
-  //   const users = Array.from(
-  //     { length: 20 },
-  //     (_, i) =>
-  //       new User({
-  //         name: `User${i}`,
-  //         slug: `user${i}`,
-  //         space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
-  //       }),
-  //   );
-  //   for (const user of users) {
-  //     session.create(user);
-  //   }
-  //   await session.commit();
+  test("create star", async () => {
+    const users = Array.from(
+      { length: 20 },
+      (_, i) =>
+        new User({
+          name: `User${i}`,
+          slug: `user${i}`,
+          space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
+        }),
+    );
+    for (const user of users) {
+      session.create(user);
+    }
+    await session.commit();
 
-  //   const folder = new Folder({ name: "Folder" });
-  //   session.create(folder);
-  //   await session.commit();
+    const folder = new Folder({ name: "Folder" });
+    session.create(folder);
+    await session.commit();
 
-  //   for (const user of users) {
-  //     const star = new Star({ parent: folder, ownedBy: user });
-  //     session.create(star);
-  //   }
-  //   await session.commit();
+    for (const user of users) {
+      const star = new Star({ parent: folder, ownedBy: user });
+      session.create(star);
+    }
+    await session.commit();
 
-  //   expect(await Star.count({ where: Star.property("parent").eq(folder) }).executeCount()).toBe(20);
-  // });
+    expect(await Star.count({ where: Star.property("parent").eq(folder) }).executeCount()).toBe(20);
+  });
 
   // const NUM_FOLDERS_PER_LEVEL = 4;
   // test("create folders recursive", async () => {
@@ -386,127 +386,127 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   //   expect(layerUnpacked3[0].equals(layer));
   // });
 
-  // test("create reaction groups", async () => {
-  //   // create users
-  //   const users = Array.from(
-  //     { length: 10 },
-  //     (_, i) =>
-  //       new User({
-  //         name: `User${i}`,
-  //         slug: `user${i}`,
-  //         space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
-  //       }),
-  //   );
-  //   for (const user of users) {
-  //     session.create(user);
-  //   }
-  //   await session.commit();
+  test("create reaction groups", async () => {
+    // create users
+    const users = Array.from(
+      { length: 10 },
+      (_, i) =>
+        new User({
+          name: `User${i}`,
+          slug: `user${i}`,
+          space: new NodeReference({ type: NodeType.SPACE, id: uuid4() }),
+        }),
+    );
+    for (const user of users) {
+      session.create(user);
+    }
+    await session.commit();
 
-  //   // create folder
-  //   const folder = new Folder({ name: "Folder" });
-  //   session.create(folder);
-  //   await session.commit();
+    // create folder
+    const folder = new Folder({ name: "Folder" });
+    session.create(folder);
+    await session.commit();
 
-  //   // create reactions
-  //   const reactionsContent = ["👍", "👎", "🤷", "🤔", "🤨"] as const;
-  //   const reactions: Reaction[] = [];
-  //   for (const user of users) {
-  //     for (const reactionContent of reactionsContent) {
-  //       const reaction = new Reaction({ parent: folder, content: reactionContent, ownedBy: user });
-  //       reactions.push(reaction);
-  //       session.create(reaction);
-  //     }
-  //   }
-  //   await session.commit();
+    // create reactions
+    const reactionsContent = ["👍", "👎", "🤷", "🤔", "🤨"] as const;
+    const reactions: Reaction[] = [];
+    for (const user of users) {
+      for (const reactionContent of reactionsContent) {
+        const reaction = new Reaction({ parent: folder, content: reactionContent, ownedBy: user });
+        reactions.push(reaction);
+        session.create(reaction);
+      }
+    }
+    await session.commit();
 
-  //   // scalar by group
-  //   const folderTree = await Folder.get({
-  //     where: Folder.property("id").eq(folder.id),
-  //     Reactions: Reaction.count({
-  //       sort: [Reaction.property("createdAt").asc()],
-  //       groupBy: [Reaction.property("content")],
-  //     }),
-  //   }).execute();
-  //   const reactionsByGroup = folderTree.get("Reactions").toScalarByGroup();
-  //   expect(reactionsByGroup).toEqual(
-  //     Object.fromEntries(reactionsContent.map((content) => [content, 10])),
-  //   );
+    // scalar by group
+    const folderTree = await Folder.get({
+      where: Folder.property("id").eq(folder.id),
+      Reactions: Reaction.count({
+        sort: [Reaction.property("createdAt").asc()],
+        groupBy: [Reaction.property("content")],
+      }),
+    }).execute();
+    const reactionsByGroup = folderTree.get("Reactions").toScalarByGroup();
+    expect(reactionsByGroup).toEqual(
+      Object.fromEntries(reactionsContent.map((content) => [content, 10])),
+    );
 
-  //   // node by group
-  //   const folderTree2 = await Folder.get({
-  //     where: Folder.property("id").eq(folder.id),
-  //     Reactions: Reaction.search({ groupBy: [Reaction.property("content")] }),
-  //     ReactionsTotal: Reaction.count(),
-  //   }).execute();
-  //   const reactionsByContent = Object.fromEntries(
-  //     reactionsContent.map((content) => [
-  //       content,
-  //       reactions.filter((reaction) => reaction.content === content),
-  //     ]),
-  //   );
-  //   const reactionsByContentUnpacked = folderTree2.get("Reactions").toListByGroup();
-  //   for (const reactionContent of reactionsContent) {
-  //     const reactions = reactionsByContent[reactionContent];
-  //     const reactionsUnpacked = reactionsByContentUnpacked[reactionContent];
-  //     expect(new Set(reactions.map((r) => r.id))).toEqual(
-  //       new Set(reactionsUnpacked.map((r) => r.id)),
-  //     );
-  //   }
-  // });
+    // node by group
+    const folderTree2 = await Folder.get({
+      where: Folder.property("id").eq(folder.id),
+      Reactions: Reaction.search({ groupBy: [Reaction.property("content")] }),
+      ReactionsTotal: Reaction.count(),
+    }).execute();
+    const reactionsByContent = Object.fromEntries(
+      reactionsContent.map((content) => [
+        content,
+        reactions.filter((reaction) => reaction.content === content),
+      ]),
+    );
+    const reactionsByContentUnpacked = folderTree2.get("Reactions").toListByGroup();
+    for (const reactionContent of reactionsContent) {
+      const reactions = reactionsByContent[reactionContent];
+      const reactionsUnpacked = reactionsByContentUnpacked[reactionContent];
+      expect(new Set(reactions.map((r) => r.id))).toEqual(
+        new Set(reactionsUnpacked.map((r) => r.id)),
+      );
+    }
+  });
 
-  // test("move views", async () => {
-  //   const layer = new Layer({ name: "Layer" });
-  //   session.create(layer);
-  //   await session.commit();
+  test("move views", async () => {
+    const layer = new Layer({ name: "Layer" });
+    session.create(layer);
+    await session.commit();
 
-  //   // create views
-  //   const rootView = new FrameView({ name: "Root" });
-  //   const frameViews: FrameView[] = [];
-  //   layer.addChild(rootView);
-  //   for (let i = 0; i < 4; i++) {
-  //     const frameView = new FrameView({ name: `View ${i}` });
-  //     frameViews.push(frameView);
-  //     rootView.addChild(frameView);
-  //     for (let j = 0; j < 4; j++) {
-  //       const labelView = new LabelView({ name: `Label ${i}/${j}` });
-  //       frameView.addChild(labelView);
-  //     }
-  //   }
-  //   await session.commit();
+    // create views
+    const rootView = new FrameView({ name: "Root" });
+    const frameViews: FrameView[] = [];
+    layer.addChild(rootView);
+    for (let i = 0; i < 4; i++) {
+      const frameView = new FrameView({ name: `View ${i}` });
+      frameViews.push(frameView);
+      rootView.addChild(frameView);
+      for (let j = 0; j < 4; j++) {
+        const labelView = new LabelView({ name: `Label ${i}/${j}` });
+        frameView.addChild(labelView);
+      }
+    }
+    await session.commit();
 
-  //   // detach views
-  //   for (const frameView of frameViews) {
-  //     frameView.detach();
-  //     expect(frameView.parentPtr).toBeNull();
-  //   }
-  //   await session.commit();
+    // detach views
+    for (const frameView of frameViews) {
+      frameView.detach();
+      expect(frameView.parentPtr).toBeNull();
+    }
+    await session.commit();
 
-  //   // reattach views
-  //   for (const frameView of frameViews) {
-  //     layer.addChild(frameView);
-  //     expect(frameView.parentPtr).toEqual(layer.toRef());
-  //   }
-  //   await session.commit();
+    // reattach views
+    for (const frameView of frameViews) {
+      layer.addChild(frameView);
+      expect(frameView.parentPtr).toEqual(layer.toRef());
+    }
+    await session.commit();
 
-  //   // detach all the leaf label views
-  //   const labelViews: LabelView[] = [];
-  //   for (const frameView of frameViews) {
-  //     for (const labelView of frameView.getChildren(LabelView)) {
-  //       labelView.detach();
-  //       labelViews.push(labelView);
-  //       expect(labelView.parentPtr).toBeNull();
-  //     }
-  //   }
-  //   await session.commit();
+    // detach all the leaf label views
+    const labelViews: LabelView[] = [];
+    for (const frameView of frameViews) {
+      for (const labelView of frameView.getChildren(LabelView)) {
+        labelView.detach();
+        labelViews.push(labelView);
+        expect(labelView.parentPtr).toBeNull();
+      }
+    }
+    await session.commit();
 
-  //   // move all views to be directly parented by layer
-  //   for (const view of [...frameViews, ...labelViews]) {
-  //     view.moveTo(layer);
-  //     expect(view.parentPtr).toEqual(layer.toRef());
-  //   }
-  //   await session.commit();
+    // move all views to be directly parented by layer
+    for (const view of [...frameViews, ...labelViews]) {
+      view.moveTo(layer);
+      expect(view.parentPtr).toEqual(layer.toRef());
+    }
+    await session.commit();
 
-  //   const layerChildren = layer.getChildren(View);
-  //   expect(layerChildren).toHaveLength(1 + 4 * (4 + 1));
-  // });
+    const layerChildren = layer.getChildren(View);
+    expect(layerChildren).toHaveLength(1 + 4 * (4 + 1));
+  });
 });
