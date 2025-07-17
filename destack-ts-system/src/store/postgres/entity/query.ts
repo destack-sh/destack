@@ -1,8 +1,10 @@
-import { assertNever } from "@destack/utils";
+import { PostgresContext } from "@desys/store/postgres/entity/core";
+import { packColumnFlat, unpackNodeRow } from "@desys/store/postgres/entity/wiring";
 import { SQL } from "bun";
 import {
   Aggregation,
   AggregationType,
+  assertNever,
   Condition,
   ConditionalType,
   EdgeDirection,
@@ -11,6 +13,8 @@ import {
   ExpressionType,
   Function,
   FunctionType,
+  getLogger,
+  getTracer,
   JoinType,
   Node,
   NodeDefinitionReference,
@@ -29,13 +33,14 @@ import {
   toValue,
   Value,
 } from "destack";
-import { PostgresContext } from "./core";
-import { packColumnFlat, unpackNodeRow } from "./wiring";
 
 const MAX_RECURSION_DEPTH = 1_000;
 const NODE_ID_KEY = String(Node.property("id").id);
 const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
 const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
+
+const logger = getLogger(__filename);
+const tracer = getTracer(__filename);
 
 /** Compile a Value into a SQL expression. */
 function compileValue(options: {
@@ -50,14 +55,21 @@ function compileValue(options: {
     if (value.value == null) {
       throw new Error(`no value for ${value.repr()}`);
     }
-    const valueId = value.value[NODE_REFERENCE_ID_KEY];
-    argumentsOut.push(valueId);
-    return `$${argumentsOut.length}`;
+    if (Array.isArray(value.value)) {
+      const valueIds = value.value.map((v) => v[NODE_REFERENCE_ID_KEY]);
+      const sql = `ARRAY[${valueIds.map((_, i) => `$${argumentsOut.length + i + 1}::uuid`).join(", ")}]::uuid[]`;
+      argumentsOut.push(...valueIds);
+      return sql;
+    } else {
+      const valueId = value.value[NODE_REFERENCE_ID_KEY];
+      const sql = `$${argumentsOut.length+1}::uuid`;
+      argumentsOut.push(valueId);
+      return sql;
+    }
   } else {
     const valuePacked = packColumnFlat({ type: value.type, value: value.value });
     if (Array.isArray(valuePacked)) {
       const sql = `ARRAY[${valuePacked.map((_, i) => `$${argumentsOut.length + i + 1}`).join(", ")}]`;
-      console.log("compileValue", value.type.repr(), sql, valuePacked);
       argumentsOut.push(...valuePacked);
       return sql;
     } else {
@@ -388,7 +400,6 @@ WITH RECURSIVE tree AS (
 SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", depth, node_type, source_id
 FROM tree;`;
 
-      console.log("walkNode", stmt, arguments_);
       const resultRows = await tx.unsafe(stmt, arguments_);
       const resultNodesPtrs: NodeReference[] = [];
       const sourceIdByNodeId = new Map<string, string>();
@@ -429,7 +440,6 @@ SELECT  "${NODE_ID_KEY}",
         source_id
 FROM    tree;`;
 
-      console.log("walkNode", stmt, arguments_);
       const resultRows = await tx.unsafe(stmt, arguments_);
       const resultNodesPtrs: NodeReference[] = [];
       const sourceIdByNodeId = new Map<string, string>();
@@ -490,7 +500,6 @@ WITH RECURSIVE tree AS (
 SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", depth, node_type, source_id
 FROM tree;`;
 
-    console.log("walkNode", stmt, arguments_);
     const resultRows = await tx.unsafe(stmt, arguments_);
     const resultNodesPtrs: NodeReference[] = [];
     const sourceIdByNodeId = new Map<string, string>();
@@ -580,7 +589,6 @@ async function queryNode(options: {
   const stmt = stmtParts.join("\n");
 
   // execute
-  console.log("queryNode", stmt, arguments_);
   const nodesRow = await tx.unsafe(stmt, arguments_);
   const nodesValue: Value[] = [];
   const nodesPtr: NodeReference[] = [];
@@ -626,7 +634,6 @@ async function queryScalar(options: {
   const stmt = stmtParts.join("\n");
 
   // execute
-  console.log("queryScalar", stmt, arguments_);
   const scalarRow = await tx.unsafe(stmt, arguments_);
   let scalarValue: Value;
   if (aggregation.type === AggregationType.EXISTS) {
@@ -669,7 +676,7 @@ async function queryGroupedNode(options: {
   const groupByClause = groupByParts.join(", ");
   const stmtParts: string[] = [
     "SELECT",
-    `${groupByClause}, ARRAY_AGG("${NODE_ID_KEY}" ORDER BY "${NODE_ID_KEY}") as grouped_ids`,
+    `${groupByClause}, ARRAY_AGG("${NODE_ID_KEY}" ORDER BY "${NODE_ID_KEY}")::uuid[] as group_ids`,
     `FROM "${table.name}"`,
   ];
   if (where != null) {
@@ -696,14 +703,13 @@ async function queryGroupedNode(options: {
 
   // execute statement to get groups
   const groupRows = await tx.unsafe(groupStmt, groupArguments);
-  console.log("queryGroupedNode", groupStmt, groupArguments, groupRows);
   const groupByCount = groupBy.length;
   const nodesId: string[] = [];
   const nodesIdByDiscriminator = new Map<any, string[]>();
   for (const row of groupRows) {
     const groupValues = Object.values(row).slice(0, groupByCount);
     const discriminator = groupByCount === 1 ? groupValues[0] : groupValues;
-    const groupIds = row.grouped_ids as string[];
+    const groupIds = row.group_ids.slice(1, -1).split(",");
     nodesIdByDiscriminator.set(discriminator, groupIds);
     nodesId.push(...groupIds);
   }
@@ -718,15 +724,16 @@ async function queryGroupedNode(options: {
     nodeStmtParts.push(columnsClause);
   }
   nodeStmtParts.push(`FROM "${table.name}"`);
-  nodeStmtParts.push(`WHERE "${NODE_ID_KEY}" = ANY($${nodeArguments.length + 1})`);
-  nodeArguments.push(nodesId);
+  nodeStmtParts.push(`WHERE "${NODE_ID_KEY}" = ANY(ARRAY[${nodesId.map((_, i) => `$${nodeArguments.length + i + 1}`).join(", ")}]::uuid[])`);
+  nodeArguments.push(...nodesId);
   const nodeStmt = nodeStmtParts.join("\n");
-  console.log("queryGroupedNode", nodeStmt, nodeArguments);
+
   // execute statement to get nodes
   const nodeRows = await tx.unsafe(nodeStmt, nodeArguments);
   const nodesById = new Map<string, { value: Value; ptr: NodeReference }>();
   for (const row of nodeRows) {
     const { value, ptr } = unpackNodeRow({ table, row });
+    console.log("queryGroupedNode.node", row, value.value);
     nodesById.set(ptr.id, { value, ptr });
   }
 
@@ -791,7 +798,6 @@ async function queryGroupedScalar(options: {
   const stmt = stmtParts.join("\n");
 
   // execute
-  console.log("queryGroupedScalar", stmt, arguments_);
   const rows = await tx.unsafe(stmt, arguments_);
   const results: Array<{ group: Value; scalar: Value }> = [];
   for (const row of rows) {
@@ -1017,9 +1023,7 @@ async function executeSubquery(options: {
         .resolveProperty("id")
         .in(...expandedNodesPtrs.map((n) => n.id));
     } else {
-      subqueryWhere = subquery.definition
-        .resolveProperty("parent")
-        .in(...nodesPtrs.map((n) => n.id));
+      subqueryWhere = subquery.definition.resolveProperty("parent").in(...nodesPtrs);
     }
     // subquery
     const { result: subresult } = await executeQuery({
