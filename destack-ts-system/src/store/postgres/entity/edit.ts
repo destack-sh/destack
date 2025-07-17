@@ -123,7 +123,7 @@ VALUES (${table.columns.map((_, i) => `$${i + 1}`).join(", ")})`;
 
     if (editType === EditType.UPSERT) {
       const overrideColumns = table.columns.filter(
-        (col) => !col.isPrimaryKey && !col.name.startsWith("created_"),
+        (col) => !col.isPrimaryKey && !col.prop.name.startsWith("created_"),
       );
       stmt += `
 ON CONFLICT ("${NODE_ID_KEY}") DO UPDATE
@@ -140,7 +140,10 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
       valuesPacked.push(rowValuesPacked);
     }
 
-    await tx.unsafe(stmt, valuesPacked);
+    // nocheckin: postgres bulk insert
+    for (const row of valuesPacked) {
+      await tx.unsafe(stmt, row);
+    }
 
     return { edits, cascadedEdits: [] };
   }
@@ -235,7 +238,7 @@ WHERE "${NODE_ID_KEY}" = $${paramI}`;
       valuesPacked.push(updateRow);
     }
 
-    await tx.unsafe(stmt, valuesPacked);
+    await tx.unsafe(stmt, ...valuesPacked);
 
     return { edits, cascadedEdits: [] };
   }
@@ -284,7 +287,7 @@ WHERE "${NODE_ID_KEY}" = $${Object.keys(updateTemplate).length + 1}`;
       valuesPacked.push(rowValues);
     }
 
-    await tx.unsafe(stmt, valuesPacked);
+    await tx.unsafe(stmt, ...valuesPacked);
 
     return { edits, cascadedEdits: [] };
   }
@@ -365,7 +368,7 @@ UPDATE "${tableName}"
 SET ${updateStmt}
 WHERE "${NODE_ID_KEY}" = $1`;
 
-      await tx.unsafe(stmt, arguments_);
+      await tx.unsafe(stmt, ...arguments_);
     }
 
     return { edits, cascadedEdits };

@@ -50,6 +50,14 @@ export class PostgresEntityStore implements EntityStore {
 
   async open(): Promise<void> {
     this.db = await getPostgres(this.dbInfo);
+
+    // nocheckin: migrations :Migration
+    await this.db.begin(async (tx) => {
+      for (const table of this.context.tablesByName.values()) {
+        const sql = table.sql();
+        await tx.unsafe(sql);
+      }
+    });
   }
 
   async close(): Promise<void> {

@@ -396,6 +396,17 @@ function _unpackScalarValue(
       return Temporal.PlainTime.from(value);
     } else if (type.primitiveType == PrimitiveType.DURATION) {
       return timedeltaFromISOFormat(value);
+    } else if (
+      type.primitiveType == PrimitiveType.FLOAT32 ||
+      type.primitiveType == PrimitiveType.FLOAT64
+    ) {
+      return Number(value);
+    } else if (
+      type.primitiveType == PrimitiveType.INT16 ||
+      type.primitiveType == PrimitiveType.INT32 ||
+      type.primitiveType == PrimitiveType.INT64
+    ) {
+      return Number(value);
     } else {
       return value;
     }

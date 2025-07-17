@@ -20,8 +20,7 @@ services:
       bash -c '
         docker-entrypoint.sh postgres &
         until pg_isready -U destack; do sleep 1; done
-        psql -U destack -c "CREATE DATABASE \"destack-global\";"
-        psql -U destack -c "CREATE DATABASE \"destack-db-0\";"
+        psql -U destack -c "CREATE DATABASE \"destack\";"
         wait
       '
 
@@ -42,19 +41,6 @@ services:
         --check=false
     volumes:
       - redpanda_data:/var/lib/redpanda/data
-
-  scylladb:
-    image: scylladb/scylla:6.2.3
-    restart: on-failure
-    ports:
-      - '9042:9042'   # CQL
-      - '9180:9180'   # Prometheus
-    command: --smp 1 --overprovisioned 1
-    volumes:
-      - scylla_data:/var/lib/scylla
-    environment:
-      SCYlla_SYNC_COMMANDS: 1
-
 
   minio:
     image: minio/minio:latest
