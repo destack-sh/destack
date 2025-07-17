@@ -331,6 +331,33 @@ def _pack_column_scalar(
         assert_never(type.scalar_type)
 
 
+def _unpack_column_scalar(
+    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Any
+) -> Json:
+    assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
+    if type.scalar_type == ScalarType.PRIMITIVE:
+        if type.primitive_type == PrimitiveType.BYTES:
+            return base64.b64encode(value).decode()
+        elif type.primitive_type == PrimitiveType.UUID:
+            return str(value)
+        elif type.primitive_type == PrimitiveType.DATETIME:
+            return value.replace(tzinfo=UTC).isoformat()
+        elif type.primitive_type == PrimitiveType.DATE or type.primitive_type == PrimitiveType.TIME:
+            return value.isoformat()
+        elif type.primitive_type == PrimitiveType.DURATION:
+            return timedelta_to_isoformat(value)
+        else:
+            return value
+    elif type.scalar_type == ScalarType.ENUM:
+        return value
+    elif type.scalar_type == ScalarType.NODE_VALUE:  # noqa: SIM114
+        return orjson.loads(value)  # keep json
+    elif type.scalar_type == ScalarType.STRUCT:
+        return orjson.loads(value)  # keep json
+    else:
+        assert_never(type.scalar_type)
+
+
 def pack_column_flat(
     type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Json
 ) -> Any:
@@ -365,19 +392,17 @@ def pack_column_wide(
                     int(value[NODE_REFERENCE_TYPE_KEY]) if value is not None else None
                 )
             column_space_id = f"{column_name}_space_id"
-            if column_space_id in table._columns_by_name:
-                column_out[column_space_id] = (
-                    uuid.UUID(value[NODE_REFERENCE_SPACE_ID_KEY])
-                    if value is not None and value.get(NODE_REFERENCE_SPACE_ID_KEY)
-                    else None
-                )
+            column_out[column_space_id] = (
+                uuid.UUID(value[NODE_REFERENCE_SPACE_ID_KEY])
+                if value is not None and value.get(NODE_REFERENCE_SPACE_ID_KEY)
+                else None
+            )
             column_definition_id = f"{column_name}_definition_id"
-            if column_definition_id in table._columns_by_name:
-                column_out[column_definition_id] = (
-                    uuid.UUID(value[NODE_REFERENCE_DEFINITION_ID_KEY])
-                    if value is not None and value.get(NODE_REFERENCE_DEFINITION_ID_KEY)
-                    else None
-                )
+            column_out[column_definition_id] = (
+                uuid.UUID(value[NODE_REFERENCE_DEFINITION_ID_KEY])
+                if value is not None and value.get(NODE_REFERENCE_DEFINITION_ID_KEY)
+                else None
+            )
         else:
             value_packed = _pack_column_scalar(type, value) if value is not None else None
             column_out[column_name] = value_packed
@@ -389,36 +414,10 @@ def pack_column_wide(
         assert_never(type.cardinality)
 
 
-def _unpack_column_scalar(
-    type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Any
-) -> Json:
-    assert type.scalar_type != ScalarType.NODE_REFERENCE, f"unhandled node ref: {type!r}"
-    if type.scalar_type == ScalarType.PRIMITIVE:
-        if type.primitive_type == PrimitiveType.BYTES:
-            return base64.b64encode(value).decode()
-        elif type.primitive_type == PrimitiveType.UUID:
-            return str(value)
-        elif type.primitive_type == PrimitiveType.DATETIME:
-            return value.replace(tzinfo=UTC).isoformat()
-        elif type.primitive_type == PrimitiveType.DATE or type.primitive_type == PrimitiveType.TIME:
-            return value.isoformat()
-        elif type.primitive_type == PrimitiveType.DURATION:
-            return timedelta_to_isoformat(value)
-        else:
-            return value
-    elif type.scalar_type == ScalarType.ENUM:
-        return value
-    elif type.scalar_type == ScalarType.NODE_VALUE:  # noqa: SIM114
-        return orjson.loads(value)  # keep json
-    elif type.scalar_type == ScalarType.STRUCT:
-        return orjson.loads(value)  # keep json
-    else:
-        assert_never(type.scalar_type)
-
-
 def unpack_column(
     type: "PropertyDeclaration | PropertyDefinition | Type | CustomProperty", value: Any
 ) -> Json:
+    """Unpack a dynamic column value from a single column value."""
     if type.cardinality == TypeCardinality.SCALAR:
         return _unpack_column_scalar(type, value)
     elif type.cardinality == TypeCardinality.LIST:
