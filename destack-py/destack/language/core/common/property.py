@@ -95,6 +95,25 @@ class CustomProperty(
     is_readonly: bool | None = builtin_property(153)
     is_main: bool | None = builtin_property(154)
 
+    def to_type(self) -> "Type":
+        type = Type(
+            cardinality=self.cardinality,
+            scalar_type=self.scalar_type,
+            primitive_type=self.primitive_type,
+            enum_type=self.enum_type,
+            node_type=self.node_type,
+            struct_type=self.struct_type,
+            key_type=self.key_type,
+            value=self.value,
+            value_factory=self.value_factory,
+            collection_constraint=self.collection_constraint,
+            string_constraint=self.string_constraint,
+            number_constraint=self.number_constraint,
+            node_constraint=self.node_constraint,
+            is_required=self.is_required,
+        )
+        return type
+
     def eq(self, value: Any) -> Condition:
         if value is None:
             return self.not_exists()

@@ -1,4 +1,10 @@
-import { EnumType, NodeType, StoreDomain, StructType } from "@destack/language/core/builtin/common";
+import {
+  EnumType,
+  NodeType,
+  StoreDomain,
+  StructType,
+  TypeCardinality,
+} from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
@@ -11,6 +17,7 @@ import type {
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { CustomProperty } from "@destack/language/core/common/property";
+import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
 import { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -537,12 +544,20 @@ export class Condition extends StructFrozen {
   /** Make a Condition from a shorthand expression. */
   static of(
     attribute: CustomProperty | PropertyReference | PropertyDefinition,
-    type: ConditionalType = ConditionalType.EQUALS,
+    type: ConditionalType,
     value: any = null,
   ): Condition {
     const left = Expression.of(attribute);
-    const right = value == null ? null : Expression.of(toValue(value));
-    return new Condition({ type, left, right });
+    if (value != null) {
+      let valueType: Type = attribute.toType();
+      if (type == ConditionalType.IN || type == ConditionalType.NOT_IN) {
+        valueType = new Type({ ...valueType, cardinality: TypeCardinality.LIST });
+      }
+      const right = Expression.of(toValue(value, valueType));
+      return new Condition({ type, left, right });
+    } else {
+      return new Condition({ type, left });
+    }
   }
 
   /* ==== DESTACK_CUSTOM_END ==== */

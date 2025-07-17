@@ -76,7 +76,7 @@ def _compile_attribute(
         prop = attribute.resolve()
         if prop.scalar_type == ScalarType.NODE_REFERENCE:
             # unravel reference column into id
-            return f'"{prop.id}_id"'
+            return f'"{prop.id}_{NODE_REFERENCE_ID_KEY}"'
         else:
             return f'"{prop.id}"'
     elif attribute.type == PropertyReferenceType.CUSTOM:
@@ -899,9 +899,7 @@ async def _execute_subquery(
                 *(n.id for n in expanded_nodes_ptr),
             )
         else:
-            subquery_where = subquery.definition.resolve_property("parent").in_(
-                *(n.id for n in nodes_ptr),
-            )
+            subquery_where = subquery.definition.resolve_property("parent").in_(*nodes_ptr)
         # subquery
         subresult = await execute_query(
             conn=conn,

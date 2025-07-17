@@ -43,11 +43,11 @@ def evaluate_expression(value: dict[str, Any], expression: Expression) -> Any:
     if expression.type == ExpressionType.LITERAL:
         assert expression.literal is not None, f"no literal for {expression!r}"
         if expression.literal.type.scalar_type == ScalarType.NODE_REFERENCE:
-            return (
-                expression.literal.value[NODE_REFERENCE_ID_KEY]
-                if expression.literal.value is not None
-                else None
-            )
+            assert expression.literal.value is not None, f"no value for {expression!r}"
+            if expression.literal.type.cardinality == TypeCardinality.SCALAR:
+                return expression.literal.value[NODE_REFERENCE_ID_KEY]
+            else:
+                return [n[NODE_REFERENCE_ID_KEY] for n in expression.literal.value]
         else:
             return expression.literal.value
     elif expression.type == ExpressionType.ATTRIBUTE:

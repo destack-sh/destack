@@ -20,7 +20,6 @@ import {
   TypeCardinality,
   Value,
 } from "destack";
-import { Temporal } from "temporal-polyfill";
 
 /** Pack a Node value into a row of columns. */
 export function packNodeRow(options: { table: PostgresTable; value: Value }): Array<any> {
@@ -101,11 +100,11 @@ function _packColumnScalar(type: Type, value: any): any {
     } else if (type.primitiveType === PrimitiveType.UUID) {
       return value;
     } else if (type.primitiveType === PrimitiveType.DATETIME) {
-      return Temporal.Instant.from(value).toZonedDateTimeISO("UTC");
+      return value;
     } else if (type.primitiveType === PrimitiveType.DATE) {
-      return Temporal.PlainDate.from(value);
+      return value;
     } else if (type.primitiveType === PrimitiveType.TIME) {
-      return Temporal.PlainTime.from(value);
+      return value;
     } else if (type.primitiveType === PrimitiveType.DURATION) {
       return timedeltaFromISOFormat(value);
     } else {
@@ -132,11 +131,11 @@ function _unpackColumnScalar(type: Type, value: any): any {
     } else if (type.primitiveType === PrimitiveType.UUID) {
       return String(value);
     } else if (type.primitiveType === PrimitiveType.DATETIME) {
-      return value.toString({ timeZoneName: "never" });
+      return (value as Date).toISOString();
     } else if (type.primitiveType === PrimitiveType.DATE) {
-      return value.toString();
+      return (value as Date).toISOString();
     } else if (type.primitiveType === PrimitiveType.TIME) {
-      return value.toString();
+      return (value as Date).toISOString();
     } else if (type.primitiveType === PrimitiveType.DURATION) {
       return timedeltaToISOFormat(value);
     } else {
@@ -152,7 +151,7 @@ function _unpackColumnScalar(type: Type, value: any): any {
 }
 
 /** Pack a dynamic column value into a single column value. */
-export function packColumn(options: { type: Type; value: any }): any {
+export function packColumnFlat(options: { type: Type; value: any }): any {
   const { type, value } = options;
 
   if (type.cardinality === TypeCardinality.SCALAR) {

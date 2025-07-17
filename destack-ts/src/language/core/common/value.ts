@@ -10,8 +10,9 @@ import { isNode } from "@destack/language/core/builtin/node";
 import { BuiltinObject } from "@destack/language/core/builtin/object";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import { StructFrozen } from "@destack/language/core/builtin/struct";
-import type { Type } from "@destack/language/core/common/type";
-import { toType } from "@destack/language/core/common/type";
+import { PropertyDefinition } from "@destack/language/core/common/definition";
+import { CustomProperty } from "@destack/language/core/common/property";
+import { Type, toType } from "@destack/language/core/common/type";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
 import {
@@ -247,7 +248,7 @@ registerStructClass(StructType.VALUE, Value);
  */
 export function toValue(
   valueUnpacked: any,
-  type: Type | null = null,
+  type: Type | PropertyDefinition | CustomProperty | null = null,
   options?: { nodeAsValue: boolean },
 ): Value {
   // infer type
@@ -261,20 +262,23 @@ export function toValue(
   if (type.scalarType == ScalarType.NODE_REFERENCE) {
     if (type.cardinality == TypeCardinality.SCALAR && isNode(valueUnpacked)) {
       valueUnpacked = valueUnpacked.toRef();
-    } else if (type.cardinality == TypeCardinality.LIST) {
+    } else if (type.cardinality == TypeCardinality.LIST && valueUnpacked.length > 0) {
       valueUnpacked = valueUnpacked.map((item: any) => (isNode(item) ? item.toRef() : item));
     }
   }
   // pack value
   const valuePacked = packValue(valueUnpacked, type);
-  const value = new Value({ type, value: valuePacked });
+  const value = new Value({
+    type: type instanceof Type ? type : type.toType(),
+    value: valuePacked,
+  });
   return value;
 }
 
 /**
  * Pack a generic typed value to a JSON object.
  */
-export function packValue(value: any, type: Type): any {
+export function packValue(value: any, type: Type | PropertyDefinition | CustomProperty): any {
   if (type.cardinality == TypeCardinality.SCALAR) {
     return _packScalarValue(value, type);
   } else if (type.cardinality == TypeCardinality.LIST) {
@@ -310,7 +314,7 @@ export function packValue(value: any, type: Type): any {
  */
 export function unpackValue(
   value: any,
-  type: Type,
+  type: Type | PropertyDefinition | CustomProperty,
   options?: {
     _session?: Session | null;
     _graph?: any | null;
@@ -346,7 +350,7 @@ export function unpackValue(
 }
 
 /** Pack a scalar value to a JSON object. */
-function _packScalarValue(value: any, type: Type): any {
+function _packScalarValue(value: any, type: Type | PropertyDefinition | CustomProperty): any {
   if (type.scalarType == ScalarType.PRIMITIVE) {
     if (type.primitiveType == PrimitiveType.BYTES) {
       return base64Encode(value as Uint8Array);
@@ -368,6 +372,11 @@ function _packScalarValue(value: any, type: Type): any {
     type.scalarType == ScalarType.NODE_VALUE ||
     type.scalarType == ScalarType.STRUCT
   ) {
+    if (!(value instanceof BuiltinObject)) {
+      throw new Error(
+        `expected BuiltinObject for ${type.repr()}, got ${value.constructor.name}: ${value}`,
+      );
+    }
     return (value as BuiltinObject).toValue();
   } else {
     assertNever(type.scalarType);
@@ -377,7 +386,7 @@ function _packScalarValue(value: any, type: Type): any {
 /** Unpack a JSON object to a scalar value. */
 function _unpackScalarValue(
   value: any,
-  type: Type,
+  type: Type | PropertyDefinition | CustomProperty,
   options?: {
     _session?: Session | null;
     _graph?: any | null;

@@ -69,7 +69,7 @@ test("roundtrip query", () => {
     sort: [Folder.property("created_at").asc()],
     limit: 25,
     cursor: EventCursor.get({
-      join: Join.of(JoinType.LEFT, { on: EventCursor.property("ownedBy").eq(5) }),
+      join: Join.of(JoinType.LEFT, { on: EventCursor.property("created_epoch").eq(5) }),
     }),
   });
 

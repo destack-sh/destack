@@ -26,7 +26,6 @@ from .map import (
     map_builtin_node_to_database_table,
 )
 from .migrate import (
-    MIGRATIONS,
     MIGRATIONS_PATH,
     MIGRATIONS_TEMPLATE_PATH,
     Migration,
@@ -38,7 +37,6 @@ from .migrate import (
     generate_migration_code,
     generate_migration_ops,
     introspect_schema,
-    postgres_migrate,
     read_migrations_from_fs,
     read_migrations_from_pg,
 )
@@ -47,7 +45,6 @@ from .store import PostgresEntityStore
 
 __all__ = [
     "EXTENSIONS",
-    "MIGRATIONS",
     "MIGRATIONS_PATH",
     "MIGRATIONS_TEMPLATE_PATH",
     "POSTGRES_BUILTIN_TABLE_PREFIX",
@@ -80,7 +77,6 @@ __all__ = [
     "introspect_schema",
     "map_builtin_node_to_database_table",
     "postgres_connection",
-    "postgres_migrate",
     "postgres_transaction",
     "read_migrations_from_fs",
     "read_migrations_from_pg",

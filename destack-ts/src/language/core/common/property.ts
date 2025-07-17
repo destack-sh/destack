@@ -30,7 +30,7 @@ import type { CustomEnum } from "@destack/language/core/common/enum";
 import type { Icon } from "@destack/language/core/common/icon";
 import { Condition, ConditionalType, Sort, SortType } from "@destack/language/core/common/query";
 import type { CustomStruct } from "@destack/language/core/common/struct";
-import type {
+import {
   CollectionConstraint,
   NodeConstraint,
   NumberConstraint,
@@ -1753,6 +1753,25 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
+  toType(): Type {
+    return new Type({
+      cardinality: this.cardinality,
+      scalarType: this.scalarType,
+      primitiveType: this.primitiveType,
+      enumType: this.enumType,
+      nodeType: this.nodeType,
+      structType: this.structType,
+      keyType: this.keyType,
+      isRequired: this.isRequired,
+      value: this.value,
+      valueFactory: this.valueFactory,
+      collectionConstraint: this.collectionConstraint,
+      stringConstraint: this.stringConstraint,
+      numberConstraint: this.numberConstraint,
+      nodeConstraint: this.nodeConstraint,
+    });
+  }
 
   eq(value: any): Condition {
     if (value === null) {
