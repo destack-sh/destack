@@ -396,6 +396,12 @@ class Query[RootT: "Trait | Node"](StructFrozen):
         is_repr=True,
         description="How to sort the Query results.",
     )
+    include_deleted: bool = builtin_property(
+        119,
+        default=False,
+        is_repr=True,
+        description="Include deleted Nodes in the Query (for Entities).",
+    )
 
     # pagination
     limit: Optional[int] = builtin_property(

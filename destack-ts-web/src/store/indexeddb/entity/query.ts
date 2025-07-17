@@ -1,7 +1,7 @@
 import {
+  ENTITY_PARENT_KEY,
   ENTITY_SNAPSHOT_KEY,
   IndexedDBContext,
-  ENTITY_PARENT_KEY,
   NODE_REFERENCE_ID_KEY,
   NULL_SENTINEL,
 } from "@destack-web/store/indexeddb/core";
@@ -14,6 +14,7 @@ import {
   Condition,
   ConditionalType,
   EdgeDirection,
+  ENTITY_DELETED_KEY,
   evaluateAggregation,
   evaluateCondition,
   evaluateExpression,
@@ -49,10 +50,19 @@ async function filterRows(options: {
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
   where: Condition | null;
+  includeDeleted?: boolean | Array<string>;
   snapshotPath: readonly string[];
   ignoreMulti?: boolean;
 }): Promise<_IndexedDBEntityRow[]> {
-  const { tx, context, definition, where, snapshotPath, ignoreMulti = false } = options;
+  const {
+    tx,
+    context,
+    definition,
+    where,
+    includeDeleted,
+    snapshotPath,
+    ignoreMulti = false,
+  } = options;
   const snapshotId = snapshotPath.length > 0 ? snapshotPath[snapshotPath.length - 1] : null;
 
   let filteredRows: _IndexedDBEntityRow[] = [];
@@ -67,7 +77,13 @@ async function filterRows(options: {
       const rows = await index.getAll(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL));
       for (const row of rows) {
         const { nodePtr, value } = unpackEntityRow(row);
-        if (where === null || evaluateCondition({ value: value.value, condition: where })) {
+        if (
+          (includeDeleted === true ||
+            !value.value[ENTITY_DELETED_KEY] ||
+            (Array.isArray(includeDeleted) &&
+              includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))) &&
+          (where === null || evaluateCondition({ value: value.value, condition: where }))
+        ) {
           filteredRows.push({ nodePtr, value });
         }
       }
@@ -85,7 +101,13 @@ async function filterRows(options: {
         );
         for (const row of rows) {
           const { nodePtr, value } = unpackEntityRow(row);
-          if (evaluateCondition({ value: value.value, condition: where })) {
+          if (
+            (includeDeleted === true ||
+              !value.value[ENTITY_DELETED_KEY] ||
+              (Array.isArray(includeDeleted) &&
+                includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))) &&
+            (where === null || evaluateCondition({ value: value.value, condition: where }))
+          ) {
             filteredRows.push({ nodePtr, value });
           }
         }
@@ -95,7 +117,13 @@ async function filterRows(options: {
         const rows = await index.getAll(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL));
         for (const row of rows) {
           const { nodePtr, value } = unpackEntityRow(row);
-          if (evaluateCondition({ value: value.value, condition: where })) {
+          if (
+            (includeDeleted === true ||
+              !value.value[ENTITY_DELETED_KEY] ||
+              (Array.isArray(includeDeleted) &&
+                includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))) &&
+            (where === null || evaluateCondition({ value: value.value, condition: where }))
+          ) {
             filteredRows.push({ nodePtr, value });
           }
         }
@@ -106,7 +134,14 @@ async function filterRows(options: {
       const rows = await index.getAll(IDBKeyRange.only(snapshotId ?? NULL_SENTINEL));
       for (const row of rows) {
         const { nodePtr, value } = unpackEntityRow(row);
-        filteredRows.push({ nodePtr, value });
+        if (
+          includeDeleted === true ||
+          !value.value[ENTITY_DELETED_KEY] ||
+          (Array.isArray(includeDeleted) &&
+            includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))
+        ) {
+          filteredRows.push({ nodePtr, value });
+        }
       }
     }
   }
@@ -397,10 +432,11 @@ export async function walkNode(options: {
   nodesPtrs: readonly NodeReference[];
   direction: EdgeDirection;
   depth: number;
-  where: Condition | null;
+  includeDeleted?: boolean | Array<string>;
   snapshotPath: readonly string[];
 }): Promise<{ cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
-  const { tx, context, definition, nodesPtrs, direction, depth, where, snapshotPath } = options;
+  const { tx, context, definition, nodesPtrs, direction, depth, includeDeleted, snapshotPath } =
+    options;
 
   const nodesById = new Map<string, NodeReference>();
   const sourceIdByNodeId = new Map<string, string>();
@@ -438,7 +474,10 @@ export async function walkNode(options: {
                 if (
                   parentPtr != null &&
                   !nodesById.has(parentPtr[NODE_REFERENCE_ID_KEY]) &&
-                  (where == null || evaluateCondition({ value: value.value, condition: where }))
+                  (includeDeleted === true ||
+                    !value.value[ENTITY_DELETED_KEY] ||
+                    (Array.isArray(includeDeleted) &&
+                      includeDeleted.includes(value.value[ENTITY_DELETED_KEY])))
                 ) {
                   const parentNodePtr = NodeReference.fromValue(parentPtr);
                   return { nodeId, parentNodePtr };
@@ -495,7 +534,10 @@ export async function walkNode(options: {
                 const { nodePtr, value } = unpackEntityRow(row);
                 if (
                   !nodesById.has(nodePtr.id) &&
-                  (where == null || evaluateCondition({ value: value.value, condition: where }))
+                  (includeDeleted === true ||
+                    !value.value[ENTITY_DELETED_KEY] ||
+                    (Array.isArray(includeDeleted) &&
+                      includeDeleted.includes(value.value[ENTITY_DELETED_KEY])))
                 ) {
                   childNodePtrs.push(nodePtr);
                 }
@@ -711,12 +753,11 @@ async function executeSubquery(options: {
         nodesPtrs: Array.from(parentsPtr.values()),
         direction: EdgeDirection.PARENT,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
-        where: subquery.where,
+        includeDeleted: subquery.includeDeleted,
         snapshotPath: subquery.snapshotPath,
       });
       const idProperty = subquery.definition.resolveProperty("id");
-      const nodeIds = expandedNodesPtrs.map((n) => n.id);
-      subqueryWhere = idProperty.in(...nodeIds);
+      subqueryWhere = idProperty.in(...expandedNodesPtrs.map((n) => n.id));
     } else {
       const parentIds = Array.from(parentsPtr.keys());
       subqueryWhere = subquery.definition.resolveProperty("id").in(...parentIds);
@@ -747,7 +788,7 @@ async function executeSubquery(options: {
         nodesPtrs,
         direction: EdgeDirection.CHILD,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
-        where: subquery.where,
+        includeDeleted: subquery.includeDeleted,
         snapshotPath: subquery.snapshotPath,
       });
       const idProperty = subquery.definition.resolveProperty("id");
@@ -758,8 +799,7 @@ async function executeSubquery(options: {
         right: Expression.of(toValue(nodeIds)),
       });
     } else {
-      const nodeIds = nodesPtrs.map((n) => n.id);
-      subqueryWhere = subquery.definition.resolveProperty("parent").in(...nodeIds);
+      subqueryWhere = subquery.definition.resolveProperty("parent").in(...nodesPtrs);
     }
 
     // execute subquery

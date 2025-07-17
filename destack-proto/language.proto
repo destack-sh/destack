@@ -4906,6 +4906,7 @@ message QueryProto {
   repeated ExpressionProto group_by = 114;
   optional AggregationProto aggregation = 115;
   repeated SortProto sort = 116;
+  bool include_deleted = 119;
   optional int64 limit = 120 [jstype = JS_NUMBER];
   optional int64 offset = 121 [jstype = JS_NUMBER];
   optional NodeReferenceProto snapshot_ptr = 130;

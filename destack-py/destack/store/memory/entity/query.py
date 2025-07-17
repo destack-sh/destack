@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from typing import assert_never
 
 import structlog
@@ -45,9 +45,11 @@ logger = structlog.get_logger(__name__)
 
 MAX_RECURSION_DEPTH = 100
 
-ENTITY_PARENT_KEY = str(Entity.property("parent").id)
 NODE_ID_ID = Entity.property("id").id
 NODE_ID_KEY = str(Entity.property("id").id)
+
+ENTITY_PARENT_KEY = str(Entity.property("parent").id)
+ENTITY_DELETED_KEY = str(Entity.property("deleted_at").id)
 
 NODE_REFERENCE_TYPE_KEY = str(NodeReference.property("type").id)
 NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
@@ -59,9 +61,10 @@ def _filter_rows(
     context: MemoryContext,
     definition: NodeDefinitionReference,
     where: Condition | None,
+    include_deleted: bool,
     snapshot_path: Sequence[UUID],
     ignore_multi: bool = False,
-) -> list[MemoryEntityRow]:
+) -> Sequence[MemoryEntityRow]:
     """Filter rows based on definition and where condition."""
     snapshot_id = snapshot_path[-1] if snapshot_path else None
 
@@ -71,7 +74,9 @@ def _filter_rows(
         for rel in definitions:
             table = context.get_entity_table(rel)
             for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                if where is None or evaluate_condition(row.value, where):
+                if (include_deleted or not row.value.get(ENTITY_DELETED_KEY)) and (
+                    where is None or evaluate_condition(row.value, where)
+                ):
                     filtered_rows.append(row)
     else:
         table = context.get_entity_table(definition)
@@ -81,17 +86,25 @@ def _filter_rows(
                 filtered_rows = []
                 for id_val in node_ids:
                     node_key = VersionedNodeKey(id=id_val, snapshot_id=snapshot_id)
-                    if (row := table.rows.get(node_key)) is not None and evaluate_condition(
-                        row.value, where
+                    if (
+                        (row := table.rows.get(node_key)) is not None
+                        and (include_deleted or not row.value.get(ENTITY_DELETED_KEY))
+                        and (where is None or evaluate_condition(row.value, where))
                     ):
                         filtered_rows.append(row)
             else:
                 filtered_rows = []
                 for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values():
-                    if evaluate_condition(row.value, where):
+                    if (include_deleted or not row.value.get(ENTITY_DELETED_KEY)) and (
+                        where is None or evaluate_condition(row.value, where)
+                    ):
                         filtered_rows.append(row)
         else:
-            filtered_rows = list(table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values())
+            filtered_rows = [
+                row
+                for row in table.rows_by_snapshot.get(snapshot_id, EMPTY_DICT).values()
+                if include_deleted or not row.value.get(ENTITY_DELETED_KEY)
+            ]
 
     return filtered_rows
 
@@ -103,6 +116,7 @@ def _query_node(
     select: Select | None,
     where: Condition | None,
     sort: Sequence[Sort] | None,
+    include_deleted: bool,
     limit: int | None,
     offset: int | None,
     snapshot_path: Sequence[UUID],
@@ -123,6 +137,7 @@ def _query_node(
                 select=select,
                 where=where,
                 sort=sort,
+                include_deleted=include_deleted,
                 limit=limit,
                 offset=offset,
                 snapshot_path=snapshot_path,
@@ -137,6 +152,7 @@ def _query_node(
         context=context,
         definition=definition,
         where=where,
+        include_deleted=include_deleted,
         snapshot_path=snapshot_path,
         ignore_multi=True,
     )
@@ -148,7 +164,7 @@ def _query_node(
             return evaluate_sort_key(row.value, sort)
 
         reverse_flags = any(s.type == SortType.DESCENDING for s in sort)
-        filtered_rows.sort(key=sort_key, reverse=reverse_flags)
+        filtered_rows = sorted(filtered_rows, key=sort_key, reverse=reverse_flags)
     if offset:
         filtered_rows = filtered_rows[offset:]
     if limit:
@@ -170,6 +186,7 @@ def _query_scalar(
     definition: NodeDefinitionReference,
     aggregation: Aggregation,
     where: Condition | None,
+    include_deleted: bool,
     snapshot_path: Sequence[UUID],
 ) -> Value:
     """Execute a scalar Query."""
@@ -178,6 +195,7 @@ def _query_scalar(
         context=context,
         definition=definition,
         where=where,
+        include_deleted=include_deleted,
         snapshot_path=snapshot_path,
     )
 
@@ -202,6 +220,7 @@ def _query_grouped_node(
     having: Condition | None,
     sort: Sequence[Sort] | None,
     group_by: Sequence[Expression],
+    include_deleted: bool,
     limit: int | None,
     offset: int | None,
     snapshot_path: Sequence[UUID],
@@ -215,6 +234,7 @@ def _query_grouped_node(
         context=context,
         definition=definition,
         where=where,
+        include_deleted=include_deleted,
         snapshot_path=snapshot_path,
     )
 
@@ -270,6 +290,7 @@ def _query_grouped_scalar(
     where: Condition | None,
     having: Condition | None,
     group_by: Sequence[Expression],
+    include_deleted: bool,
     snapshot_path: Sequence[UUID],
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
@@ -281,6 +302,7 @@ def _query_grouped_scalar(
         context=context,
         definition=definition,
         where=where,
+        include_deleted=include_deleted,
         snapshot_path=snapshot_path,
     )
 
@@ -319,7 +341,7 @@ def _walk_node(
     nodes_ptr: Sequence[NodeReference],
     direction: EdgeDirection,
     depth: int,
-    where: Condition | None,
+    include_deleted: bool | Collection[str],
     snapshot_path: Sequence[UUID],
 ) -> tuple[list[NodeReference], dict[UUID, UUID]]:
     """Get the cascaded Nodes for a query."""
@@ -350,7 +372,14 @@ def _walk_node(
                         (row := table.rows.get(node_key)) is not None
                         and (parent_ptr := row.parent_ptr) is not None
                         and (parent_id := parent_ptr.id) not in nodes_by_id
-                        and (where is None or evaluate_condition(row.value, where))
+                        and (
+                            not row.value.get(ENTITY_DELETED_KEY)
+                            or include_deleted is True
+                            or (
+                                not isinstance(include_deleted, bool)
+                                and row.value.get(ENTITY_DELETED_KEY) in include_deleted
+                            )
+                        )
                     ):
                         source_id_by_node_id[parent_id] = source_id_by_node_id[node_id]
                         nodes_by_id[parent_id] = parent_ptr
@@ -378,7 +407,12 @@ def _walk_node(
                     if children := table.rows_by_parent.get(parent_key):
                         for row in children:
                             if (node_id := row.id) not in nodes_by_id and (
-                                where is None or evaluate_condition(row.value, where)
+                                not row.value.get(ENTITY_DELETED_KEY)
+                                or include_deleted is True
+                                or (
+                                    not isinstance(include_deleted, bool)
+                                    and row.value.get(ENTITY_DELETED_KEY) in include_deleted
+                                )
                             ):
                                 source_id_by_node_id[node_id] = source_id_by_node_id[parent_id]
                                 nodes_by_id[node_id] = row.ptr
@@ -422,6 +456,7 @@ def _query_clause(
             select=query.select,
             where=combined_where,
             sort=query.sort,
+            include_deleted=query.include_deleted,
             limit=query.limit,
             offset=query.offset,
             snapshot_path=query.snapshot_path,
@@ -436,6 +471,7 @@ def _query_clause(
             definition=query.definition,
             aggregation=query.aggregation,
             where=combined_where,
+            include_deleted=query.include_deleted,
             snapshot_path=query.snapshot_path,
         )
         nodes_ptr = []
@@ -456,6 +492,7 @@ def _query_clause(
             having=query.having,
             sort=query.sort,
             group_by=query.group_by,
+            include_deleted=query.include_deleted,
             limit=query.limit,
             offset=query.offset,
             snapshot_path=query.snapshot_path,
@@ -483,6 +520,7 @@ def _query_clause(
             where=combined_where,
             having=query.having,
             group_by=query.group_by,
+            include_deleted=query.include_deleted,
             snapshot_path=query.snapshot_path,
         )
         nodes_ptr = []
@@ -544,7 +582,7 @@ def _execute_subquery(
                 nodes_ptr=list(parents_ptr.values()),
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
-                where=subquery.where,
+                include_deleted=subquery.include_deleted,
                 snapshot_path=subquery.snapshot_path,
             )
             subquery_where = subquery.definition.resolve_property("id").in_(
@@ -569,7 +607,7 @@ def _execute_subquery(
                 nodes_ptr=nodes_ptr,
                 direction=EdgeDirection.CHILD,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
-                where=subquery.where,
+                include_deleted=subquery.include_deleted,
                 snapshot_path=subquery.snapshot_path,
             )
             subquery_where = Condition(

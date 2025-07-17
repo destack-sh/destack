@@ -28,9 +28,15 @@ export function evaluateExpression(options: {
       throw new Error(`no literal for ${expression.repr()}`);
     }
     if (expression.literal.type.scalarType === ScalarType.NODE_REFERENCE) {
-      return expression.literal.value && expression.literal.value[NODE_REFERENCE_ID_KEY]
-        ? expression.literal.value[NODE_REFERENCE_ID_KEY]
-        : null;
+      if (expression.literal.type.cardinality === TypeCardinality.SCALAR) {
+        return expression.literal.value && expression.literal.value[NODE_REFERENCE_ID_KEY]
+          ? expression.literal.value[NODE_REFERENCE_ID_KEY]
+          : null;
+      } else if (expression.literal.type.cardinality === TypeCardinality.LIST) {
+        return expression.literal.value.map((v: any) => v[NODE_REFERENCE_ID_KEY]);
+      } else {
+        throw new Error(`unsupported cardinality: ${expression.literal.type.repr()}`);
+      }
     } else {
       return expression.literal.value;
     }

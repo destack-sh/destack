@@ -2323,6 +2323,11 @@ export class Query<T extends Node = Node> extends StructFrozen {
   readonly sort: readonly Sort[];
 
   /**
+   * Include deleted Nodes in the Query (for Entities).
+   */
+  readonly includeDeleted: boolean;
+
+  /**
    * Limit the number of results.
    */
   readonly limit: number | null;
@@ -2367,6 +2372,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
     groupBy?: readonly Expression[];
     aggregation?: Aggregation | null;
     sort?: readonly Sort[];
+    includeDeleted?: boolean;
     limit?: number | null;
     offset?: number | null;
     snapshot?: Snapshot | NodeReference | null;
@@ -2439,6 +2445,14 @@ export class Query<T extends Node = Node> extends StructFrozen {
       _sort = [];
     }
     this.sort = _sort;
+    let _includeDeleted = options.includeDeleted ?? null;
+    if (_includeDeleted === null) {
+      _includeDeleted = false;
+    }
+    if (_includeDeleted === null) {
+      throw new Error(`Query.includeDeleted is required`);
+    }
+    this.includeDeleted = _includeDeleted;
     let _limit = options.limit ?? null;
     this.limit = _limit;
     let _offset = options.offset ?? null;
@@ -2538,6 +2552,9 @@ export class Query<T extends Node = Node> extends StructFrozen {
         return false;
       }
     }
+    if (!(this.includeDeleted === other.includeDeleted)) {
+      return false;
+    }
     if (!(this.limit === other.limit)) {
       return false;
     }
@@ -2589,6 +2606,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this.sort.length > 0) {
         propertyReprs.push(`sort=${this.sort.map((_item) => _item.repr()).join(", ")}`);
       }
+      propertyReprs.push(`includeDeleted=${this.includeDeleted}`);
       if (this.limit != null) {
         propertyReprs.push(`limit=${this.limit}`);
       }
@@ -2649,6 +2667,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    h = (h * 31 + hashBool(this.includeDeleted)) & 0xffffffff;
     if (this.limit != null) {
       h = (h * 31 + hashInt(this.limit)) & 0xffffffff;
     }
@@ -2725,6 +2744,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       }
       objectValue["116"] = packedSort;
     }
+    objectValue["119"] = object.includeDeleted;
     if (object.limit != null) {
       objectValue["120"] = object.limit;
     }
@@ -2842,6 +2862,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       groupBy: unpackedGroupBy,
       aggregation: unpackedAggregation,
       sort: unpackedSort,
+      includeDeleted: objectValue["119"],
       limit: unpackedLimit,
       offset: unpackedOffset,
       snapshot: unpackedSnapshotPtr,
@@ -2912,6 +2933,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
       }
       objectProto.sort = packedSort;
     }
+    objectProto.includeDeleted = object.includeDeleted;
     if (object.limit != null) {
       objectProto.limit = object.limit;
     }
@@ -3018,6 +3040,7 @@ export class Query<T extends Node = Node> extends StructFrozen {
             )
           : null,
       sort: unpackedSort,
+      includeDeleted: objectProto.includeDeleted,
       limit: objectProto.limit != undefined ? Number(objectProto.limit) : null,
       offset: objectProto.offset != undefined ? Number(objectProto.offset) : null,
       snapshot:

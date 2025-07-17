@@ -2,7 +2,6 @@ import { walkNode } from "@desys/store/postgres/entity/query";
 import { TransactionSQL } from "bun";
 import {
   CASCADING_EDIT_TYPES,
-  Condition,
   EdgeDirection,
   EditEvent,
   EditOperation,
@@ -81,9 +80,9 @@ async function executeCascade(options: {
   context: PostgresContext;
   definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
-  where: Condition | null;
+  includeDeleted?: boolean | Array<string>;
 }): Promise<{ cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
-  const { tx, context, definition, nodePtrs, where } = options;
+  const { tx, context, definition, nodePtrs, includeDeleted } = options;
 
   const { nodes: childPtrs, sourceIdByNodeId } = await walkNode({
     tx,
@@ -92,7 +91,7 @@ async function executeCascade(options: {
     nodesPtrs: nodePtrs,
     direction: EdgeDirection.CHILD,
     depth: MAX_RECURSION_DEPTH,
-    where,
+    includeDeleted,
   });
 
   return { cascadedNodePtrs: childPtrs, sourceIdByNodeId };
@@ -256,10 +255,10 @@ WHERE "${NODE_ID_KEY}" = $${Object.keys(updateTemplate).length + 1}`;
       editedAtByNodeId.set(String(edit.nodePtr.id), edit.createdAt);
     }
 
-    let where: Condition | null = null;
+    let includeDeleted: boolean | Array<string> = false;
     if (editType === EditType.RESTORE) {
       // restrict to nodes with same deleted_at
-      const rootDts = new Set<Temporal.ZonedDateTime>();
+      includeDeleted = nodePtrs.map((n) => String(n.id));
       const rootStmt = `
 SELECT "${NODE_ID_KEY}", "${ENTITY_DELETED_AT_KEY}"
 FROM "${table.name}"
@@ -270,11 +269,13 @@ IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
         nodePtrs.map((n) => n.id),
       );
       for (const row of rootRows) {
-        if (row[ENTITY_DELETED_AT_KEY]) {
-          rootDts.add(Temporal.Instant.from(row[ENTITY_DELETED_AT_KEY]).toZonedDateTimeISO("UTC"));
+        if (
+          row[ENTITY_DELETED_AT_KEY] &&
+          !(includeDeleted as string[]).includes(row[ENTITY_DELETED_AT_KEY])
+        ) {
+          (includeDeleted as string[]).push(row[ENTITY_DELETED_AT_KEY]);
         }
       }
-      where = Entity.property("deleted_at").in(...Array.from(rootDts));
     }
 
     const { cascadedNodePtrs, sourceIdByNodeId } = await executeCascade({
@@ -282,7 +283,7 @@ IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
       context,
       definition,
       nodePtrs,
-      where,
+      includeDeleted,
     });
     const cascadedEdits = cascadedNodePtrs.map(
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
@@ -321,9 +322,9 @@ IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
       const stmt = `
 UPDATE "${tableName}"   
 SET ${updateStmt}
-WHERE "${NODE_ID_KEY}" = $1`;
+WHERE "${NODE_ID_KEY}" = ANY(ARRAY[${tableNodeIds.map((_, i) => `$${i + 1}::uuid`).join(", ")}]::uuid[])`;
 
-      await tx.unsafe(stmt, ...arguments_);
+      await tx.unsafe(stmt, arguments_);
     }
 
     return { edits, cascadedEdits };

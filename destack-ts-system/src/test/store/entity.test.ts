@@ -33,32 +33,32 @@ import { IDBFactory } from "fake-indexeddb";
 import "fake-indexeddb/auto";
 
 const storeImplementations = [
-  // {
-  //   name: "MemoryStore",
-  //   createStore: async () => {
-  //     const store = new MemoryStore({
-  //       keys: [StoreKey.ENTITY_PRIMARY],
-  //     });
-  //     return store;
-  //   },
-  //   tearDown: async (store: MemoryStore) => {},
-  // },
-  // {
-  //   name: "IndexedDBStore",
-  //   createStore: async () => {
-  //     // reset fake indexeddb
-  //     globalThis.indexedDB = new IDBFactory();
+  {
+    name: "MemoryStore",
+    createStore: async () => {
+      const store = new MemoryStore({
+        keys: [StoreKey.ENTITY_PRIMARY],
+      });
+      return store;
+    },
+    tearDown: async (store: MemoryStore) => {},
+  },
+  {
+    name: "IndexedDBStore",
+    createStore: async () => {
+      // reset fake indexeddb
+      globalThis.indexedDB = new IDBFactory();
 
-  //     const store = new IndexedDBStore({
-  //       keys: [StoreKey.ENTITY_PRIMARY],
-  //     });
-  //     await store.open();
-  //     return store;
-  //   },
-  //   tearDown: async (store: IndexedDBStore) => {
-  //     await store.close();
-  //   },
-  // },
+      const store = new IndexedDBStore({
+        keys: [StoreKey.ENTITY_PRIMARY],
+      });
+      await store.open();
+      return store;
+    },
+    tearDown: async (store: IndexedDBStore) => {
+      await store.close();
+    },
+  },
   {
     name: "PostgresEntityStore",
     createStore: async () => {
@@ -268,24 +268,18 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     }
 
     // delete root folder (should cascade delete all folders)
-    const numTotalFolders = await Folder.count({
-      where: Folder.property("deletedAt").isNull(),
-    }).executeCount();
+    const numTotalFolders = await Folder.count().executeCount();
     session.delete(rootFolder);
     await session.commit();
 
-    const deletedFoldersCount = await Folder.count({
-      where: Folder.property("deletedAt").isNull(),
-    }).executeCount();
+    const deletedFoldersCount = await Folder.count().executeCount();
     expect(deletedFoldersCount).toBe(0);
 
     // restore root folder (should restore all folders)
     session.restore(rootFolder);
     await session.commit();
 
-    const restoredFoldersCount = await Folder.count({
-      where: Folder.property("deletedAt").isNull(),
-    }).executeCount();
+    const restoredFoldersCount = await Folder.count().executeCount();
     expect(restoredFoldersCount).toBe(numTotalFolders);
 
     // delete and restore subfolders one at a time
@@ -295,17 +289,14 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       await session.commit();
 
       const connection = await Folder.get({
-        where: Folder.property("id").eq(folder.id).and(Folder.property("deletedAt").isNull()),
+        where: Folder.property("id").eq(folder.id),
         Folders: Folder.search({
           join: Join.of(JoinType.CHILD, { recursive: true }),
-          where: Folder.property("deletedAt").isNull(),
         }),
       }).execute();
       expect(connection.toOneOrNone()).toBeNull();
 
-      const remainingFoldersCount = await Folder.count({
-        where: Folder.property("deletedAt").isNull(),
-      }).executeCount();
+      const remainingFoldersCount = await Folder.count().executeCount();
       expect(remainingFoldersCount).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
     }
     // restore subfolders one at a time
@@ -313,9 +304,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
       session.restore(folder);
       await session.commit();
 
-      const restoredSubfoldersCount = await Folder.count({
-        where: Folder.property("deletedAt").isNull(),
-      }).executeCount();
+      const restoredSubfoldersCount = await Folder.count().executeCount();
       expect(restoredSubfoldersCount).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
     }
   });

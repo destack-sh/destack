@@ -1,6 +1,6 @@
 from collections import OrderedDict
-from collections.abc import Sequence
-from datetime import UTC, datetime
+from collections.abc import Collection, Sequence
+from datetime import UTC
 from itertools import chain
 from typing import assert_never
 from uuid import UUID
@@ -10,7 +10,6 @@ from opentelemetry import trace
 
 from destack.language import (
     CASCADING_EDIT_TYPES,
-    Condition,
     EdgeDirection,
     EditEvent,
     EditOperation,
@@ -119,7 +118,7 @@ def _execute_cascade(
     context: MemoryContext,
     definition: NodeDefinitionReference,
     node_ptrs: Sequence[NodeReference],
-    where: Condition | None,
+    include_deleted: bool | Collection[str],
 ) -> tuple[Sequence[NodeReference], dict[UUID, UUID]]:
     """Get the cascaded Nodes for an Edit."""
     from .query import _walk_node
@@ -130,7 +129,7 @@ def _execute_cascade(
         nodes_ptr=node_ptrs,
         direction=EdgeDirection.CHILD,
         depth=MAX_RECURSION_DEPTH,
-        where=where,
+        include_deleted=include_deleted,
         snapshot_path=(),
     )
     return child_ptrs, source_id_by_node_id
@@ -234,17 +233,14 @@ def _execute_edit(
         return edits, ()
 
     # delete/restore
-    elif edit_type in (
-        EditType.DELETE,
-        EditType.RESTORE,
-    ):
+    elif edit_type in (EditType.DELETE, EditType.RESTORE):
         # cascade
         nodes_ptr = tuple(edit.node_ptr for edit in edits)
         edit_by_node_id: dict[UUID, EditEvent] = {edit.node_ptr.id: edit for edit in edits}
-        where: Condition | None = None
+        include_deleted: set[str] | bool = False
         if edit_type == EditType.RESTORE:
             # restrict to nodes with same deleted_at
-            root_dts: set[datetime] = set()
+            include_deleted = set()
             for node_ptr in nodes_ptr:
                 snapshot_id = node_ptr.snapshot_id if node_ptr.snapshot_id is not None else None
                 node_key = VersionedNodeKey(id=node_ptr.id, snapshot_id=snapshot_id)
@@ -254,16 +250,14 @@ def _execute_edit(
                     )
                 elif edit_type == EditType.RESTORE:
                     if deleted_at := row.value.get(DELETED_AT_KEY):
-                        root_dts.add(datetime.fromisoformat(deleted_at).astimezone(UTC))
+                        include_deleted.add(deleted_at)
                 else:
                     assert_never(edit_type)
-            if root_dts:
-                where = Entity.property("deleted_at").in_(*root_dts)
         cascaded_node_ptrs, source_id_by_node_id = _execute_cascade(
             context=context,
             definition=definition,
             node_ptrs=nodes_ptr,
-            where=where,
+            include_deleted=include_deleted,
         )
         cascaded_edits = tuple(
             EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
