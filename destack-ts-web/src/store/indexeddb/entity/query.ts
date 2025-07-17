@@ -14,7 +14,7 @@ import {
   Condition,
   ConditionalType,
   EdgeDirection,
-  ENTITY_DELETED_KEY,
+  ENTITY_DELETED_AT_KEY,
   evaluateAggregation,
   evaluateCondition,
   evaluateExpression,
@@ -79,9 +79,9 @@ async function filterRows(options: {
         const { nodePtr, value } = unpackEntityRow(row);
         if (
           (includeDeleted === true ||
-            !value.value[ENTITY_DELETED_KEY] ||
+            !value.value[ENTITY_DELETED_AT_KEY] ||
             (Array.isArray(includeDeleted) &&
-              includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))) &&
+              includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY]))) &&
           (where === null || evaluateCondition({ value: value.value, condition: where }))
         ) {
           filteredRows.push({ nodePtr, value });
@@ -103,9 +103,9 @@ async function filterRows(options: {
           const { nodePtr, value } = unpackEntityRow(row);
           if (
             (includeDeleted === true ||
-              !value.value[ENTITY_DELETED_KEY] ||
+              !value.value[ENTITY_DELETED_AT_KEY] ||
               (Array.isArray(includeDeleted) &&
-                includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))) &&
+                includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY]))) &&
             (where === null || evaluateCondition({ value: value.value, condition: where }))
           ) {
             filteredRows.push({ nodePtr, value });
@@ -119,9 +119,9 @@ async function filterRows(options: {
           const { nodePtr, value } = unpackEntityRow(row);
           if (
             (includeDeleted === true ||
-              !value.value[ENTITY_DELETED_KEY] ||
+              !value.value[ENTITY_DELETED_AT_KEY] ||
               (Array.isArray(includeDeleted) &&
-                includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))) &&
+                includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY]))) &&
             (where === null || evaluateCondition({ value: value.value, condition: where }))
           ) {
             filteredRows.push({ nodePtr, value });
@@ -136,9 +136,9 @@ async function filterRows(options: {
         const { nodePtr, value } = unpackEntityRow(row);
         if (
           includeDeleted === true ||
-          !value.value[ENTITY_DELETED_KEY] ||
+          !value.value[ENTITY_DELETED_AT_KEY] ||
           (Array.isArray(includeDeleted) &&
-            includeDeleted.includes(value.value[ENTITY_DELETED_KEY]))
+            includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY]))
         ) {
           filteredRows.push({ nodePtr, value });
         }
@@ -475,9 +475,9 @@ export async function walkNode(options: {
                   parentPtr != null &&
                   !nodesById.has(parentPtr[NODE_REFERENCE_ID_KEY]) &&
                   (includeDeleted === true ||
-                    !value.value[ENTITY_DELETED_KEY] ||
+                    !value.value[ENTITY_DELETED_AT_KEY] ||
                     (Array.isArray(includeDeleted) &&
-                      includeDeleted.includes(value.value[ENTITY_DELETED_KEY])))
+                      includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY])))
                 ) {
                   const parentNodePtr = NodeReference.fromValue(parentPtr);
                   return { nodeId, parentNodePtr };
@@ -535,9 +535,9 @@ export async function walkNode(options: {
                 if (
                   !nodesById.has(nodePtr.id) &&
                   (includeDeleted === true ||
-                    !value.value[ENTITY_DELETED_KEY] ||
+                    !value.value[ENTITY_DELETED_AT_KEY] ||
                     (Array.isArray(includeDeleted) &&
-                      includeDeleted.includes(value.value[ENTITY_DELETED_KEY])))
+                      includeDeleted.includes(value.value[ENTITY_DELETED_AT_KEY])))
                 ) {
                   childNodePtrs.push(nodePtr);
                 }
