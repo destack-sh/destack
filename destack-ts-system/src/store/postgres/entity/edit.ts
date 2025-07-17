@@ -115,6 +115,8 @@ async function executeEdit(options: {
   const nodeType = table.nodeType;
   const nodeCls = NODE_CLASS_BY_TYPE[nodeType];
 
+  // TODO :Performance: PostgresStore execute edits in bulk (insert/update)
+
   // create/upsert
   if (editType === EditType.CREATE || editType === EditType.UPSERT) {
     let stmt = `
@@ -140,7 +142,6 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
       valuesPacked.push(rowValuesPacked);
     }
 
-    // nocheckin: postgres bulk insert
     for (const row of valuesPacked) {
       await tx.unsafe(stmt, row);
     }
@@ -150,50 +151,7 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
 
   // update
   else if (editType === EditType.UPDATE) {
-    // gather all db-columns possibly touched in this batch
-    const allUpdatedColumns = new Set<string>();
-    for (const edit of edits) {
-      if (!edit.propertyId) {
-        throw new Error(`no property_id for ${JSON.stringify(edit)}`);
-      }
-      const prop = definition.resolvePropertyMaybe(edit.propertyId);
-      if (!prop) {
-        throw new Error(`no property for ${JSON.stringify(edit)}`);
-      }
-      const update: Map<string, any> = new Map();
-      packColumnWide({
-        type: prop.toType(),
-        value: null,
-        table,
-        columnName: String(prop.id),
-        columnOut: update,
-      });
-      for (const key of update.keys()) {
-        allUpdatedColumns.add(key);
-      }
-    }
-
-    const updatedColumnNames = Array.from(allUpdatedColumns).sort();
-    const updatedColumnIdx = Object.fromEntries(updatedColumnNames.map((column, i) => [column, i]));
-
-    // build "CASE WHEN changed THEN value ELSE col END" for every column
-    const setClauses: string[] = [];
-    let paramI = 1;
-    for (const column of updatedColumnNames) {
-      const valueParam = `$${paramI}`; // new value (may be NULL)
-      const changedParam = `$${paramI + 1}`; // whether the value changed (bool)
-      setClauses.push(
-        `"${column}" = CASE WHEN ${changedParam} THEN ${valueParam} ELSE "${column}" END`,
-      );
-      paramI += 2;
-    }
-    const stmt = `
-UPDATE "${table.name}"
-SET ${setClauses.join(", ")}
-WHERE "${NODE_ID_KEY}" = $${paramI}`;
-
-    // prepare parameters row-by-row
-    const valuesPacked: any[][] = [];
+    // update each edit one by one
     for (const edit of edits) {
       if (!edit.propertyId) {
         throw new Error(`no property_id for ${JSON.stringify(edit)}`);
@@ -215,12 +173,6 @@ WHERE "${NODE_ID_KEY}" = $${paramI}`;
         throw new Error(`unsupported operation: ${JSON.stringify(edit)}`);
       }
 
-      const updateRow: any[] = new Array(updatedColumnNames.length * 2).fill(null);
-      // set defaults: keep existing values
-      for (let i = 1; i < updateRow.length; i += 2) {
-        updateRow[i] = false;
-      }
-
       const update: Map<string, any> = new Map();
       packColumnWide({
         type: prop.toType(),
@@ -229,16 +181,17 @@ WHERE "${NODE_ID_KEY}" = $${paramI}`;
         columnName: String(prop.id),
         columnOut: update,
       });
-      for (const [column, value] of update.entries()) {
-        const i = updatedColumnIdx[column] * 2;
-        updateRow[i] = value;
-        updateRow[i + 1] = true;
-      }
-      updateRow.push(edit.nodePtr.id); // WHERE id = …
-      valuesPacked.push(updateRow);
-    }
 
-    await tx.unsafe(stmt, ...valuesPacked);
+      const columnNames = Array.from(update.keys()).sort();
+      const columnValues = columnNames.map((name) => update.get(name));
+
+      const stmt = `
+UPDATE "${table.name}"
+SET ${columnNames.map((name, i) => `"${name}" = $${i + 1}`).join(", ")}
+WHERE "${NODE_ID_KEY}" = $${columnNames.length + 1}`;
+
+      await tx.unsafe(stmt, [...columnValues, edit.nodePtr.id]);
+    }
 
     return { edits, cascadedEdits: [] };
   }

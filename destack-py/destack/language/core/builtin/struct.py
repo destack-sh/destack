@@ -3,6 +3,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     ClassVar,
+    Self,
     cast,
     dataclass_transform,
 )
@@ -154,3 +155,12 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
         object.__setattr__(self, "_repr", None)
         object.__setattr__(self, "_proto", None)
         object.__setattr__(self, "_value", None)
+
+    def clone(self, **override: Any) -> Self:
+        """Clone the Struct with new values."""
+        kwargs: dict[str, Any] = {}
+        for prop in self.__properties__.values():
+            if prop.name != "metatype" and prop.is_wired:
+                kwargs[prop.name] = getattr(self, prop.name)
+        kwargs.update(override)
+        return self.__class__(**kwargs)

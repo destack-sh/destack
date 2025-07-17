@@ -1166,6 +1166,8 @@ class PrimitiveType(Enum):
     DATE = 31, "Date", "Date", "fas fa-calendar-days"
     TIME = 32, "Time", "Time", "fas fa-clock"
     DURATION = 33, "Duration", "Duration", "fas fa-stopwatch"
+    # custom
+    # DSON, PROTO, ...?
 
     @property
     def is_numeric(self) -> bool:

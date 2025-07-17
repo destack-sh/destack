@@ -364,6 +364,8 @@ class PropertyDefinition(BuiltinDefinition):
     is_eq: bool = builtin_property(164)
     is_managed: bool = builtin_property(165)
 
+    _type: "Type | None" = builtin_property_runtime()
+
     @classmethod
     def from_property(cls, prop: PropertyDeclaration) -> "PropertyDefinition":
         """Create PropertyDefinition from a Property."""
@@ -410,6 +412,31 @@ class PropertyDefinition(BuiltinDefinition):
             is_eq=prop.is_eq,
             is_managed=prop.is_managed,
         )
+
+    def to_type(self) -> "Type":
+        """Convert to a Type."""
+        from .type import Type
+
+        if self._type is None:
+            type = Type(
+                cardinality=self.cardinality,
+                scalar_type=self.scalar_type,
+                primitive_type=self.primitive_type,
+                enum_type=self.enum_type,
+                node_type=self.node_type,
+                struct_type=self.struct_type,
+                key_type=self.key_type,
+                value=self.value,
+                value_factory=self.value_factory,
+                collection_constraint=self.collection_constraint,
+                string_constraint=self.string_constraint,
+                number_constraint=self.number_constraint,
+                node_constraint=self.node_constraint,
+                is_required=self.is_required,
+            )
+            self._type = type  # type: ignore (frozen)
+
+        return self._type
 
     def to_ref(self) -> PropertyReference:
         if self.object.type == ObjectDefinitionType.BUILTIN_NODE:

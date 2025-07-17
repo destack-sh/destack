@@ -29,6 +29,7 @@ if TYPE_CHECKING:
         IsExtensible,
         Node,
         PropertyDefinition,
+        Type,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -282,6 +283,11 @@ class PropertyReference(StructFrozen[PropertyReferenceProto]):
         is_repr=True,
         description="custom Property of a custom Node or Struct",
     )
+
+    def to_type(self) -> "Type":
+        """Convert to a Type."""
+        prop = self.resolve()
+        return prop.to_type()
 
     def resolve_maybe(self) -> "PropertyDefinition | CustomProperty | None":
         """Resolves the property reference to a Property."""

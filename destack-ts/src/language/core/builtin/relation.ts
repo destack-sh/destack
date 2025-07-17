@@ -11,7 +11,7 @@ import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import { StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { IsExtensible } from "@destack/language/core/builtin/trait";
-import { PropertyDefinition } from "@destack/language/core/common";
+import { PropertyDefinition, Type } from "@destack/language/core/common";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { CustomStruct } from "@destack/language/core/common/struct";
 import type { Supergraph } from "@destack/language/core/runtime/graph";
@@ -733,6 +733,12 @@ export class PropertyReference extends StructFrozen {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
+
+  /** Get the Type of this Property. */
+  toType(): Type {
+    const property = this.resolve();
+    return property.toType();
+  }
 
   /** Resolve the property reference to a PropertyDefinition or CustomProperty. */
   resolveMaybe(): PropertyDefinition | CustomProperty | null {

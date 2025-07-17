@@ -17,6 +17,7 @@ from destack.utils.time import timedelta_from_isoformat, timedelta_to_isoformat
 from destack.utils.uuid import UUID
 
 from ..builtin import (
+    BuiltinObject,
     Node,
     NodeType,
     PrimitiveType,
@@ -32,7 +33,6 @@ from ..builtin.relation import NodeReference
 from .type import Json, ScalarType, Type, TypeCardinality, to_type
 
 if TYPE_CHECKING:
-    from ..builtin import BuiltinObject
     from ..runtime import Graph, QueryConnection, Session, Supergraph
 
 
@@ -449,6 +449,9 @@ def _pack_scalar_value(value: Any, type: Type) -> Json:
     elif type.scalar_type == ScalarType.ENUM:
         return value.value
     elif type.scalar_type in (ScalarType.NODE_REFERENCE, ScalarType.NODE_VALUE, ScalarType.STRUCT):
+        assert isinstance(value, BuiltinObject), (
+            f"expected BuiltinObject for {type!r}, got {value!r}"
+        )
         return value.to_value()
     else:
         assert_never(type.scalar_type)

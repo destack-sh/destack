@@ -580,9 +580,7 @@ def _execute_subquery(
                 right=Expression.of(to_value([n.id for n in expanded_nodes_ptr])),
             )
         else:
-            subquery_where = subquery.definition.resolve_property("parent").in_(
-                *(n.id for n in nodes_ptr),
-            )
+            subquery_where = subquery.definition.resolve_property("parent").in_(*nodes_ptr)
 
         # execute subquery
         subresult = execute_query(context=context, query=subquery, where=subquery_where)
