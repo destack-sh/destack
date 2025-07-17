@@ -115,42 +115,45 @@ async function executeEdit(options: {
   const nodeType = table.nodeType;
   const nodeCls = NODE_CLASS_BY_TYPE[nodeType];
 
-  // TODO :Performance: PostgresStore execute edits in bulk (insert/update)
-
-  // create/upsert
-  if (editType === EditType.CREATE || editType === EditType.UPSERT) {
-    let stmt = `
-INSERT INTO "${table.name}" (${table.columns.map((col) => `"${col.name}"`).join(", ")})
-VALUES (${table.columns.map((_, i) => `$${i + 1}`).join(", ")})`;
-
-    if (editType === EditType.UPSERT) {
-      const overrideColumns = table.columns.filter(
-        (col) => !col.isPrimaryKey && !col.prop.name.startsWith("created_"),
-      );
-      stmt += `
-ON CONFLICT ("${NODE_ID_KEY}") DO UPDATE
-SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).join(", ")}`;
-    }
-    stmt += ";";
-
-    const valuesPacked: any[][] = [];
+  // create
+  if (editType === EditType.CREATE) {
+    const rowsData: Record<string, any>[] = [];
     for (const edit of edits) {
       if (!edit.value) {
         throw new Error(`no value for ${JSON.stringify(edit)}`);
       }
-      const rowValuesPacked = packNodeRow({ table, value: edit.value });
-      valuesPacked.push(rowValuesPacked);
+      const row = packNodeRow({ table, value: edit.value });
+      rowsData.push(row);
     }
+    await tx`INSERT INTO ${tx(table.name)} ${tx(rowsData)}`;
+    return { edits, cascadedEdits: [] };
+  }
 
-    for (const row of valuesPacked) {
-      await tx.unsafe(stmt, row);
+  // upsert
+  else if (editType === EditType.UPSERT) {
+    const overrideColumns = table.columns.filter(
+      (col) => !col.isPrimaryKey && !col.prop.name.startsWith("created_"),
+    );
+    const rowsData: Record<string, any>[] = [];
+    for (const edit of edits) {
+      if (!edit.value) {
+        throw new Error(`no value for ${JSON.stringify(edit)}`);
+      }
+      const row = packNodeRow({ table, value: edit.value });
+      rowsData.push(row);
     }
-
+    await tx`
+      INSERT INTO ${tx(table.name)} ${tx(rowsData)}
+      ON CONFLICT (${tx(NODE_ID_KEY)}) DO UPDATE
+      SET ${overrideColumns.map((col) => tx`${tx(col.name)} = EXCLUDED.${tx(col.name)}`).join(", ")}
+    `;
     return { edits, cascadedEdits: [] };
   }
 
   // update
   else if (editType === EditType.UPDATE) {
+    // TODO :Performance: PostgresStore execute update edits in bulk
+
     // update each edit one by one
     for (const edit of edits) {
       if (!edit.propertyId) {
@@ -173,7 +176,7 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
         throw new Error(`unsupported operation: ${JSON.stringify(edit)}`);
       }
 
-      const update: Map<string, any> = new Map();
+      const update: Record<string, any> = {};
       packColumnWide({
         type: prop.toType(),
         value: valuePacked,
@@ -181,14 +184,13 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
         columnName: String(prop.id),
         columnOut: update,
       });
-
-      const columnNames = Array.from(update.keys()).sort();
-      const columnValues = columnNames.map((name) => update.get(name));
+      const columnNames = Object.keys(update).sort();
+      const columnValues = columnNames.map((name) => update[name]);
 
       const stmt = `
 UPDATE "${table.name}"
 SET ${columnNames.map((name, i) => `"${name}" = $${i + 1}`).join(", ")}
-WHERE "${NODE_ID_KEY}" = $${columnNames.length + 1}`;
+WHERE "${NODE_ID_KEY}" = $${columnNames.length + 1}::uuid`;
 
       await tx.unsafe(stmt, [...columnValues, edit.nodePtr.id]);
     }

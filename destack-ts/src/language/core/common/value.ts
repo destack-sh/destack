@@ -268,9 +268,10 @@ export function toValue(
     }
   }
   // pack value
+  const _Type = STRUCT_CLASS_BY_TYPE[StructType.TYPE] as typeof Type;
   const valuePacked = packValue(valueUnpacked, type);
   const value = new Value({
-    type: type instanceof Type ? type : type.toType(),
+    type: type instanceof _Type ? type : type.toType(),
     value: valuePacked,
   });
   return value;

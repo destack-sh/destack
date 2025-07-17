@@ -22,7 +22,7 @@ import {
 } from "destack";
 
 /** Pack a Node value into a row of columns. */
-export function packNodeRow(options: { table: PostgresTable; value: Value }): Array<any> {
+export function packNodeRow(options: { table: PostgresTable; value: Value }): Record<string, any> {
   const { table, value } = options;
   if (value.type.nodeType == null) {
     throw new Error(`no node type for ${value.repr()}`);
@@ -34,7 +34,7 @@ export function packNodeRow(options: { table: PostgresTable; value: Value }): Ar
   properties.sort((a, b) => a.id - b.id);
 
   // pack properties
-  const row: Map<string, any> = new Map();
+  const row: Record<string, any> = {};
   for (const prop of properties) {
     packColumnWide({
       type: prop.toType(),
@@ -45,8 +45,7 @@ export function packNodeRow(options: { table: PostgresTable; value: Value }): Ar
     });
   }
 
-  const packedArguments = Array.from(row.values());
-  return packedArguments;
+  return row;
 }
 
 /**
@@ -171,7 +170,7 @@ export function packColumnWide(options: {
   value: any;
   table: PostgresTable;
   columnName: string;
-  columnOut: Map<string, any>;
+  columnOut: Record<string, any>;
 }): void {
   const { type, value, table, columnName, columnOut } = options;
 
@@ -184,16 +183,16 @@ export function packColumnWide(options: {
           value != null
             ? _packColumnScalar(unraveledProp.toType(), value[String(unraveledProp.id)])
             : null;
-        columnOut.set(unraveledColumnName, unraveledValuePacked);
+        columnOut[unraveledColumnName] = unraveledValuePacked;
       }
     } else {
       const valuePacked = value != null ? _packColumnScalar(type, value) : null;
-      columnOut.set(columnName, valuePacked);
+      columnOut[columnName] = valuePacked;
     }
   } else if (type.cardinality === TypeCardinality.LIST) {
-    columnOut.set(columnName, value ? value.map((v: any) => _packColumnScalar(type, v)) : []);
+    columnOut[columnName] = value ? value.map((v: any) => _packColumnScalar(type, v)) : [];
   } else if (type.cardinality === TypeCardinality.MAP) {
-    columnOut.set(columnName, value != null ? JSON.stringify(value) : null);
+    columnOut[columnName] = value != null ? JSON.stringify(value) : null;
   } else {
     assertNever(type.cardinality);
   }

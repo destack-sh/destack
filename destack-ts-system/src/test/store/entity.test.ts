@@ -202,189 +202,189 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
     expect(await Star.count({ where: Star.property("parent").eq(folder) }).executeCount()).toBe(20);
   });
 
-  // const NUM_FOLDERS_PER_LEVEL = 4;
-  // test("create folders recursive", async () => {
-  //   // create
-  //   const rootFolder = new Folder({ name: "Folder", type: FolderType.HOME });
-  //   session.create(rootFolder);
-  //   const subtreeFolderCount =
-  //     NUM_FOLDERS_PER_LEVEL * (1 + NUM_FOLDERS_PER_LEVEL * (1 + NUM_FOLDERS_PER_LEVEL));
-  //   for (const a of Array.from({ length: NUM_FOLDERS_PER_LEVEL }, (_, i) => `a${i}`)) {
-  //     // create folder
-  //     const folder = new Folder({ name: `Folder ${a}` });
-  //     rootFolder.addChild(folder);
-  //     // create folder tree
-  //     for (let i = 0; i < NUM_FOLDERS_PER_LEVEL; i++) {
-  //       const subFolder = new Folder({ name: `Folder ${a}/${i}` });
-  //       folder.addChild(subFolder);
-  //       for (let j = 0; j < NUM_FOLDERS_PER_LEVEL; j++) {
-  //         const innerFolder = new Folder({ name: `Folder ${a}/${i}/${j}` });
-  //         subFolder.addChild(innerFolder);
-  //         for (let k = 0; k < NUM_FOLDERS_PER_LEVEL; k++) {
-  //           const innerInnerFolder = new Folder({ name: `Folder ${a}/${i}/${j}/${k}` });
-  //           innerFolder.addChild(innerInnerFolder);
-  //         }
-  //       }
-  //     }
-  //     await session.commit();
-  //   }
+  const NUM_FOLDERS_PER_LEVEL = 4;
+  test("create folders recursive", async () => {
+    // create
+    const rootFolder = new Folder({ name: "Folder", type: FolderType.HOME });
+    session.create(rootFolder);
+    const subtreeFolderCount =
+      NUM_FOLDERS_PER_LEVEL * (1 + NUM_FOLDERS_PER_LEVEL * (1 + NUM_FOLDERS_PER_LEVEL));
+    for (const a of Array.from({ length: NUM_FOLDERS_PER_LEVEL }, (_, i) => `a${i}`)) {
+      // create folder
+      const folder = new Folder({ name: `Folder ${a}` });
+      rootFolder.addChild(folder);
+      // create folder tree
+      for (let i = 0; i < NUM_FOLDERS_PER_LEVEL; i++) {
+        const subFolder = new Folder({ name: `Folder ${a}/${i}` });
+        folder.addChild(subFolder);
+        for (let j = 0; j < NUM_FOLDERS_PER_LEVEL; j++) {
+          const innerFolder = new Folder({ name: `Folder ${a}/${i}/${j}` });
+          subFolder.addChild(innerFolder);
+          for (let k = 0; k < NUM_FOLDERS_PER_LEVEL; k++) {
+            const innerInnerFolder = new Folder({ name: `Folder ${a}/${i}/${j}/${k}` });
+            innerFolder.addChild(innerInnerFolder);
+          }
+        }
+      }
+      await session.commit();
+    }
 
-  //   const rootFolderChildCount = await Folder.count({
-  //     where: Folder.property("parent").eq(rootFolder),
-  //   }).executeCount();
-  //   expect(rootFolderChildCount).toBe(NUM_FOLDERS_PER_LEVEL);
+    const rootFolderChildCount = await Folder.count({
+      where: Folder.property("parent").eq(rootFolder),
+    }).executeCount();
+    expect(rootFolderChildCount).toBe(NUM_FOLDERS_PER_LEVEL);
 
-  //   // query
-  //   for (const folder of rootFolder.getChildren(Folder)) {
-  //     // query folder root count
-  //     const rootFolderCount = await Folder.count({
-  //       where: Folder.property("parent").eq(folder),
-  //     }).executeCount();
-  //     expect(rootFolderCount).toBe(NUM_FOLDERS_PER_LEVEL);
+    // query
+    for (const folder of rootFolder.getChildren(Folder)) {
+      // query folder root count
+      const rootFolderCount = await Folder.count({
+        where: Folder.property("parent").eq(folder),
+      }).executeCount();
+      expect(rootFolderCount).toBe(NUM_FOLDERS_PER_LEVEL);
 
-  //     // query folder down (parent, recursive)
-  //     const connection = await Folder.get({
-  //       where: Folder.property("id").eq(folder.id),
-  //       Folders: Folder.search({ join: Join.of(JoinType.CHILD, { recursive: true }) }),
-  //     }).execute();
-  //     const folderUnpacked = connection.toOne();
-  //     const folderTreeUnpacked = folderUnpacked.getDescendants(Folder);
-  //     expect(folderTreeUnpacked.length).toBe(subtreeFolderCount);
+      // query folder down (parent, recursive)
+      const connection = await Folder.get({
+        where: Folder.property("id").eq(folder.id),
+        Folders: Folder.search({ join: Join.of(JoinType.CHILD, { recursive: true }) }),
+      }).execute();
+      const folderUnpacked = connection.toOne();
+      const folderTreeUnpacked = folderUnpacked.getDescendants(Folder);
+      expect(folderTreeUnpacked.length).toBe(subtreeFolderCount);
 
-  //     // query folder up (parent, recursive)
-  //     const folderLeaves = folder._graph.getLeaves({
-  //       nodeType: Folder.metatype,
-  //       node: folder,
-  //     }) as Folder[];
-  //     const connection2 = await Folder.get({
-  //       where: Folder.property("id").eq(folderLeaves[0].id),
-  //       Folders: Folder.search({
-  //         join: Join.of(JoinType.PARENT, { recursive: true }),
-  //       }),
-  //     }).execute();
-  //     const foldersUnpacked = connection2.graph.getRoots({ nodeType: Folder.metatype }) as Folder[];
-  //     expect(foldersUnpacked.length).toBe(1);
-  //     expect(foldersUnpacked[0].equals(rootFolder));
-  //   }
+      // query folder up (parent, recursive)
+      const folderLeaves = folder._graph.getLeaves({
+        nodeType: Folder.metatype,
+        node: folder,
+      }) as Folder[];
+      const connection2 = await Folder.get({
+        where: Folder.property("id").eq(folderLeaves[0].id),
+        Folders: Folder.search({
+          join: Join.of(JoinType.PARENT, { recursive: true }),
+        }),
+      }).execute();
+      const foldersUnpacked = connection2.graph.getRoots({ nodeType: Folder.metatype }) as Folder[];
+      expect(foldersUnpacked.length).toBe(1);
+      expect(foldersUnpacked[0].equals(rootFolder));
+    }
 
-  //   // delete root folder (should cascade delete all folders)
-  //   const numTotalFolders = await Folder.count({
-  //     where: Folder.property("deletedAt").isNull(),
-  //   }).executeCount();
-  //   session.delete(rootFolder);
-  //   await session.commit();
+    // delete root folder (should cascade delete all folders)
+    const numTotalFolders = await Folder.count({
+      where: Folder.property("deletedAt").isNull(),
+    }).executeCount();
+    session.delete(rootFolder);
+    await session.commit();
 
-  //   const deletedFoldersCount = await Folder.count({
-  //     where: Folder.property("deletedAt").isNull(),
-  //   }).executeCount();
-  //   expect(deletedFoldersCount).toBe(0);
+    const deletedFoldersCount = await Folder.count({
+      where: Folder.property("deletedAt").isNull(),
+    }).executeCount();
+    expect(deletedFoldersCount).toBe(0);
 
-  //   // restore root folder (should restore all folders)
-  //   session.restore(rootFolder);
-  //   await session.commit();
+    // restore root folder (should restore all folders)
+    session.restore(rootFolder);
+    await session.commit();
 
-  //   const restoredFoldersCount = await Folder.count({
-  //     where: Folder.property("deletedAt").isNull(),
-  //   }).executeCount();
-  //   expect(restoredFoldersCount).toBe(numTotalFolders);
+    const restoredFoldersCount = await Folder.count({
+      where: Folder.property("deletedAt").isNull(),
+    }).executeCount();
+    expect(restoredFoldersCount).toBe(numTotalFolders);
 
-  //   // delete and restore subfolders one at a time
-  //   for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
-  //     // delete just this subfolder (and its descendants)
-  //     session.delete(folder);
-  //     await session.commit();
+    // delete and restore subfolders one at a time
+    for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
+      // delete just this subfolder (and its descendants)
+      session.delete(folder);
+      await session.commit();
 
-  //     const connection = await Folder.get({
-  //       where: Folder.property("id").eq(folder.id).and(Folder.property("deletedAt").isNull()),
-  //       Folders: Folder.search({
-  //         join: Join.of(JoinType.CHILD, { recursive: true }),
-  //         where: Folder.property("deletedAt").isNull(),
-  //       }),
-  //     }).execute();
-  //     expect(connection.toOneOrNone()).toBeNull();
+      const connection = await Folder.get({
+        where: Folder.property("id").eq(folder.id).and(Folder.property("deletedAt").isNull()),
+        Folders: Folder.search({
+          join: Join.of(JoinType.CHILD, { recursive: true }),
+          where: Folder.property("deletedAt").isNull(),
+        }),
+      }).execute();
+      expect(connection.toOneOrNone()).toBeNull();
 
-  //     const remainingFoldersCount = await Folder.count({
-  //       where: Folder.property("deletedAt").isNull(),
-  //     }).executeCount();
-  //     expect(remainingFoldersCount).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
-  //   }
-  //   // restore subfolders one at a time
-  //   for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
-  //     session.restore(folder);
-  //     await session.commit();
+      const remainingFoldersCount = await Folder.count({
+        where: Folder.property("deletedAt").isNull(),
+      }).executeCount();
+      expect(remainingFoldersCount).toBe(numTotalFolders - (i + 1) * (subtreeFolderCount + 1));
+    }
+    // restore subfolders one at a time
+    for (const [i, folder] of rootFolder.getChildren(Folder).entries()) {
+      session.restore(folder);
+      await session.commit();
 
-  //     const restoredSubfoldersCount = await Folder.count({
-  //       where: Folder.property("deletedAt").isNull(),
-  //     }).executeCount();
-  //     expect(restoredSubfoldersCount).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
-  //   }
-  // });
+      const restoredSubfoldersCount = await Folder.count({
+        where: Folder.property("deletedAt").isNull(),
+      }).executeCount();
+      expect(restoredSubfoldersCount).toBe(1 + (i + 1) * (subtreeFolderCount + 1));
+    }
+  });
 
-  // test("create layer with heterogeneous views", async () => {
-  //   // create layer
-  //   const layer = new Layer({ name: "Layer" });
-  //   session.create(layer);
-  //   await session.commit();
+  test("create layer with heterogeneous views", async () => {
+    // create layer
+    const layer = new Layer({ name: "Layer" });
+    session.create(layer);
+    await session.commit();
 
-  //   const rootView = new FrameView({ name: "Container" });
-  //   layer.addChild(rootView);
+    const rootView = new FrameView({ name: "Container" });
+    layer.addChild(rootView);
 
-  //   // create views
-  //   for (let i = 0; i < 4; i++) {
-  //     const frameView = new FrameView({ name: `View ${i}` });
-  //     rootView.addChild(frameView);
+    // create views
+    for (let i = 0; i < 4; i++) {
+      const frameView = new FrameView({ name: `View ${i}` });
+      rootView.addChild(frameView);
 
-  //     for (let j = 0; j < 4; j++) {
-  //       const labelView = new LabelView({ name: `Label ${i}/${j}` });
-  //       frameView.addChild(labelView);
+      for (let j = 0; j < 4; j++) {
+        const labelView = new LabelView({ name: `Label ${i}/${j}` });
+        frameView.addChild(labelView);
 
-  //       for (let k = 0; k < 4; k++) {
-  //         const textView = new TextView({ name: `Text ${i}/${j}/${k}` });
-  //         labelView.addChild(textView);
-  //       }
-  //     }
+        for (let k = 0; k < 4; k++) {
+          const textView = new TextView({ name: `Text ${i}/${j}/${k}` });
+          labelView.addChild(textView);
+        }
+      }
 
-  //     const labelView = new LabelView({ name: `Label ${i}` });
-  //     rootView.addChild(labelView);
-  //   }
-  //   await session.commit();
+      const labelView = new LabelView({ name: `Label ${i}` });
+      rootView.addChild(labelView);
+    }
+    await session.commit();
 
-  //   // query view (child, non-recursive)
-  //   const layerTree = await FrameView.get({
-  //     where: FrameView.property("id").eq(rootView.id),
-  //     Views: View.search({ join: Join.of(JoinType.CHILD) }),
-  //   }).execute();
-  //   const layerUnpacked = layerTree.toOne();
-  //   const viewTreeUnpacked = layerUnpacked.getDescendants(View);
-  //   expect(viewTreeUnpacked.length).toBe(8);
+    // query view (child, non-recursive)
+    const layerTree = await FrameView.get({
+      where: FrameView.property("id").eq(rootView.id),
+      Views: View.search({ join: Join.of(JoinType.CHILD) }),
+    }).execute();
+    const layerUnpacked = layerTree.toOne();
+    const viewTreeUnpacked = layerUnpacked.getDescendants(View);
+    expect(viewTreeUnpacked.length).toBe(8);
 
-  //   // query view (child, recursive)
-  //   const layerTree2 = await FrameView.get({
-  //     where: FrameView.property("id").eq(rootView.id),
-  //     Views: View.search({ join: Join.of(JoinType.CHILD, { recursive: true }) }),
-  //   }).execute();
-  //   const layerUnpacked2 = layerTree2.toOne();
-  //   const viewTreeUnpacked2 = layerUnpacked2.getDescendants(View);
-  //   expect(viewTreeUnpacked2.length).toBe(4 + 4 * (1 + 4 * (1 + 4)));
+    // query view (child, recursive)
+    const layerTree2 = await FrameView.get({
+      where: FrameView.property("id").eq(rootView.id),
+      Views: View.search({ join: Join.of(JoinType.CHILD, { recursive: true }) }),
+    }).execute();
+    const layerUnpacked2 = layerTree2.toOne();
+    const viewTreeUnpacked2 = layerUnpacked2.getDescendants(View);
+    expect(viewTreeUnpacked2.length).toBe(4 + 4 * (1 + 4 * (1 + 4)));
 
-  //   // query view (parent, recursive)
-  //   const viewLeaves = layer._graph.getLeaves({
-  //     nodeType: TextView.metatype,
-  //     node: layer,
-  //   }) as TextView[];
-  //   const layerTree3 = await TextView.get({
-  //     where: TextView.property("id").eq(viewLeaves[0].id),
-  //     Parents: View.search({
-  //       join: Join.of(JoinType.PARENT, { recursive: true }),
-  //       where: View.property("deletedAt").isNull(),
-  //       Layers: Layer.search({
-  //         join: Join.of(JoinType.PARENT, { recursive: true }),
-  //       }),
-  //     }),
-  //   }).execute();
-  //   const layerUnpacked3 = layerTree3.graph.getRoots({ nodeType: Layer.metatype }) as Layer[];
-  //   expect(layerUnpacked3[0].equals(layer));
-  // });
+    // query view (parent, recursive)
+    const viewLeaves = layer._graph.getLeaves({
+      nodeType: TextView.metatype,
+      node: layer,
+    }) as TextView[];
+    const layerTree3 = await TextView.get({
+      where: TextView.property("id").eq(viewLeaves[0].id),
+      Parents: View.search({
+        join: Join.of(JoinType.PARENT, { recursive: true }),
+        where: View.property("deletedAt").isNull(),
+        Layers: Layer.search({
+          join: Join.of(JoinType.PARENT, { recursive: true }),
+        }),
+      }),
+    }).execute();
+    const layerUnpacked3 = layerTree3.graph.getRoots({ nodeType: Layer.metatype }) as Layer[];
+    expect(layerUnpacked3[0].equals(layer));
+  });
 
   test("create reaction groups", async () => {
     // create users
