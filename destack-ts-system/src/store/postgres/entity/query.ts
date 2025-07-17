@@ -1,4 +1,7 @@
-import { PostgresContext } from "@desys/store/postgres/entity/core";
+import {
+  POSTGRES_TYPE_BY_PRIMITIVE_TYPE,
+  PostgresContext,
+} from "@desys/store/postgres/entity/core";
 import { packColumnFlat, unpackNodeRow } from "@desys/store/postgres/entity/wiring";
 import { SQL } from "bun";
 import {
@@ -62,18 +65,22 @@ function compileValue(options: {
       return sql;
     } else {
       const valueId = value.value[NODE_REFERENCE_ID_KEY];
-      const sql = `$${argumentsOut.length+1}::uuid`;
+      const sql = `$${argumentsOut.length + 1}::uuid`;
       argumentsOut.push(valueId);
       return sql;
     }
   } else {
+    const postgresType = POSTGRES_TYPE_BY_PRIMITIVE_TYPE[value.type.primitiveType!];
+    if (postgresType == null) {
+      throw new Error(`no postgres type for ${value.type.repr()}`);
+    }
     const valuePacked = packColumnFlat({ type: value.type, value: value.value });
     if (Array.isArray(valuePacked)) {
-      const sql = `ARRAY[${valuePacked.map((_, i) => `$${argumentsOut.length + i + 1}`).join(", ")}]`;
+      const sql = `ARRAY[${valuePacked.map((_, i) => `$${argumentsOut.length + i + 1}`).join(", ")}]::${postgresType}[]`;
       argumentsOut.push(...valuePacked);
       return sql;
     } else {
-      const sql = `$${argumentsOut.length + 1}`;
+      const sql = `$${argumentsOut.length + 1}::${postgresType}`;
       argumentsOut.push(valuePacked);
       return sql;
     }
@@ -326,6 +333,25 @@ function compileExpression(options: {
     assertNever(expression.type);
   }
 }
+/** Expand a JS array of UUID strings into a Postgres ARRAY[...] placeholder list.
+ * Returns { sql, nextParam } where `sql` is e.g. ARRAY[$1,$2]::uuid[] (or ARRAY[]::uuid[] if empty),
+ * and nextParam is the first unused param index after the ones consumed.
+ */
+function makeUuidArrayPlaceholder(
+  values: readonly string[],
+  startParamIndex: number,
+): { sql: string; nextParam: number } {
+  if (values.length === 0) {
+    return { sql: `ARRAY[]::uuid[]`, nextParam: startParamIndex };
+  }
+  const params = Array.from({ length: values.length }, (_, i) => `$${startParamIndex + i}`).join(
+    ", ",
+  );
+  return {
+    sql: `ARRAY[${params}]::uuid[]`,
+    nextParam: startParamIndex + values.length,
+  };
+}
 
 /** Get the cascaded Nodes for a query. */
 export async function walkNode(options: {
@@ -339,187 +365,221 @@ export async function walkNode(options: {
 }): Promise<{ nodes: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
   const { tx, context, definition, nodesPtrs, direction, depth, where } = options;
 
+  // roots: which column(s) do we seed from?
   let rootsIds: string[] = [];
   let rootsParentsIds: string[] = [];
-
   if (direction === EdgeDirection.PARENT) {
     rootsIds = nodesPtrs.map((n) => n.id);
   } else {
     rootsParentsIds = nodesPtrs.map((n) => n.id);
   }
 
-  const arguments_: any[] = [rootsIds, rootsParentsIds, depth];
+  // build param list: first all root ids, then all root parent ids; compileCondition will append more
+  const arguments_: any[] = [...rootsIds, ...rootsParentsIds];
+
+  // build placeholder SQL for those roots
+  const { sql: rootsIdsSql, nextParam: afterRootsIds } = makeUuidArrayPlaceholder(rootsIds, 1);
+  const { sql: rootsParentsIdsSql, nextParam: afterRootsParents } = makeUuidArrayPlaceholder(
+    rootsParentsIds,
+    afterRootsIds,
+  );
+
+  // WHERE clause (may append params)
   const whereSql =
     where != null
       ? compileCondition({ context, argumentsOut: arguments_, condition: where })
       : "TRUE";
 
-  // parent walk
-  if (direction === EdgeDirection.PARENT) {
-    if (definition.isMulti) {
-      // fan out definition
-      const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
-      // build a single UNION of all node tables
-      const unionParts = tables.map(
-        (tbl) =>
-          `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${tbl.nodeType}::int AS node_type FROM "${tbl.name}"`,
-      );
-      const unionSubquery = unionParts.join(" UNION ALL ");
-      // anchor term
-      const baseSql = `
-SELECT "${NODE_ID_KEY}",
-    "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-    1 AS depth,
-    node_type,
-    "${NODE_ID_KEY}" AS source_id
-FROM (
-    ${unionSubquery}
-) roots
-WHERE ("${NODE_ID_KEY}" = ANY($1) OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY($2))
-AND ${whereSql}`;
-      // recursive term
-      const recursiveSql = `
-SELECT p."${NODE_ID_KEY}",
-    p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-    t.depth + 1 AS depth,
-    p.node_type,
-    t.source_id
-FROM (
-    ${unionSubquery}
-) p
-JOIN tree t ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
-WHERE t.depth < $3
-AND ${whereSql}`;
-      // final statement
-      const stmt = `
-WITH RECURSIVE tree AS (
-    ${baseSql}
-    UNION ALL
-    ${recursiveSql}
-)
-SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", depth, node_type, source_id
-FROM tree;`;
+  const depthInt = Math.max(0, depth | 0); // defensive
 
-      const resultRows = await tx.unsafe(stmt, arguments_);
-      const resultNodesPtrs: NodeReference[] = [];
-      const sourceIdByNodeId = new Map<string, string>();
-      for (const nodePtr of nodesPtrs) {
-        sourceIdByNodeId.set(nodePtr.id, nodePtr.id);
-      }
-      for (const row of resultRows) {
-        const nodeType = row.node_type as NodeType;
-        const nodePtr = new NodeReference({ type: nodeType, id: row[NODE_ID_KEY] });
-        resultNodesPtrs.push(nodePtr);
-        sourceIdByNodeId.set(nodePtr.id, row.source_id);
-      }
-      return { nodes: resultNodesPtrs, sourceIdByNodeId };
-    } else {
-      const table = context.getEntityTable(definition);
-      const stmt = `
-WITH RECURSIVE tree AS (
-    SELECT  "${NODE_ID_KEY}",
-            "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-            1 AS depth,
-            "${NODE_ID_KEY}" AS source_id
-    FROM    "${table.name}"
-    WHERE   ("${NODE_ID_KEY}" = ANY($1) OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY($2)) AND ${whereSql}
-
-    UNION ALL
-
-    SELECT  p."${NODE_ID_KEY}",
-            p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-            t.depth + 1,
-            t.source_id
-    FROM    "${table.name}"  AS p
-    JOIN    tree      AS t ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
-    WHERE   t.depth < $3 AND ${whereSql}
-)
-SELECT  "${NODE_ID_KEY}",
-        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-        depth,
-        source_id
-FROM    tree;`;
-
-      const resultRows = await tx.unsafe(stmt, arguments_);
-      const resultNodesPtrs: NodeReference[] = [];
-      const sourceIdByNodeId = new Map<string, string>();
-      for (const nodePtr of nodesPtrs) {
-        sourceIdByNodeId.set(nodePtr.id, nodePtr.id);
-      }
-      for (const row of resultRows) {
-        const nodePtr = new NodeReference({ type: table.nodeType, id: row[NODE_ID_KEY] });
-        resultNodesPtrs.push(nodePtr);
-        sourceIdByNodeId.set(nodePtr.id, row.source_id);
-      }
-      return { nodes: resultNodesPtrs, sourceIdByNodeId };
-    }
-  }
-  // child walk
-  else if (direction === EdgeDirection.CHILD) {
-    // fan out definition
-    const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
-
-    // build a single UNION of all node tables
-    const unionParts = tables.map(
-      (tbl) =>
-        `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${tbl.nodeType}::int AS node_type FROM "${tbl.name}"`,
-    );
-    const unionSubquery = unionParts.join(" UNION ALL ");
-    // anchor term
-    const baseSql = `
-SELECT "${NODE_ID_KEY}",
-    "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-    1 AS depth,
-    node_type,
-    "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" AS source_id
-FROM (
-    ${unionSubquery}
-) roots
-WHERE ("${NODE_ID_KEY}" = ANY($1) OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY($2))
-AND ${whereSql}`;
-    // recursive term
-    const recursiveSql = `
-SELECT c."${NODE_ID_KEY}",
-    c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
-    t.depth + 1 AS depth,
-    c.node_type,
-    t.source_id
-FROM (
-    ${unionSubquery}
-) c
-JOIN tree t ON c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = t."${NODE_ID_KEY}"
-WHERE t.depth < $3
-AND ${whereSql}`;
-    // final statement
-    const stmt = `
-WITH RECURSIVE tree AS (
-    ${baseSql}
-    UNION ALL
-    ${recursiveSql}
-)
-SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", depth, node_type, source_id
-FROM tree;`;
-
-    const resultRows = await tx.unsafe(stmt, arguments_);
+  // helper to collect result rows -> NodeReference[] + source map
+  function collect<
+    Row extends {
+      [key: string]: any;
+      source_id: string;
+      node_type?: NodeType;
+    },
+  >(
+    rows: Row[],
+    nodeTypeIfSingle?: NodeType,
+  ): {
+    nodes: NodeReference[];
+    sourceIdByNodeId: Map<string, string>;
+  } {
     const resultNodesPtrs: NodeReference[] = [];
     const sourceIdByNodeId = new Map<string, string>();
+    // seed sources w/ the roots we were given (same as original behavior)
     for (const nodePtr of nodesPtrs) {
       sourceIdByNodeId.set(nodePtr.id, nodePtr.id);
     }
-    for (const row of resultRows) {
-      const nodeType = row.node_type as NodeType;
-      const nodePtr = new NodeReference({ type: nodeType, id: row[NODE_ID_KEY] });
+    for (const row of rows) {
+      const id = row[NODE_ID_KEY];
+      const nodeType =
+        nodeTypeIfSingle !== undefined ? nodeTypeIfSingle : (row.node_type as NodeType);
+      const nodePtr = new NodeReference({ type: nodeType, id });
       resultNodesPtrs.push(nodePtr);
       sourceIdByNodeId.set(nodePtr.id, row.source_id);
     }
     return { nodes: resultNodesPtrs, sourceIdByNodeId };
   }
-  // side walk
-  else if (direction === EdgeDirection.SIDE) {
-    throw new Error(`cannot walk ${definition.repr()} in direction: ${direction}`);
-  } else {
-    assertNever(direction);
+
+  // parent walk
+  if (direction === EdgeDirection.PARENT) {
+    if (definition.isMulti) {
+      const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
+
+      const unionParts = tables.map(
+        (tbl) =>
+          `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${tbl.nodeType}::int AS node_type FROM "${tbl.name}"`,
+      );
+      const unionSubquery = unionParts.join(" UNION ALL ");
+
+      const baseSql = `
+SELECT "${NODE_ID_KEY}",
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       1 AS depth,
+       node_type,
+       "${NODE_ID_KEY}" AS source_id
+FROM (
+    ${unionSubquery}
+) AS roots
+WHERE (
+         "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
+      OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
+      )
+  AND ${whereSql}`;
+
+      const recursiveSql = `
+SELECT p."${NODE_ID_KEY}",
+       p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       t.depth + 1 AS depth,
+       p.node_type,
+       t.source_id
+FROM (
+    ${unionSubquery}
+) AS p
+JOIN tree AS t
+  ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
+WHERE t.depth < ${depthInt}
+  AND ${whereSql}`;
+
+      const stmt = `
+WITH RECURSIVE tree AS (
+  ${baseSql}
+  UNION ALL
+  ${recursiveSql}
+)
+SELECT "${NODE_ID_KEY}",
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       depth,
+       node_type,
+       source_id
+FROM tree;`;
+
+      // run
+      const rows = await tx.unsafe(stmt, arguments_);
+      return collect(rows);
+    } else {
+      const table = context.getEntityTable(definition);
+      const stmt = `
+WITH RECURSIVE tree AS (
+  SELECT "${NODE_ID_KEY}",
+         "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+         1 AS depth,
+         "${NODE_ID_KEY}" AS source_id
+  FROM   "${table.name}"
+  WHERE (
+           "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
+        OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
+        )
+    AND ${whereSql}
+
+  UNION ALL
+
+  SELECT p."${NODE_ID_KEY}",
+         p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+         t.depth + 1 AS depth,
+         t.source_id
+  FROM   "${table.name}" AS p
+  JOIN   tree AS t
+    ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
+  WHERE  t.depth < ${depthInt}
+    AND  ${whereSql}
+)
+SELECT "${NODE_ID_KEY}",
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       depth,
+       source_id
+FROM   tree;`;
+
+      const rows = await tx.unsafe(stmt, arguments_);
+      return collect(rows, context.getEntityTable(definition).nodeType);
+    }
   }
+
+  // child walk
+  if (direction === EdgeDirection.CHILD) {
+    const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
+
+    const unionParts = tables.map(
+      (tbl) =>
+        `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${tbl.nodeType}::int AS node_type FROM "${tbl.name}"`,
+    );
+    const unionSubquery = unionParts.join(" UNION ALL ");
+
+    const baseSql = `
+SELECT "${NODE_ID_KEY}",
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       1 AS depth,
+       node_type,
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" AS source_id
+FROM (
+    ${unionSubquery}
+) AS roots
+WHERE (
+         "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
+      OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
+      )
+  AND ${whereSql}`;
+
+    const recursiveSql = `
+SELECT c."${NODE_ID_KEY}",
+       c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       t.depth + 1 AS depth,
+       c.node_type,
+       t.source_id
+FROM (
+    ${unionSubquery}
+) AS c
+JOIN tree AS t
+  ON c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = t."${NODE_ID_KEY}"
+WHERE t.depth < ${depthInt}
+  AND ${whereSql}`;
+
+    const stmt = `
+WITH RECURSIVE tree AS (
+  ${baseSql}
+  UNION ALL
+  ${recursiveSql}
+)
+SELECT "${NODE_ID_KEY}",
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+       depth,
+       node_type,
+       source_id
+FROM tree;`;
+
+    const rows = await tx.unsafe(stmt, arguments_);
+    return collect(rows);
+  }
+
+  // side walk (not yet supported)
+  if (direction === EdgeDirection.SIDE) {
+    throw new Error(`cannot walk ${definition.repr()} in direction: ${direction}`);
+  }
+
+  // exhaustive
+  assertNever(direction);
 }
 
 /** Execute a node Query. */
@@ -569,7 +629,9 @@ async function queryNode(options: {
   if (select) {
     stmtParts.push(compileSelect({ context, argumentsOut: arguments_, select }));
   } else {
-    stmtParts.push(table.columns.map((col) => `"${col.name}"`).join(", "));
+    // NOTE :Cleanup: Bun bugs silently on large numeric column sets, so we alias :BunColumnAliasing
+    //  (specifically, it starts shifting and mangling the column values with no apparent reason)
+    stmtParts.push(table.columns.map((col) => `"${col.name}" as "c_${col.name}"`).join(", "));
   }
   stmtParts.push(`FROM "${table.name}"`);
   if (where != null) {
@@ -592,7 +654,11 @@ async function queryNode(options: {
   const nodesRow = await tx.unsafe(stmt, arguments_);
   const nodesValue: Value[] = [];
   const nodesPtr: NodeReference[] = [];
-  for (const row of nodesRow) {
+  for (let row of nodesRow) {
+    // :BunColumnAliasing
+    row = Object.fromEntries(
+      Object.entries(row).map(([key, value]) => [key.replace("c_", ""), value]),
+    );
     const { value, ptr } = unpackNodeRow({ table, row });
     nodesValue.push(value);
     nodesPtr.push(ptr);
@@ -720,20 +786,26 @@ async function queryGroupedNode(options: {
   if (select) {
     nodeStmtParts.push(compileSelect({ context, argumentsOut: nodeArguments, select }));
   } else {
-    const columnsClause = table.columns.map((col) => `"${col.name}"`).join(", ");
+    // :BunColumnAliasing
+    const columnsClause = table.columns.map((col) => `"${col.name}" as "c_${col.name}"`).join(", ");
     nodeStmtParts.push(columnsClause);
   }
   nodeStmtParts.push(`FROM "${table.name}"`);
-  nodeStmtParts.push(`WHERE "${NODE_ID_KEY}" = ANY(ARRAY[${nodesId.map((_, i) => `$${nodeArguments.length + i + 1}`).join(", ")}]::uuid[])`);
+  nodeStmtParts.push(
+    `WHERE "${NODE_ID_KEY}" = ANY(ARRAY[${nodesId.map((_, i) => `$${nodeArguments.length + i + 1}`).join(", ")}]::uuid[])`,
+  );
   nodeArguments.push(...nodesId);
   const nodeStmt = nodeStmtParts.join("\n");
 
   // execute statement to get nodes
   const nodeRows = await tx.unsafe(nodeStmt, nodeArguments);
   const nodesById = new Map<string, { value: Value; ptr: NodeReference }>();
-  for (const row of nodeRows) {
+  for (let row of nodeRows) {
+    row = Object.fromEntries(
+      // :BunColumnAliasing
+      Object.entries(row).map(([key, value]) => [key.replace("c_", ""), value]),
+    );
     const { value, ptr } = unpackNodeRow({ table, row });
-    console.log("queryGroupedNode.node", row, value.value);
     nodesById.set(ptr.id, { value, ptr });
   }
 
