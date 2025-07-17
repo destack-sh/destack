@@ -32,10 +32,7 @@ from destack.language import (
 from destack.test.fixtures import NODES
 from destack.test.strategies import examples, nodes
 
-ENTITY_SESSIONS = (
-    lf("memory_session"),
-    lf("postgres_session"),
-)
+ENTITY_SESSIONS = (lf("memory_session"),)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
 

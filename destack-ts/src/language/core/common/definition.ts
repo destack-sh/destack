@@ -2151,7 +2151,7 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
+  // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRAIT_DEFINITION, TraitDefinition);
