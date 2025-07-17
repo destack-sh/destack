@@ -864,11 +864,11 @@ async def _execute_subquery(
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property("id").in_(
                 *(n.id for n in expanded_nodes_ptr),
             )
         else:
-            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property("id").in_(
                 *parents_ptr,
             )
         # subquery
@@ -895,11 +895,11 @@ async def _execute_subquery(
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 where=subquery.where,
             )
-            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property("id").in_(
                 *(n.id for n in expanded_nodes_ptr),
             )
         else:
-            subquery_where = subquery.definition.resolve_property_or_error("parent").in_(
+            subquery_where = subquery.definition.resolve_property("parent").in_(
                 *(n.id for n in nodes_ptr),
             )
         # subquery

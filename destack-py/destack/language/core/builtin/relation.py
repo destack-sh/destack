@@ -72,7 +72,7 @@ class NodeDefinitionReference(StructFrozen):
     def object_cls(self) -> type_[BuiltinObject] | None:
         return NODE_CLASS_BY_TYPE.get(self.node_type)
 
-    def resolve_property(self, key: str | int) -> "PropertyDeclaration | None":
+    def resolve_property_maybe(self, key: str | int) -> "PropertyDeclaration | None":
         """Resolve a Property in this definition."""
         object_cls = self.object_cls
         if object_cls is None:
@@ -84,9 +84,9 @@ class NodeDefinitionReference(StructFrozen):
         else:
             assert_never(key)
 
-    def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
+    def resolve_property(self, name: str) -> "PropertyDeclaration":
         """Resolve a Property in this definition (error if not found)."""
-        resolved = self.resolve_property(name)
+        resolved = self.resolve_property_maybe(name)
         if resolved is None:
             raise LookupError(f"could not find property {name!r} in {self!r}")
         return resolved
@@ -169,16 +169,21 @@ class ObjectDefinitionReference(StructFrozen):
         else:
             assert_never(self.type)
 
-    def resolve_property(self, name: str) -> "PropertyDeclaration | None":
+    def resolve_property_maybe(self, name: str | int) -> "PropertyDeclaration | None":
         """Resolve a Property in this definition."""
         object_cls = self.object_cls
         if object_cls is None:
             raise ValueError(f"could not resolve {self!r}")
-        return object_cls.__properties_by_alias__.get(name)
+        if isinstance(name, str):
+            return object_cls.__properties_by_alias__.get(name)
+        elif isinstance(name, int):
+            return object_cls.__properties_by_id__.get(name)
+        else:
+            assert_never(name)
 
-    def resolve_property_or_error(self, name: str) -> "PropertyDeclaration":
+    def resolve_property(self, name: str) -> "PropertyDeclaration":
         """Resolve a Property in this definition (error if not found)."""
-        resolved = self.resolve_property(name)
+        resolved = self.resolve_property_maybe(name)
         if resolved is None:
             raise LookupError(f"could not find property {name!r} in {self!r}")
         return resolved

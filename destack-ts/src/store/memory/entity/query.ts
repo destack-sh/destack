@@ -627,12 +627,12 @@ function executeSubquery(options: {
         where: subquery.where,
         snapshotPath: subquery.snapshotPath,
       });
-      const idProperty = subquery.definition.resolvePropertyOrError("id");
+      const idProperty = subquery.definition.resolveProperty("id");
       const nodeIds = expandedNodesPtrs.map((n) => n.id);
       subqueryWhere = idProperty.in(...nodeIds);
     } else {
       const parentIds = Array.from(parentsPtr.keys());
-      subqueryWhere = subquery.definition.resolvePropertyOrError("id").in(...parentIds);
+      subqueryWhere = subquery.definition.resolveProperty("id").in(...parentIds);
     }
 
     // execute subquery
@@ -657,7 +657,7 @@ function executeSubquery(options: {
         where: subquery.where,
         snapshotPath: subquery.snapshotPath,
       });
-      const idProperty = subquery.definition.resolvePropertyOrError("id");
+      const idProperty = subquery.definition.resolveProperty("id");
       const nodeIds = expandedNodesPtrs.map((n) => n.id);
       subqueryWhere = new Condition({
         type: ConditionalType.IN,
@@ -666,7 +666,7 @@ function executeSubquery(options: {
       });
     } else {
       const nodeIds = nodesPtrs.map((n) => n.id);
-      subqueryWhere = subquery.definition.resolvePropertyOrError("parent").in(...nodeIds);
+      subqueryWhere = subquery.definition.resolveProperty("parent").in(...nodeIds);
     }
 
     // execute subquery

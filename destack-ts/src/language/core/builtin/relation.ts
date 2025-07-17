@@ -310,24 +310,27 @@ export class NodeDefinitionReference extends StructFrozen {
     }
   }
 
+  get objectClass(): NodeClass | null {
+    return NODE_CLASS_BY_TYPE[this.nodeType];
+  }
+
   /** Resolve a Property in this definition. */
-  resolveProperty(name: string): PropertyDefinition | null {
-    if (this.type == NodeDefinitionType.BUILTIN) {
-      const nodeClass = NODE_CLASS_BY_TYPE[this.nodeType];
-      const nodeDefinition = nodeClass.__definition__;
-      return nodeDefinition.resolveProperty(name);
-    } else if (this.type == NodeDefinitionType.CUSTOM) {
-      throw new Error(`unexpected node definition reference: ${this.repr()}`);
+  resolvePropertyMaybe(key: string | number): PropertyDefinition | null {
+    const nodeClass = NODE_CLASS_BY_TYPE[this.nodeType];
+    if (typeof key == "string") {
+      return nodeClass.__propertiesByAlias__[key];
+    } else if (typeof key == "number") {
+      return nodeClass.__propertiesById__[key];
     } else {
-      assertNever(this.type);
+      assertNever(key);
     }
   }
 
   /** Resolve a Property in this definition (error if not found). */
-  resolvePropertyOrError(name: string): PropertyDefinition {
-    const property = this.resolveProperty(name);
+  resolveProperty(key: string | number): PropertyDefinition {
+    const property = this.resolvePropertyMaybe(key);
     if (property == null) {
-      throw new Error(`could not find property ${name} in ${this.repr()}`);
+      throw new Error(`could not find property ${key} in ${this.repr()}`);
     }
     return property;
   }

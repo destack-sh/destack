@@ -53,17 +53,13 @@ export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable
         isNullable: !prop.isRequired,
       });
       columns.push(column);
-
-      if (prop.nodeIsHeterogenous) {
-        const nodeTypeColumn = new PostgresColumn({
-          name: `${prop.id}_type`,
-          type: PrimitiveType.INT32,
-          prop: prop,
-          isNullable: !prop.isRequired,
-        });
-        columns.push(nodeTypeColumn);
-      }
-
+      const nodeTypeColumn = new PostgresColumn({
+        name: `${prop.id}_type`,
+        type: PrimitiveType.INT32,
+        prop: prop,
+        isNullable: !prop.isRequired,
+      });
+      columns.push(nodeTypeColumn);
       const spaceIdColumn = new PostgresColumn({
         name: `${prop.id}_space_id`,
         type: PrimitiveType.UUID,
@@ -71,16 +67,13 @@ export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable
         isNullable: true,
       });
       columns.push(spaceIdColumn);
-
-      if (prop.nodeIsExtensible) {
-        const tableIdColumn = new PostgresColumn({
-          name: `${prop.id}_definition_id`,
-          type: PrimitiveType.UUID,
-          prop: prop,
-          isNullable: true,
-        });
-        columns.push(tableIdColumn);
-      }
+      const tableIdColumn = new PostgresColumn({
+        name: `${prop.id}_definition_id`,
+        type: PrimitiveType.UUID,
+        prop: prop,
+        isNullable: true,
+      });
+      columns.push(tableIdColumn);
     } else {
       // regular column
       if (!prop.primitiveType) {

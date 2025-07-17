@@ -40,7 +40,6 @@ import type { Session } from "@destack/language/core/runtime/session";
 import {
   NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
-  TRAIT_CLASS_BY_TYPE,
   registerStructClass,
 } from "@destack/language/registry";
 import {
@@ -1360,20 +1359,22 @@ export class NodeDefinition extends BuiltinDefinition {
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Resolve a Property in this definition. */
-  resolveProperty(name: string): PropertyDefinition | null {
+  resolvePropertyMaybe(key: string | number): PropertyDefinition | null {
     const nodeClass = NODE_CLASS_BY_TYPE[this.type];
-    const property = nodeClass.__propertiesByAlias__[name];
-    if (property == null) {
-      return null;
+    if (typeof key == "string") {
+      return nodeClass.__propertiesByAlias__[key];
+    } else if (typeof key == "number") {
+      return nodeClass.__propertiesById__[key];
+    } else {
+      assertNever(key);
     }
-    return property;
   }
 
   /** Resolve a Property in this definition (error if not found). */
-  resolvePropertyOrError(name: string): PropertyDefinition {
-    const property = this.resolveProperty(name);
+  resolveProperty(key: string | number): PropertyDefinition {
+    const property = this.resolvePropertyMaybe(key);
     if (property == null) {
-      throw new Error(`could not find property ${name} in ${this.repr()}`);
+      throw new Error(`could not find property ${key} in ${this.repr()}`);
     }
     return property;
   }
@@ -2150,25 +2151,6 @@ export class TraitDefinition extends BuiltinDefinition {
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
-
-  /** Resolve a Property in this definition. */
-  resolveProperty(name: string): PropertyDefinition | null {
-    const nodeClass = TRAIT_CLASS_BY_TYPE[this.type];
-    const property = nodeClass.__properties__[name];
-    if (property == null) {
-      return null;
-    }
-    return property;
-  }
-
-  /** Resolve a Property in this definition (error if not found). */
-  resolvePropertyOrError(name: string): PropertyDefinition {
-    const property = this.resolveProperty(name);
-    if (property == null) {
-      throw new Error(`could not find property ${name} in ${this.repr()}`);
-    }
-    return property;
-  }
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }

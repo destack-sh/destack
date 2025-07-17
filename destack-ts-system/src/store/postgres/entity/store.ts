@@ -63,7 +63,11 @@ export class PostgresEntityStore implements EntityStore {
     if (!this.db) {
       throw new Error(`${this.repr()} is not open`);
     }
-    const result = await executeQuery(this.db, this.context, query);
+    const { result } = await executeQuery({
+      tx: this.db,
+      context: this.context,
+      query,
+    });
     return result;
   }
 
@@ -72,7 +76,11 @@ export class PostgresEntityStore implements EntityStore {
       throw new Error(`${this.repr()} is not open`);
     }
     const appliedEdits = await this.db.begin(async (tx) => {
-      const [edits, cascadedEdits] = await executeEdits(tx, this.context, events);
+      const { edits, cascadedEdits } = await executeEdits({
+        tx,
+        context: this.context,
+        edits: events,
+      });
       const appliedEdits = [...edits, ...cascadedEdits];
       return appliedEdits;
     });
