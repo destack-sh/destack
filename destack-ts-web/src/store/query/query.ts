@@ -13,12 +13,5 @@ export function useQuery<T extends Node = Node>(
   const connection: Signal<QueryConnection<T> | null> = useSignal(null);
   const nodes = useComputed(() => connection.value?.toList() ?? []);
 
-  // useSignalEffect(() => {
-  //   query.value.execute().then((c) => {
-  //     connection.value = c;
-  //     console.log("query.execute", query.value.name);
-  //   });
-  // });
-
   return { connection, nodes };
 }

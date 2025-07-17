@@ -12223,6 +12223,10 @@ export interface QueryProto {
      */
     sort: SortProto[];
     /**
+     * @generated from protobuf field: bool include_deleted = 119
+     */
+    includeDeleted: boolean;
+    /**
      * @generated from protobuf field: optional int64 limit = 120 [jstype = JS_NUMBER]
      */
     limit?: number;
@@ -53699,6 +53703,7 @@ class QueryProto$Type extends MessageType<QueryProto> {
             { no: 114, name: "group_by", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => ExpressionProto },
             { no: 115, name: "aggregation", kind: "message", T: () => AggregationProto },
             { no: 116, name: "sort", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => SortProto },
+            { no: 119, name: "include_deleted", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 120, name: "limit", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 121, name: "offset", kind: "scalar", opt: true, T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 130, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -53715,6 +53720,7 @@ class QueryProto$Type extends MessageType<QueryProto> {
         message.subqueries = [];
         message.groupBy = [];
         message.sort = [];
+        message.includeDeleted = false;
         message.snapshotPath = [];
         if (value !== undefined)
             reflectionMergePartial<QueryProto>(this, message, value);
@@ -53766,6 +53772,9 @@ class QueryProto$Type extends MessageType<QueryProto> {
                     break;
                 case /* repeated symbol.destack.SortProto sort */ 116:
                     message.sort.push(SortProto.internalBinaryRead(reader, reader.uint32(), options));
+                    break;
+                case /* bool include_deleted */ 119:
+                    message.includeDeleted = reader.bool();
                     break;
                 case /* optional int64 limit = 120 [jstype = JS_NUMBER] */ 120:
                     message.limit = reader.int64().toNumber();
@@ -53833,6 +53842,9 @@ class QueryProto$Type extends MessageType<QueryProto> {
         /* repeated symbol.destack.SortProto sort = 116; */
         for (let i = 0; i < message.sort.length; i++)
             SortProto.internalBinaryWrite(message.sort[i], writer.tag(116, WireType.LengthDelimited).fork(), options).join();
+        /* bool include_deleted = 119; */
+        if (message.includeDeleted !== false)
+            writer.tag(119, WireType.Varint).bool(message.includeDeleted);
         /* optional int64 limit = 120 [jstype = JS_NUMBER]; */
         if (message.limit !== undefined)
             writer.tag(120, WireType.Varint).int64(message.limit);

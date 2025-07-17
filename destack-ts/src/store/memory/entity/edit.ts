@@ -1,24 +1,21 @@
 import {
   CASCADING_EDIT_TYPES,
-  Condition,
   EdgeDirection,
   EditEvent,
   EditOperation,
   EditType,
-  Entity,
   NodeDefinitionReference,
   NodeReference,
   ScalarType,
 } from "@destack/language";
 import {
+  NODE_DELETED_AT_KEY as ENTITY_DELETED_KEY,
   ENTITY_PARENT_KEY,
   MAX_RECURSION_DEPTH,
   MemoryContext,
-  NODE_DELETED_AT_KEY,
 } from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/entity/query";
 import { packEntityRow } from "@destack/store/memory/entity/wiring";
-import { Temporal } from "temporal-polyfill";
 
 /**
  * Execute the Edits in-memory.
@@ -120,16 +117,16 @@ function executeCascade(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
-  where: Condition | null;
+  includeDeleted?: boolean | Array<string>;
 }): { cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> } {
-  const { context, definition, nodePtrs, where } = options;
+  const { context, definition, nodePtrs, includeDeleted } = options;
   const { cascadedNodePtrs, sourceIdByNodeId } = walkNode({
     context,
     definition,
     nodesPtrs: nodePtrs,
     direction: EdgeDirection.CHILD,
     depth: MAX_RECURSION_DEPTH,
-    where,
+    includeDeleted,
     snapshotPath: [],
   });
   return { cascadedNodePtrs, sourceIdByNodeId };
@@ -256,10 +253,10 @@ function executeEdit(options: {
       editByNodeId.set(edit.nodePtr.id, edit);
     }
 
-    let where: Condition | null = null;
+    let includeDeleted: boolean | Array<string> = false;
     if (editType === EditType.RESTORE) {
       // restrict to nodes with same deleted_at
-      const rootDts = new Set<Temporal.ZonedDateTime>();
+      includeDeleted = [];
       for (const nodePtr of nodesPtrs) {
         const snapshotId = nodePtr.snapshotId || null;
         const nodeKey = table.getNodeKey({ id: nodePtr.id, snapshotId });
@@ -267,14 +264,11 @@ function executeEdit(options: {
         if (!row) {
           throw new Error(`node not found: ${nodePtr.repr()}`);
         } else {
-          const deletedAt = row.value[NODE_DELETED_AT_KEY];
-          if (deletedAt) {
-            rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
+          const deletedAt = row.value[ENTITY_DELETED_KEY];
+          if (deletedAt && !includeDeleted.includes(deletedAt)) {
+            includeDeleted.push(deletedAt);
           }
         }
-      }
-      if (rootDts.size > 0) {
-        where = Entity.property("deleted_at").in(...Array.from(rootDts));
       }
     }
 
@@ -282,7 +276,7 @@ function executeEdit(options: {
       context,
       definition,
       nodePtrs: nodesPtrs,
-      where,
+      includeDeleted,
     });
     const cascadedEdits = cascadedNodePtrs.map(
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
@@ -300,9 +294,9 @@ function executeEdit(options: {
       if (!row) {
         throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
       } else if (editType === EditType.DELETE) {
-        row.value[NODE_DELETED_AT_KEY] = edit.createdAt.toString({ timeZoneName: "never" });
+        row.value[ENTITY_DELETED_KEY] = edit.createdAt.toString({ timeZoneName: "never" });
       } else if (editType === EditType.RESTORE) {
-        delete row.value[NODE_DELETED_AT_KEY];
+        delete row.value[ENTITY_DELETED_KEY];
       }
     }
 

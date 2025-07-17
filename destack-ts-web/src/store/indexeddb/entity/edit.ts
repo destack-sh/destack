@@ -132,9 +132,9 @@ async function executeCascade(options: {
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
-  where: Condition | null;
+  includeDeleted?: boolean | Array<string>;
 }): Promise<{ cascadedNodePtrs: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
-  const { tx, context, definition, nodePtrs, where } = options;
+  const { tx, context, definition, nodePtrs, includeDeleted } = options;
   const { cascadedNodePtrs, sourceIdByNodeId } = await walkNode({
     tx,
     context,
@@ -142,7 +142,7 @@ async function executeCascade(options: {
     nodesPtrs: nodePtrs,
     direction: EdgeDirection.CHILD,
     depth: MAX_RECURSION_DEPTH,
-    where,
+    includeDeleted,
     snapshotPath: [],
   });
   return { cascadedNodePtrs, sourceIdByNodeId };
@@ -249,12 +249,11 @@ async function executeEdit(options: {
       editByNodeId.set(edit.nodePtr.id, edit);
     }
 
-    let where: Condition | null = null;
+    let includeDeleted: boolean | Array<string> = false;
     if (editType === EditType.RESTORE) {
       // restrict to nodes with same deleted_at
-      const rootDts = new Set<Temporal.ZonedDateTime>();
+      includeDeleted = [];
       const editPromises: Promise<any>[] = [];
-
       for (const nodePtr of nodesPtrs) {
         const edit = editByNodeId.get(nodePtr.id);
         if (!edit) {
@@ -270,17 +269,14 @@ async function executeEdit(options: {
               throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
             } else if (editType === EditType.RESTORE) {
               const deletedAt = row[NODE_DELETED_AT_KEY];
-              if (deletedAt) {
-                rootDts.add(Temporal.Instant.from(deletedAt).toZonedDateTimeISO("UTC"));
+              if (deletedAt && !(includeDeleted as string[]).includes(deletedAt)) {
+                (includeDeleted as string[]).push(deletedAt);
               }
             }
           }),
         );
       }
       await Promise.all(editPromises);
-      if (rootDts.size > 0) {
-        where = Entity.property("deleted_at").in(...Array.from(rootDts));
-      }
     }
 
     const { cascadedNodePtrs, sourceIdByNodeId } = await executeCascade({
@@ -288,7 +284,7 @@ async function executeEdit(options: {
       context,
       definition,
       nodePtrs: nodesPtrs,
-      where,
+      includeDeleted,
     });
     const cascadedEdits = cascadedNodePtrs.map(
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),

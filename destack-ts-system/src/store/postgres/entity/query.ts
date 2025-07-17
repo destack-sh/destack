@@ -38,8 +38,12 @@ import {
 } from "destack";
 
 const MAX_RECURSION_DEPTH = 1_000;
+
 const NODE_ID_KEY = String(Node.property("id").id);
+
 const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
+const ENTITY_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
+
 const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 
 const logger = getLogger(__filename);
@@ -333,24 +337,22 @@ function compileExpression(options: {
     assertNever(expression.type);
   }
 }
-/** Expand a JS array of UUID strings into a Postgres ARRAY[...] placeholder list.
- * Returns { sql, nextParam } where `sql` is e.g. ARRAY[$1,$2]::uuid[] (or ARRAY[]::uuid[] if empty),
+
+/**
+ * Expand a JS array of UUID strings into a Postgres ARRAY[...] placeholder list.
+ * Returns { sql, nextParam } where `sql` is e.g. ARRAY[$1,$2,...]::uuid[] (or ARRAY[]::uuid[] if empty),
  * and nextParam is the first unused param index after the ones consumed.
  */
-function makeUuidArrayPlaceholder(
-  values: readonly string[],
-  startParamIndex: number,
-): { sql: string; nextParam: number } {
+function makeUuidArrayPlaceholder(values: readonly string[], argumentsOut: any[]): string {
   if (values.length === 0) {
-    return { sql: `ARRAY[]::uuid[]`, nextParam: startParamIndex };
+    return `ARRAY[]::uuid[]`;
   }
-  const params = Array.from({ length: values.length }, (_, i) => `$${startParamIndex + i}`).join(
-    ", ",
-  );
-  return {
-    sql: `ARRAY[${params}]::uuid[]`,
-    nextParam: startParamIndex + values.length,
-  };
+  const params = Array.from({ length: values.length }, (_, i) => {
+    const sql = `$${argumentsOut.length + i + 1}::uuid`;
+    argumentsOut.push(values[i]);
+    return sql;
+  }).join(", ");
+  return `ARRAY[${params}]::uuid[]`;
 }
 
 /** Get the cascaded Nodes for a query. */
@@ -361,9 +363,9 @@ export async function walkNode(options: {
   nodesPtrs: NodeReference[];
   direction: EdgeDirection;
   depth: number;
-  where: Condition | null;
+  includeDeleted?: boolean | Array<string>;
 }): Promise<{ nodes: NodeReference[]; sourceIdByNodeId: Map<string, string> }> {
-  const { tx, context, definition, nodesPtrs, direction, depth, where } = options;
+  const { tx, context, definition, nodesPtrs, direction, depth, includeDeleted } = options;
 
   // roots: which column(s) do we seed from?
   let rootsIds: string[] = [];
@@ -374,26 +376,22 @@ export async function walkNode(options: {
     rootsParentsIds = nodesPtrs.map((n) => n.id);
   }
 
-  // build param list: first all root ids, then all root parent ids; compileCondition will append more
-  const arguments_: any[] = [...rootsIds, ...rootsParentsIds];
-
-  // build placeholder SQL for those roots
-  const { sql: rootsIdsSql, nextParam: afterRootsIds } = makeUuidArrayPlaceholder(rootsIds, 1);
-  const { sql: rootsParentsIdsSql, nextParam: afterRootsParents } = makeUuidArrayPlaceholder(
-    rootsParentsIds,
-    afterRootsIds,
-  );
+  // build arguments
+  const arguments_: any[] = [];
+  const rootsIdsSql = makeUuidArrayPlaceholder(rootsIds, arguments_);
+  const rootsParentsIdsSql = makeUuidArrayPlaceholder(rootsParentsIds, arguments_);
 
   // WHERE clause (may append params)
-  const whereSql =
-    where != null
-      ? compileCondition({ context, argumentsOut: arguments_, condition: where })
-      : "TRUE";
+  // const whereSql =
+  //   where != null
+  //     ? compileCondition({ context, argumentsOut: arguments_, condition: where })
+  //     : "TRUE";
+  const whereSql = "TRUE"; // nocheckin
 
   const depthInt = Math.max(0, depth | 0); // defensive
 
   // helper to collect result rows -> NodeReference[] + source map
-  function collect<
+  function _collectNodeRows<
     Row extends {
       [key: string]: any;
       source_id: string;
@@ -429,8 +427,8 @@ export async function walkNode(options: {
       const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
 
       const unionParts = tables.map(
-        (tbl) =>
-          `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${tbl.nodeType}::int AS node_type FROM "${tbl.name}"`,
+        (table) =>
+          `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${table.nodeType}::int AS node_type, "${ENTITY_DELETED_AT_KEY}" FROM "${table.name}"`,
       );
       const unionSubquery = unionParts.join(" UNION ALL ");
 
@@ -439,7 +437,8 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        1 AS depth,
        node_type,
-       "${NODE_ID_KEY}" AS source_id
+       "${NODE_ID_KEY}" AS source_id,
+       "${ENTITY_DELETED_AT_KEY}"
 FROM (
     ${unionSubquery}
 ) AS roots
@@ -454,7 +453,8 @@ SELECT p."${NODE_ID_KEY}",
        p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        t.depth + 1 AS depth,
        p.node_type,
-       t.source_id
+       t.source_id,
+       p."${ENTITY_DELETED_AT_KEY}"
 FROM (
     ${unionSubquery}
 ) AS p
@@ -473,12 +473,21 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        depth,
        node_type,
-       source_id
+       source_id,
+       "${ENTITY_DELETED_AT_KEY}"
 FROM tree;`;
 
       // run
+      console.log(
+        "walkNode.parent.multi",
+        tables.map((t) => t.name).join(", "),
+        definition.repr(),
+        includeDeleted,
+        whereSql,
+        arguments_.length,
+      );
       const rows = await tx.unsafe(stmt, arguments_);
-      return collect(rows);
+      return _collectNodeRows(rows);
     } else {
       const table = context.getEntityTable(definition);
       const stmt = `
@@ -486,7 +495,8 @@ WITH RECURSIVE tree AS (
   SELECT "${NODE_ID_KEY}",
          "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
          1 AS depth,
-         "${NODE_ID_KEY}" AS source_id
+         "${NODE_ID_KEY}" AS source_id,
+         "${ENTITY_DELETED_AT_KEY}"
   FROM   "${table.name}"
   WHERE (
            "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
@@ -499,7 +509,8 @@ WITH RECURSIVE tree AS (
   SELECT p."${NODE_ID_KEY}",
          p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
          t.depth + 1 AS depth,
-         t.source_id
+         t.source_id,
+         p."${ENTITY_DELETED_AT_KEY}"
   FROM   "${table.name}" AS p
   JOIN   tree AS t
     ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
@@ -509,11 +520,12 @@ WITH RECURSIVE tree AS (
 SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        depth,
-       source_id
+       source_id,
+       "${ENTITY_DELETED_AT_KEY}"
 FROM   tree;`;
 
       const rows = await tx.unsafe(stmt, arguments_);
-      return collect(rows, context.getEntityTable(definition).nodeType);
+      return _collectNodeRows(rows, context.getEntityTable(definition).nodeType);
     }
   }
 
@@ -522,8 +534,8 @@ FROM   tree;`;
     const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
 
     const unionParts = tables.map(
-      (tbl) =>
-        `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${tbl.nodeType}::int AS node_type FROM "${tbl.name}"`,
+      (table) =>
+        `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${table.nodeType}::int AS node_type, "${ENTITY_DELETED_AT_KEY}" FROM "${table.name}"`,
     );
     const unionSubquery = unionParts.join(" UNION ALL ");
 
@@ -532,7 +544,8 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        1 AS depth,
        node_type,
-       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" AS source_id
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" AS source_id,
+       "${ENTITY_DELETED_AT_KEY}"
 FROM (
     ${unionSubquery}
 ) AS roots
@@ -547,7 +560,8 @@ SELECT c."${NODE_ID_KEY}",
        c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        t.depth + 1 AS depth,
        c.node_type,
-       t.source_id
+       t.source_id,
+       c."${ENTITY_DELETED_AT_KEY}"
 FROM (
     ${unionSubquery}
 ) AS c
@@ -566,11 +580,12 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        depth,
        node_type,
-       source_id
+       source_id,
+       "${ENTITY_DELETED_AT_KEY}"
 FROM tree;`;
 
     const rows = await tx.unsafe(stmt, arguments_);
-    return collect(rows);
+    return _collectNodeRows(rows);
   }
 
   // side walk (not yet supported)
@@ -1055,7 +1070,7 @@ async function executeSubquery(options: {
         nodesPtrs: Array.from(parentsPtr.values()),
         direction: EdgeDirection.PARENT,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
-        where: subquery.where,
+        includeDeleted: subquery.includeDeleted,
       });
       subqueryWhere = subquery.definition
         .resolveProperty("id")
@@ -1089,7 +1104,7 @@ async function executeSubquery(options: {
         nodesPtrs,
         direction: EdgeDirection.CHILD,
         depth: subquery.join.depth || MAX_RECURSION_DEPTH,
-        where: subquery.where,
+        includeDeleted: subquery.includeDeleted,
       });
       subqueryWhere = subquery.definition
         .resolveProperty("id")
