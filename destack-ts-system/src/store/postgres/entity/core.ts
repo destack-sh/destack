@@ -405,8 +405,8 @@ export class PostgresTable extends PostgresTableObject {
   readonly columns: PostgresColumn[];
   readonly indexes: PostgresIndex[];
   readonly constraints: PostgresConstraint[];
-  private _columnsByName: Map<string, PostgresColumn>;
-  private _primaryKey?: PostgresColumn;
+  _columnsByName: Readonly<Map<string, PostgresColumn>>;
+  _primaryKey: PostgresColumn;
 
   constructor(options: {
     name: string;
@@ -441,7 +441,15 @@ export class PostgresTable extends PostgresTableObject {
     }
 
     // find primary key
-    this._primaryKey = this.columns.find((c) => c.isPrimaryKey);
+    const primaryKey = this.columns.find((c) => c.isPrimaryKey);
+    if (!primaryKey) {
+      throw new Error(`no primary key found in ${this.repr()}`);
+    }
+    this._primaryKey = primaryKey;
+  }
+
+  repr(): string {
+    return `<PostgresTable ${this.name} (columns=${this.columns.length}, constraints=${this.constraints.length}, indexes=${this.indexes.length})>`;
   }
 
   get table(): PostgresTable {

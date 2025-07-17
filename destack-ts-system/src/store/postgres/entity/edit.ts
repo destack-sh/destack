@@ -157,7 +157,7 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
       if (!prop) {
         throw new Error(`no property for ${JSON.stringify(edit)}`);
       }
-      const update: Record<string, any> = {};
+      const update: Map<string, any> = new Map();
       packColumnWide({
         type: prop.toType(),
         value: null,
@@ -165,7 +165,7 @@ SET ${overrideColumns.map((col) => `"${col.name}" = EXCLUDED."${col.name}"`).joi
         columnName: String(prop.id),
         columnOut: update,
       });
-      for (const key of Object.keys(update)) {
+      for (const key of update.keys()) {
         allUpdatedColumns.add(key);
       }
     }
@@ -218,7 +218,7 @@ WHERE "${NODE_ID_KEY}" = $${paramI}`;
         updateRow[i] = false;
       }
 
-      const update: Record<string, any> = {};
+      const update: Map<string, any> = new Map();
       packColumnWide({
         type: prop.toType(),
         value: valuePacked,
@@ -226,7 +226,7 @@ WHERE "${NODE_ID_KEY}" = $${paramI}`;
         columnName: String(prop.id),
         columnOut: update,
       });
-      for (const [column, value] of Object.entries(update)) {
+      for (const [column, value] of update.entries()) {
         const i = updatedColumnIdx[column] * 2;
         updateRow[i] = value;
         updateRow[i + 1] = true;
@@ -246,7 +246,7 @@ WHERE "${NODE_ID_KEY}" = $${paramI}`;
     if (nodeCls.__definition__.storeDomain !== StoreDomain.ENTITY) {
       throw new Error(`cannot move non-Entity ${nodeCls.name} in ${JSON.stringify(edits)}`);
     }
-    const updateTemplate: Record<string, any> = {};
+    const updateTemplate: Map<string, any> = new Map();
     packColumnWide({
       type: ENTITY_PARENT_PROPERTY.toType(),
       value: null,
@@ -272,7 +272,7 @@ WHERE "${NODE_ID_KEY}" = $${Object.keys(updateTemplate).length + 1}`;
         parentPtrValue = edit.value.value;
       }
 
-      const update: Record<string, any> = {};
+      const update: Map<string, any> = new Map();
       packColumnWide({
         type: ENTITY_PARENT_PROPERTY.toType(),
         value: parentPtrValue,

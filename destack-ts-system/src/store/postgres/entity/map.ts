@@ -9,14 +9,21 @@ import {
   PostgresTable,
 } from "@desys/store/postgres/entity/core";
 import {
-  EdgeType,
   NODE_CLASS_BY_TYPE,
+  NodeReference,
   NodeType,
-  PrimitiveType,
   ScalarType,
   StoreKey,
   TypeCardinality,
 } from "destack";
+
+export const NODE_REFERENCE_STORED_PROPERTIES = [
+  "id",
+  "type",
+  "space_id",
+  "definition_id",
+  "snapshot_id",
+].map((name) => NodeReference.property(name));
 
 /** Maps a builtin NodeType to a PostgresTable. */
 export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable {
@@ -32,48 +39,23 @@ export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable
 
   // map properties to columns, add per-column indices
   for (const prop of properties) {
-    if (prop.edgeType === EdgeType.PARENT && nodeType === NodeType.SPACE) {
-      continue; // no parent for root nodes
-    }
-
-    if (typeof prop.id !== "number") {
-      throw new Error(`undetermined id for ${prop}`);
-    }
-
     if (prop.scalarType === ScalarType.NODE_REFERENCE) {
       // unravel node ptr column
       if (prop.cardinality !== TypeCardinality.SCALAR) {
         throw new Error(`non-scalar node reference: ${prop}`);
       }
-
-      const column = new PostgresColumn({
-        name: `${prop.id}_id`,
-        type: PrimitiveType.UUID,
-        prop: prop,
-        isNullable: !prop.isRequired,
-      });
-      columns.push(column);
-      const nodeTypeColumn = new PostgresColumn({
-        name: `${prop.id}_type`,
-        type: PrimitiveType.INT32,
-        prop: prop,
-        isNullable: !prop.isRequired,
-      });
-      columns.push(nodeTypeColumn);
-      const spaceIdColumn = new PostgresColumn({
-        name: `${prop.id}_space_id`,
-        type: PrimitiveType.UUID,
-        prop: prop,
-        isNullable: true,
-      });
-      columns.push(spaceIdColumn);
-      const tableIdColumn = new PostgresColumn({
-        name: `${prop.id}_definition_id`,
-        type: PrimitiveType.UUID,
-        prop: prop,
-        isNullable: true,
-      });
-      columns.push(tableIdColumn);
+      for (const unraveledProp of NODE_REFERENCE_STORED_PROPERTIES) {
+        if (!unraveledProp.primitiveType) {
+          throw new Error(`undetermined type for ${unraveledProp}`);
+        }
+        const column = new PostgresColumn({
+          name: `${prop.id}_${unraveledProp.id}`,
+          type: unraveledProp.primitiveType,
+          prop: unraveledProp,
+          isNullable: !unraveledProp.isRequired,
+        });
+        columns.push(column);
+      }
     } else {
       // regular column
       if (!prop.primitiveType) {
