@@ -4,7 +4,6 @@ import {
   PostgresColumn,
   PostgresConstraint,
   PostgresIndex,
-  PostgresIndexType,
   PostgresSchema,
   PostgresTable,
 } from "@desys/store/postgres/entity/core";
@@ -18,12 +17,14 @@ import {
 } from "destack";
 
 export const NODE_REFERENCE_STORED_PROPERTIES = [
-  "id",
   "type",
+  "id",
   "space_id",
   "definition_id",
   "snapshot_id",
-].map((name) => NodeReference.property(name));
+]
+  .map((name) => NodeReference.property(name))
+  .sort((a, b) => a.id - b.id);
 
 /** Maps a builtin NodeType to a PostgresTable. */
 export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable {
@@ -35,9 +36,9 @@ export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable
 
   // get stored properties and sort by id
   const properties = Object.values(nodeClass.__definition__.properties).filter((p) => p.isStored);
-  properties.sort((a, b) => (a.id || -1) - (b.id || -1));
+  properties.sort((a, b) => a.id - b.id);
 
-  // map properties to columns, add per-column indices
+  // map properties to columns
   for (const prop of properties) {
     if (prop.scalarType === ScalarType.NODE_REFERENCE) {
       // unravel node ptr column
@@ -52,7 +53,7 @@ export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable
           name: `${prop.id}_${unraveledProp.id}`,
           type: unraveledProp.primitiveType,
           prop: unraveledProp,
-          isNullable: !unraveledProp.isRequired,
+          isNullable: true,
         });
         columns.push(column);
       }
@@ -61,27 +62,15 @@ export function mapBuiltinNodeToDatabaseTable(nodeType: NodeType): PostgresTable
       if (!prop.primitiveType) {
         throw new Error(`undetermined type for ${prop}`);
       }
-
       const column = new PostgresColumn({
         name: String(prop.id),
         type: prop.primitiveType,
         prop: prop,
         isArray: prop.cardinality === TypeCardinality.LIST,
-        isNullable: !prop.isRequired,
+        isNullable: true,
         isPrimaryKey: prop.name === "id",
       });
       columns.push(column);
-    }
-
-    // unique
-    if (prop.isUnique) {
-      const index = new PostgresIndex({
-        innerName: `unique_${prop.id}`,
-        type: PostgresIndexType.BTREE,
-        columns: [String(prop.id)],
-        isUnique: true,
-      });
-      indexes.push(index);
     }
   }
 

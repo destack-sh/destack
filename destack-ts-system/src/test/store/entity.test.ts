@@ -1,5 +1,5 @@
 import { IndexedDBStore } from "@destack-web/store/indexeddb";
-import { closePostgresPool, PostgresEntityStore } from "@desys/store/postgres";
+import { closePostgresPool, getPostgres, PostgresEntityStore } from "@desys/store/postgres";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   ACTIVE_SPACE,
@@ -63,8 +63,16 @@ const storeImplementations = [
     name: "PostgresEntityStore",
     createStore: async () => {
       const postgresUrl = await getFromEnv("POSTGRES_URL", "string");
+
+      // create separate database for testing
+      const testDbName = "destack-test";
+      const db = await getPostgres({ url: postgresUrl });
+      await db.unsafe(`DROP DATABASE IF EXISTS "${testDbName}"`);
+      await db.unsafe(`CREATE DATABASE "${testDbName}"`);
+      const testPostgresUrl = postgresUrl.split("/").slice(0, -1).join("/") + `/${testDbName}`;
+
       const store = new PostgresEntityStore({
-        database: { url: postgresUrl },
+        database: { url: testPostgresUrl },
         keys: [StoreKey.ENTITY_PRIMARY],
       });
       await store.open();

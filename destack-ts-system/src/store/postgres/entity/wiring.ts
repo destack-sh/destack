@@ -8,10 +8,14 @@ import {
 import { PostgresTable } from "@desys/store/postgres/entity/core";
 import { NODE_REFERENCE_STORED_PROPERTIES } from "@desys/store/postgres/entity/map";
 import {
+  Node,
   NODE_CLASS_BY_TYPE,
+  NODE_REFERENCE_ID_KEY,
   NODE_TYPE_SCALAR_BY_TYPE,
+  NodeReference,
   PrimitiveType,
   ScalarType,
+  StructType,
   Type,
   TypeCardinality,
   Value,
@@ -41,14 +45,18 @@ export function packNodeRow(options: { table: PostgresTable; value: Value }): Ar
       columnOut: row,
     });
   }
-  console.log("packNodeRow", table.name, row);
-  return Array.from(row.values());
+
+  const packedArguments = Array.from(row.values());
+  return packedArguments;
 }
 
 /**
  * Unpack a row of columns into a Node value.
  */
-export function unpackNodeRow(options: { table: PostgresTable; row: Record<string, any> }): Value {
+export function unpackNodeRow(options: { table: PostgresTable; row: Record<string, any> }): {
+  value: Value;
+  ptr: NodeReference;
+} {
   const { table, row } = options;
   const nodeType = table.nodeType;
   const nodeClass = NODE_CLASS_BY_TYPE[nodeType];
@@ -58,14 +66,27 @@ export function unpackNodeRow(options: { table: PostgresTable; row: Record<strin
   properties.sort((a, b) => a.id - b.id);
 
   // unpack properties
-  const value: Record<string, any> = {};
+  const nodeValue: Record<string, any> = { "1": table.nodeType };
   for (const prop of properties) {
-    const unpackedProp = unpackColumn({ type: prop.toType(), value: row.get(String(prop.id)) });
-    value[String(prop.id)] = unpackedProp;
+    const propUnpacked = unpackColumnWide({
+      type: prop.toType(),
+      row,
+      table,
+      columnName: String(prop.id),
+    });
+    if (propUnpacked != null) {
+      nodeValue[String(prop.id)] = propUnpacked;
+    }
   }
 
   const type = NODE_TYPE_SCALAR_BY_TYPE[nodeType];
-  return new Value({ type, value });
+  const value = new Value({ type, value: nodeValue });
+  const nodePtr = new NodeReference({
+    type: nodeType,
+    id: nodeValue[String(Node.property("id").id)],
+  });
+
+  return { value: value, ptr: nodePtr };
 }
 
 /** Pack a dynamic column value into a single column value. */
@@ -131,15 +152,15 @@ function _unpackColumnScalar(type: Type, value: any): any {
 }
 
 /** Pack a dynamic column value into a single column value. */
-export function packColumnFlat(options: { type: Type; value: any }): any {
+export function packColumn(options: { type: Type; value: any }): any {
   const { type, value } = options;
 
   if (type.cardinality === TypeCardinality.SCALAR) {
     return _packColumnScalar(type, value);
   } else if (type.cardinality === TypeCardinality.LIST) {
-    return value ? value.map((v: any) => _packColumnScalar(type, v)) : [];
+    return value.map((v: any) => _packColumnScalar(type, v));
   } else if (type.cardinality === TypeCardinality.MAP) {
-    return JSON.stringify(value || {});
+    return JSON.stringify(value);
   } else {
     assertNever(type.cardinality);
   }
@@ -160,12 +181,11 @@ export function packColumnWide(options: {
       // node references fan out to multiple columns
       for (const unraveledProp of NODE_REFERENCE_STORED_PROPERTIES) {
         const unraveledColumnName = `${columnName}_${unraveledProp.id}`;
-        columnOut.set(
-          unraveledColumnName,
+        const unraveledValuePacked =
           value != null
             ? _packColumnScalar(unraveledProp.toType(), value[String(unraveledProp.id)])
-            : null,
-        );
+            : null;
+        columnOut.set(unraveledColumnName, unraveledValuePacked);
       }
     } else {
       const valuePacked = value != null ? _packColumnScalar(type, value) : null;
@@ -174,7 +194,7 @@ export function packColumnWide(options: {
   } else if (type.cardinality === TypeCardinality.LIST) {
     columnOut.set(columnName, value ? value.map((v: any) => _packColumnScalar(type, v)) : []);
   } else if (type.cardinality === TypeCardinality.MAP) {
-    columnOut.set(columnName, JSON.stringify(value || {}));
+    columnOut.set(columnName, value != null ? JSON.stringify(value) : null);
   } else {
     assertNever(type.cardinality);
   }
@@ -187,10 +207,39 @@ export function unpackColumn(options: { type: Type; value: any }): any {
   if (type.cardinality === TypeCardinality.SCALAR) {
     return _unpackColumnScalar(type, value);
   } else if (type.cardinality === TypeCardinality.LIST) {
-    return value ? value.map((v: any) => _unpackColumnScalar(type, v)) : [];
+    return value.map((v: any) => _unpackColumnScalar(type, v));
   } else if (type.cardinality === TypeCardinality.MAP) {
     return JSON.parse(value);
   } else {
     assertNever(type.cardinality);
+  }
+}
+
+/**  */
+export function unpackColumnWide(options: {
+  type: Type;
+  row: Record<string, any>;
+  table: PostgresTable;
+  columnName: string;
+}): any | undefined {
+  const { type, row, table, columnName } = options;
+  if (type.scalarType === ScalarType.NODE_REFERENCE) {
+    if (row[`${columnName}_${NODE_REFERENCE_ID_KEY}`] != null) {
+      const nodeRefValue: Record<string, any> = {
+        "1": StructType.NODE_REFERENCE,
+      };
+      for (const unraveledProp of NODE_REFERENCE_STORED_PROPERTIES) {
+        nodeRefValue[String(unraveledProp.id)] = row[`${columnName}_${unraveledProp.id}`];
+      }
+      return nodeRefValue;
+    } else {
+      return undefined;
+    }
+  } else {
+    if (row[columnName] != null) {
+      return _unpackColumnScalar(type, row[columnName]);
+    } else {
+      return undefined;
+    }
   }
 }

@@ -14,7 +14,7 @@ import React from "react";
 import LayerView from "./Layer";
 
 const store = new IndexedDBStore({
-  types: [StoreKey.ENTITY_PRIMARY],
+  keys: [StoreKey.ENTITY_PRIMARY],
 });
 await store.open();
 const session = new ReactiveSession({ store });

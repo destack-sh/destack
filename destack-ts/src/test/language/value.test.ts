@@ -12,6 +12,20 @@ test("to type", () => {
       primitiveType: PrimitiveType.FLOAT64,
     }),
   );
+  expect(toType(17)).toEqual(
+    new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.PRIMITIVE,
+      primitiveType: PrimitiveType.FLOAT64,
+    }),
+  );
+  expect(toType("17")).toEqual(
+    new Type({
+      cardinality: TypeCardinality.SCALAR,
+      scalarType: ScalarType.PRIMITIVE,
+      primitiveType: PrimitiveType.STRING,
+    }),
+  );
   expect(toType(true)).toEqual(
     new Type({
       cardinality: TypeCardinality.SCALAR,

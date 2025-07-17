@@ -465,8 +465,14 @@ export class PostgresTable extends PostgresTableObject {
   }
 
   sql(): string {
-    // table creation would be implemented here
-    throw new Error("Not implemented");
+    const columnsSql = this.columns.map((col) => `    ${col.sql()}`).join(",\n");
+    const constraintsSql =
+      this.constraints.length > 0
+        ? ",\n" +
+          this.constraints.map((constraint) => `    CONSTRAINT ${constraint.sql()}`).join(",\n")
+        : "";
+
+    return `CREATE TABLE "${this.name}" (\n${columnsSql}${constraintsSql}\n);`;
   }
 
   toString(): string {
@@ -477,7 +483,7 @@ export class PostgresTable extends PostgresTableObject {
 export class PostgresSchema {
   readonly tables: readonly PostgresTable[];
   readonly extensions: readonly PostgresExtension[];
-  private _tablesByName: Map<string, PostgresTable>;
+  readonly _tablesByName: Map<string, PostgresTable>;
 
   constructor(options: {
     extensions: readonly PostgresExtension[];

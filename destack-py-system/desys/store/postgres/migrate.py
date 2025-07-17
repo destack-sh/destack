@@ -1,8 +1,7 @@
 import enum
 import os
-import types
 from collections import defaultdict
-from collections.abc import Awaitable, Collection, Mapping
+from collections.abc import Awaitable, Mapping
 from dataclasses import dataclass, replace
 from datetime import datetime
 from itertools import chain
@@ -22,7 +21,7 @@ import structlog
 from more_itertools import first
 from opentelemetry import trace
 
-from destack.language import Oracle, StoreKey
+from destack.language import Oracle
 from destack.utils.code import format_code
 from destack.utils.env import REPOSITORY_PATH
 from destack.utils.func import partition, re_search_or_error
@@ -46,7 +45,7 @@ from .core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Database
+    pass
 
 MIGRATIONS_PATH = REPOSITORY_PATH / "destack/migrations"
 MIGRATIONS_TEMPLATE_PATH = REPOSITORY_PATH / "destack/migrations/0000_template.py"
@@ -121,150 +120,6 @@ def delete_migrations_in_fs(from_id: int, to_id: int) -> None:
         migration_id = int(migration_file.name.split("_")[0])
         if from_id <= migration_id <= to_id:
             migration_file.unlink()
-
-
-MIGRATIONS = []  # nocheckin: Migrations / MigrationOperations :Migrations
-
-
-def has_migration_after(version_a: str, *, is_global: bool) -> bool:
-    """Returns whether there is a migration between the two versions."""
-    for migration in MIGRATIONS:
-        if is_global and not migration.has_global:
-            continue
-        if version_a < migration.version:
-            return True
-    return False
-
-
-def _load_migration_from_path(migration: Migration) -> MigrationFile:
-    assert migration.path is not None, "migration path not set"
-    migration_code = migration.path.read_text()
-    migration_module = types.ModuleType(migration.path.stem)
-    exec(migration_code, migration_module.__dict__)
-    file = MigrationFile(path=migration.path, module=migration_module)
-    return file
-
-
-@tracer.start_as_current_span("postgres.migrate")
-async def postgres_migrate(
-    conn: asyncpg.Connection,
-    target: str | int | None,
-    oracle: Oracle,
-    *,
-    store_key: StoreKey,
-    database: "Database | None" = None,
-) -> list[Migration]:
-    """
-    Applies missing migrations (up or down) to reach the target migration.
-    Also updates the migrations table.
-    """
-
-    # get target migrations from our source of truth (local file system)
-    if target:
-        for m in MIGRATIONS:
-            if m.id == target or str(m.id) == target or m.version == target:
-                target_migration = m
-                break
-        else:
-            target_migration = MIGRATIONS[-1]
-    else:
-        if len(MIGRATIONS) == 0:
-            raise ValueError("no migrations found")
-        target_migration = MIGRATIONS[-1]
-
-    logger.trace(
-        "migrations.load",
-        target_migration=target_migration,
-        store_key=store_key,
-        database=database,
-    )
-    databased_migrations = await read_migrations_from_pg(conn)
-    is_upgrade = all(target_migration.id > m.id for m in databased_migrations if m.applied_at)
-    log = logger.bind(
-        target_migration=target_migration,
-        is_upgrade=is_upgrade,
-        store_key=store_key,
-        database=database,
-    )
-    applied_migrations = [m for m in databased_migrations if m.applied_at is not None]
-    current_migration = max(applied_migrations, key=lambda m: m.id) if applied_migrations else None
-    current_migration_id = current_migration.id if current_migration else -1
-
-    # get the migrations to apply
-    migrations_to_apply = []
-    for migration in MIGRATIONS:
-        if not migration.has_store_key(store_key):
-            continue
-        if (is_upgrade and current_migration_id < migration.id <= target_migration.id) or (
-            not is_upgrade and current_migration_id >= migration.id > target_migration.id
-        ):
-            migrations_to_apply.append(migration)
-
-    # apply the migrations
-    if not migrations_to_apply:
-        log.trace("migrations.apply.skip", database=database)
-        return []
-    else:
-        await _do_migrate(
-            conn,
-            migrations_to_apply,
-            oracle=oracle,
-            is_upgrade=is_upgrade,
-            store_key=store_key,
-            database=database,
-        )
-        log.debug("migrations.apply", conn=conn, migrations=migrations_to_apply, database=database)
-
-    # update the migration table (applied + missing)
-    missing_migrations = [
-        m
-        for m in MIGRATIONS
-        if not any(m.id == s.id for s in databased_migrations)
-        and not any(m.id == a.id for a in applied_migrations)
-    ]
-    migrations_to_update = [*migrations_to_apply, *missing_migrations]
-    if migrations_to_update:
-        await upsert_migrations(conn, migrations_to_update)
-
-    return migrations_to_apply
-
-
-async def _do_migrate(
-    conn: asyncpg.Connection,
-    migrations: Collection[Migration],
-    oracle: Oracle,
-    *,
-    is_upgrade: bool,
-    store_key: StoreKey,
-    database: Optional["Database"] = None,
-):
-    """Applies the given migrations in the given order."""
-    for migration in migrations:
-        with tracer.start_as_current_span("postgres.apply_migration"):
-            func_name = (
-                f"{(is_upgrade and 'upgrade') or 'downgrade'}_{(store_key.name.lower()) or 'local'}"
-            )
-            migration_file = _load_migration_from_path(migration)
-            func = getattr(migration_file.module, func_name)
-            try:
-                await func(conn)
-            except Exception as e:
-                logger.error(
-                    "migration.apply.error",
-                    conn=conn,
-                    migration=migration,
-                    database=database,
-                    error=e,
-                    span="current",
-                )
-                raise
-            if is_upgrade:
-                migration.applied_at = oracle.utc()
-            else:
-                migration.applied_at = None
-            logger.debug(
-                "migration.apply", conn=conn, migration=migration, database=database, span="current"
-            )
 
 
 #
