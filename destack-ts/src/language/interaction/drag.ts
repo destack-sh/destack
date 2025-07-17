@@ -34,7 +34,7 @@ import {
   EventStatusProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashString } from "@destack/utils/hash";
+import { hashBool, hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2000400 ==== */
@@ -69,26 +69,41 @@ export abstract class DragEvent extends InputEvent {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   declare readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  declare readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -185,12 +200,17 @@ export class DragStartEvent extends DragEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -202,7 +222,7 @@ export class DragStartEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -214,9 +234,19 @@ export class DragStartEvent extends DragEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -269,9 +299,12 @@ export class DragStartEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
     script?: Script | NodeReference | null;
@@ -381,19 +414,31 @@ export class DragStartEvent extends DragEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`DragStartEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -423,6 +468,12 @@ export class DragStartEvent extends DragEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -475,6 +526,9 @@ export class DragStartEvent extends DragEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
@@ -553,23 +607,26 @@ export class DragStartEvent extends DragEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["30"] = object.status;
+    objectValue["40"] = object.status;
     if (object.scriptPtr != null) {
       objectValue["80"] = object.scriptPtr.toValue();
     }
@@ -611,21 +668,21 @@ export class DragStartEvent extends DragEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -648,10 +705,13 @@ export class DragStartEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -690,6 +750,7 @@ export class DragStartEvent extends DragEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -699,6 +760,8 @@ export class DragStartEvent extends DragEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     if (object.customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
@@ -786,6 +849,7 @@ export class DragStartEvent extends DragEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -807,6 +871,8 @@ export class DragStartEvent extends DragEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       customValues: unpackedCustomValues,
       script:
@@ -912,12 +978,17 @@ export class DragEndEvent extends DragEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -929,7 +1000,7 @@ export class DragEndEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -941,9 +1012,19 @@ export class DragEndEvent extends DragEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -996,9 +1077,12 @@ export class DragEndEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
     script?: Script | NodeReference | null;
@@ -1108,19 +1192,31 @@ export class DragEndEvent extends DragEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`DragEndEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -1150,6 +1246,12 @@ export class DragEndEvent extends DragEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -1202,6 +1304,9 @@ export class DragEndEvent extends DragEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
@@ -1280,23 +1385,26 @@ export class DragEndEvent extends DragEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["30"] = object.status;
+    objectValue["40"] = object.status;
     if (object.scriptPtr != null) {
       objectValue["80"] = object.scriptPtr.toValue();
     }
@@ -1338,21 +1446,21 @@ export class DragEndEvent extends DragEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -1375,10 +1483,13 @@ export class DragEndEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -1417,6 +1528,7 @@ export class DragEndEvent extends DragEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -1426,6 +1538,8 @@ export class DragEndEvent extends DragEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     if (object.customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
@@ -1513,6 +1627,7 @@ export class DragEndEvent extends DragEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1534,6 +1649,8 @@ export class DragEndEvent extends DragEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       customValues: unpackedCustomValues,
       script:
@@ -1639,12 +1756,17 @@ export class DragOverEvent extends DragEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1656,7 +1778,7 @@ export class DragOverEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -1668,9 +1790,19 @@ export class DragOverEvent extends DragEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -1723,9 +1855,12 @@ export class DragOverEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
     script?: Script | NodeReference | null;
@@ -1835,19 +1970,31 @@ export class DragOverEvent extends DragEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`DragOverEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -1877,6 +2024,12 @@ export class DragOverEvent extends DragEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -1929,6 +2082,9 @@ export class DragOverEvent extends DragEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
@@ -2007,23 +2163,26 @@ export class DragOverEvent extends DragEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["30"] = object.status;
+    objectValue["40"] = object.status;
     if (object.scriptPtr != null) {
       objectValue["80"] = object.scriptPtr.toValue();
     }
@@ -2065,21 +2224,21 @@ export class DragOverEvent extends DragEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -2102,10 +2261,13 @@ export class DragOverEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -2144,6 +2306,7 @@ export class DragOverEvent extends DragEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -2153,6 +2316,8 @@ export class DragOverEvent extends DragEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     if (object.customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
@@ -2240,6 +2405,7 @@ export class DragOverEvent extends DragEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2261,6 +2427,8 @@ export class DragOverEvent extends DragEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       customValues: unpackedCustomValues,
       script:
@@ -2366,12 +2534,17 @@ export class DragEnterEvent extends DragEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2383,7 +2556,7 @@ export class DragEnterEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -2395,9 +2568,19 @@ export class DragEnterEvent extends DragEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -2450,9 +2633,12 @@ export class DragEnterEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
     script?: Script | NodeReference | null;
@@ -2562,19 +2748,31 @@ export class DragEnterEvent extends DragEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`DragEnterEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -2604,6 +2802,12 @@ export class DragEnterEvent extends DragEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -2656,6 +2860,9 @@ export class DragEnterEvent extends DragEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
@@ -2734,23 +2941,26 @@ export class DragEnterEvent extends DragEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["30"] = object.status;
+    objectValue["40"] = object.status;
     if (object.scriptPtr != null) {
       objectValue["80"] = object.scriptPtr.toValue();
     }
@@ -2792,21 +3002,21 @@ export class DragEnterEvent extends DragEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -2829,10 +3039,13 @@ export class DragEnterEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -2871,6 +3084,7 @@ export class DragEnterEvent extends DragEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -2880,6 +3094,8 @@ export class DragEnterEvent extends DragEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     if (object.customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
@@ -2967,6 +3183,7 @@ export class DragEnterEvent extends DragEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2988,6 +3205,8 @@ export class DragEnterEvent extends DragEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       customValues: unpackedCustomValues,
       script:
@@ -3093,12 +3312,17 @@ export class DragLeaveEvent extends DragEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -3110,7 +3334,7 @@ export class DragLeaveEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -3122,9 +3346,19 @@ export class DragLeaveEvent extends DragEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -3177,9 +3411,12 @@ export class DragLeaveEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
     script?: Script | NodeReference | null;
@@ -3289,19 +3526,31 @@ export class DragLeaveEvent extends DragEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`DragLeaveEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -3331,6 +3580,12 @@ export class DragLeaveEvent extends DragEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -3383,6 +3638,9 @@ export class DragLeaveEvent extends DragEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
@@ -3461,23 +3719,26 @@ export class DragLeaveEvent extends DragEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["30"] = object.status;
+    objectValue["40"] = object.status;
     if (object.scriptPtr != null) {
       objectValue["80"] = object.scriptPtr.toValue();
     }
@@ -3519,21 +3780,21 @@ export class DragLeaveEvent extends DragEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -3556,10 +3817,13 @@ export class DragLeaveEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -3598,6 +3862,7 @@ export class DragLeaveEvent extends DragEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -3607,6 +3872,8 @@ export class DragLeaveEvent extends DragEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     if (object.customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
@@ -3694,6 +3961,7 @@ export class DragLeaveEvent extends DragEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3715,6 +3983,8 @@ export class DragLeaveEvent extends DragEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       customValues: unpackedCustomValues,
       script:
@@ -3820,12 +4090,17 @@ export class DropEvent extends DragEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -3837,7 +4112,7 @@ export class DropEvent extends DragEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -3849,9 +4124,19 @@ export class DropEvent extends DragEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
@@ -3904,9 +4189,12 @@ export class DropEvent extends DragEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     customValues?: { readonly [key: string]: Value };
     status?: EventStatus;
     script?: Script | NodeReference | null;
@@ -4016,19 +4304,31 @@ export class DropEvent extends DragEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`DropEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -4058,6 +4358,12 @@ export class DropEvent extends DragEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -4110,6 +4416,9 @@ export class DropEvent extends DragEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
@@ -4188,23 +4497,26 @@ export class DropEvent extends DragEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["30"] = object.status;
+    objectValue["40"] = object.status;
     if (object.scriptPtr != null) {
       objectValue["80"] = object.scriptPtr.toValue();
     }
@@ -4246,21 +4558,21 @@ export class DropEvent extends DragEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -4283,10 +4595,13 @@ export class DropEvent extends DragEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
@@ -4325,6 +4640,7 @@ export class DropEvent extends DragEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -4334,6 +4650,8 @@ export class DropEvent extends DragEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     if (object.customValues) {
       objectProto.customValues = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
@@ -4421,6 +4739,7 @@ export class DropEvent extends DragEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -4442,6 +4761,8 @@ export class DropEvent extends DragEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       customValues: unpackedCustomValues,
       script:

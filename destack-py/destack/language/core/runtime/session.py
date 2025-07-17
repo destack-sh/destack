@@ -41,6 +41,7 @@ class Session:
     """
 
     __slots__ = (
+        "_epoch",
         "_token",
         "actor_ptr",
         "closed_at",
@@ -59,6 +60,7 @@ class Session:
         oracle: Oracle = WORLD_ORACLE,
         actor_ptr: NodeReference | None = None,
         store: "EventStore | EntityStore | None" = None,
+        epoch: int | None = None,
     ):
         self.oracle: Oracle = oracle
         self.actor_ptr: NodeReference | None = actor_ptr
@@ -70,6 +72,7 @@ class Session:
         self.pending_events: list[Event] = []
         self.connections: list[QueryConnection] = []
         self.closed_at: datetime | None = None
+        self._epoch: int | None = epoch
         self._token: Any | None = None
 
     def __str__(self) -> str:
@@ -78,12 +81,20 @@ class Session:
             content_parts.append(f"actor={self.actor_ptr!r}")
         if self.store is not None:
             content_parts.append(f"store={self.store!r}")
+        if self._epoch is not None:
+            content_parts.append(f"epoch={self._epoch}")
         if self.closed_at is not None:
             content_parts.append(f"closed_at={self.closed_at.isoformat()}")
         return ", ".join(content_parts)
 
     def __repr__(self) -> str:
         return f"<Session {self!s}>"
+
+    @property
+    def epoch(self) -> int:
+        """The epoch of the Session."""
+        assert self._epoch is not None, f"{self!r} has no epoch"
+        return self._epoch
 
     async def open(self):
         """Opens the Session."""

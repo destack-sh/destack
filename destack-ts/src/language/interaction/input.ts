@@ -45,26 +45,41 @@ export abstract class InputEvent extends Event implements IsExtensible {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   declare readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  declare readonly clientEpoch: number;
 
   /**
    * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.

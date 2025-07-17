@@ -65,9 +65,14 @@ export abstract class Entity extends Node {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -76,9 +81,14 @@ export abstract class Entity extends Node {
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -87,7 +97,7 @@ export abstract class Entity extends Node {
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -412,9 +422,14 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -423,9 +438,14 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -434,7 +454,7 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -534,9 +554,14 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -545,9 +570,14 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -556,7 +586,7 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -683,9 +713,14 @@ export class Snapshot extends Entity implements IsOwnable {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -700,9 +735,14 @@ export class Snapshot extends Entity implements IsOwnable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -717,7 +757,7 @@ export class Snapshot extends Entity implements IsOwnable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -791,8 +831,10 @@ export class Snapshot extends Entity implements IsOwnable {
     snapshot?: Snapshot | NodeReference;
     precededBy?: Snapshot | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
@@ -899,17 +941,26 @@ export class Snapshot extends Entity implements IsOwnable {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
       this.updatedAt = now;
+      this.updatedEpoch = epoch;
       this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
+      if (
+        options.createdAt == null ||
+        options.updatedAt == null ||
+        options.createdEpoch == null ||
+        options.updatedEpoch == null
+      ) {
         throw new Error(
           `Snapshot.createdAt and Snapshot.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
@@ -917,6 +968,7 @@ export class Snapshot extends Entity implements IsOwnable {
             : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
+      this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
           ? options.updatedBy.metatype == StructType.NODE_REFERENCE
@@ -1045,18 +1097,20 @@ export class Snapshot extends Entity implements IsOwnable {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
-    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["23"] = object.updatedByPtr.toValue();
+      objectValue["25"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (object._ownedByPtr != null) {
-      objectValue["28"] = object._ownedByPtr.toValue();
+      objectValue["32"] = object._ownedByPtr.toValue();
     }
     objectValue["50"] = object._name;
     objectValue["110"] = object._status;
@@ -1081,22 +1135,22 @@ export class Snapshot extends Entity implements IsOwnable {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["28"];
+    const ownedByPtrValue = objectValue["32"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["23"];
+    const updatedByPtrValue = objectValue["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["24"];
+    const deletedAtValue = objectValue["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -1115,8 +1169,10 @@ export class Snapshot extends Entity implements IsOwnable {
       ownedBy: unpackedOwnedByPtr,
       materialization: Number(objectValue["10"]),
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
@@ -1155,10 +1211,12 @@ export class Snapshot extends Entity implements IsOwnable {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
@@ -1222,6 +1280,7 @@ export class Snapshot extends Entity implements IsOwnable {
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1233,6 +1292,7 @@ export class Snapshot extends Entity implements IsOwnable {
             )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1326,9 +1386,14 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -1337,9 +1402,14 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -1348,7 +1418,7 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

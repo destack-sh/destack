@@ -21,7 +21,7 @@ import { afterEach, beforeEach, expect, test } from "bun:test";
 let session: Session;
 
 beforeEach(async () => {
-  session = new Session();
+  session = new Session({ epoch: 1 });
   await session.open();
   const space = new Space({
     name: "My Space",

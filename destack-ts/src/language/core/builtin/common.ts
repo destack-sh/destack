@@ -901,6 +901,7 @@ export enum ValueFactory {
   UUID4 = 1,
   UUID7 = 2,
   NOW = 10,
+  EPOCH = 11,
   REGION = 20,
   SELF = 30,
   SPACE = 31,

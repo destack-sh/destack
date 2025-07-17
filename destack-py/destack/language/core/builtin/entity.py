@@ -79,6 +79,7 @@ class Entity(Node):
         is_repr=False,
         default=Materialization.ROOT,
     )
+    # nocheckin: always put Entity in Snapshots
     snapshot: Optional["Snapshot"] = builtin_property(
         11,
         is_readonly=True,
@@ -113,10 +114,18 @@ class Entity(Node):
         is_eq=False,
         is_readonly=True,
         can_write=RoleType.SYSTEM,
-        description="The time this Entity was created.",
+        description="The time this Entity was created (system time).",
+    )
+    created_epoch: int = builtin_property(
+        21,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        can_write=RoleType.SYSTEM,
+        description="The logical time this Entity was created (system time).",
     )
     created_by: Optional["IsActor"] = builtin_property(
-        21,
+        22,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -126,14 +135,22 @@ class Entity(Node):
         description="The Actor that created this Entity.",
     )
     updated_at: datetime = builtin_property(
-        22,
+        23,
         is_managed=True,
         is_eq=False,
         can_write=RoleType.SYSTEM,
-        description="The time this Entity was last updated.",
+        description="The time this Entity was last updated (system time).",
+    )
+    updated_epoch: int = builtin_property(
+        24,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        can_write=RoleType.SYSTEM,
+        description="The logical time this Entity was last updated (system time).",
     )
     updated_by: Optional["IsActor"] = builtin_property(
-        23,
+        25,
         default=None,
         is_managed=True,
         is_eq=False,
@@ -141,11 +158,16 @@ class Entity(Node):
         can_write=RoleType.SYSTEM,
         description="The Actor that last updated this Entity.",
     )
+    deleted_at: Optional[datetime] = builtin_property(
+        26,
+        is_managed=True,
+        is_eq=False,
+        can_write=RoleType.SYSTEM,
+        description="The time this Entity was deleted (system time).",
+    )
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None
         updated_by_ptr: Optional[NodeReference] = None
-    deleted_at: Optional[datetime] = builtin_property(24, is_managed=True, is_eq=False)
-    # revision? epoch?
 
     name: str = builtin_property(
         50,

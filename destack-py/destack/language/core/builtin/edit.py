@@ -76,7 +76,7 @@ class EditOperation(Enum):
 class EditEvent(Event):
     """A recorded Edit of an Entity."""
 
-    # change_key? (bigger ChangeEvent this is a part of)
+    # change: Optional[ChangeEvent]? (bigger ChangeEvent this is a part of)
 
     # forward
     type: "EditType" = builtin_property(100, is_repr=True, description="The type of Edit.")

@@ -34,6 +34,7 @@ export class Session {
   connections: QueryConnection[];
   closedAt: Temporal.ZonedDateTime | null;
   _token: string | null;
+  _epoch: number | null;
 
   constructor(options?: {
     oracle?: Oracle;
@@ -41,6 +42,7 @@ export class Session {
     clientNonce?: string | null;
     actorPtr?: NodeReference | null;
     store?: EventStore | EntityStore | null;
+    epoch?: number;
     supergraphClass?: typeof Supergraph;
   }) {
     this.oracle = options?.oracle ?? WORLD_ORACLE;
@@ -55,6 +57,7 @@ export class Session {
     this.pendingEvents = [];
     this.connections = [];
     this.closedAt = null;
+    this._epoch = options?.epoch ?? null;
     this._token = null;
   }
 
@@ -70,6 +73,13 @@ export class Session {
       contentParts.push(`closed_at=${this.closedAt.toString()}`);
     }
     return `<${this.constructor.name} ${contentParts.join(", ")}>`;
+  }
+
+  get epoch(): number {
+    if (this._epoch == null) {
+      throw new Error(`${this.repr()} has no epoch`);
+    }
+    return this._epoch;
   }
 
   /**

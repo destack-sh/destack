@@ -46,26 +46,41 @@ export abstract class ViewEvent extends Event {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   declare readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  declare readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -131,9 +146,14 @@ export abstract class View
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -142,9 +162,14 @@ export abstract class View
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -153,7 +178,7 @@ export abstract class View
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

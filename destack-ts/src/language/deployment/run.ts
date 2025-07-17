@@ -41,7 +41,7 @@ import {
   RunStopRequestedEventProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:1110000 ==== */
@@ -91,26 +91,41 @@ export abstract class RunEvent extends Event {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   abstract get createdBy(): (Entity & IsActor) | null;
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   abstract get client(): Client | null;
   declare readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   declare readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  declare readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  declare readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -180,12 +195,17 @@ export class RunStartedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -197,7 +217,7 @@ export class RunStartedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -209,9 +229,19 @@ export class RunStartedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -248,9 +278,12 @@ export class RunStartedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -337,19 +370,31 @@ export class RunStartedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunStartedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -373,6 +418,12 @@ export class RunStartedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -407,6 +458,9 @@ export class RunStartedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -471,16 +525,19 @@ export class RunStartedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -511,17 +568,17 @@ export class RunStartedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunStartedEvent({
       node: _NodeReference.fromValue(
@@ -535,10 +592,13 @@ export class RunStartedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -572,6 +632,7 @@ export class RunStartedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -581,6 +642,8 @@ export class RunStartedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -636,6 +699,7 @@ export class RunStartedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -657,6 +721,8 @@ export class RunStartedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -739,12 +805,17 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -756,7 +827,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -768,9 +839,19 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -807,9 +888,12 @@ export class RunPauseRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -896,19 +980,31 @@ export class RunPauseRequestedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunPauseRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -932,6 +1028,12 @@ export class RunPauseRequestedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -966,6 +1068,9 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1030,16 +1135,19 @@ export class RunPauseRequestedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -1070,17 +1178,17 @@ export class RunPauseRequestedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunPauseRequestedEvent({
       node: _NodeReference.fromValue(
@@ -1094,10 +1202,13 @@ export class RunPauseRequestedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1137,6 +1248,7 @@ export class RunPauseRequestedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -1146,6 +1258,8 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -1201,6 +1315,7 @@ export class RunPauseRequestedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1222,6 +1337,8 @@ export class RunPauseRequestedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -1310,12 +1427,17 @@ export class RunPausedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1327,7 +1449,7 @@ export class RunPausedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -1339,9 +1461,19 @@ export class RunPausedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -1378,9 +1510,12 @@ export class RunPausedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -1467,19 +1602,31 @@ export class RunPausedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunPausedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -1503,6 +1650,12 @@ export class RunPausedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -1537,6 +1690,9 @@ export class RunPausedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1601,16 +1757,19 @@ export class RunPausedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -1641,17 +1800,17 @@ export class RunPausedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunPausedEvent({
       node: _NodeReference.fromValue(
@@ -1665,10 +1824,13 @@ export class RunPausedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1702,6 +1864,7 @@ export class RunPausedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -1711,6 +1874,8 @@ export class RunPausedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -1766,6 +1931,7 @@ export class RunPausedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1787,6 +1953,8 @@ export class RunPausedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -1869,12 +2037,17 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -1886,7 +2059,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -1898,9 +2071,19 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -1937,9 +2120,12 @@ export class RunResumeRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -2026,19 +2212,31 @@ export class RunResumeRequestedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunResumeRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -2062,6 +2260,12 @@ export class RunResumeRequestedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -2096,6 +2300,9 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -2160,16 +2367,19 @@ export class RunResumeRequestedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -2200,17 +2410,17 @@ export class RunResumeRequestedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunResumeRequestedEvent({
       node: _NodeReference.fromValue(
@@ -2224,10 +2434,13 @@ export class RunResumeRequestedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2267,6 +2480,7 @@ export class RunResumeRequestedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -2276,6 +2490,8 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -2331,6 +2547,7 @@ export class RunResumeRequestedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2352,6 +2569,8 @@ export class RunResumeRequestedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -2440,12 +2659,17 @@ export class RunResumedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -2457,7 +2681,7 @@ export class RunResumedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -2469,9 +2693,19 @@ export class RunResumedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -2508,9 +2742,12 @@ export class RunResumedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -2597,19 +2834,31 @@ export class RunResumedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunResumedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -2633,6 +2882,12 @@ export class RunResumedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -2667,6 +2922,9 @@ export class RunResumedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -2731,16 +2989,19 @@ export class RunResumedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -2771,17 +3032,17 @@ export class RunResumedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunResumedEvent({
       node: _NodeReference.fromValue(
@@ -2795,10 +3056,13 @@ export class RunResumedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -2832,6 +3096,7 @@ export class RunResumedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -2841,6 +3106,8 @@ export class RunResumedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -2896,6 +3163,7 @@ export class RunResumedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2917,6 +3185,8 @@ export class RunResumedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -2999,12 +3269,17 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -3016,7 +3291,7 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -3028,9 +3303,19 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -3067,9 +3352,12 @@ export class RunStopRequestedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -3156,19 +3444,31 @@ export class RunStopRequestedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunStopRequestedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -3192,6 +3492,12 @@ export class RunStopRequestedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -3226,6 +3532,9 @@ export class RunStopRequestedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -3290,16 +3599,19 @@ export class RunStopRequestedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -3330,17 +3642,17 @@ export class RunStopRequestedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunStopRequestedEvent({
       node: _NodeReference.fromValue(
@@ -3354,10 +3666,13 @@ export class RunStopRequestedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -3397,6 +3712,7 @@ export class RunStopRequestedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -3406,6 +3722,8 @@ export class RunStopRequestedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -3461,6 +3779,7 @@ export class RunStopRequestedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3482,6 +3801,8 @@ export class RunStopRequestedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -3570,12 +3891,17 @@ export class RunFailedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -3587,7 +3913,7 @@ export class RunFailedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -3599,9 +3925,19 @@ export class RunFailedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -3638,9 +3974,12 @@ export class RunFailedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -3727,19 +4066,31 @@ export class RunFailedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunFailedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -3763,6 +4114,12 @@ export class RunFailedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -3797,6 +4154,9 @@ export class RunFailedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -3861,16 +4221,19 @@ export class RunFailedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -3901,17 +4264,17 @@ export class RunFailedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunFailedEvent({
       node: _NodeReference.fromValue(
@@ -3925,10 +4288,13 @@ export class RunFailedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -3962,6 +4328,7 @@ export class RunFailedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -3971,6 +4338,8 @@ export class RunFailedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -4026,6 +4395,7 @@ export class RunFailedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -4047,6 +4417,8 @@ export class RunFailedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -4129,12 +4501,17 @@ export class RunCompletedEvent extends RunEvent {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -4146,7 +4523,7 @@ export class RunCompletedEvent extends RunEvent {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -4158,9 +4535,19 @@ export class RunCompletedEvent extends RunEvent {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -4197,9 +4584,12 @@ export class RunCompletedEvent extends RunEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Run | NodeReference;
     target?: (Entity & IsRunnable) | NodeReference | null;
@@ -4286,19 +4676,31 @@ export class RunCompletedEvent extends RunEvent {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`RunCompletedEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -4322,6 +4724,12 @@ export class RunCompletedEvent extends RunEvent {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -4356,6 +4764,9 @@ export class RunCompletedEvent extends RunEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -4420,16 +4831,19 @@ export class RunCompletedEvent extends RunEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     if (object.targetPtr != null) {
       objectValue["110"] = object.targetPtr.toValue();
@@ -4460,17 +4874,17 @@ export class RunCompletedEvent extends RunEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RunCompletedEvent({
       node: _NodeReference.fromValue(
@@ -4484,10 +4898,13 @@ export class RunCompletedEvent extends RunEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -4527,6 +4944,7 @@ export class RunCompletedEvent extends RunEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -4536,6 +4954,8 @@ export class RunCompletedEvent extends RunEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     if (object.targetPtr != null) {
@@ -4591,6 +5011,7 @@ export class RunCompletedEvent extends RunEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -4612,6 +5033,8 @@ export class RunCompletedEvent extends RunEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -4693,9 +5116,14 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -4704,9 +5132,14 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -4715,7 +5148,7 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
