@@ -4867,10 +4867,8 @@ message PropertyDefinitionProto {
   optional StringConstraintProto string_constraint = 131;
   optional NumberConstraintProto number_constraint = 132;
   optional NodeConstraintProto node_constraint = 133;
-  bool node_is_extensible = 140;
-  bool node_is_heterogenous = 141;
-  optional EdgeTypeProto edge_type = 144;
-  optional CascadeActionProto cascade = 145;
+  optional EdgeTypeProto edge_type = 140;
+  optional CascadeActionProto cascade = 141;
   bool is_required = 150;
   bool is_unique = 151;
   bool is_readonly = 153;

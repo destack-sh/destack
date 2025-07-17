@@ -714,7 +714,7 @@ export class FollowEvent extends Event {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1012,6 +1012,7 @@ export class FollowEvent extends Event {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<FollowEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1381,6 +1382,7 @@ export class FollowAddedEvent extends FollowEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<FollowAddedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1762,6 +1764,7 @@ export class FollowRemovedEvent extends FollowEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<FollowRemovedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

@@ -887,7 +887,7 @@ export class NodeReference extends StructFrozen {
   readonly spaceId: string | null;
 
   /**
-   * The type of the Store the Node belonged to.
+   * The type of the Store the Node came from.
    */
   readonly storeKey: StoreKey | null;
 

@@ -60,7 +60,7 @@ export abstract class RoleEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -158,7 +158,7 @@ export class RoleAssignedEvent extends RoleEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -481,6 +481,7 @@ export class RoleAssignedEvent extends RoleEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RoleAssignedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -775,7 +776,7 @@ export class RoleUnassignedEvent extends RoleEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1098,6 +1099,7 @@ export class RoleUnassignedEvent extends RoleEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RoleUnassignedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

@@ -13,7 +13,7 @@ from typing import (
 from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import get_order_key
 
-from .common import EnumType, ResourceStatus, RoleType, StoreDomain, TraitType, ValueFactory
+from .common import EnumType, ResourceStatus, StoreDomain, TraitType, ValueFactory
 from .const import ACTIVE_SNAPSHOT, UNSET
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
@@ -84,14 +84,12 @@ class Entity(Node):
         11,
         is_readonly=True,
         is_managed=True,
-        node_space_from="self",
         description="The Snapshot this Entity is part of.",
     )
     preceded_by: Optional[Self] = builtin_property(
         12,
         is_readonly=True,
         is_managed=True,
-        node_space_from="self",
         description="The previous Entity this Entity is based on (from another Snapshot).",
     )
     # instance_root: Optional["Entity"] = builtin_property(
@@ -113,7 +111,6 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         is_readonly=True,
-        can_write=RoleType.SYSTEM,
         description="The time this Entity was created (system time).",
     )
     created_epoch: int = builtin_property(
@@ -121,7 +118,6 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        can_write=RoleType.SYSTEM,
         description="The logical time this Entity was created (system time).",
     )
     created_by: Optional["IsActor"] = builtin_property(
@@ -130,15 +126,12 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         is_readonly=True,
-        node_space_from="self",
-        can_write=RoleType.SYSTEM,
         description="The Actor that created this Entity.",
     )
     updated_at: datetime = builtin_property(
         23,
         is_managed=True,
         is_eq=False,
-        can_write=RoleType.SYSTEM,
         description="The time this Entity was last updated (system time).",
     )
     updated_epoch: int = builtin_property(
@@ -146,7 +139,6 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        can_write=RoleType.SYSTEM,
         description="The logical time this Entity was last updated (system time).",
     )
     updated_by: Optional["IsActor"] = builtin_property(
@@ -154,15 +146,12 @@ class Entity(Node):
         default=None,
         is_managed=True,
         is_eq=False,
-        node_space_from="self",
-        can_write=RoleType.SYSTEM,
         description="The Actor that last updated this Entity.",
     )
     deleted_at: Optional[datetime] = builtin_property(
         26,
         is_managed=True,
         is_eq=False,
-        can_write=RoleType.SYSTEM,
         description="The time this Entity was deleted (system time).",
     )
     if TYPE_CHECKING:
@@ -521,7 +510,6 @@ class Snapshot(
         11,
         is_readonly=True,
         is_managed=True,
-        node_space_from="self",
         default_factory=ValueFactory.SELF,
         description="The Snapshot itself. Cannot be any other Snapshot than this Snapshot",
     )
@@ -529,7 +517,6 @@ class Snapshot(
         12,
         is_readonly=True,
         is_managed=True,
-        node_space_from="self",
         description="The previous Snapshot this Snapshot is based on.",
     )
 

@@ -247,6 +247,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     return null;
   }
+  set handle(node: Handle | null) {
+    if (node === null) {
+      this.handlePtr = null;
+    } else {
+      this.handlePtr = node.toRef();
+    }
+  }
   /**
    * Space.handle
    */
@@ -270,6 +277,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     return null;
   }
+  set systemFolder(node: Folder | null) {
+    if (node === null) {
+      this.systemFolderPtr = null;
+    } else {
+      this.systemFolderPtr = node.toRef();
+    }
+  }
   /**
    * The system Folder.
    */
@@ -292,6 +306,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       return this._supergraph.get(nodePtr.id) as Folder | null;
     }
     return null;
+  }
+  set homeFolder(node: Folder | null) {
+    if (node === null) {
+      this.homeFolderPtr = null;
+    } else {
+      this.homeFolderPtr = node.toRef();
+    }
   }
   /**
    * The home Folder.
@@ -347,6 +368,13 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       return this._supergraph.get(nodePtr.id) as Database | null;
     }
     return null;
+  }
+  set database(node: Database | null) {
+    if (node === null) {
+      this.databasePtr = null;
+    } else {
+      this.databasePtr = node.toRef();
+    }
   }
   /**
    * Space.database

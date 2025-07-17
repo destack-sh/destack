@@ -214,6 +214,13 @@ export class Organization extends Entity implements IsActor, IsJoinable {
     }
     return null;
   }
+  set handle(node: Handle | null) {
+    if (node === null) {
+      this.handlePtr = null;
+    } else {
+      this.handlePtr = node.toRef();
+    }
+  }
   /**
    * Organization.handle
    */

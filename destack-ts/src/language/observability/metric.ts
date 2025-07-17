@@ -182,7 +182,7 @@ export abstract class MeasurementEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -1025,7 +1025,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1335,6 +1335,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<GaugeMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2386,7 +2387,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2696,6 +2697,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<CounterMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3747,7 +3749,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -4057,6 +4059,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<HistogramMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

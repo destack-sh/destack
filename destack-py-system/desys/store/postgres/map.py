@@ -53,14 +53,13 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                 prop=prop,
             )
             columns.append(column)
-            if prop.node_is_heterogenous:
-                node_type_column = PostgresColumn(
-                    name=f"{prop.id}_type",
-                    type=PrimitiveType.INT32,
-                    is_nullable=prop.is_optional,
-                    prop=prop,
-                )
-                columns.append(node_type_column)
+            node_type_column = PostgresColumn(
+                name=f"{prop.id}_type",
+                type=PrimitiveType.INT32,
+                is_nullable=prop.is_optional,
+                prop=prop,
+            )
+            columns.append(node_type_column)
             space_id_column = PostgresColumn(
                 name=f"{prop.id}_space_id",
                 type=PrimitiveType.UUID,
@@ -68,14 +67,13 @@ def map_builtin_node_to_database_table(node: type[Node]) -> PostgresTable:
                 prop=prop,
             )
             columns.append(space_id_column)
-            if prop.node_is_extensible:
-                table_id_column = PostgresColumn(
-                    name=f"{prop.id}_definition_id",
-                    type=PrimitiveType.UUID,
-                    is_nullable=True,
-                    prop=prop,
-                )
-                columns.append(table_id_column)
+            table_id_column = PostgresColumn(
+                name=f"{prop.id}_definition_id",
+                type=PrimitiveType.UUID,
+                is_nullable=True,
+                prop=prop,
+            )
+            columns.append(table_id_column)
         else:
             # regular column
             assert prop.primitive_type is not None, f"undetermined type for {prop!r}"

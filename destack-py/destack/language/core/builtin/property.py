@@ -7,14 +7,12 @@ from typing import (
     TYPE_CHECKING,
     Any,
     Callable,
-    Literal,
     Optional,
     assert_never,
 )
 
 from destack.language.registry import (
     ENUM_CLASS_BY_TYPE,
-    NODE_CLASS_BY_TYPE,
 )
 from destack.utils.func import hash_stable
 from destack.utils.string import Casing, to_casing
@@ -28,7 +26,6 @@ from .common import (
     NodeType,
     PrimitiveType,
     PropertyType,
-    RoleType,
     ScalarType,
     StructType,
     TraitType,
@@ -364,9 +361,6 @@ class PropertyDeclaration(TypeDeclaration):
     original_component: type_["BuiltinObject"] = UNSET  # original component (first in chain)
 
     # pointers
-    node_space_from: Literal["self"] | None = None
-    node_is_extensible: bool = False
-    node_is_heterogenous: bool = False
     edge_type: EdgeType | None = None
     cascade: CascadeAction | None = None
 
@@ -380,9 +374,6 @@ class PropertyDeclaration(TypeDeclaration):
     is_computed: bool = False  # set automatically at runtime
     is_readonly: bool = False  # can only be set once (at init time)
     is_main: bool = False  # root property (for return types with single value)
-
-    can_read: RoleType = RoleType.SPECTATOR
-    can_write: RoleType | None = RoleType.SPECTATOR
 
     _ref: Optional["PropertyReference"] = None
     _type: Optional["Type"] = None
@@ -548,18 +539,6 @@ class PropertyDeclaration(TypeDeclaration):
             f"undetermined type {self.py_type!r} for {self!r} ({annotation!r})"
         )
 
-    def finalize(self, object_type: NodeType | StructType | None) -> None:
-        """Finalize the Property after all BuiltinObjects are defined."""
-        if self.scalar_type == ScalarType.NODE_REFERENCE:
-            from ..runtime.graph import expand_node_types
-
-            node_types = expand_node_types(self.node_types or (), expand_inheritance=True)
-            self.node_is_heterogenous = len(node_types) > 1
-            self.node_is_extensible = any(
-                TraitType.EXTENSIBLE in NODE_CLASS_BY_TYPE[node_type].__traits__
-                for node_type in node_types
-            )
-
     #
     # Querying
     #
@@ -658,7 +637,6 @@ def builtin_property(
     primitive_type: PrimitiveType | None = UNSET,
     format: "TypeFormat | None" = None,
     constraint: "TypeConstraint | None" = None,
-    node_space_from: Literal["self"] | None = None,
     edge_type: EdgeType | None = None,
     cascade: CascadeAction | None = None,
     is_managed: bool = False,
@@ -668,8 +646,6 @@ def builtin_property(
     is_unique: bool = False,
     is_readonly: bool = False,
     is_main: bool = False,
-    can_read: RoleType = RoleType.SPECTATOR,
-    can_write: RoleType | None = RoleType.SPECTATOR,
 ) -> Any:
     return PropertyDeclaration(
         id=id,
@@ -679,7 +655,6 @@ def builtin_property(
         primitive_type=primitive_type,
         format=format,
         constraint=constraint,
-        node_space_from=node_space_from,
         edge_type=edge_type,
         cascade=cascade,
         is_wired=True,
@@ -691,8 +666,6 @@ def builtin_property(
         is_unique=is_unique,
         is_readonly=is_readonly,
         is_main=is_main,
-        can_read=can_read,
-        can_write=can_write,
     )
 
 
@@ -708,7 +681,6 @@ def builtin_property_parent(*, is_readonly: bool = False) -> Any:
         is_managed=True,
         is_eq=False,
         is_readonly=is_readonly,
-        node_space_from="self",
         cascade=CascadeAction.CASCADE,
     )
 

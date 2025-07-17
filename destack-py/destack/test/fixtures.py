@@ -47,7 +47,7 @@ async def memory_session() -> AsyncGenerator[Session, None]:
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session():
     """Default Session is in-memory."""
-    session = Session(store=MemoryStore(keys=tuple(StoreKey)))
+    session = Session(store=MemoryStore(keys=tuple(StoreKey)), epoch=0)
     await session.open()
     yield session
     await session.close()

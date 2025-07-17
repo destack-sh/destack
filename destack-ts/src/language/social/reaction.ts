@@ -747,7 +747,7 @@ export class ReactionEvent extends Event {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1060,6 +1060,7 @@ export class ReactionEvent extends Event {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<ReactionEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1438,6 +1439,7 @@ export class ReactionAddedEvent extends ReactionEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<ReactionAddedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1828,6 +1830,7 @@ export class ReactionRemovedEvent extends ReactionEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<ReactionRemovedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

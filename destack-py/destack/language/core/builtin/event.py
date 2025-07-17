@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING, Optional
 
 from destack.utils.uuid import UUID
 
-from .common import EnumType, RoleType, StoreDomain
+from .common import EnumType, StoreDomain
 from .const import ACTIVE_EVENT
 from .entity import Entity
 from .enum import Enum, builtin_enum
@@ -61,14 +61,12 @@ class Event[N: Node = Node](Node):
         11,
         is_readonly=True,
         is_managed=True,
-        node_space_from="self",
         description="The Snapshot this Event originated from.",
     )
     preceded_by: Optional["Event"] = builtin_property(
         12,
         is_readonly=True,
         is_managed=True,
-        node_space_from="self",
         description="The previous Event that this Event follows.",
     )
     # 20-40: node tracking
@@ -77,7 +75,6 @@ class Event[N: Node = Node](Node):
         is_managed=True,
         is_eq=False,
         is_readonly=True,
-        can_write=RoleType.SYSTEM,
         description="The time this Event was created (set by the system).",
     )
     created_epoch: int = builtin_property(
@@ -85,7 +82,8 @@ class Event[N: Node = Node](Node):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        can_write=RoleType.SYSTEM,
+        is_repr=True,
+        is_readonly=True,
         description="The logical time this Event was created (set by the system).",
     )
     created_by: Optional["IsActor"] = builtin_property(
@@ -94,8 +92,6 @@ class Event[N: Node = Node](Node):
         is_managed=True,
         is_eq=False,
         is_readonly=True,
-        node_space_from="self",
-        can_write=RoleType.SYSTEM,
         description="The Actor that created this Event.",
     )
     client: Optional["Client"] = builtin_property(

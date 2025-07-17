@@ -84,7 +84,7 @@ export abstract class NotificationEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -176,7 +176,7 @@ export class NotificationSentEvent extends NotificationEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -474,6 +474,7 @@ export class NotificationSentEvent extends NotificationEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<NotificationSentEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -752,7 +753,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1050,6 +1051,7 @@ export class NotificationRescindedEvent extends NotificationEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<NotificationRescindedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1328,7 +1330,7 @@ export class NotificationReadEvent extends NotificationEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1626,6 +1628,7 @@ export class NotificationReadEvent extends NotificationEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<NotificationReadEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1904,7 +1907,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2202,6 +2205,7 @@ export class NotificationDismissedEvent extends NotificationEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<NotificationDismissedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2480,7 +2484,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2778,6 +2782,7 @@ export class NotificationExpiredEvent extends NotificationEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<NotificationExpiredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

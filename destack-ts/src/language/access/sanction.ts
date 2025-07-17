@@ -76,7 +76,7 @@ export abstract class SanctionEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -174,7 +174,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -497,6 +497,7 @@ export class SanctionRequestedEvent extends SanctionEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<SanctionRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -791,7 +792,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1114,6 +1115,7 @@ export class SanctionGrantedEvent extends SanctionEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<SanctionGrantedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1408,7 +1410,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1731,6 +1733,7 @@ export class SanctionRevokedEvent extends SanctionEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<SanctionRevokedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2025,7 +2028,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2348,6 +2351,7 @@ export class SanctionExpiredEvent extends SanctionEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<SanctionExpiredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

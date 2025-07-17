@@ -54,7 +54,7 @@ export abstract class SceneEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;

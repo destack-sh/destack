@@ -9,7 +9,6 @@ from destack.language.core import (
     IsCustomizable,
     IsFollowable,
     NodeType,
-    RoleType,
     StringFormat,
     builtin_enum,
     builtin_node,
@@ -41,19 +40,13 @@ class User(
     parent: Optional["Space"] = builtin_property_parent()
     slug: str = builtin_property(102, is_repr=True)
 
-    status: UserStatus = builtin_property(
-        110, can_write=RoleType.SYSTEM, is_repr=True, default=UserStatus.CREATING
-    )
-    last_logged_in_at: Optional[datetime] = builtin_property(111, can_write=RoleType.SYSTEM)
+    status: UserStatus = builtin_property(110, is_repr=True, default=UserStatus.CREATING)
+    last_logged_in_at: Optional[datetime] = builtin_property(111)
     # last_active_at, seen_at, ...
-    is_staff: bool = builtin_property(112, default=False, can_write=RoleType.SYSTEM)
+    is_staff: bool = builtin_property(112, default=False)
 
-    handle: Optional["Handle"] = builtin_property(
-        121, can_write=RoleType.SYSTEM, node_space_from="self"
-    )
-    cursor: Optional["Cursor"] = builtin_property(
-        122, can_write=RoleType.SYSTEM, node_space_from="self"
-    )
+    handle: Optional["Handle"] = builtin_property(121)
+    cursor: Optional["Cursor"] = builtin_property(122)
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
         cursor_ptr: Optional[NodeReference] = None
@@ -61,18 +54,8 @@ class User(
     # auth
     # NOTE: Incomplete: factor out auth/Credentials/Challenges/... for Users/Client
     #  (multiple auth methods, multiple connected accounts, etc.)
-    email: str | None = builtin_property(
-        130,
-        format=StringFormat.EMAIL,
-        can_read=RoleType.OWNER,
-        can_write=RoleType.SYSTEM,
-        is_unique=True,
-    )
-    password_salt: Optional[bytes] = builtin_property(
-        131, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
-    )
-    password_hash: Optional[bytes] = builtin_property(
-        132, can_read=RoleType.SYSTEM, can_write=RoleType.SYSTEM, is_eq=False
-    )
+    email: str | None = builtin_property(130, format=StringFormat.EMAIL, is_unique=True)
+    password_salt: Optional[bytes] = builtin_property(131, is_eq=False)
+    password_hash: Optional[bytes] = builtin_property(132, is_eq=False)
     # challenges?
     # password_reset_token, email_confirmation_token, ...

@@ -187,11 +187,6 @@ def finalize():
                     all_event_types.update(event_cls.__inherited_by__)
         node_cls.__event_types__ = tuple(all_event_types)
 
-    # finalize properties
-    for metatype, object_cls in chain(NODE_CLASS_BY_TYPE.items(), STRUCT_CLASS_BY_TYPE.items()):
-        for prop in object_cls.__properties__.values():
-            prop.finalize(metatype)
-
     # generate pack/unpack methods
     from destack.grpc.wiring import generate_pack_proto_impl
     from destack.language.core.common.value import generate_pack_value_impl

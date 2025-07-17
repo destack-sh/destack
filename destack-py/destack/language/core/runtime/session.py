@@ -253,7 +253,7 @@ class Session:
             event for event in events if event.status != EventStatus.APPROVED
         ]
         if failed_events:
-            pass  # nocheckin: 'process' Events (Event.status, in Space?)
+            pass  # nocheckin: 'process' Events (.status, time/epoch, in Space?)
             #  1) update Event status and 2) do something on failure :RejectedEvents
         #     raise RuntimeError(f"failed to commit {len(failed_events)} Events: {failed_events!r}")
         return applied_events

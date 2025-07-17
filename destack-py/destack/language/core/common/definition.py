@@ -349,10 +349,8 @@ class PropertyDefinition(BuiltinDefinition):
     node_constraint: Optional["NodeConstraint"] = builtin_property(133)
 
     # relationship
-    node_is_extensible: bool = builtin_property(140)
-    node_is_heterogenous: bool = builtin_property(141)
-    edge_type: EdgeType | None = builtin_property(144)
-    cascade: CascadeAction | None = builtin_property(145)
+    edge_type: EdgeType | None = builtin_property(140)
+    cascade: CascadeAction | None = builtin_property(141)
 
     # flags
     is_required: bool = builtin_property(150, is_repr=True)
@@ -398,8 +396,6 @@ class PropertyDefinition(BuiltinDefinition):
             number_constraint=type.number_constraint,
             node_constraint=type.node_constraint,
             # node
-            node_is_extensible=prop.node_is_extensible,
-            node_is_heterogenous=prop.node_is_heterogenous,
             edge_type=prop.edge_type,
             cascade=prop.cascade,
             # flags

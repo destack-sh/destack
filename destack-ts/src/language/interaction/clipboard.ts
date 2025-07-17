@@ -54,7 +54,7 @@ export abstract class ClipboardEvent extends InputEvent {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -174,7 +174,7 @@ export class CopyEvent extends ClipboardEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -554,6 +554,7 @@ export class CopyEvent extends ClipboardEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<CopyEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -924,7 +925,7 @@ export class CutEvent extends ClipboardEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1304,6 +1305,7 @@ export class CutEvent extends ClipboardEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<CutEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1674,7 +1676,7 @@ export class PasteEvent extends ClipboardEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2054,6 +2056,7 @@ export class PasteEvent extends ClipboardEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PasteEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
