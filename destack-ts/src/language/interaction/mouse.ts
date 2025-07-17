@@ -83,7 +83,7 @@ export abstract class MouseEvent extends PointerEvent {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -220,7 +220,7 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -375,7 +375,7 @@ export class SingleClickEvent extends ClickEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -868,6 +868,7 @@ export class SingleClickEvent extends ClickEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<SingleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1292,7 +1293,7 @@ export class DoubleClickEvent extends ClickEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1785,6 +1786,7 @@ export class DoubleClickEvent extends ClickEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DoubleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2209,7 +2211,7 @@ export class TripleClickEvent extends ClickEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2702,6 +2704,7 @@ export class TripleClickEvent extends ClickEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<TripleClickEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3126,7 +3129,7 @@ export class WheelEvent extends MouseEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -3634,6 +3637,7 @@ export class WheelEvent extends MouseEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<WheelEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

@@ -85,7 +85,7 @@ export abstract class RunEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -183,7 +183,7 @@ export class RunStartedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -505,6 +505,7 @@ export class RunStartedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunStartedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -793,7 +794,7 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1115,6 +1116,7 @@ export class RunPauseRequestedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunPauseRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1415,7 +1417,7 @@ export class RunPausedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1737,6 +1739,7 @@ export class RunPausedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunPausedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2025,7 +2028,7 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2347,6 +2350,7 @@ export class RunResumeRequestedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunResumeRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2647,7 +2651,7 @@ export class RunResumedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2969,6 +2973,7 @@ export class RunResumedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunResumedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3257,7 +3262,7 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -3579,6 +3584,7 @@ export class RunStopRequestedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunStopRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3879,7 +3885,7 @@ export class RunFailedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -4201,6 +4207,7 @@ export class RunFailedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunFailedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -4489,7 +4496,7 @@ export class RunCompletedEvent extends RunEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -4811,6 +4818,7 @@ export class RunCompletedEvent extends RunEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<RunCompletedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

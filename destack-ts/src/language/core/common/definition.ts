@@ -3217,16 +3217,6 @@ export class PropertyDefinition extends BuiltinDefinition {
   readonly nodeConstraint: NodeConstraint | null;
 
   /**
-   * PropertyDefinition.nodeIsExtensible
-   */
-  readonly nodeIsExtensible: boolean;
-
-  /**
-   * PropertyDefinition.nodeIsHeterogenous
-   */
-  readonly nodeIsHeterogenous: boolean;
-
-  /**
    * PropertyDefinition.edgeType
    */
   readonly edgeType: EdgeType | null;
@@ -3308,8 +3298,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     stringConstraint?: StringConstraint | null;
     numberConstraint?: NumberConstraint | null;
     nodeConstraint?: NodeConstraint | null;
-    nodeIsExtensible: boolean;
-    nodeIsHeterogenous: boolean;
     edgeType?: EdgeType | null;
     cascade?: CascadeAction | null;
     isRequired: boolean;
@@ -3403,16 +3391,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     this.numberConstraint = _numberConstraint;
     let _nodeConstraint = options.nodeConstraint ?? null;
     this.nodeConstraint = _nodeConstraint;
-    let _nodeIsExtensible = options.nodeIsExtensible;
-    if (_nodeIsExtensible === null) {
-      throw new Error(`PropertyDefinition.nodeIsExtensible is required`);
-    }
-    this.nodeIsExtensible = _nodeIsExtensible;
-    let _nodeIsHeterogenous = options.nodeIsHeterogenous;
-    if (_nodeIsHeterogenous === null) {
-      throw new Error(`PropertyDefinition.nodeIsHeterogenous is required`);
-    }
-    this.nodeIsHeterogenous = _nodeIsHeterogenous;
     let _edgeType = options.edgeType ?? null;
     this.edgeType = _edgeType;
     let _cascade = options.cascade ?? null;
@@ -3551,12 +3529,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       (this.nodeConstraint == null) !== (other.nodeConstraint == null) ||
       (this.nodeConstraint != null && !this.nodeConstraint.equals(other.nodeConstraint))
     ) {
-      return false;
-    }
-    if (!(this.nodeIsExtensible === other.nodeIsExtensible)) {
-      return false;
-    }
-    if (!(this.nodeIsHeterogenous === other.nodeIsHeterogenous)) {
       return false;
     }
     if (!(this.edgeType === other.edgeType)) {
@@ -3700,8 +3672,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (this.nodeConstraint != null) {
       h = (h * 31 + this.nodeConstraint.hash()) & 0xffffffff;
     }
-    h = (h * 31 + hashBool(this.nodeIsExtensible)) & 0xffffffff;
-    h = (h * 31 + hashBool(this.nodeIsHeterogenous)) & 0xffffffff;
     if (this.edgeType != null) {
       h = (h * 31 + this.edgeType) & 0xffffffff;
     }
@@ -3796,13 +3766,11 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (object.nodeConstraint != null) {
       objectValue["133"] = object.nodeConstraint.toValue();
     }
-    objectValue["140"] = object.nodeIsExtensible;
-    objectValue["141"] = object.nodeIsHeterogenous;
     if (object.edgeType != null) {
-      objectValue["144"] = object.edgeType;
+      objectValue["140"] = object.edgeType;
     }
     if (object.cascade != null) {
-      objectValue["145"] = object.cascade;
+      objectValue["141"] = object.cascade;
     }
     objectValue["150"] = object.isRequired;
     objectValue["151"] = object.isUnique;
@@ -3903,9 +3871,9 @@ export class PropertyDefinition extends BuiltinDefinition {
       nodeConstraintValue != undefined
         ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const edgeTypeValue = objectValue["144"];
+    const edgeTypeValue = objectValue["140"];
     const unpackedEdgeType = edgeTypeValue != undefined ? Number(edgeTypeValue) : null;
-    const cascadeValue = objectValue["145"];
+    const cascadeValue = objectValue["141"];
     const unpackedCascade = cascadeValue != undefined ? Number(cascadeValue) : null;
     const iconValue = objectValue["102"];
     const unpackedIcon =
@@ -3944,8 +3912,6 @@ export class PropertyDefinition extends BuiltinDefinition {
       stringConstraint: unpackedStringConstraint,
       numberConstraint: unpackedNumberConstraint,
       nodeConstraint: unpackedNodeConstraint,
-      nodeIsExtensible: objectValue["140"],
-      nodeIsHeterogenous: objectValue["141"],
       edgeType: unpackedEdgeType,
       cascade: unpackedCascade,
       isRequired: objectValue["150"],
@@ -4042,8 +4008,6 @@ export class PropertyDefinition extends BuiltinDefinition {
     if (object.nodeConstraint != null) {
       objectProto.nodeConstraint = object.nodeConstraint.toProto();
     }
-    objectProto.nodeIsExtensible = object.nodeIsExtensible;
-    objectProto.nodeIsHeterogenous = object.nodeIsHeterogenous;
     if (object.edgeType != null) {
       objectProto.edgeType = Number(object.edgeType) as EdgeTypeProto;
     }
@@ -4169,8 +4133,6 @@ export class PropertyDefinition extends BuiltinDefinition {
               _connection,
             )
           : null,
-      nodeIsExtensible: objectProto.nodeIsExtensible,
-      nodeIsHeterogenous: objectProto.nodeIsHeterogenous,
       edgeType:
         objectProto.edgeType != undefined ? (Number(objectProto.edgeType) as EdgeType) : null,
       cascade:

@@ -12081,19 +12081,11 @@ export interface PropertyDefinitionProto {
      */
     nodeConstraint?: NodeConstraintProto;
     /**
-     * @generated from protobuf field: bool node_is_extensible = 140
-     */
-    nodeIsExtensible: boolean;
-    /**
-     * @generated from protobuf field: bool node_is_heterogenous = 141
-     */
-    nodeIsHeterogenous: boolean;
-    /**
-     * @generated from protobuf field: optional symbol.destack.EdgeTypeProto edge_type = 144
+     * @generated from protobuf field: optional symbol.destack.EdgeTypeProto edge_type = 140
      */
     edgeType?: EdgeTypeProto;
     /**
-     * @generated from protobuf field: optional symbol.destack.CascadeActionProto cascade = 145
+     * @generated from protobuf field: optional symbol.destack.CascadeActionProto cascade = 141
      */
     cascade?: CascadeActionProto;
     /**
@@ -53332,10 +53324,8 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
             { no: 131, name: "string_constraint", kind: "message", T: () => StringConstraintProto },
             { no: 132, name: "number_constraint", kind: "message", T: () => NumberConstraintProto },
             { no: 133, name: "node_constraint", kind: "message", T: () => NodeConstraintProto },
-            { no: 140, name: "node_is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 141, name: "node_is_heterogenous", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
-            { no: 144, name: "edge_type", kind: "enum", opt: true, T: () => ["symbol.destack.EdgeTypeProto", EdgeTypeProto] },
-            { no: 145, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.destack.CascadeActionProto", CascadeActionProto] },
+            { no: 140, name: "edge_type", kind: "enum", opt: true, T: () => ["symbol.destack.EdgeTypeProto", EdgeTypeProto] },
+            { no: 141, name: "cascade", kind: "enum", opt: true, T: () => ["symbol.destack.CascadeActionProto", CascadeActionProto] },
             { no: 150, name: "is_required", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 151, name: "is_unique", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 153, name: "is_readonly", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -53356,8 +53346,6 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         message.name = "";
         message.cardinality = 0;
         message.scalarType = 0;
-        message.nodeIsExtensible = false;
-        message.nodeIsHeterogenous = false;
         message.isRequired = false;
         message.isUnique = false;
         message.isReadonly = false;
@@ -53443,16 +53431,10 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
                 case /* optional symbol.destack.NodeConstraintProto node_constraint */ 133:
                     message.nodeConstraint = NodeConstraintProto.internalBinaryRead(reader, reader.uint32(), options, message.nodeConstraint);
                     break;
-                case /* bool node_is_extensible */ 140:
-                    message.nodeIsExtensible = reader.bool();
-                    break;
-                case /* bool node_is_heterogenous */ 141:
-                    message.nodeIsHeterogenous = reader.bool();
-                    break;
-                case /* optional symbol.destack.EdgeTypeProto edge_type */ 144:
+                case /* optional symbol.destack.EdgeTypeProto edge_type */ 140:
                     message.edgeType = reader.int32();
                     break;
-                case /* optional symbol.destack.CascadeActionProto cascade */ 145:
+                case /* optional symbol.destack.CascadeActionProto cascade */ 141:
                     message.cascade = reader.int32();
                     break;
                 case /* bool is_required */ 150:
@@ -53563,18 +53545,12 @@ class PropertyDefinitionProto$Type extends MessageType<PropertyDefinitionProto> 
         /* optional symbol.destack.NodeConstraintProto node_constraint = 133; */
         if (message.nodeConstraint)
             NodeConstraintProto.internalBinaryWrite(message.nodeConstraint, writer.tag(133, WireType.LengthDelimited).fork(), options).join();
-        /* bool node_is_extensible = 140; */
-        if (message.nodeIsExtensible !== false)
-            writer.tag(140, WireType.Varint).bool(message.nodeIsExtensible);
-        /* bool node_is_heterogenous = 141; */
-        if (message.nodeIsHeterogenous !== false)
-            writer.tag(141, WireType.Varint).bool(message.nodeIsHeterogenous);
-        /* optional symbol.destack.EdgeTypeProto edge_type = 144; */
+        /* optional symbol.destack.EdgeTypeProto edge_type = 140; */
         if (message.edgeType !== undefined)
-            writer.tag(144, WireType.Varint).int32(message.edgeType);
-        /* optional symbol.destack.CascadeActionProto cascade = 145; */
+            writer.tag(140, WireType.Varint).int32(message.edgeType);
+        /* optional symbol.destack.CascadeActionProto cascade = 141; */
         if (message.cascade !== undefined)
-            writer.tag(145, WireType.Varint).int32(message.cascade);
+            writer.tag(141, WireType.Varint).int32(message.cascade);
         /* bool is_required = 150; */
         if (message.isRequired !== false)
             writer.tag(150, WireType.Varint).bool(message.isRequired);

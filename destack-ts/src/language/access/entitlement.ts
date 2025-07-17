@@ -76,7 +76,7 @@ export abstract class EntitlementEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -174,7 +174,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -497,6 +497,7 @@ export class EntitlementRequestedEvent extends EntitlementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<EntitlementRequestedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -791,7 +792,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1114,6 +1115,7 @@ export class EntitlementGrantedEvent extends EntitlementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<EntitlementGrantedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1408,7 +1410,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1731,6 +1733,7 @@ export class EntitlementRevokedEvent extends EntitlementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<EntitlementRevokedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2025,7 +2028,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2348,6 +2351,7 @@ export class EntitlementExpiredEvent extends EntitlementEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<EntitlementExpiredEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

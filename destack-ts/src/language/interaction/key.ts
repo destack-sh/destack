@@ -59,7 +59,7 @@ export abstract class KeyEvent extends InputEvent {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -219,7 +219,7 @@ export class KeyDownEvent extends KeyEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -722,6 +722,7 @@ export class KeyDownEvent extends KeyEvent {
     propertyReprs.push(`key=${`"${this.key}"`}`);
     propertyReprs.push(`code=${`"${this.code}"`}`);
     propertyReprs.push(`isRepeat=${this.isRepeat}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyDownEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1124,7 +1125,7 @@ export class KeyUpEvent extends KeyEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1627,6 +1628,7 @@ export class KeyUpEvent extends KeyEvent {
     propertyReprs.push(`key=${`"${this.key}"`}`);
     propertyReprs.push(`code=${`"${this.code}"`}`);
     propertyReprs.push(`isRepeat=${this.isRepeat}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyUpEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2029,7 +2031,7 @@ export class KeyPressEvent extends KeyEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2532,6 +2534,7 @@ export class KeyPressEvent extends KeyEvent {
     propertyReprs.push(`key=${`"${this.key}"`}`);
     propertyReprs.push(`code=${`"${this.code}"`}`);
     propertyReprs.push(`isRepeat=${this.isRepeat}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<KeyPressEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

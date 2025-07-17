@@ -62,7 +62,7 @@ export abstract class InviteEvent extends Event {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -166,7 +166,7 @@ export class InviteSentEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -554,6 +554,7 @@ export class InviteSentEvent extends InviteEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<InviteSentEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -872,7 +873,7 @@ export class InviteRescindedEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1220,6 +1221,7 @@ export class InviteRescindedEvent extends InviteEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<InviteRescindedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1530,7 +1532,7 @@ export class InviteAcceptedEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1918,6 +1920,7 @@ export class InviteAcceptedEvent extends InviteEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<InviteAcceptedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2248,7 +2251,7 @@ export class InviteRejectedEvent extends InviteEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2596,6 +2599,7 @@ export class InviteRejectedEvent extends InviteEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<InviteRejectedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

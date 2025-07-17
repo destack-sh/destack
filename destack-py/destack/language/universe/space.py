@@ -13,7 +13,6 @@ from destack.language.core import (
     IsStarable,
     NodeType,
     Region,
-    RoleType,
     ValueFactory,
     builtin_enum,
     builtin_node,
@@ -58,27 +57,19 @@ class Space(
 
     slug: str = builtin_property(102, is_repr=True)
 
-    status: SpaceStatus = builtin_property(110, is_repr=True, can_write=RoleType.SYSTEM)
-    handle: Optional["Handle"] = builtin_property(
-        111, node_space_from="self", can_write=RoleType.SYSTEM
-    )
-    system_folder: Optional["Folder"] = builtin_property(
-        112, node_space_from="self", can_write=RoleType.SYSTEM, description="The system Folder."
-    )
-    home_folder: Optional["Folder"] = builtin_property(
-        113, node_space_from="self", can_write=RoleType.SYSTEM, description="The home Folder."
-    )
+    status: SpaceStatus = builtin_property(110, is_repr=True)
+    handle: Optional["Handle"] = builtin_property(111)
+    system_folder: Optional["Folder"] = builtin_property(112, description="The system Folder.")
+    home_folder: Optional["Folder"] = builtin_property(113, description="The home Folder.")
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None
         root_folder_ptr: Optional[NodeReference] = None
         home_folder_ptr: Optional[NodeReference] = None
 
     # infra
-    region: Region = builtin_property(120, can_write=RoleType.SYSTEM)
-    galaxy_name: str | None = builtin_property(121, can_write=RoleType.SYSTEM)  # -> Galaxy?
-    database: Optional["Database"] = builtin_property(
-        122, node_space_from="self", can_write=RoleType.SYSTEM
-    )
+    region: Region = builtin_property(120)
+    galaxy_name: str | None = builtin_property(121)  # -> Galaxy?
+    database: Optional["Database"] = builtin_property(122)
     # search, analytics, vault, cache, ...
     if TYPE_CHECKING:
         database_ptr: Optional[NodeReference] = None

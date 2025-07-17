@@ -122,10 +122,13 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     __is_trait__: ClassVar[bool] = True
 
     # 1-20: node identity
-    #  (repeat common Node properties here so Trait NodeDefinitionReferences can reference them,
-    #   since Trait doesn't actually inherit from Node for circularity reasons;
-    #   but it is still useful to pretend so for typing since Python doesn't support `Trait & Node`)
-    id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=None)
+    id: UUID = builtin_property(
+        2,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        description="The universally unique identifier of this Node.",
+    )
 
     """Whether this trait can be extended by custom Traits."""
     __is_extensible__: ClassVar[bool] = False

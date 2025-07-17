@@ -364,7 +364,7 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
     store_key: Optional[StoreKey] = builtin_property(
         111,
         is_repr=True,
-        description="The type of the Store the Node belonged to.",
+        description="The type of the Store the Node came from.",
     )
 
     # external?

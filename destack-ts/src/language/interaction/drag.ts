@@ -63,7 +63,7 @@ export abstract class DragEvent extends InputEvent {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -188,7 +188,7 @@ export class DragStartEvent extends DragEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -584,6 +584,7 @@ export class DragStartEvent extends DragEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragStartEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -966,7 +967,7 @@ export class DragEndEvent extends DragEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1362,6 +1363,7 @@ export class DragEndEvent extends DragEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragEndEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1744,7 +1746,7 @@ export class DragOverEvent extends DragEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2140,6 +2142,7 @@ export class DragOverEvent extends DragEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragOverEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2522,7 +2525,7 @@ export class DragEnterEvent extends DragEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2918,6 +2921,7 @@ export class DragEnterEvent extends DragEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragEnterEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3300,7 +3304,7 @@ export class DragLeaveEvent extends DragEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -3696,6 +3700,7 @@ export class DragLeaveEvent extends DragEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DragLeaveEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -4078,7 +4083,7 @@ export class DropEvent extends DragEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -4474,6 +4479,7 @@ export class DropEvent extends DragEvent {
   repr(): string {
     const propertyReprs: string[] = [];
     propertyReprs.push(`position=${this.position.repr()}`);
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<DropEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

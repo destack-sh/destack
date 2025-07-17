@@ -8,7 +8,6 @@ from destack.language.core import (
     IsJoinable,
     NodeReference,
     NodeType,
-    RoleType,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -36,8 +35,8 @@ class Organization(IsActor, IsJoinable, Entity):
     parent: Optional["Space"] = builtin_property_parent()
     slug: str = builtin_property(101, is_repr=True)
     status: OrganizationStatus = builtin_property(
-        102, can_write=RoleType.SYSTEM, is_repr=True, default=OrganizationStatus.CREATING
+        102, is_repr=True, default=OrganizationStatus.CREATING
     )
-    handle: Optional["Handle"] = builtin_property(111, can_write=RoleType.SYSTEM)
+    handle: Optional["Handle"] = builtin_property(111)
     if TYPE_CHECKING:
         handle_ptr: Optional[NodeReference] = None

@@ -26,7 +26,11 @@ class Metric(IsSourceable, Entity):
 class MeasurementEvent(Event):
     """An Event that represents a Measurement."""
 
-    definition: "Metric" = builtin_property(6, is_managed=True, can_write=None)
+    definition: "Metric" = builtin_property(
+        6,
+        is_managed=True,
+        is_readonly=True,
+    )
 
 
 @builtin_node(

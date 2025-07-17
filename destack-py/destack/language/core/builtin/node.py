@@ -17,7 +17,7 @@ from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import NodeType, RoleType, StoreDomain, StoreKey, TraitType
+from .common import NodeType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
 from .object import BuiltinObject, ValueFactory, _process_object_cls
 from .property import (
@@ -231,7 +231,13 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
 
     # 1-20: node identity
     # Node.metatype: 1
-    id: UUID = builtin_property(2, is_managed=True, is_eq=False, can_write=RoleType.SYSTEM)
+    id: UUID = builtin_property(
+        2,
+        is_managed=True,
+        is_eq=False,
+        is_readonly=True,
+        description="The universally unique identifier of this Node.",
+    )
     space: "Space" = builtin_property(
         5,
         is_managed=True,

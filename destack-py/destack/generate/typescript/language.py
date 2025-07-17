@@ -21,7 +21,6 @@ from destack.language import (
     PrimitiveType,
     PropertyDeclaration,
     PropertyDefinition,
-    RoleType,
     ScalarType,
     Struct,
     StructDefinition,
@@ -101,12 +100,7 @@ def _get_properties(cls: type[BuiltinObject]) -> list[PropertyDeclaration]:
 
 def _is_property_effective_readonly(prop: PropertyDeclaration) -> bool:
     """Check if a property is (effectively) readonly to the user."""
-    return (
-        prop.is_readonly
-        or prop.can_write is None
-        or prop.can_write == RoleType.SYSTEM
-        or prop.is_managed
-    )
+    return prop.is_readonly or prop.is_managed
 
 
 def _is_property_tracked(prop: PropertyDeclaration) -> bool:

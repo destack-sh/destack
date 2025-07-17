@@ -714,7 +714,7 @@ export class StarEvent extends Event {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1012,6 +1012,7 @@ export class StarEvent extends Event {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<StarEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1381,6 +1382,7 @@ export class StarAddedEvent extends StarEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<StarAddedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1750,6 +1752,7 @@ export class StarRemovedEvent extends StarEvent {
 
   repr(): string {
     const propertyReprs: string[] = [];
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<StarRemovedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

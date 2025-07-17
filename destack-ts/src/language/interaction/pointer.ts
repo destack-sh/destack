@@ -64,7 +64,7 @@ export abstract class PointerEvent extends InputEvent {
   declare readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -214,7 +214,7 @@ export class PointerDownEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -691,6 +691,7 @@ export class PointerDownEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerDownEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1111,7 +1112,7 @@ export class PointerUpEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1588,6 +1589,7 @@ export class PointerUpEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerUpEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -1996,7 +1998,7 @@ export class PointerMoveEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2473,6 +2475,7 @@ export class PointerMoveEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerMoveEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -2893,7 +2896,7 @@ export class PointerEnterEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -3370,6 +3373,7 @@ export class PointerEnterEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerEnterEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -3790,7 +3794,7 @@ export class PointerOverEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -4267,6 +4271,7 @@ export class PointerOverEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerOverEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -4687,7 +4692,7 @@ export class PointerLeaveEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -5164,6 +5169,7 @@ export class PointerLeaveEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerLeaveEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
@@ -5584,7 +5590,7 @@ export class PointerLongPressEvent extends PointerEvent {
   readonly snapshotPtr: NodeReference | null;
 
   /**
-   * The previous Event this Event is based on (from another Snapshot).
+   * The previous Event that this Event follows.
    */
   get precededBy(): Event | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -6061,6 +6067,7 @@ export class PointerLongPressEvent extends PointerEvent {
     if (this.pressure != null) {
       propertyReprs.push(`pressure=${this.pressure}`);
     }
+    propertyReprs.push(`createdEpoch=${this.createdEpoch}`);
     propertyReprs.push(`status=${EventStatus[this.status]}`);
     return `<PointerLongPressEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }

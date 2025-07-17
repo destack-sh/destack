@@ -140,7 +140,7 @@ def postgres_store(postgres_database: DatabaseInfo) -> PostgresEntityStore:
 async def postgres_session(
     postgres_store: PostgresEntityStore,
 ) -> AsyncGenerator[Session, None]:
-    session = Session(store=postgres_store)
+    session = Session(store=postgres_store, epoch=0)
     await session.open()
     ACTIVE_SESSION.set(session)
     yield session
@@ -154,7 +154,7 @@ def memory_store() -> MemoryStore:
 
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Session, None]:
-    session = Session(store=memory_store)
+    session = Session(store=memory_store, epoch=0)
     await session.open()
     yield session
     await session.close()
@@ -163,7 +163,7 @@ async def memory_session(memory_store: MemoryEntityStore) -> AsyncGenerator[Sess
 @pytest_asyncio.fixture(loop_scope="session", scope="function")
 async def session(memory_store: MemoryEntityStore):
     """Default Session is in-memory."""
-    session = Session(store=memory_store)
+    session = Session(store=memory_store, epoch=0)
     await session.open()
     yield session
     await session.close()

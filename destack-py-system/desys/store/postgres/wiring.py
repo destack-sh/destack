@@ -25,7 +25,6 @@ from destack.language import (
     Type,
     TypeCardinality,
     Value,
-    expand_node_traits,
 )
 from destack.language.registry import NODE_CLASS_BY_TYPE, NODE_TYPE_SCALAR_BY_NODE_TYPE
 from destack.utils.code import exec_
@@ -141,45 +140,27 @@ def _generate_column_pack(prop: "PropertyDeclaration") -> str:
         # node references fan out to multiple columns
         assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
         if prop.is_required:
-            pack_lines = [f"_node_ref = node_value['{prop.id}']"]
-            pack_lines.append(
-                f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id"
-            )
-            if prop.node_is_heterogenous:
-                pack_lines.append(
-                    f"row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type"
-                )
-            pack_lines.append(
-                f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id"
-            )
-            if prop.node_is_extensible:
-                pack_lines.append(
-                    f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id"
-                )
+            pack_lines = [
+                f"_node_ref = node_value['{prop.id}']",
+                f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id",
+                f"row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type",
+                f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id",
+                f"row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id",
+            ]
             return "\n".join(pack_lines)
         else:
-            pack_lines = [f"if (_node_ref := node_value.get('{prop.id}')) is not None:"]
-            pack_lines.append(
-                f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id"
-            )
-            if prop.node_is_heterogenous:
-                pack_lines.append(
-                    f"    row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type"
-                )
-            pack_lines.append(
-                f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id"
-            )
-            if prop.node_is_extensible:
-                pack_lines.append(
-                    f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id"
-                )
-            pack_lines.append("else:")
-            pack_lines.append("    row_values.append(None)  # id")
-            if prop.node_is_heterogenous:
-                pack_lines.append("    row_values.append(None)  # type")
-            pack_lines.append("    row_values.append(None)  # space_id")
-            if prop.node_is_extensible:
-                pack_lines.append("    row_values.append(None)  # definition_id")
+            pack_lines = [
+                f"if (_node_ref := node_value.get('{prop.id}')) is not None:",
+                f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_ID_KEY}']))  # id",
+                f"    row_values.append(_node_ref['{NODE_REFERENCE_TYPE_KEY}'])  # type",
+                f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_SPACE_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_SPACE_ID_KEY}') else None)  # space_id",
+                f"    row_values.append(uuid.UUID(_node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}']) if _node_ref.get('{NODE_REFERENCE_DEFINITION_ID_KEY}') else None)  # definition_id",
+                "else:",
+                "    row_values.append(None)  # id",
+                "    row_values.append(None)  # type",
+                "    row_values.append(None)  # space_id",
+                "    row_values.append(None)  # definition_id",
+            ]
             return "\n".join(pack_lines)
     else:
         # regular properties
@@ -212,37 +193,17 @@ def _generate_column_unpack(prop: "PropertyDeclaration") -> str:
     if prop.scalar_type == ScalarType.NODE_REFERENCE:
         # node references fan out from multiple columns
         assert prop.cardinality == TypeCardinality.SCALAR, f"non-scalar node ref: {prop!r}"
-        node_types = expand_node_traits(prop.node_types or ())
         unpack_lines = [
             f"if (_node_id := row['{prop.id}_id']) is not None:",
             "    _node_ref = {",
             f"        '1': {StructType.NODE_REFERENCE.value},",
             f"        '{NODE_REFERENCE_ID_KEY}': str(_node_id),",
+            f"        '{NODE_REFERENCE_TYPE_KEY}': row['{prop.id}_type'],",
+            f"        '{NODE_REFERENCE_SPACE_ID_KEY}': str(row['{prop.id}_space_id']) if row.get('{prop.id}_space_id') else None,",
+            f"        '{NODE_REFERENCE_DEFINITION_ID_KEY}': str(row['{prop.id}_definition_id']) if row.get('{prop.id}_definition_id') else None,",
             "    }",
+            f"    node_value['{prop.id}'] = _node_ref",
         ]
-        # node_type
-        if prop.node_is_heterogenous:
-            unpack_lines.append(
-                f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = row['{prop.id}_type']"
-            )
-        else:
-            assert node_types and len(node_types) == 1, (
-                f"bad node types for {prop!r}: {node_types!r}"
-            )
-            node_type = node_types[0]
-            assert isinstance(node_type, NodeType), f"unexpected node type {prop!r}: {node_type!r}"
-            unpack_lines.append(f"    _node_ref['{NODE_REFERENCE_TYPE_KEY}'] = {node_type.value}")
-        # space_id
-        unpack_lines.append(
-            f"    _node_ref['{NODE_REFERENCE_SPACE_ID_KEY}'] = str(row['{prop.id}_space_id']) if row.get('{prop.id}_space_id') else None"
-        )
-        # definition_id
-        if prop.node_is_extensible:
-            unpack_lines.append(
-                f"    _node_ref['{NODE_REFERENCE_DEFINITION_ID_KEY}'] = str(row['{prop.id}_definition_id']) if row.get('{prop.id}_definition_id') else None"
-            )
-
-        unpack_lines.append(f"    node_value['{prop.id}'] = _node_ref")
         return "\n".join(unpack_lines)
     else:
         # regular properties

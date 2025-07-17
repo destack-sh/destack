@@ -222,6 +222,7 @@ if id is None:
     created_epoch = epoch
     created_at = now
     client_epoch = epoch
+    client_created_at = now
 """)
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
@@ -242,6 +243,7 @@ else:
         elif NodeType.EVENT in inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
+{set_template_str.format("created_epoch", "created_epoch")}
 {set_template_str.format("client_created_at", "client_created_at")}
 {set_template_str.format("client_epoch", "client_epoch")}
 """)

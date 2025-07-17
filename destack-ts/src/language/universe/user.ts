@@ -265,6 +265,13 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     }
     return null;
   }
+  set handle(node: Handle | null) {
+    if (node === null) {
+      this.handlePtr = null;
+    } else {
+      this.handlePtr = node.toRef();
+    }
+  }
   /**
    * User.handle
    */
@@ -287,6 +294,13 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       return this._supergraph.get(nodePtr.id) as Cursor | null;
     }
     return null;
+  }
+  set cursor(node: Cursor | null) {
+    if (node === null) {
+      this.cursorPtr = null;
+    } else {
+      this.cursorPtr = node.toRef();
+    }
   }
   /**
    * User.cursor
