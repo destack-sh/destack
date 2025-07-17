@@ -1,5 +1,5 @@
 import { IndexedDBStore } from "@destack-web/store/indexeddb";
-import { PostgresEntityStore } from "@desys/store/postgres";
+import { closePostgresPool, PostgresEntityStore } from "@desys/store/postgres";
 import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import {
   ACTIVE_SPACE,
@@ -71,6 +71,7 @@ const storeImplementations = [
       return store;
     },
     tearDown: async (store: PostgresEntityStore) => {
+      closePostgresPool(store.dbInfo);
       await store.close();
     },
   },

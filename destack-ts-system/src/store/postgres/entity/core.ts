@@ -1,5 +1,7 @@
+import { getBuiltinSchema } from "@desys/store/postgres/entity/map";
 import {
   CustomProperty,
+  getSubdefinitionsForNodeType,
   IndexDefinition,
   NodeDefinitionReference,
   NodeReference,
@@ -423,7 +425,7 @@ export class PostgresTable extends PostgresTableObject {
 
     // attach all objects to this table
     for (const obj of [...this.columns, ...this.indexes, ...this.constraints]) {
-      if (obj.table) {
+      if (obj._table) {
         throw new Error(`${obj} is already attached to ${obj.table}`);
       }
       obj._table = this;
@@ -493,13 +495,27 @@ export class PostgresSchema {
 }
 
 export class PostgresContext {
-  private tablesByName: Map<string, PostgresTable> = new Map();
+  readonly storeKeys: readonly StoreKey[];
+  readonly tablesByName: Map<string, PostgresTable>;
 
-  constructor(public readonly storeKeys: StoreKey[]) {
-    // would initialize builtin tables here
+  constructor(storeKeys: readonly StoreKey[]) {
+    this.storeKeys = storeKeys;
+    this.tablesByName = new Map();
+    for (const storeKey of storeKeys) {
+      const schema = getBuiltinSchema(storeKey);
+      for (const table of schema.tables) {
+        this.tablesByName.set(table.name, table);
+      }
+    }
   }
 
-  get(definition: NodeDefinitionReference | NodeReference): PostgresTable {
+  /** Expand the (separately) stored definitions for a NodeDefinition. */
+  resolve(definition: NodeDefinitionReference): NodeDefinitionReference[] {
+    return getSubdefinitionsForNodeType(definition.nodeType);
+  }
+
+  /** Get the Table for a NodeDefinition. */
+  getEntityTable(definition: NodeDefinitionReference | NodeReference): PostgresTable {
     const nodeType = definition instanceof NodeReference ? definition.type : definition.nodeType;
     const tableName = `${POSTGRES_BUILTIN_TABLE_PREFIX}${nodeType}`;
     const table = this.tablesByName.get(tableName);
@@ -543,4 +559,3 @@ export const PRIMITIVE_TYPE_BY_POSTGRES_TYPE: Record<PostgresColumnType, Primiti
   Object.fromEntries(
     Object.entries(POSTGRES_TYPE_BY_PRIMITIVE_TYPE).map(([k, v]) => [v, k as any as PrimitiveType]),
   ) as Record<PostgresColumnType, PrimitiveType>;
-

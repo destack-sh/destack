@@ -135,7 +135,7 @@ async def _execute_cascade(
     """Get the cascaded Nodes for an Edit."""
     from .query import _walk_node
 
-    child_ptrs = await _walk_node(
+    child_ptrs, source_id_by_node_id = await _walk_node(
         conn=conn,
         context=context,
         definition=definition,
@@ -144,7 +144,7 @@ async def _execute_cascade(
         depth=MAX_RECURSION_DEPTH,
         where=None,
     )
-    return child_ptrs
+    return child_ptrs, source_id_by_node_id
 
 
 @tracer.start_as_current_span("postgres.execute_edit")
@@ -201,7 +201,7 @@ SET {", ".join(f'"{col.name}" = EXCLUDED."{col.name}"' for col in override_colum
         all_updated_columns: set[str] = set()
         for edit in edits:
             assert edit.property_id is not None, f"no property_id for {edit!r}"
-            prop = definition.resolve_property(edit.property_id)
+            prop = definition.resolve_property_maybe(edit.property_id)
             assert prop is not None, f"no property for {edit!r}"
             update: dict[str, Any] = {}
             pack_column_wide(prop, None, table, str(prop.id), update)
@@ -231,7 +231,7 @@ WHERE "{NODE_ID_KEY}" = ${param_i}
         values_packed: list[Sequence[Any]] = []
         for edit in edits:
             assert edit.property_id is not None, f"no property_id for {edit!r}"
-            prop = definition.resolve_property(edit.property_id)
+            prop = definition.resolve_property_maybe(edit.property_id)
             assert prop is not None, f"no property for {edit!r}"
             if edit.operation == EditOperation.SET:
                 assert edit.value is not None, f"no value for {edit!r}"

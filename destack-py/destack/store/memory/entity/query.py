@@ -547,13 +547,11 @@ def _execute_subquery(
                 where=subquery.where,
                 snapshot_path=subquery.snapshot_path,
             )
-            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
+            subquery_where = subquery.definition.resolve_property("id").in_(
                 *(n.id for n in expanded_nodes_ptr)
             )
         else:
-            subquery_where = subquery.definition.resolve_property_or_error("id").in_(
-                *parents_ptr.keys()
-            )
+            subquery_where = subquery.definition.resolve_property("id").in_(*parents_ptr.keys())
 
         # execute subquery
         subresult = execute_query(context=context, query=subquery, where=subquery_where)
@@ -577,12 +575,12 @@ def _execute_subquery(
             subquery_where = Condition(
                 type=ConditionalType.IN,
                 left=Expression.of(
-                    PropertyReference.of(subquery.definition.resolve_property_or_error("id"))
+                    PropertyReference.of(subquery.definition.resolve_property("id"))
                 ),
                 right=Expression.of(to_value([n.id for n in expanded_nodes_ptr])),
             )
         else:
-            subquery_where = subquery.definition.resolve_property_or_error("parent").in_(
+            subquery_where = subquery.definition.resolve_property("parent").in_(
                 *(n.id for n in nodes_ptr),
             )
 

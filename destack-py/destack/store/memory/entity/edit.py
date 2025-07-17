@@ -178,7 +178,7 @@ def _execute_edit(
         for edit in edits:
             snapshot_id = edit.snapshot_ptr.id if edit.snapshot_ptr is not None else None
             assert edit.property_id is not None, f"no property_id for {edit!r}"
-            prop = definition.resolve_property(edit.property_id)
+            prop = definition.resolve_property_maybe(edit.property_id)
             assert prop is not None, f"no property for {edit!r}"
             node_key = VersionedNodeKey(id=edit.node_ptr.id, snapshot_id=snapshot_id)
             if not (row := table.rows.get(node_key)):

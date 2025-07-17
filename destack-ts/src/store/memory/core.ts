@@ -117,8 +117,4 @@ export class MemoryContext {
     }
     return this.database.eventTables.get(nodeType)!;
   }
-
-  copy(): MemoryContext {
-    return new MemoryContext(this.database);
-  }
 }
