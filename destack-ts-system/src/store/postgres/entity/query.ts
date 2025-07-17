@@ -340,19 +340,32 @@ function compileExpression(options: {
 
 /**
  * Expand a JS array of UUID strings into a Postgres ARRAY[...] placeholder list.
- * Returns { sql, nextParam } where `sql` is e.g. ARRAY[$1,$2,...]::uuid[] (or ARRAY[]::uuid[] if empty),
- * and nextParam is the first unused param index after the ones consumed.
  */
 function makeUuidArrayPlaceholder(values: readonly string[], argumentsOut: any[]): string {
   if (values.length === 0) {
     return `ARRAY[]::uuid[]`;
   }
   const params = Array.from({ length: values.length }, (_, i) => {
-    const sql = `$${argumentsOut.length + i + 1}::uuid`;
+    const sql = `$${argumentsOut.length + 1}::uuid`;
     argumentsOut.push(values[i]);
     return sql;
   }).join(", ");
   return `ARRAY[${params}]::uuid[]`;
+}
+
+/**
+ * Expand a JS array of timestamps into a Postgres ARRAY[...] placeholder list.
+ */
+function makeTimestampArrayPlaceholder(values: readonly string[], argumentsOut: any[]): string {
+  if (values.length === 0) {
+    return `ARRAY[]::timestamp with time zone[]`;
+  }
+  const params = Array.from({ length: values.length }, (_, i) => {
+    const sql = `$${argumentsOut.length + 1}::timestamp with time zone`;
+    argumentsOut.push(values[i]);
+    return sql;
+  }).join(", ");
+  return `ARRAY[${params}]::timestamp with time zone[]`;
 }
 
 /** Get the cascaded Nodes for a query. */
@@ -380,15 +393,20 @@ export async function walkNode(options: {
   const arguments_: any[] = [];
   const rootsIdsSql = makeUuidArrayPlaceholder(rootsIds, arguments_);
   const rootsParentsIdsSql = makeUuidArrayPlaceholder(rootsParentsIds, arguments_);
+  let timestampArrayPlaceholder = Array.isArray(includeDeleted)
+    ? makeTimestampArrayPlaceholder(includeDeleted, arguments_)
+    : null;
 
-  // WHERE clause (may append params)
-  // const whereSql =
-  //   where != null
-  //     ? compileCondition({ context, argumentsOut: arguments_, condition: where })
-  //     : "TRUE";
-  const whereSql = "TRUE"; // nocheckin
-
-  const depthInt = Math.max(0, depth | 0); // defensive
+  // deleted filter param binding
+  function _getDeletedFilter(alias: string): string {
+    if (includeDeleted === true) {
+      return "TRUE";
+    } else if (timestampArrayPlaceholder) {
+      return `${alias}."${ENTITY_DELETED_AT_KEY}" = ANY(${timestampArrayPlaceholder})`;
+    } else {
+      return `${alias}."${ENTITY_DELETED_AT_KEY}" IS NULL`;
+    }
+  }
 
   // helper to collect result rows -> NodeReference[] + source map
   function _collectNodeRows<
@@ -426,19 +444,22 @@ export async function walkNode(options: {
     if (definition.isMulti) {
       const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
 
+      // we need deleted_at in the subquery to filter, but we do NOT project it into tree
       const unionParts = tables.map(
         (table) =>
           `SELECT "${NODE_ID_KEY}", "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}", ${table.nodeType}::int AS node_type, "${ENTITY_DELETED_AT_KEY}" FROM "${table.name}"`,
       );
       const unionSubquery = unionParts.join(" UNION ALL ");
 
+      const whereRoots = _getDeletedFilter("roots");
+      const whereP = _getDeletedFilter("p");
+
       const baseSql = `
 SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        1 AS depth,
        node_type,
-       "${NODE_ID_KEY}" AS source_id,
-       "${ENTITY_DELETED_AT_KEY}"
+       "${NODE_ID_KEY}" AS source_id
 FROM (
     ${unionSubquery}
 ) AS roots
@@ -446,22 +467,21 @@ WHERE (
          "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
       OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
       )
-  AND ${whereSql}`;
+  AND ${whereRoots}`;
 
       const recursiveSql = `
 SELECT p."${NODE_ID_KEY}",
        p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        t.depth + 1 AS depth,
        p.node_type,
-       t.source_id,
-       p."${ENTITY_DELETED_AT_KEY}"
+       t.source_id
 FROM (
     ${unionSubquery}
 ) AS p
 JOIN tree AS t
   ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
-WHERE t.depth < ${depthInt}
-  AND ${whereSql}`;
+WHERE t.depth < ${depth}
+  AND ${whereP}`;
 
       const stmt = `
 WITH RECURSIVE tree AS (
@@ -473,64 +493,53 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        depth,
        node_type,
-       source_id,
-       "${ENTITY_DELETED_AT_KEY}"
+       source_id
 FROM tree;`;
 
       // run
-      console.log(
-        "walkNode.parent.multi",
-        tables.map((t) => t.name).join(", "),
-        definition.repr(),
-        includeDeleted,
-        whereSql,
-        arguments_.length,
-      );
       const rows = await tx.unsafe(stmt, arguments_);
       return _collectNodeRows(rows);
     } else {
       const table = context.getEntityTable(definition);
+
       const stmt = `
 WITH RECURSIVE tree AS (
-  SELECT "${NODE_ID_KEY}",
-         "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
+  SELECT r."${NODE_ID_KEY}",
+         r."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
          1 AS depth,
-         "${NODE_ID_KEY}" AS source_id,
-         "${ENTITY_DELETED_AT_KEY}"
-  FROM   "${table.name}"
+         r."${NODE_ID_KEY}" AS source_id
+  FROM   "${table.name}" AS r
   WHERE (
-           "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
-        OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
+           r."${NODE_ID_KEY}" = ANY(${rootsIdsSql})
+        OR r."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
         )
-    AND ${whereSql}
+    AND ${_getDeletedFilter("r")}
 
   UNION ALL
 
   SELECT p."${NODE_ID_KEY}",
          p."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
          t.depth + 1 AS depth,
-         t.source_id,
-         p."${ENTITY_DELETED_AT_KEY}"
+         t.source_id
   FROM   "${table.name}" AS p
   JOIN   tree AS t
     ON p."${NODE_ID_KEY}" = t."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}"
-  WHERE  t.depth < ${depthInt}
-    AND  ${whereSql}
+  WHERE  t.depth < ${depth}
+    AND  ${_getDeletedFilter("p")}
 )
 SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        depth,
-       source_id,
-       "${ENTITY_DELETED_AT_KEY}"
+       source_id
 FROM   tree;`;
 
       const rows = await tx.unsafe(stmt, arguments_);
-      return _collectNodeRows(rows, context.getEntityTable(definition).nodeType);
+      return _collectNodeRows(rows, table.nodeType);
     }
   }
 
-  // child walk
-  if (direction === EdgeDirection.CHILD) {
+  // child walk (we always resolve; works fine for single-table too)
+  else if (direction === EdgeDirection.CHILD) {
     const tables = context.resolve(definition).map((r) => context.getEntityTable(r));
 
     const unionParts = tables.map(
@@ -544,8 +553,7 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        1 AS depth,
        node_type,
-       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" AS source_id,
-       "${ENTITY_DELETED_AT_KEY}"
+       "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" AS source_id
 FROM (
     ${unionSubquery}
 ) AS roots
@@ -553,22 +561,21 @@ WHERE (
          "${NODE_ID_KEY}" = ANY(${rootsIdsSql})
       OR "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = ANY(${rootsParentsIdsSql})
       )
-  AND ${whereSql}`;
+  AND ${_getDeletedFilter("roots")}`;
 
     const recursiveSql = `
 SELECT c."${NODE_ID_KEY}",
        c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        t.depth + 1 AS depth,
        c.node_type,
-       t.source_id,
-       c."${ENTITY_DELETED_AT_KEY}"
+       t.source_id
 FROM (
     ${unionSubquery}
 ) AS c
 JOIN tree AS t
   ON c."${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}" = t."${NODE_ID_KEY}"
-WHERE t.depth < ${depthInt}
-  AND ${whereSql}`;
+WHERE t.depth < ${depth}
+  AND ${_getDeletedFilter("c")}`;
 
     const stmt = `
 WITH RECURSIVE tree AS (
@@ -580,8 +587,7 @@ SELECT "${NODE_ID_KEY}",
        "${ENTITY_PARENT_KEY}_${NODE_REFERENCE_ID_KEY}",
        depth,
        node_type,
-       source_id,
-       "${ENTITY_DELETED_AT_KEY}"
+       source_id
 FROM tree;`;
 
     const rows = await tx.unsafe(stmt, arguments_);
@@ -589,7 +595,7 @@ FROM tree;`;
   }
 
   // side walk (not yet supported)
-  if (direction === EdgeDirection.SIDE) {
+  else if (direction === EdgeDirection.SIDE) {
     throw new Error(`cannot walk ${definition.repr()} in direction: ${direction}`);
   }
 
@@ -1089,6 +1095,7 @@ async function executeSubquery(options: {
     });
     return { result: subresult };
   }
+
   // child join
   else if (subquery.join.type === JoinType.CHILD) {
     // collect/walk
@@ -1121,10 +1128,14 @@ async function executeSubquery(options: {
     });
     return { result: subresult };
   }
+
   // left join
   else if (subquery.join.type === JoinType.LEFT) {
     throw new Error("not implemented");
-  } else {
+  }
+
+  //
+  else {
     assertNever(subquery.join.type);
   }
 }

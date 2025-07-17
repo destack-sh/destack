@@ -19,7 +19,7 @@ import {
   toValue,
 } from "@destack/language";
 import {
-  ENTITY_DELETED_KEY,
+  ENTITY_DELETED_AT_KEY,
   ENTITY_PARENT_KEY,
   MAX_RECURSION_DEPTH,
   MemoryContext,
@@ -68,7 +68,7 @@ function filterRows(options: {
         table.rowsBySnapshot.get(snapshotId) || new Map();
       for (const row of snapshotRows.values()) {
         if (
-          (includeDeleted || !row.value[ENTITY_DELETED_KEY]) &&
+          (includeDeleted || !row.value[ENTITY_DELETED_AT_KEY]) &&
           (where === null || evaluateCondition({ value: row.value, condition: where }))
         ) {
           filteredRows.push(row);
@@ -86,7 +86,7 @@ function filterRows(options: {
           const row = table.rows.get(nodeKey.toString());
           if (
             row !== undefined &&
-            (includeDeleted || !row.value[ENTITY_DELETED_KEY]) &&
+            (includeDeleted || !row.value[ENTITY_DELETED_AT_KEY]) &&
             (where === null || evaluateCondition({ value: row.value, condition: where }))
           ) {
             filteredRows.push(row);
@@ -98,7 +98,7 @@ function filterRows(options: {
           table.rowsBySnapshot.get(snapshotId) || new Map();
         for (const row of snapshotRows.values()) {
           if (
-            (includeDeleted || !row.value[ENTITY_DELETED_KEY]) &&
+            (includeDeleted || !row.value[ENTITY_DELETED_AT_KEY]) &&
             (where === null || evaluateCondition({ value: row.value, condition: where }))
           ) {
             filteredRows.push(row);
@@ -109,7 +109,7 @@ function filterRows(options: {
       const snapshotRows: Map<string, MemoryEntityRow> =
         table.rowsBySnapshot.get(snapshotId) || new Map();
       filteredRows = Array.from(snapshotRows.values()).filter(
-        (row) => includeDeleted || !row.value[ENTITY_DELETED_KEY],
+        (row) => includeDeleted || !row.value[ENTITY_DELETED_AT_KEY],
       );
     }
   }
@@ -449,9 +449,9 @@ export function walkNode(options: {
             row.parentPtr != null &&
             !nodesById.has(row.parentPtr.id) &&
             (includeDeleted === true ||
-              !row.value[ENTITY_DELETED_KEY] ||
+              !row.value[ENTITY_DELETED_AT_KEY] ||
               (Array.isArray(includeDeleted) &&
-                includeDeleted.includes(row.value[ENTITY_DELETED_KEY])))
+                includeDeleted.includes(row.value[ENTITY_DELETED_AT_KEY])))
           ) {
             sourceIdByNodeId.set(row.parentPtr.id, sourceIdByNodeId.get(nodeId)!);
             nodesById.set(row.parentPtr.id, row.parentPtr);
@@ -490,9 +490,9 @@ export function walkNode(options: {
               if (
                 !nodesById.has(row.id) &&
                 (includeDeleted === true ||
-                  !row.value[ENTITY_DELETED_KEY] ||
+                  !row.value[ENTITY_DELETED_AT_KEY] ||
                   (Array.isArray(includeDeleted) &&
-                    includeDeleted.includes(row.value[ENTITY_DELETED_KEY])))
+                    includeDeleted.includes(row.value[ENTITY_DELETED_AT_KEY])))
               ) {
                 sourceIdByNodeId.set(row.id, sourceIdByNodeId.get(parentId)!);
                 nodesById.set(row.id, row.ptr);

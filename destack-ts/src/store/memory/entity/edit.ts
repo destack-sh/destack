@@ -9,7 +9,7 @@ import {
   ScalarType,
 } from "@destack/language";
 import {
-  NODE_DELETED_AT_KEY as ENTITY_DELETED_KEY,
+  NODE_DELETED_AT_KEY as ENTITY_DELETED_AT_KEY,
   ENTITY_PARENT_KEY,
   MAX_RECURSION_DEPTH,
   MemoryContext,
@@ -264,7 +264,7 @@ function executeEdit(options: {
         if (!row) {
           throw new Error(`node not found: ${nodePtr.repr()}`);
         } else {
-          const deletedAt = row.value[ENTITY_DELETED_KEY];
+          const deletedAt = row.value[ENTITY_DELETED_AT_KEY];
           if (deletedAt && !includeDeleted.includes(deletedAt)) {
             includeDeleted.push(deletedAt);
           }
@@ -294,9 +294,9 @@ function executeEdit(options: {
       if (!row) {
         throw new Error(`node not found for ${edit.repr()}: ${nodePtr.repr()}`);
       } else if (editType === EditType.DELETE) {
-        row.value[ENTITY_DELETED_KEY] = edit.createdAt.toString({ timeZoneName: "never" });
+        row.value[ENTITY_DELETED_AT_KEY] = edit.createdAt.toString({ timeZoneName: "never" });
       } else if (editType === EditType.RESTORE) {
-        delete row.value[ENTITY_DELETED_KEY];
+        delete row.value[ENTITY_DELETED_AT_KEY];
       }
     }
 

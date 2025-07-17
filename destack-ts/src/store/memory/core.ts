@@ -29,7 +29,7 @@ export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("d
 export const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
 export const ENTITY_SNAPSHOT_KEY = String(Entity.property("snapshot").id);
 export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
-export const ENTITY_DELETED_KEY = String(Entity.property("deleted_at").id);
+export const ENTITY_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
 
 export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
 export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);

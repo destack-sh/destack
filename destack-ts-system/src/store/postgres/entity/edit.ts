@@ -248,7 +248,7 @@ WHERE "${NODE_ID_KEY}" = $${Object.keys(updateTemplate).length + 1}`;
 
   // delete/restore
   else if (editType === EditType.DELETE || editType === EditType.RESTORE) {
-    // cascade
+    // track cascade
     const nodePtrs = edits.map((edit) => edit.nodePtr);
     const editedAtByNodeId = new Map<string, Temporal.ZonedDateTime>();
     for (const edit of edits) {
@@ -258,12 +258,11 @@ WHERE "${NODE_ID_KEY}" = $${Object.keys(updateTemplate).length + 1}`;
     let includeDeleted: boolean | Array<string> = false;
     if (editType === EditType.RESTORE) {
       // restrict to nodes with same deleted_at
-      includeDeleted = nodePtrs.map((n) => String(n.id));
+      includeDeleted = [];
       const rootStmt = `
 SELECT "${NODE_ID_KEY}", "${ENTITY_DELETED_AT_KEY}"
 FROM "${table.name}"
-WHERE "${NODE_ID_KEY}"
-IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
+WHERE "${NODE_ID_KEY}" IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
       const rootRows = await tx.unsafe(
         rootStmt,
         nodePtrs.map((n) => n.id),
@@ -278,6 +277,7 @@ IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
       }
     }
 
+    // do cascade
     const { cascadedNodePtrs, sourceIdByNodeId } = await executeCascade({
       tx,
       context,
@@ -289,7 +289,7 @@ IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
       (nodePtr) => new EditEvent({ type: editType, node: nodePtr }),
     );
 
-    // update
+    // update timestamps
     const editedNodePtrsByTable = new Map<string, string[]>();
     for (const nodePtr of [...nodePtrs, ...cascadedNodePtrs]) {
       const tableName = context.getEntityTable(nodePtr).name;
@@ -301,30 +301,47 @@ IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
     }
 
     for (const [tableName, tableNodeIds] of editedNodePtrsByTable) {
-      const arguments_: any[][] = [];
-      let updateStmt: string;
-
       if (editType === EditType.DELETE) {
-        updateStmt = `"${ENTITY_DELETED_AT_KEY}" = $2`;
-        for (const nodeId of tableNodeIds) {
-          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodeId) || nodeId);
-          arguments_.push([nodeId, editedAt]);
-        }
+        // set deleted_at to the specific deleted_at
+        const params: unknown[] = [];
+        const valuesTuples = tableNodeIds.map((nodeId, i) => {
+          const editedAt = editedAtByNodeId.get(sourceIdByNodeId.get(nodeId) ?? nodeId);
+          if (editedAt == null) {
+            throw new Error(`missing editedAt for nodeId ${nodeId} (table ${tableName})`);
+          }
+          // push param pair
+          params.push(nodeId, editedAt);
+          const a = i * 2 + 1;
+          const b = i * 2 + 2;
+          return `($${a}::uuid,$${b}::timestamptz)`;
+        });
+
+        const stmt = `
+          UPDATE "${tableName}" AS t
+          SET "${ENTITY_DELETED_AT_KEY}" = v.edited_at
+          FROM (VALUES ${valuesTuples.join(",")}) AS v("${NODE_ID_KEY}", edited_at)
+          WHERE t."${NODE_ID_KEY}" = v."${NODE_ID_KEY}";
+        `;
+
+        await tx.unsafe(stmt, params);
       } else if (editType === EditType.RESTORE) {
-        updateStmt = `"${ENTITY_DELETED_AT_KEY}" = NULL`;
-        for (const nodeId of tableNodeIds) {
-          arguments_.push([nodeId]);
-        }
+        // restore sets all deleted_at to NULL, so a simple ANY() is fine
+        const params: unknown[] = [];
+        const idPlaceholders = tableNodeIds.map((nodeId, i) => {
+          params.push(nodeId);
+          return `$${i + 1}::uuid`;
+        });
+
+        const stmt = `
+          UPDATE "${tableName}"
+          SET "${ENTITY_DELETED_AT_KEY}" = NULL
+          WHERE "${NODE_ID_KEY}" = ANY(ARRAY[${idPlaceholders.join(",")}]::uuid[]);
+        `;
+
+        await tx.unsafe(stmt, params);
       } else {
         throw new Error(`unexpected edit type: ${editType}`);
       }
-
-      const stmt = `
-UPDATE "${tableName}"   
-SET ${updateStmt}
-WHERE "${NODE_ID_KEY}" = ANY(ARRAY[${tableNodeIds.map((_, i) => `$${i + 1}::uuid`).join(", ")}]::uuid[])`;
-
-      await tx.unsafe(stmt, arguments_);
     }
 
     return { edits, cascadedEdits };
