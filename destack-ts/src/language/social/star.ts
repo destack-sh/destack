@@ -32,7 +32,7 @@ import {
   StarRemovedEventProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1400100 ==== */
@@ -96,9 +96,14 @@ export class Star extends Entity implements IsOwned {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -113,9 +118,14 @@ export class Star extends Entity implements IsOwned {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -130,7 +140,7 @@ export class Star extends Entity implements IsOwned {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -184,8 +194,10 @@ export class Star extends Entity implements IsOwned {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Star | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy: (Entity & IsActor) | NodeReference;
@@ -280,15 +292,24 @@ export class Star extends Entity implements IsOwned {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
       this.updatedAt = now;
+      this.updatedEpoch = epoch;
       this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
+      if (
+        options.createdAt == null ||
+        options.updatedAt == null ||
+        options.createdEpoch == null ||
+        options.updatedEpoch == null
+      ) {
         throw new Error(`Star.createdAt and Star.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
@@ -296,6 +317,7 @@ export class Star extends Entity implements IsOwned {
             : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
+      this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
           ? options.updatedBy.metatype == StructType.NODE_REFERENCE
@@ -420,17 +442,19 @@ export class Star extends Entity implements IsOwned {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
-    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["23"] = object.updatedByPtr.toValue();
+      objectValue["25"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["28"] = object._ownedByPtr.toValue();
+    objectValue["32"] = object._ownedByPtr.toValue();
     objectValue["50"] = object._name;
     return objectValue;
   }
@@ -458,17 +482,17 @@ export class Star extends Entity implements IsOwned {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["23"];
+    const updatedByPtrValue = objectValue["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["24"];
+    const deletedAtValue = objectValue["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -476,7 +500,7 @@ export class Star extends Entity implements IsOwned {
     return new Star({
       parent: unpackedParentPtr,
       ownedBy: _NodeReference.fromValue(
-        objectValue["28"],
+        objectValue["32"],
         _session,
         _supergraph,
         _graph,
@@ -486,8 +510,10 @@ export class Star extends Entity implements IsOwned {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
@@ -528,10 +554,12 @@ export class Star extends Entity implements IsOwned {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
@@ -591,6 +619,7 @@ export class Star extends Entity implements IsOwned {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -602,6 +631,7 @@ export class Star extends Entity implements IsOwned {
             )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -696,12 +726,17 @@ export class StarEvent extends Event {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * Event.createdAt
+   * The time this Event was created (set by the system).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * Event.createdBy
+   * The logical time this Event was created (set by the system).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Event.
    */
   get createdBy(): (Entity & IsActor) | null {
     const nodePtr: NodeReference | null = this.createdByPtr;
@@ -713,7 +748,7 @@ export class StarEvent extends Event {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * Event.client
+   * The Client that created this Event.
    */
   get client(): Client | null {
     const nodePtr: NodeReference | null = this.clientPtr;
@@ -725,9 +760,19 @@ export class StarEvent extends Event {
   readonly clientPtr: NodeReference | null;
 
   /**
-   * Event.clientNonce
+   * The nonce of the Client that created this Event.
    */
   readonly clientNonce: string | null;
+
+  /**
+   * The time in the Client when it created this Event.
+   */
+  readonly clientCreatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time in the Client when it created this Event.
+   */
+  readonly clientEpoch: number;
 
   /**
    * The status of the Event.
@@ -752,9 +797,12 @@ export class StarEvent extends Event {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Star | NodeReference;
     _session?: Session | null;
@@ -835,19 +883,31 @@ export class StarEvent extends Event {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
+      this.clientCreatedAt = now;
+      this.clientEpoch = epoch;
     } else {
-      if (options.createdAt == null) {
+      if (
+        options.createdAt == null ||
+        options.createdEpoch == null ||
+        options.clientCreatedAt == null ||
+        options.clientEpoch == null
+      ) {
         throw new Error(`StarEvent.createdAt is required for existing Events`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
             ? (options.createdBy as NodeReference)
             : (options.createdBy as Node).toRef()
           : null;
+      this.clientCreatedAt = options.clientCreatedAt;
+      this.clientEpoch = options.clientEpoch;
     }
   }
 
@@ -868,6 +928,12 @@ export class StarEvent extends Event {
       return false;
     }
     if (!(this.clientNonce === other.clientNonce)) {
+      return false;
+    }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
       return false;
     }
     if (!(this.status === other.status)) {
@@ -899,6 +965,9 @@ export class StarEvent extends Event {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -963,16 +1032,19 @@ export class StarEvent extends Event {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -995,17 +1067,17 @@ export class StarEvent extends Event {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new StarEvent({
       node: _NodeReference.fromValue(
@@ -1018,10 +1090,13 @@ export class StarEvent extends Event {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1055,6 +1130,7 @@ export class StarEvent extends Event {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -1064,6 +1140,8 @@ export class StarEvent extends Event {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as StarEventProto;
@@ -1106,6 +1184,7 @@ export class StarEvent extends Event {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1127,6 +1206,8 @@ export class StarEvent extends Event {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -1178,9 +1259,12 @@ export class StarAddedEvent extends StarEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Star | NodeReference;
     _session?: Session | null;
@@ -1215,6 +1299,12 @@ export class StarAddedEvent extends StarEvent {
     if (!(this.clientNonce === other.clientNonce)) {
       return false;
     }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1244,6 +1334,9 @@ export class StarAddedEvent extends StarEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1308,16 +1401,19 @@ export class StarAddedEvent extends StarEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1340,17 +1436,17 @@ export class StarAddedEvent extends StarEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new StarAddedEvent({
       node: _NodeReference.fromValue(
@@ -1363,10 +1459,13 @@ export class StarAddedEvent extends StarEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1400,6 +1499,7 @@ export class StarAddedEvent extends StarEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -1409,6 +1509,8 @@ export class StarAddedEvent extends StarEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as StarAddedEventProto;
@@ -1451,6 +1553,7 @@ export class StarAddedEvent extends StarEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1472,6 +1575,8 @@ export class StarAddedEvent extends StarEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
@@ -1523,9 +1628,12 @@ export class StarRemovedEvent extends StarEvent {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     client?: Client | NodeReference | null;
     clientNonce?: string | null;
+    clientCreatedAt?: Temporal.ZonedDateTime;
+    clientEpoch?: number;
     status?: EventStatus;
     node: Star | NodeReference;
     _session?: Session | null;
@@ -1560,6 +1668,12 @@ export class StarRemovedEvent extends StarEvent {
     if (!(this.clientNonce === other.clientNonce)) {
       return false;
     }
+    if (!(this.clientCreatedAt === other.clientCreatedAt)) {
+      return false;
+    }
+    if (!(this.clientEpoch === other.clientEpoch)) {
+      return false;
+    }
     if (!(this.status === other.status)) {
       return false;
     }
@@ -1589,6 +1703,9 @@ export class StarRemovedEvent extends StarEvent {
     if (this.clientNonce != null) {
       h = (h * 31 + hashString(this.clientNonce.toString())) & 0xffffffff;
     }
+    h =
+      (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
@@ -1653,16 +1770,19 @@ export class StarRemovedEvent extends StarEvent {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
     if (object.clientPtr != null) {
-      objectValue["22"] = object.clientPtr.toValue();
+      objectValue["23"] = object.clientPtr.toValue();
     }
     if (object.clientNonce != null) {
-      objectValue["23"] = String(object.clientNonce);
+      objectValue["24"] = String(object.clientNonce);
     }
-    objectValue["30"] = object.status;
+    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectValue["26"] = object.clientEpoch;
+    objectValue["40"] = object.status;
     objectValue["101"] = object.nodePtr.toValue();
     return objectValue;
   }
@@ -1685,17 +1805,17 @@ export class StarRemovedEvent extends StarEvent {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["22"];
+    const clientPtrValue = objectValue["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
         ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["23"];
+    const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new StarRemovedEvent({
       node: _NodeReference.fromValue(
@@ -1708,10 +1828,13 @@ export class StarRemovedEvent extends StarEvent {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      status: Number(objectValue["30"]),
+      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectValue["26"]),
+      status: Number(objectValue["40"]),
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
@@ -1751,6 +1874,7 @@ export class StarRemovedEvent extends StarEvent {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
@@ -1760,6 +1884,8 @@ export class StarRemovedEvent extends StarEvent {
     if (object.clientNonce != null) {
       objectProto.clientNonce = String(object.clientNonce);
     }
+    objectProto.clientCreatedAt = packProtoTimestamp(object.clientCreatedAt);
+    objectProto.clientEpoch = object.clientEpoch;
     objectProto.status = Number(object.status) as EventStatusProto;
     objectProto.nodePtr = object.nodePtr.toProto();
     return objectProto as StarRemovedEventProto;
@@ -1802,6 +1928,7 @@ export class StarRemovedEvent extends StarEvent {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1823,6 +1950,8 @@ export class StarRemovedEvent extends StarEvent {
             )
           : null,
       clientNonce: objectProto.clientNonce != undefined ? String(objectProto.clientNonce) : null,
+      clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
+      clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(

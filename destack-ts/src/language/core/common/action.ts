@@ -321,8 +321,10 @@ export class Action extends Method implements IsRunnable {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Action | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
@@ -508,24 +510,26 @@ export class Action extends Method implements IsRunnable {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
-    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["23"] = object.updatedByPtr.toValue();
+      objectValue["25"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
-    objectValue["27"] = object.orderKey;
+    objectValue["31"] = object.orderKey;
     objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
       objectValue["60"] = object.sourcePtr.toValue();
@@ -577,8 +581,8 @@ export class Action extends Method implements IsRunnable {
     const keyValue = objectValue["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -598,17 +602,17 @@ export class Action extends Method implements IsRunnable {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["23"];
+    const updatedByPtrValue = objectValue["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["24"];
+    const deletedAtValue = objectValue["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -626,12 +630,14 @@ export class Action extends Method implements IsRunnable {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      orderKey: objectValue["27"],
+      orderKey: objectValue["31"],
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -668,10 +674,12 @@ export class Action extends Method implements IsRunnable {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
@@ -777,6 +785,7 @@ export class Action extends Method implements IsRunnable {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -788,6 +797,7 @@ export class Action extends Method implements IsRunnable {
             )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? _NodeReference.fromProto(

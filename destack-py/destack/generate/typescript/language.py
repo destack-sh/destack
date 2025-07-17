@@ -370,9 +370,13 @@ def _generate_init(cls: type[BuiltinObject]) -> str:
     if issubclass(cls, Node):
         body_properties.pop("id", None)
         body_properties.pop("created_at", None)
+        body_properties.pop("created_epoch", None)
         body_properties.pop("created_by", None)
         body_properties.pop("updated_at", None)
+        body_properties.pop("updated_epoch", None)
         body_properties.pop("updated_by", None)
+        body_properties.pop("client_created_at", None)
+        body_properties.pop("client_epoch", None)
 
     # header
     header_parts: list[str] = []
@@ -568,17 +572,22 @@ if (_{ts_name_in} === null) {{
             identity_str = f"""\
 if (options.id == null) {{
   const now = Temporal.Now.zonedDateTimeISO("UTC");
+  const epoch = this._session.epoch;
   this.createdAt = now;
+  this.createdEpoch = epoch;
   this.createdByPtr = null;
   this.updatedAt = now;
+  this.updatedEpoch = epoch;
   this.updatedByPtr = null;
 }} else {{
-  if (options.createdAt == null || options.updatedAt == null) {{
+  if (options.createdAt == null || options.updatedAt == null || options.createdEpoch == null || options.updatedEpoch == null) {{
     throw new Error(`{cls.__name__}.createdAt and {cls.__name__}.updatedAt are required for existing Nodes`);
   }}
   this.createdAt = options.createdAt;
+  this.createdEpoch = options.createdEpoch;
   this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
-  this.updatedAt = options.updatedAt; 
+  this.updatedAt = options.updatedAt;
+  this.updatedEpoch = options.updatedEpoch;
   this.updatedByPtr = options.updatedBy != null ? (options.updatedBy.metatype == StructType.NODE_REFERENCE ? (options.updatedBy as NodeReference) : (options.updatedBy as Node).toRef()) : null;
 }}
 """
@@ -586,14 +595,21 @@ if (options.id == null) {{
             identity_str = f"""\
 if (options.id == null) {{
   const now = Temporal.Now.zonedDateTimeISO("UTC");
+  const epoch = this._session.epoch;
   this.createdAt = now;
+  this.createdEpoch = epoch;
   this.createdByPtr = null;
+  this.clientCreatedAt = now;
+  this.clientEpoch = epoch;
 }} else {{
-  if (options.createdAt == null) {{
+  if (options.createdAt == null || options.createdEpoch == null || options.clientCreatedAt == null || options.clientEpoch == null) {{
     throw new Error(`{cls.__name__}.createdAt is required for existing Events`);
   }}
   this.createdAt = options.createdAt;
+  this.createdEpoch = options.createdEpoch;
   this.createdByPtr = options.createdBy != null ? (options.createdBy.metatype == StructType.NODE_REFERENCE ? (options.createdBy as NodeReference) : (options.createdBy as Node).toRef()) : null;
+  this.clientCreatedAt = options.clientCreatedAt;
+  this.clientEpoch = options.clientEpoch;
 }}
 """
         else:

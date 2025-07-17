@@ -353,7 +353,7 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
         is_repr=True,
         description="The id of the Snapshot the Node belonged to.",
     )
-    # snapshot_time/epoch/...?
+    # epoch/...?
 
     # location
     space_id: Optional[UUID] = builtin_property(

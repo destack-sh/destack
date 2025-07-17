@@ -69,7 +69,7 @@ class Event[N: Node = Node](Node):
         is_readonly=True,
         is_managed=True,
         node_space_from="self",
-        description="The previous Event this Event is based on (from another Snapshot).",
+        description="The previous Event that this Event follows.",
     )
     # 20-40: node tracking
     created_at: datetime = builtin_property(
@@ -78,21 +78,52 @@ class Event[N: Node = Node](Node):
         is_eq=False,
         is_readonly=True,
         can_write=RoleType.SYSTEM,
+        description="The time this Event was created (set by the system).",
+    )
+    created_epoch: int = builtin_property(
+        21,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        can_write=RoleType.SYSTEM,
+        description="The logical time this Event was created (set by the system).",
     )
     created_by: Optional["IsActor"] = builtin_property(
-        21,
+        22,
         default=None,
         is_managed=True,
         is_eq=False,
         is_readonly=True,
         node_space_from="self",
         can_write=RoleType.SYSTEM,
+        description="The Actor that created this Event.",
     )
-    client: Optional["Client"] = builtin_property(22, is_managed=True, is_readonly=True)
-    client_nonce: Optional[UUID] = builtin_property(23, is_managed=True, is_readonly=True)
-    # client_epoch: int? (for client-side ordering)
+    client: Optional["Client"] = builtin_property(
+        23,
+        is_managed=True,
+        is_readonly=True,
+        description="The Client that created this Event.",
+    )
+    client_nonce: Optional[UUID] = builtin_property(
+        24,
+        is_managed=True,
+        is_readonly=True,
+        description="The nonce of the Client that created this Event.",
+    )
+    client_created_at: datetime = builtin_property(
+        25,
+        is_managed=True,
+        is_readonly=True,
+        description="The time in the Client when it created this Event.",
+    )
+    client_epoch: int = builtin_property(
+        26,
+        is_managed=True,
+        is_readonly=True,
+        description="The logical time in the Client when it created this Event.",
+    )
     status: "EventStatus" = builtin_property(
-        30,
+        40,
         is_repr=True,
         default=EventStatus.PENDING,
         description="The status of the Event.",

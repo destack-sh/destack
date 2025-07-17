@@ -152,7 +152,7 @@ class IsOrdered(Trait):
     """An Entity that can be ordered."""
 
     order_key: str = builtin_property(
-        27,
+        31,
         is_eq=False,
         is_managed=True,
         default=INTEGER_ZERO,
@@ -169,7 +169,7 @@ class IsOrdered(Trait):
 class IsOwnable(Trait):
     """An Entity that can be owned by an Actor."""
 
-    owned_by: Optional["IsActor"] = builtin_property(28, is_repr=True)
+    owned_by: Optional["IsActor"] = builtin_property(32, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: Optional[NodeReference] = None
 
@@ -178,7 +178,7 @@ class IsOwnable(Trait):
 class IsOwned(IsOwnable):
     """An Entity that must be owned by an Actor."""
 
-    owned_by: "IsActor" = builtin_property(28, is_repr=True)
+    owned_by: "IsActor" = builtin_property(32, is_repr=True)
     if TYPE_CHECKING:
         owned_by_ptr: NodeReference = UNSET
 
@@ -308,7 +308,7 @@ class IsCustomizable(Trait):
     """An Entity that can be customized with custom Properties."""
 
     custom_values: dict[UUID, "Value"] = builtin_property(
-        26,
+        30,
         description="The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.",
     )
 

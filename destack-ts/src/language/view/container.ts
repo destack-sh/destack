@@ -71,9 +71,14 @@ export abstract class ContainerView extends View {
   declare readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -82,9 +87,14 @@ export abstract class ContainerView extends View {
   declare readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -93,7 +103,7 @@ export abstract class ContainerView extends View {
   declare readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

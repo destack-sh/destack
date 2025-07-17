@@ -176,9 +176,13 @@ def _generate_init[ObjectT: BuiltinObject](
         body_properties.pop("id")
         if NodeType.ENTITY in inherits:
             body_properties.pop("created_at")
+            body_properties.pop("created_epoch")
             body_properties.pop("updated_at")
         elif NodeType.EVENT in inherits:
             body_properties.pop("created_at")
+            body_properties.pop("created_epoch")
+            body_properties.pop("client_created_at")
+            body_properties.pop("client_epoch")
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
         body_properties.pop("_session")
@@ -204,6 +208,9 @@ if id is None:
             method_body_lines.append("""\
     id = uuid4()
     now = self._session.oracle.utc()
+    epoch = self._session.epoch
+    created_epoch = epoch
+    updated_epoch = epoch
     created_at = now
     updated_at = now
 """)
@@ -211,7 +218,10 @@ if id is None:
             method_body_lines.append("""\
     id = uuid7()
     now = self._session.oracle.utc()
+    epoch = self._session.epoch
+    created_epoch = epoch
     created_at = now
+    client_epoch = epoch
 """)
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
@@ -225,11 +235,15 @@ else:
         if NodeType.ENTITY in inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
+{set_template_str.format("created_epoch", "created_epoch")}
 {set_template_str.format("updated_at", "updated_at")}
+{set_template_str.format("updated_epoch", "updated_epoch")}
 """)
         elif NodeType.EVENT in inherits:
             method_body_lines.append(f"""\
 {set_template_str.format("created_at", "created_at")}
+{set_template_str.format("client_created_at", "client_created_at")}
+{set_template_str.format("client_epoch", "client_epoch")}
 """)
         else:
             raise NotImplementedError(f"unexpected node {cls.__name__} extends {inherits}")
@@ -291,6 +305,18 @@ if {arg_name} is None:
     if session is None:
         raise RuntimeError("no active session for {cls.__name__}")
     {arg_name} = session.oracle.utc()""")
+            elif prop.default_factory == ValueFactory.EPOCH:
+                if is_node:
+                    method_body_lines.append(f"""\
+if {arg_name} is None:
+    {arg_name} = self._session.epoch""")
+                else:
+                    method_body_lines.append(f"""\
+if {arg_name} is None:
+    session = ACTIVE_SESSION.get()
+    if session is None:
+        raise RuntimeError("no active session for {cls.__name__}")
+    {arg_name} = session.epoch""")
             elif prop.default_factory == ValueFactory.REGION:
                 method_body_lines.append(f"""\
 if {arg_name} is None:

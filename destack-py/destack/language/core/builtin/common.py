@@ -1244,6 +1244,7 @@ class ValueFactory(Enum):
     UUID4 = 1, "UUID4", "Generate a random UUIDv4"
     UUID7 = 2, "UUID7", "Generate a random (time-sorted) UUIDv7"
     NOW = 10, "Now", "Generate a timestamp"
+    EPOCH = 11, "Epoch", "Generate a logical time"
     REGION = 20, "Region", "Get the current Region"
     SELF = 30, "Self", "Get the current Node"
     SPACE = 31, "Space", "Get the current Space"

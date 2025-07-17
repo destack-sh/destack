@@ -83,7 +83,7 @@ describe.each(storeImplementations)("$name", ({ createStore, tearDown }) => {
   beforeEach(async () => {
     store = await createStore();
     // session
-    session = new Session({ store });
+    session = new Session({ store, epoch: 1 });
     await session.open();
     // space
     const space = new Space({

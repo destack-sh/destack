@@ -4,7 +4,7 @@ import { expect, test, beforeEach, afterEach } from "bun:test";
 let session: Session;
 
 beforeEach(async () => {
-  session = new Session({});
+  session = new Session({ epoch: 1 });
   await session.open();
 });
 

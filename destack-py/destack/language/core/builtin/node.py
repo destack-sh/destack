@@ -259,13 +259,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     _is_new: bool = builtin_property_runtime(default=False)
 
     # 20-40: node tracking
-    # IsTracked.created_at/created_by/updated_at/updated_by: 20-23
-    # IsArchivable.archived_at: 24
-    # IsDeletable.deleted_at: 25
-    # IsCustomizable.custom_values: 26
-    # IsOrdered.order_key: 27
-    # IsOwnable.owned_by: 28
-    # ...managed_by/controlled_by?
+    # ...
 
     # 40-100: more internal properties
     # ...

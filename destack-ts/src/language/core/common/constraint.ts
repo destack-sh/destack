@@ -445,9 +445,14 @@ export class Constraint extends Entity implements IsTaggable {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -462,9 +467,14 @@ export class Constraint extends Entity implements IsTaggable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -479,7 +489,7 @@ export class Constraint extends Entity implements IsTaggable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -539,8 +549,10 @@ export class Constraint extends Entity implements IsTaggable {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Constraint | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     name?: string;
@@ -638,17 +650,26 @@ export class Constraint extends Entity implements IsTaggable {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
       this.updatedAt = now;
+      this.updatedEpoch = epoch;
       this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
+      if (
+        options.createdAt == null ||
+        options.updatedAt == null ||
+        options.createdEpoch == null ||
+        options.updatedEpoch == null
+      ) {
         throw new Error(
           `Constraint.createdAt and Constraint.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
@@ -656,6 +677,7 @@ export class Constraint extends Entity implements IsTaggable {
             : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
+      this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
           ? options.updatedBy.metatype == StructType.NODE_REFERENCE
@@ -793,15 +815,17 @@ export class Constraint extends Entity implements IsTaggable {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
-    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["23"] = object.updatedByPtr.toValue();
+      objectValue["25"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["50"] = object._name;
     objectValue["100"] = object._type;
@@ -849,17 +873,17 @@ export class Constraint extends Entity implements IsTaggable {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["23"];
+    const updatedByPtrValue = objectValue["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["24"];
+    const deletedAtValue = objectValue["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -872,8 +896,10 @@ export class Constraint extends Entity implements IsTaggable {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
@@ -914,10 +940,12 @@ export class Constraint extends Entity implements IsTaggable {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
@@ -990,6 +1018,7 @@ export class Constraint extends Entity implements IsTaggable {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1001,6 +1030,7 @@ export class Constraint extends Entity implements IsTaggable {
             )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1089,6 +1119,11 @@ export class IndexDefinition extends BuiltinDefinition {
    */
   readonly properties: readonly PropertyReference[];
 
+  /**
+   * IndexDefinition.cover
+   */
+  readonly cover: readonly PropertyReference[];
+
   constructor(options: {
     id: number;
     type: IndexType;
@@ -1096,6 +1131,7 @@ export class IndexDefinition extends BuiltinDefinition {
     icon?: Icon | null;
     description?: string | null;
     properties?: readonly PropertyReference[];
+    cover?: readonly PropertyReference[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -1135,6 +1171,11 @@ export class IndexDefinition extends BuiltinDefinition {
       _properties = [];
     }
     this.properties = _properties;
+    let _cover = options.cover ?? null;
+    if (_cover === null) {
+      _cover = [];
+    }
+    this.cover = _cover;
 
     // identity
     // @ts-expect-error(readonly)
@@ -1159,6 +1200,14 @@ export class IndexDefinition extends BuiltinDefinition {
     }
     for (let i = 0; i < this.properties.length; i++) {
       if (!this.properties[i].equals(other.properties[i])) {
+        return false;
+      }
+    }
+    if (this.cover.length != other.cover.length) {
+      return false;
+    }
+    for (let i = 0; i < this.cover.length; i++) {
+      if (!this.cover[i].equals(other.cover[i])) {
         return false;
       }
     }
@@ -1208,6 +1257,11 @@ export class IndexDefinition extends BuiltinDefinition {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
+    if (this.cover && this.cover.length > 0) {
+      for (const _item of this.cover) {
+        h = (h * 31 + _item.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashInt(this.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.name)) & 0xffffffff;
     if (this.icon != null) {
@@ -1253,6 +1307,13 @@ export class IndexDefinition extends BuiltinDefinition {
       }
       objectValue["105"] = packedProperties;
     }
+    if (object.cover.length > 0) {
+      const packedCover: any[] = [];
+      for (const item of object.cover) {
+        packedCover.push(item.toValue());
+      }
+      objectValue["106"] = packedCover;
+    }
     return objectValue;
   }
 
@@ -1275,6 +1336,14 @@ export class IndexDefinition extends BuiltinDefinition {
         );
       }
     }
+    const unpackedCover: any[] = [];
+    if (objectValue["106"] != undefined) {
+      for (const item of objectValue["106"]) {
+        unpackedCover.push(
+          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -1285,6 +1354,7 @@ export class IndexDefinition extends BuiltinDefinition {
     return new IndexDefinition({
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
+      cover: unpackedCover,
       id: Number(objectValue["2"]),
       name: objectValue["101"],
       icon: unpackedIcon,
@@ -1330,6 +1400,13 @@ export class IndexDefinition extends BuiltinDefinition {
       }
       objectProto.properties = packedProperties;
     }
+    if (object.cover) {
+      const packedCover: any[] = [];
+      for (const item of object.cover) {
+        packedCover.push(item.toProto());
+      }
+      objectProto.cover = packedCover;
+    }
     return objectProto as IndexDefinitionProto;
   }
 
@@ -1352,9 +1429,18 @@ export class IndexDefinition extends BuiltinDefinition {
         );
       }
     }
+    const unpackedCover: any[] = [];
+    if (objectProto.cover) {
+      for (const item of objectProto.cover) {
+        unpackedCover.push(
+          _PropertyReference.fromProto(item!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new IndexDefinition({
       type: Number(objectProto.type) as IndexType,
       properties: unpackedProperties,
+      cover: unpackedCover,
       id: Number(objectProto.id),
       name: objectProto.name,
       icon:
@@ -1451,9 +1537,14 @@ export class Index extends Entity implements IsTaggable {
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -1468,9 +1559,14 @@ export class Index extends Entity implements IsTaggable {
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -1485,7 +1581,7 @@ export class Index extends Entity implements IsTaggable {
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -1545,8 +1641,10 @@ export class Index extends Entity implements IsTaggable {
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Index | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     name?: string;
@@ -1644,15 +1742,24 @@ export class Index extends Entity implements IsTaggable {
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
       this.updatedAt = now;
+      this.updatedEpoch = epoch;
       this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
+      if (
+        options.createdAt == null ||
+        options.updatedAt == null ||
+        options.createdEpoch == null ||
+        options.updatedEpoch == null
+      ) {
         throw new Error(`Index.createdAt and Index.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
@@ -1660,6 +1767,7 @@ export class Index extends Entity implements IsTaggable {
             : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
+      this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
           ? options.updatedBy.metatype == StructType.NODE_REFERENCE
@@ -1797,15 +1905,17 @@ export class Index extends Entity implements IsTaggable {
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
-    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["23"] = object.updatedByPtr.toValue();
+      objectValue["25"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     objectValue["50"] = object._name;
     objectValue["100"] = object._type;
@@ -1853,17 +1963,17 @@ export class Index extends Entity implements IsTaggable {
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["23"];
+    const updatedByPtrValue = objectValue["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["24"];
+    const deletedAtValue = objectValue["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -1876,8 +1986,10 @@ export class Index extends Entity implements IsTaggable {
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
@@ -1918,10 +2030,12 @@ export class Index extends Entity implements IsTaggable {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
@@ -1994,6 +2108,7 @@ export class Index extends Entity implements IsTaggable {
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2005,6 +2120,7 @@ export class Index extends Entity implements IsTaggable {
             )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? _NodeReference.fromProto(

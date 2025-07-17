@@ -111,9 +111,14 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   readonly precededByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was created.
+   * The time this Entity was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  readonly createdEpoch: number;
 
   /**
    * The Actor that created this Entity.
@@ -128,9 +133,14 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   readonly createdByPtr: NodeReference | null;
 
   /**
-   * The time this Entity was last updated.
+   * The time this Entity was last updated (system time).
    */
   readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  readonly updatedEpoch: number;
 
   /**
    * The Actor that last updated this Entity.
@@ -145,7 +155,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
   readonly updatedByPtr: NodeReference | null;
 
   /**
-   * Entity.deletedAt
+   * The time this Entity was deleted (system time).
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -347,8 +357,10 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: User | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
     updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
@@ -488,15 +500,24 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     // identity
     if (options.id == null) {
       const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
       this.createdAt = now;
+      this.createdEpoch = epoch;
       this.createdByPtr = null;
       this.updatedAt = now;
+      this.updatedEpoch = epoch;
       this.updatedByPtr = null;
     } else {
-      if (options.createdAt == null || options.updatedAt == null) {
+      if (
+        options.createdAt == null ||
+        options.updatedAt == null ||
+        options.createdEpoch == null ||
+        options.updatedEpoch == null
+      ) {
         throw new Error(`User.createdAt and User.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
       this.createdByPtr =
         options.createdBy != null
           ? options.createdBy.metatype == StructType.NODE_REFERENCE
@@ -504,6 +525,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
             : (options.createdBy as Node).toRef()
           : null;
       this.updatedAt = options.updatedAt;
+      this.updatedEpoch = options.updatedEpoch;
       this.updatedByPtr =
         options.updatedBy != null
           ? options.updatedBy.metatype == StructType.NODE_REFERENCE
@@ -686,22 +708,24 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       objectValue["12"] = object.precededByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["21"] = object.createdByPtr.toValue();
+      objectValue["22"] = object.createdByPtr.toValue();
     }
-    objectValue["22"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["23"] = object.updatedByPtr.toValue();
+      objectValue["25"] = object.updatedByPtr.toValue();
     }
     if (object.deletedAt != null) {
-      objectValue["24"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
         packedCustomValues[String(String(key))] = value.toValue();
       }
-      objectValue["26"] = packedCustomValues;
+      objectValue["30"] = packedCustomValues;
     }
     objectValue["50"] = object._name;
     objectValue["102"] = object._slug;
@@ -766,8 +790,8 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     const unpackedPasswordHash =
       passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
         unpackedCustomValues[String(key)] = _Value.fromValue(
           value as any,
           _session,
@@ -787,17 +811,17 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["21"];
+    const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
         ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["23"];
+    const updatedByPtrValue = objectValue["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
         ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["24"];
+    const deletedAtValue = objectValue["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -818,8 +842,10 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["22"]).toZonedDateTimeISO("UTC"),
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
@@ -860,10 +886,12 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
     if (object.createdByPtr != null) {
       objectProto.createdByPtr = object.createdByPtr.toProto();
     }
     objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
     if (object.updatedByPtr != null) {
       objectProto.updatedByPtr = object.updatedByPtr.toProto();
     }
@@ -983,6 +1011,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
             )
           : null,
       createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
       createdBy:
         objectProto.createdByPtr != undefined
           ? _NodeReference.fromProto(
@@ -994,6 +1023,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
             )
           : null,
       updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
       updatedBy:
         objectProto.updatedByPtr != undefined
           ? _NodeReference.fromProto(
