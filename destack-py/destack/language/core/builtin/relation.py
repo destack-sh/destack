@@ -359,8 +359,13 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
         is_repr=True,
         description="The unique id of the custom Node definition.",
     )
-    snapshot_id: Optional[UUID] = builtin_property(
+    branch_id: Optional[UUID] = builtin_property(
         103,
+        is_repr=True,
+        description="The id of the Branch the Node belonged to.",
+    )
+    snapshot_id: Optional[UUID] = builtin_property(
+        104,
         is_repr=True,
         description="The id of the Snapshot the Node belonged to.",
     )

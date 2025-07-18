@@ -886,6 +886,11 @@ export class NodeReference extends StructFrozen {
   readonly definitionId: string | null;
 
   /**
+   * The id of the Branch the Node belonged to.
+   */
+  readonly branchId: string | null;
+
+  /**
    * The id of the Snapshot the Node belonged to.
    */
   readonly snapshotId: string | null;
@@ -904,6 +909,7 @@ export class NodeReference extends StructFrozen {
     type: NodeType;
     id: string;
     definitionId?: string | null;
+    branchId?: string | null;
     snapshotId?: string | null;
     spaceId?: string | null;
     storeKey?: StoreKey | null;
@@ -934,6 +940,8 @@ export class NodeReference extends StructFrozen {
     this.id = _id;
     let _definitionId = options.definitionId ?? null;
     this.definitionId = _definitionId;
+    let _branchId = options.branchId ?? null;
+    this.branchId = _branchId;
     let _snapshotId = options.snapshotId ?? null;
     this.snapshotId = _snapshotId;
     let _spaceId = options.spaceId ?? null;
@@ -965,6 +973,9 @@ export class NodeReference extends StructFrozen {
     if (!(this.definitionId === other.definitionId)) {
       return false;
     }
+    if (!(this.branchId === other.branchId)) {
+      return false;
+    }
     if (!(this.snapshotId === other.snapshotId)) {
       return false;
     }
@@ -984,6 +995,9 @@ export class NodeReference extends StructFrozen {
       propertyReprs.push(`id=${this.id}`);
       if (this.definitionId != null) {
         propertyReprs.push(`definitionId=${this.definitionId}`);
+      }
+      if (this.branchId != null) {
+        propertyReprs.push(`branchId=${this.branchId}`);
       }
       if (this.snapshotId != null) {
         propertyReprs.push(`snapshotId=${this.snapshotId}`);
@@ -1011,6 +1025,9 @@ export class NodeReference extends StructFrozen {
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     if (this.definitionId != null) {
       h = (h * 31 + hashString(this.definitionId.toString())) & 0xffffffff;
+    }
+    if (this.branchId != null) {
+      h = (h * 31 + hashString(this.branchId.toString())) & 0xffffffff;
     }
     if (this.snapshotId != null) {
       h = (h * 31 + hashString(this.snapshotId.toString())) & 0xffffffff;
@@ -1047,8 +1064,11 @@ export class NodeReference extends StructFrozen {
     if (object.definitionId != null) {
       objectValue["102"] = String(object.definitionId);
     }
+    if (object.branchId != null) {
+      objectValue["103"] = String(object.branchId);
+    }
     if (object.snapshotId != null) {
-      objectValue["103"] = String(object.snapshotId);
+      objectValue["104"] = String(object.snapshotId);
     }
     if (object.spaceId != null) {
       objectValue["110"] = String(object.spaceId);
@@ -1068,7 +1088,9 @@ export class NodeReference extends StructFrozen {
   ): NodeReference {
     const definitionIdValue = objectValue["102"];
     const unpackedDefinitionId = definitionIdValue != undefined ? String(definitionIdValue) : null;
-    const snapshotIdValue = objectValue["103"];
+    const branchIdValue = objectValue["103"];
+    const unpackedBranchId = branchIdValue != undefined ? String(branchIdValue) : null;
+    const snapshotIdValue = objectValue["104"];
     const unpackedSnapshotId = snapshotIdValue != undefined ? String(snapshotIdValue) : null;
     const spaceIdValue = objectValue["110"];
     const unpackedSpaceId = spaceIdValue != undefined ? String(spaceIdValue) : null;
@@ -1078,6 +1100,7 @@ export class NodeReference extends StructFrozen {
       type: Number(objectValue["100"]),
       id: String(objectValue["101"]),
       definitionId: unpackedDefinitionId,
+      branchId: unpackedBranchId,
       snapshotId: unpackedSnapshotId,
       spaceId: unpackedSpaceId,
       storeKey: unpackedStoreKey,
@@ -1111,6 +1134,9 @@ export class NodeReference extends StructFrozen {
     if (object.definitionId != null) {
       objectProto.definitionId = String(object.definitionId);
     }
+    if (object.branchId != null) {
+      objectProto.branchId = String(object.branchId);
+    }
     if (object.snapshotId != null) {
       objectProto.snapshotId = String(object.snapshotId);
     }
@@ -1134,6 +1160,7 @@ export class NodeReference extends StructFrozen {
       type: Number(objectProto.type) as NodeType,
       id: String(objectProto.id),
       definitionId: objectProto.definitionId != undefined ? String(objectProto.definitionId) : null,
+      branchId: objectProto.branchId != undefined ? String(objectProto.branchId) : null,
       snapshotId: objectProto.snapshotId != undefined ? String(objectProto.snapshotId) : null,
       spaceId: objectProto.spaceId != undefined ? String(objectProto.spaceId) : null,
       storeKey:

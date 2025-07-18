@@ -8495,11 +8495,12 @@ class NodeDefinitionReferenceProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeDefinitionTypeProto, str]] = ..., node_type: _Optional[_Union[NodeTypeProto, str]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ...) -> None: ...
 
 class NodeReferenceProto(_message.Message):
-    __slots__ = ("metatype", "type", "id", "definition_id", "snapshot_id", "space_id", "store_key")
+    __slots__ = ("metatype", "type", "id", "definition_id", "branch_id", "snapshot_id", "space_id", "store_key")
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     TYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     DEFINITION_ID_FIELD_NUMBER: _ClassVar[int]
+    BRANCH_ID_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_ID_FIELD_NUMBER: _ClassVar[int]
     SPACE_ID_FIELD_NUMBER: _ClassVar[int]
     STORE_KEY_FIELD_NUMBER: _ClassVar[int]
@@ -8507,10 +8508,11 @@ class NodeReferenceProto(_message.Message):
     type: NodeTypeProto
     id: str
     definition_id: str
+    branch_id: str
     snapshot_id: str
     space_id: str
     store_key: StoreKeyProto
-    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., definition_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., space_id: _Optional[str] = ..., store_key: _Optional[_Union[StoreKeyProto, str]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[StructTypeProto, str]] = ..., type: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., definition_id: _Optional[str] = ..., branch_id: _Optional[str] = ..., snapshot_id: _Optional[str] = ..., space_id: _Optional[str] = ..., store_key: _Optional[_Union[StoreKeyProto, str]] = ...) -> None: ...
 
 class NotificationProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "definition_ptr", "branch_ptr", "snapshot_ptr", "preceded_by_ptr", "instantiation_root_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "custom_values", "owned_by_ptr", "name", "script_ptr", "is_extensible", "title", "status", "text")

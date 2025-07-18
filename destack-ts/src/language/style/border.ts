@@ -996,6 +996,7 @@ export class BorderStyle extends Style {
       type: NodeType.BORDER_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,

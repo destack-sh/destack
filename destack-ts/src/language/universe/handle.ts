@@ -436,6 +436,7 @@ export class Handle extends Entity {
       type: NodeType.HANDLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

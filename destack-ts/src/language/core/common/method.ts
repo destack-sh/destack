@@ -956,6 +956,7 @@ export class Method extends Entity implements IsSourceable, IsCustomizable {
       type: NodeType.METHOD,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

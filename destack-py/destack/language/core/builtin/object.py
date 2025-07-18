@@ -578,6 +578,7 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        branch_id=self.id,
     )
 """
     elif node_type == NodeType.SNAPSHOT:
@@ -587,6 +588,7 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
         snapshot_id=self.id,
     )
 """
@@ -598,6 +600,7 @@ def __to_ref__(self) -> "NodeReference":
         id=self.id,
         definition_id=definition_ptr.id if (definition_ptr := self.definition_ptr) is not None else None,
         space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
         snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
 """
@@ -608,6 +611,7 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
+        branch_id=branch_ptr.id if (branch_ptr := self.branch_ptr) is not None else None,
         snapshot_id=snapshot_ptr.id if (snapshot_ptr := self.snapshot_ptr) is not None else None,
     )
 """

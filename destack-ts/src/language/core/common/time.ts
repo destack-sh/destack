@@ -514,6 +514,7 @@ export class Snapshot extends Entity implements IsOwnable {
       type: NodeType.SNAPSHOT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
@@ -931,7 +932,7 @@ export class Branch extends Entity implements IsOwnable {
   readonly definitionPtr: NodeReference | null;
 
   /**
-   * The Branch this Entity is part of.
+   * The Branch itself. Cannot be any other Branch than this Branch
    */
   get branch(): Branch | null {
     const nodePtr: NodeReference | null = this.branchPtr;
@@ -1176,11 +1177,7 @@ export class Branch extends Entity implements IsOwnable {
       _branch = (_branch as Node).toRef();
     }
     if (_branch === null) {
-      _branch = ACTIVE_BRANCH.get();
-      if (_branch === null) {
-        throw new Error(`no active Branch for Branch`);
-      }
-      _branch = _branch.toRef();
+      _branch = this.toRef();
     }
     if (_branch === null) {
       throw new Error(`Branch.branch is required`);
@@ -1277,6 +1274,9 @@ export class Branch extends Entity implements IsOwnable {
     if (!(this._type === other._type)) {
       return false;
     }
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
+      return false;
+    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -1299,6 +1299,7 @@ export class Branch extends Entity implements IsOwnable {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
@@ -1333,7 +1334,7 @@ export class Branch extends Entity implements IsOwnable {
       type: NodeType.BRANCH,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      branchId: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1469,9 +1470,6 @@ export class Branch extends Entity implements IsOwnable {
     return new Branch({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
-      ownedBy: unpackedOwnedByPtr,
-      materialization: Number(objectValue["10"]),
-      definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromValue(
         objectValue["12"],
         _session,
@@ -1479,6 +1477,9 @@ export class Branch extends Entity implements IsOwnable {
         _graph,
         _connection,
       ),
+      ownedBy: unpackedOwnedByPtr,
+      materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
       snapshot: _NodeReference.fromValue(
         objectValue["13"],
         _session,
@@ -1578,6 +1579,13 @@ export class Branch extends Entity implements IsOwnable {
             )
           : null,
       type: Number(objectProto.type) as BranchType,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1599,13 +1607,6 @@ export class Branch extends Entity implements IsOwnable {
               _connection,
             )
           : null,
-      branch: _NodeReference.fromProto(
-        objectProto.branchPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,

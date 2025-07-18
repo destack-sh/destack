@@ -1107,6 +1107,7 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
       type: NodeType.CUSTOM_STRUCT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

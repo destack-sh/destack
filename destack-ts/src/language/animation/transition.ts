@@ -1338,6 +1338,7 @@ export class TransitionStyle extends Style {
       type: NodeType.TRANSITION_STYLE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,

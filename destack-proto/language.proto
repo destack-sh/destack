@@ -4528,7 +4528,8 @@ message NodeReferenceProto {
   NodeTypeProto type = 100;
   string id = 101;
   optional string definition_id = 102;
-  optional string snapshot_id = 103;
+  optional string branch_id = 103;
+  optional string snapshot_id = 104;
   optional string space_id = 110;
   optional StoreKeyProto store_key = 111;
 }

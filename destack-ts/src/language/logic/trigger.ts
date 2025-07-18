@@ -760,6 +760,7 @@ export class Trigger extends Entity implements IsSourceable {
       type: NodeType.TRIGGER,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,

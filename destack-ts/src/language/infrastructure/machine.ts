@@ -730,7 +730,7 @@ export class Machine extends Resource {
     this._type = _type;
     let _version = options.version ?? null;
     if (_version === null) {
-      _version = "2025.07.18.2";
+      _version = "2025.07.18.3";
     }
     if (_version === null) {
       throw new Error(`Machine.version is required`);
@@ -984,6 +984,7 @@ export class Machine extends Resource {
       type: NodeType.MACHINE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
