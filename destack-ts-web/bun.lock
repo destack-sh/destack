@@ -29,7 +29,7 @@
         "motion": "^12.23.6",
         "pino": "^9.7.0",
         "posthog-js": "^1.257.0",
-        "pyodide": "^0.27.7",
+        "pyodide": "^0.28.0",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "temporal-polyfill": "^0.3.0",
@@ -53,7 +53,7 @@
         "@types/node": "^22.16.4",
         "@types/react": "^19.1.8",
         "@types/react-dom": "^19.1.6",
-        "@vitejs/plugin-react": "^4.6.0",
+        "@vitejs/plugin-react": "^4.7.0",
         "babel-plugin-react-compiler": "^19.1.0-rc.2",
         "eslint": "^9.31.0",
         "eslint-plugin-react": "^7.37.5",
@@ -1143,7 +1143,7 @@
 
     "punycode": ["punycode@2.3.1", "", {}, "sha512-vYt7UD1U9Wg6138shLtLOvdAu+8DsC/ilFtEVHcH+wydcSpNE20AfSOduf6MkRFahL5FY7X1oU7nKVZFtfq8Fg=="],
 
-    "pyodide": ["pyodide@0.27.7", "", { "dependencies": { "ws": "^8.5.0" } }, "sha512-RUSVJlhQdfWfgO9hVHCiXoG+nVZQRS5D9FzgpLJ/VcgGBLSAKoPL8kTiOikxbHQm1kRISeWUBdulEgO26qpSRA=="],
+    "pyodide": ["pyodide@0.28.0", "", { "dependencies": { "ws": "^8.5.0" } }, "sha512-QML/Gh8eu50q5zZKLNpW6rgS0XUdK+94OSL54AUSKV8eJAxgwZrMebqj+CyM0EbF3EUX8JFJU3ryaxBViHammQ=="],
 
     "queue-microtask": ["queue-microtask@1.2.3", "", {}, "sha512-NuaNSa6flKT5JaSYQzJok04JzTL1CA6aGhv5rfLW3PgqA+M2ChpZQnAC8h8i4ZFkBS8X5RqkDBHA7r4hej3K9A=="],
 
