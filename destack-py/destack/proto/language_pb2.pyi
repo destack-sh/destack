@@ -1428,7 +1428,6 @@ class TraitTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     TRAIT_TYPE_CUSTOMIZABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_EXTENSIBLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_IRREVERSIBLE: _ClassVar[TraitTypeProto]
-    TRAIT_TYPE_TAGGABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNABLE: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_OWNED: _ClassVar[TraitTypeProto]
     TRAIT_TYPE_JOINABLE: _ClassVar[TraitTypeProto]
@@ -2592,7 +2591,6 @@ TRAIT_TYPE_ORDERED: TraitTypeProto
 TRAIT_TYPE_CUSTOMIZABLE: TraitTypeProto
 TRAIT_TYPE_EXTENSIBLE: TraitTypeProto
 TRAIT_TYPE_IRREVERSIBLE: TraitTypeProto
-TRAIT_TYPE_TAGGABLE: TraitTypeProto
 TRAIT_TYPE_OWNABLE: TraitTypeProto
 TRAIT_TYPE_OWNED: TraitTypeProto
 TRAIT_TYPE_JOINABLE: TraitTypeProto
@@ -11733,11 +11731,19 @@ class StyleProto(_message.Message):
     def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ...) -> None: ...
 
 class TagProto(_message.Message):
-    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "preceded_by_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "order_key", "name", "source_ptr", "key", "icon")
+    __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "definition_ptr", "materialization", "snapshot_ptr", "preceded_by_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "custom_values", "order_key", "name", "source_ptr", "key", "script_ptr", "is_extensible", "icon")
+    class CustomValuesEntry(_message.Message):
+        __slots__ = ("key", "value")
+        KEY_FIELD_NUMBER: _ClassVar[int]
+        VALUE_FIELD_NUMBER: _ClassVar[int]
+        key: str
+        value: ValueProto
+        def __init__(self, key: _Optional[str] = ..., value: _Optional[_Union[ValueProto, _Mapping]] = ...) -> None: ...
     METATYPE_FIELD_NUMBER: _ClassVar[int]
     ID_FIELD_NUMBER: _ClassVar[int]
     PARENT_PTR_FIELD_NUMBER: _ClassVar[int]
     SPACE_PTR_FIELD_NUMBER: _ClassVar[int]
+    DEFINITION_PTR_FIELD_NUMBER: _ClassVar[int]
     MATERIALIZATION_FIELD_NUMBER: _ClassVar[int]
     SNAPSHOT_PTR_FIELD_NUMBER: _ClassVar[int]
     PRECEDED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
@@ -11748,15 +11754,19 @@ class TagProto(_message.Message):
     UPDATED_EPOCH_FIELD_NUMBER: _ClassVar[int]
     UPDATED_BY_PTR_FIELD_NUMBER: _ClassVar[int]
     DELETED_AT_FIELD_NUMBER: _ClassVar[int]
+    CUSTOM_VALUES_FIELD_NUMBER: _ClassVar[int]
     ORDER_KEY_FIELD_NUMBER: _ClassVar[int]
     NAME_FIELD_NUMBER: _ClassVar[int]
     SOURCE_PTR_FIELD_NUMBER: _ClassVar[int]
     KEY_FIELD_NUMBER: _ClassVar[int]
+    SCRIPT_PTR_FIELD_NUMBER: _ClassVar[int]
+    IS_EXTENSIBLE_FIELD_NUMBER: _ClassVar[int]
     ICON_FIELD_NUMBER: _ClassVar[int]
     metatype: NodeTypeProto
     id: str
     parent_ptr: NodeReferenceProto
     space_ptr: NodeReferenceProto
+    definition_ptr: NodeReferenceProto
     materialization: MaterializationProto
     snapshot_ptr: NodeReferenceProto
     preceded_by_ptr: NodeReferenceProto
@@ -11767,12 +11777,15 @@ class TagProto(_message.Message):
     updated_epoch: int
     updated_by_ptr: NodeReferenceProto
     deleted_at: _timestamp_pb2.Timestamp
+    custom_values: _containers.MessageMap[str, ValueProto]
     order_key: str
     name: str
     source_ptr: NodeReferenceProto
     key: str
+    script_ptr: NodeReferenceProto
+    is_extensible: bool
     icon: IconProto
-    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
+    def __init__(self, metatype: _Optional[_Union[NodeTypeProto, str]] = ..., id: _Optional[str] = ..., parent_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., space_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., definition_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., materialization: _Optional[_Union[MaterializationProto, str]] = ..., snapshot_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., preceded_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., created_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., created_epoch: _Optional[int] = ..., created_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., updated_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., updated_epoch: _Optional[int] = ..., updated_by_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., deleted_at: _Optional[_Union[_timestamp_pb2.Timestamp, _Mapping]] = ..., custom_values: _Optional[_Mapping[str, ValueProto]] = ..., order_key: _Optional[str] = ..., name: _Optional[str] = ..., source_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., key: _Optional[str] = ..., script_ptr: _Optional[_Union[NodeReferenceProto, _Mapping]] = ..., is_extensible: bool = ..., icon: _Optional[_Union[IconProto, _Mapping]] = ...) -> None: ...
 
 class TaggingProto(_message.Message):
     __slots__ = ("metatype", "id", "parent_ptr", "space_ptr", "materialization", "snapshot_ptr", "preceded_by_ptr", "created_at", "created_epoch", "created_by_ptr", "updated_at", "updated_epoch", "updated_by_ptr", "deleted_at", "order_key", "name", "tag_ptr")

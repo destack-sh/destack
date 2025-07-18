@@ -1461,7 +1461,6 @@ enum TraitTypeProto {
   TRAIT_TYPE_CUSTOMIZABLE = 10100;
   TRAIT_TYPE_EXTENSIBLE = 10200;
   TRAIT_TYPE_IRREVERSIBLE = 10300;
-  TRAIT_TYPE_TAGGABLE = 201000;
   TRAIT_TYPE_OWNABLE = 300000;
   TRAIT_TYPE_OWNED = 300001;
   TRAIT_TYPE_JOINABLE = 300003;
@@ -6177,12 +6176,13 @@ message StyleProto {
   bool is_extensible = 90;
 }
 
-// A Tag definition to tag a Taggable Entity (in a Tagging).
+// A Tag to tag a Taggable Entity with (in a Tagging).
 message TagProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
@@ -6193,10 +6193,13 @@ message TagProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   string name = 50;
   optional NodeReferenceProto source_ptr = 60;
   optional string key = 70;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional IconProto icon = 102;
 }
 
@@ -6218,7 +6221,7 @@ message TaggingProto {
   optional google.protobuf.Timestamp deleted_at = 26;
   string order_key = 31;
   string name = 50;
-  optional NodeReferenceProto tag_ptr = 110;
+  NodeReferenceProto tag_ptr = 110;
 }
 
 // An Team with Users and Teams.

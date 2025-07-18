@@ -24,7 +24,6 @@ import type {
   IsCustomizable,
   IsExtensible,
   IsSourceable,
-  IsTaggable,
 } from "@destack/language/core/builtin/trait";
 import type { CustomEnum } from "@destack/language/core/common/enum";
 import type { Icon } from "@destack/language/core/common/icon";
@@ -66,7 +65,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A CustomProperty is a custom attribute of an IsCustomizable or IsExtensible.
  */
-export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
+export class CustomProperty extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.CUSTOM_PROPERTY;
 
   /**
@@ -1061,8 +1060,8 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -1416,8 +1415,8 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      id: String(objectValue["2"]),
       orderKey: objectValue["31"],
+      id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -1721,8 +1720,8 @@ export class CustomProperty extends Entity implements IsTaggable, IsSourceable {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsExtensible,
     IsOrdered,
-    IsTaggable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -20,7 +19,6 @@ if TYPE_CHECKING:
 class Palette(
     IsExtensible,
     IsOrdered,
-    IsTaggable,
     Entity,
 ):
     """A Palette of Colors."""

@@ -4,7 +4,6 @@ import type {
   IsActor,
   IsExtensible,
   IsSourceable,
-  IsTaggable,
   IsViewable,
   Materialization,
   NodeReference,
@@ -102,10 +101,7 @@ registerNodeClass(NodeType.VIEW_EVENT, ViewEvent);
 /**
  * A View is a graphical interface.
  */
-export abstract class View
-  extends Entity
-  implements IsViewable, IsTaggable, IsExtensible, IsSourceable
-{
+export abstract class View extends Entity implements IsViewable, IsExtensible, IsSourceable {
   static metatype: NodeType = NodeType.VIEW;
 
   /**

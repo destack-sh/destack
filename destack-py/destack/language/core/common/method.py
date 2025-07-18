@@ -7,7 +7,6 @@ from ..builtin import (
     IsCustomizable,
     IsScriptable,
     IsSourceable,
-    IsTaggable,
     NodeType,
     StructType,
     builtin_enum,
@@ -43,7 +42,6 @@ class MethodDefinition(BuiltinDefinition):
 
 @builtin_node(NodeType.METHOD)
 class Method(
-    IsTaggable,
     IsSourceable,
     IsCustomizable,
     Entity,

@@ -6,7 +6,6 @@ from destack.language.core import (
     IsExtensible,
     IsOrdered,
     IsOwnable,
-    IsTaggable,
     IsViewable,
     NodeType,
     builtin_node,
@@ -34,7 +33,6 @@ class Scene(
     IsViewable,
     IsOwnable,
     IsOrdered,
-    IsTaggable,
     IsExtensible,
     Entity,
 ):

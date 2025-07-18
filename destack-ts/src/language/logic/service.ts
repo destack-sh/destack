@@ -7,7 +7,6 @@ import type {
   IsOwnable,
   IsRunnable,
   IsSourceable,
-  IsTaggable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -40,7 +39,7 @@ import { Temporal } from "temporal-polyfill";
  */
 export class Service
   extends Entity
-  implements IsOwnable, IsTaggable, IsExtensible, IsSourceable, IsActor, IsRunnable
+  implements IsOwnable, IsExtensible, IsSourceable, IsActor, IsRunnable
 {
   static metatype: NodeType = NodeType.SERVICE;
 

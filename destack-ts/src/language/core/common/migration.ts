@@ -7,7 +7,7 @@ import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor, IsExtensible, IsTaggable } from "@destack/language/core/builtin/trait";
+import type { IsActor, IsExtensible } from "@destack/language/core/builtin/trait";
 import { BuiltinDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -608,7 +608,7 @@ registerStructClass(StructType.MIGRATION_OPERATION_DEFINITION, MigrationOperatio
 /**
  * Migration of an Entity.
  */
-export class Migration extends Entity implements IsTaggable {
+export class Migration extends Entity {
   static metatype: NodeType = NodeType.MIGRATION;
 
   /**
@@ -1232,7 +1232,7 @@ registerNodeClass(NodeType.MIGRATION, Migration);
 /**
  * MigrationOperation of an Entity.
  */
-export class MigrationOperation extends Entity implements IsTaggable {
+export class MigrationOperation extends Entity {
   static metatype: NodeType = NodeType.MIGRATION_OPERATION;
 
   /**

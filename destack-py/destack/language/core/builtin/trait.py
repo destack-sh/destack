@@ -200,23 +200,6 @@ class IsActor(Trait):
     pass
 
 
-#
-# Space
-#
-
-
-@builtin_trait(TraitType.TAGGABLE, is_extensible=True)
-class IsTaggable(Trait):
-    """An Entity that can be tagged (with a Tag)."""
-
-    pass
-
-
-#
-# Social
-#
-
-
 @builtin_trait(
     TraitType.REACTABLE,
     is_extensible=True,

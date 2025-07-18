@@ -8,7 +8,7 @@ import { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference, PropertyReference } from "@destack/language/core/builtin/relation";
-import type { IsActor, IsExtensible, IsTaggable } from "@destack/language/core/builtin/trait";
+import type { IsActor, IsExtensible } from "@destack/language/core/builtin/trait";
 import { BuiltinDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -388,7 +388,7 @@ registerStructClass(StructType.CONSTRAINT_DEFINITION, ConstraintDefinition);
 /**
  * Constraint of an Entity.
  */
-export class Constraint extends Entity implements IsTaggable {
+export class Constraint extends Entity {
   static metatype: NodeType = NodeType.CONSTRAINT;
 
   /**
@@ -1480,7 +1480,7 @@ registerStructClass(StructType.INDEX_DEFINITION, IndexDefinition);
 /**
  * Index of an Entity.
  */
-export class Index extends Entity implements IsTaggable {
+export class Index extends Entity {
   static metatype: NodeType = NodeType.INDEX;
 
   /**

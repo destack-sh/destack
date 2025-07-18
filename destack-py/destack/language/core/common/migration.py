@@ -5,7 +5,6 @@ from ..builtin import (
     Enum,
     EnumType,
     IsExtensible,
-    IsTaggable,
     NodeType,
     StructType,
     builtin_enum,
@@ -38,7 +37,7 @@ class MigrationDefinition(BuiltinDefinition):
 
 
 @builtin_node(NodeType.MIGRATION)
-class Migration(IsTaggable, Entity):
+class Migration(Entity):
     """Migration of an Entity."""
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
@@ -51,7 +50,7 @@ class MigrationOperationDefinition(BuiltinDefinition):
 
 
 @builtin_node(NodeType.MIGRATION_OPERATION)
-class MigrationOperation(IsTaggable, Entity):
+class MigrationOperation(Entity):
     """MigrationOperation of an Entity."""
 
     parent: Union["IsExtensible", None] = builtin_property_parent()

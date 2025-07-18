@@ -11,12 +11,7 @@ import type {
   StructDefinitionReference,
 } from "@destack/language/core/builtin/relation";
 import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
-import type {
-  IsActor,
-  IsCustomizable,
-  IsSourceable,
-  IsTaggable,
-} from "@destack/language/core/builtin/trait";
+import type { IsActor, IsCustomizable, IsSourceable } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -543,7 +538,7 @@ registerStructClass(StructType.DATUM_MUTABLE, DatumMutable);
 /**
  * A CustomStruct describes a custom Struct with custom Properties.
  */
-export class CustomStruct extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
+export class CustomStruct extends Entity implements IsSourceable, IsCustomizable {
   static metatype: NodeType = NodeType.CUSTOM_STRUCT;
 
   /**
@@ -1028,8 +1023,8 @@ export class CustomStruct extends Entity implements IsTaggable, IsSourceable, Is
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -1230,8 +1225,8 @@ export class CustomStruct extends Entity implements IsTaggable, IsSourceable, Is
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      id: String(objectValue["2"]),
       orderKey: objectValue["31"],
+      id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -1412,8 +1407,8 @@ export class CustomStruct extends Entity implements IsTaggable, IsSourceable, Is
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

@@ -7,7 +7,7 @@ from ..builtin.node import builtin_node
 from ..builtin.object import BuiltinObject
 from ..builtin.property import builtin_property, builtin_property_parent
 from ..builtin.struct import builtin_struct
-from ..builtin.trait import IsExtensible, IsTaggable
+from ..builtin.trait import IsExtensible
 from .definition import BuiltinDefinition
 
 if TYPE_CHECKING:
@@ -39,7 +39,7 @@ class ConstraintDefinition(BuiltinDefinition):
 
 
 @builtin_node(NodeType.CONSTRAINT)
-class Constraint(IsTaggable, Entity):
+class Constraint(Entity):
     """Constraint of an Entity."""
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
@@ -69,7 +69,7 @@ class IndexDefinition(BuiltinDefinition):
 
 
 @builtin_node(NodeType.INDEX)
-class Index(IsTaggable, Entity):
+class Index(Entity):
     """Index of an Entity."""
 
     parent: Union["IsExtensible", None] = builtin_property_parent()

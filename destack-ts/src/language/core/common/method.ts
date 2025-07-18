@@ -12,7 +12,6 @@ import type {
   IsCustomizable,
   IsScriptable,
   IsSourceable,
-  IsTaggable,
 } from "@destack/language/core/builtin/trait";
 import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import { BuiltinDefinition } from "@destack/language/core/common/definition";
@@ -390,7 +389,7 @@ registerStructClass(StructType.METHOD_DEFINITION, MethodDefinition);
  * An implementation of a unit of work, usually expressed with Code or some tool.
  * May defer to a builtin or some other service in a separate system.
  */
-export class Method extends Entity implements IsTaggable, IsSourceable, IsCustomizable {
+export class Method extends Entity implements IsSourceable, IsCustomizable {
   static metatype: NodeType = NodeType.METHOD;
 
   /**
@@ -873,8 +872,8 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -1067,8 +1066,8 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      id: String(objectValue["2"]),
       orderKey: objectValue["31"],
+      id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -1241,8 +1240,8 @@ export class Method extends Entity implements IsTaggable, IsSourceable, IsCustom
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      id: String(objectProto.id),
       orderKey: objectProto.orderKey,
+      id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

@@ -111,7 +111,6 @@ import type {
   IsScriptable,
   IsSourceable,
   IsStarable,
-  IsTaggable,
   IsViewable,
 } from "@destack/language/core/builtin/trait";
 import type { Action, ActionDefinition } from "@destack/language/core/common/action";
@@ -623,7 +622,6 @@ export type TraitTypeMapping = {
   [TraitType.OWNED]: IsOwned;
   [TraitType.JOINABLE]: IsJoinable;
   [TraitType.ACTOR]: IsActor;
-  [TraitType.TAGGABLE]: IsTaggable;
   [TraitType.REACTABLE]: IsReactable;
   [TraitType.STARABLE]: IsStarable;
   [TraitType.FOLLOWABLE]: IsFollowable;

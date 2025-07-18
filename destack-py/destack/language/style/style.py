@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsExtensible,
     IsOrdered,
-    IsTaggable,
     NodeType,
     builtin_node,
 )
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
 class Style(
     Entity,
     IsOrdered,
-    IsTaggable,
     IsExtensible,
 ):
     """A Style defines a base visual appearance in some context."""

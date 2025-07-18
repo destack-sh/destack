@@ -7,7 +7,6 @@ import type {
   IsOrdered,
   IsOwnable,
   IsScriptable,
-  IsTaggable,
   IsViewable,
   NodeClass,
   NodeReference,
@@ -61,10 +60,7 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
 /**
  * A Layer is a named container for Views.
  */
-export class Layer
-  extends Entity
-  implements IsViewable, IsOwnable, IsOrdered, IsTaggable, IsScriptable
-{
+export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, IsScriptable {
   static metatype: NodeType = NodeType.LAYER;
 
   /**

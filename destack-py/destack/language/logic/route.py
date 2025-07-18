@@ -4,7 +4,6 @@ from destack.language.core import (
     Entity,
     IsOrdered,
     IsOwnable,
-    IsTaggable,
     NodeType,
     builtin_node,
 )
@@ -19,7 +18,6 @@ if TYPE_CHECKING:
 class Route(
     IsOrdered,
     IsOwnable,
-    IsTaggable,
     Entity,
 ):
     """A Route is a path to something (a Scene, a View in a Scene, an Action, etc.)."""

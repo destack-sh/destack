@@ -10,7 +10,6 @@ import type {
   IsOwnable,
   IsReactable,
   IsStarable,
-  IsTaggable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -66,15 +65,7 @@ registerEnumClass(EnumType.FOLDER_TYPE, FolderType);
  */
 export class Folder
   extends Entity
-  implements
-    IsTaggable,
-    IsOwnable,
-    IsJoinable,
-    IsOrdered,
-    IsStarable,
-    IsFollowable,
-    IsReactable,
-    IsExtensible
+  implements IsOwnable, IsJoinable, IsOrdered, IsStarable, IsFollowable, IsReactable, IsExtensible
 {
   static metatype: NodeType = NodeType.FOLDER;
 
