@@ -8,7 +8,7 @@ import {
 import {
   ENTITY_MATERIALIZATION_KEY,
   ENTITY_SNAPSHOT_KEY,
-  NODE_DEFINITION_PTR_ID,
+  ENTITY_DEFINITION_PTR_KEY,
   NODE_ID_KEY,
   NODE_METATYPE_KEY,
   ENTITY_PARENT_KEY,
@@ -36,8 +36,8 @@ export function packEntityRow(value: Value): MemoryEntityRow {
         ? String(valuePacked[NODE_SPACE_PTR_ID][NODE_REFERENCE_ID_KEY])
         : undefined,
     definitionId:
-      NODE_DEFINITION_PTR_ID in valuePacked
-        ? String(valuePacked[NODE_DEFINITION_PTR_ID][NODE_REFERENCE_ID_KEY])
+      ENTITY_DEFINITION_PTR_KEY in valuePacked
+        ? String(valuePacked[ENTITY_DEFINITION_PTR_KEY][NODE_REFERENCE_ID_KEY])
         : undefined,
   });
 

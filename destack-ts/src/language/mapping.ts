@@ -36,6 +36,21 @@ import type {
   SanctionRevokedEvent,
   SanctionType,
 } from "@destack/language/access/sanction";
+import type { Easing } from "@destack/language/animation/easing";
+import type {
+  Effect,
+  EffectStyle,
+  EffectType,
+  OffscreenBehavior,
+  RepeatType,
+  TextSplitType,
+} from "@destack/language/animation/effect";
+import type {
+  SpringType,
+  Transition,
+  TransitionStyle,
+  TransitionType,
+} from "@destack/language/animation/transition";
 import type { AnnotationShape } from "@destack/language/canvas/annotation";
 import type { Arrow, ArrowHeadType, ArrowShape } from "@destack/language/canvas/arrow";
 import type { Line, LineShape } from "@destack/language/canvas/line";
@@ -347,15 +362,6 @@ import type {
   ColorStyle,
   ColorType,
 } from "@destack/language/style/color";
-import type { Easing } from "@destack/language/style/easing";
-import type {
-  Effect,
-  EffectStyle,
-  EffectType,
-  OffscreenBehavior,
-  RepeatType,
-  TextSplitType,
-} from "@destack/language/style/effect";
 import type {
   Fill,
   FillPosition,
@@ -396,12 +402,6 @@ import type {
 } from "@destack/language/style/stroke";
 import type { Style } from "@destack/language/style/style";
 import type { Theme } from "@destack/language/style/theme";
-import type {
-  SpringType,
-  Transition,
-  TransitionStyle,
-  TransitionType,
-} from "@destack/language/style/transition";
 import type { Client } from "@destack/language/universe/client";
 import type { Handle } from "@destack/language/universe/handle";
 import type { Organization, OrganizationStatus } from "@destack/language/universe/organization";
@@ -490,6 +490,18 @@ export type NodeTypeMapping = {
   [NodeType.SANCTION_REVOKED_EVENT]: SanctionRevokedEvent;
   [NodeType.SANCTION_EXPIRED_EVENT]: SanctionExpiredEvent;
   [NodeType.SANCTION]: Sanction;
+  [NodeType.STYLE]: Style;
+  [NodeType.COLOR_STYLE]: ColorStyle;
+  [NodeType.BORDER_STYLE]: BorderStyle;
+  [NodeType.GRADIENT_STYLE]: GradientStyle;
+  [NodeType.FILL_STYLE]: FillStyle;
+  [NodeType.FONT_STYLE]: FontStyle;
+  [NodeType.PALETTE]: Palette;
+  [NodeType.SHADOW_STYLE]: ShadowStyle;
+  [NodeType.STROKE_STYLE]: StrokeStyle;
+  [NodeType.THEME]: Theme;
+  [NodeType.TRANSITION_STYLE]: TransitionStyle;
+  [NodeType.EFFECT_STYLE]: EffectStyle;
   [NodeType.VIEW_EVENT]: ViewEvent;
   [NodeType.VIEW]: View;
   [NodeType.CONTAINER_VIEW]: ContainerView;
@@ -601,18 +613,6 @@ export type NodeTypeMapping = {
   [NodeType.STAR_ADDED_EVENT]: StarAddedEvent;
   [NodeType.STAR_REMOVED_EVENT]: StarRemovedEvent;
   [NodeType.FOLDER]: Folder;
-  [NodeType.STYLE]: Style;
-  [NodeType.COLOR_STYLE]: ColorStyle;
-  [NodeType.BORDER_STYLE]: BorderStyle;
-  [NodeType.TRANSITION_STYLE]: TransitionStyle;
-  [NodeType.EFFECT_STYLE]: EffectStyle;
-  [NodeType.GRADIENT_STYLE]: GradientStyle;
-  [NodeType.FILL_STYLE]: FillStyle;
-  [NodeType.FONT_STYLE]: FontStyle;
-  [NodeType.PALETTE]: Palette;
-  [NodeType.SHADOW_STYLE]: ShadowStyle;
-  [NodeType.STROKE_STYLE]: StrokeStyle;
-  [NodeType.THEME]: Theme;
   [NodeType.CLIENT]: Client;
   [NodeType.HANDLE]: Handle;
   [NodeType.ORGANIZATION]: Organization;
@@ -683,6 +683,19 @@ export type StructTypeMapping = {
   [StructType.DATUM_MUTABLE]: DatumMutable;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
+  [StructType.COLOR]: Color;
+  [StructType.BORDER]: Border;
+  [StructType.GRADIENT_STOP]: GradientStop;
+  [StructType.GRADIENT]: Gradient;
+  [StructType.FILL]: Fill;
+  [StructType.FONT]: Font;
+  [StructType.SHADOW]: Shadow;
+  [StructType.STROKE]: Stroke;
+  [StructType.STROKE_CAP]: StrokeCap;
+  [StructType.STROKE_POINT]: StrokePoint;
+  [StructType.STROKE_PATH]: StrokePath;
+  [StructType.TRANSITION]: Transition;
+  [StructType.EFFECT]: Effect;
   [StructType.LENGTH]: Length;
   [StructType.POSITION]: Position;
   [StructType.DIMENSION]: Dimension;
@@ -705,19 +718,6 @@ export type StructTypeMapping = {
   [StructType.VECTOR4I]: Vector4i;
   [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.SCHEDULE]: Schedule;
-  [StructType.COLOR]: Color;
-  [StructType.BORDER]: Border;
-  [StructType.TRANSITION]: Transition;
-  [StructType.EFFECT]: Effect;
-  [StructType.GRADIENT_STOP]: GradientStop;
-  [StructType.GRADIENT]: Gradient;
-  [StructType.FILL]: Fill;
-  [StructType.FONT]: Font;
-  [StructType.SHADOW]: Shadow;
-  [StructType.STROKE]: Stroke;
-  [StructType.STROKE_CAP]: StrokeCap;
-  [StructType.STROKE_POINT]: StrokePoint;
-  [StructType.STROKE_PATH]: StrokePath;
 };
 
 export type EnumTypeMapping = {
@@ -781,6 +781,31 @@ export type EnumTypeMapping = {
   [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.ENTITLEMENT_TYPE]: EntitlementType;
   [EnumType.SANCTION_TYPE]: SanctionType;
+  [EnumType.EASING]: Easing;
+  [EnumType.COLOR_TYPE]: ColorType;
+  [EnumType.COLOR_HUE]: ColorHue;
+  [EnumType.COLOR_SHADE]: ColorShade;
+  [EnumType.COLOR_INTENT]: ColorIntent;
+  [EnumType.BORDER_TYPE]: BorderType;
+  [EnumType.GRADIENT_TYPE]: GradientType;
+  [EnumType.FILL_TYPE]: FillType;
+  [EnumType.FILL_POSITION]: FillPosition;
+  [EnumType.FILL_SIZE]: FillSize;
+  [EnumType.FONT_TYPE]: FontType;
+  [EnumType.FONT_WEIGHT]: FontWeight;
+  [EnumType.FONT_SIZE]: FontSize;
+  [EnumType.TEXT_ALIGN]: TextAlign;
+  [EnumType.TEXT_DECORATION]: TextDecoration;
+  [EnumType.TEXT_TRANSFORM]: TextTransform;
+  [EnumType.SHADOW_TYPE]: ShadowType;
+  [EnumType.SHADOW_POSITION]: ShadowPosition;
+  [EnumType.STROKE_TYPE]: StrokeType;
+  [EnumType.TRANSITION_TYPE]: TransitionType;
+  [EnumType.SPRING_TYPE]: SpringType;
+  [EnumType.EFFECT_TYPE]: EffectType;
+  [EnumType.REPEAT_TYPE]: RepeatType;
+  [EnumType.TEXT_SPLIT_TYPE]: TextSplitType;
+  [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehavior;
   [EnumType.LAYOUT]: Layout;
   [EnumType.OVERFLOW]: Overflow;
   [EnumType.DIRECTION]: Direction;
@@ -811,31 +836,6 @@ export type EnumTypeMapping = {
   [EnumType.WINDOW_TYPE]: WindowType;
   [EnumType.NOTIFICATION_STATUS]: NotificationStatus;
   [EnumType.FOLDER_TYPE]: FolderType;
-  [EnumType.COLOR_TYPE]: ColorType;
-  [EnumType.COLOR_HUE]: ColorHue;
-  [EnumType.COLOR_SHADE]: ColorShade;
-  [EnumType.COLOR_INTENT]: ColorIntent;
-  [EnumType.BORDER_TYPE]: BorderType;
-  [EnumType.EASING]: Easing;
-  [EnumType.TRANSITION_TYPE]: TransitionType;
-  [EnumType.SPRING_TYPE]: SpringType;
-  [EnumType.EFFECT_TYPE]: EffectType;
-  [EnumType.REPEAT_TYPE]: RepeatType;
-  [EnumType.TEXT_SPLIT_TYPE]: TextSplitType;
-  [EnumType.OFFSCREEN_BEHAVIOR]: OffscreenBehavior;
-  [EnumType.GRADIENT_TYPE]: GradientType;
-  [EnumType.FILL_TYPE]: FillType;
-  [EnumType.FILL_POSITION]: FillPosition;
-  [EnumType.FILL_SIZE]: FillSize;
-  [EnumType.FONT_TYPE]: FontType;
-  [EnumType.FONT_WEIGHT]: FontWeight;
-  [EnumType.FONT_SIZE]: FontSize;
-  [EnumType.TEXT_ALIGN]: TextAlign;
-  [EnumType.TEXT_DECORATION]: TextDecoration;
-  [EnumType.TEXT_TRANSFORM]: TextTransform;
-  [EnumType.SHADOW_TYPE]: ShadowType;
-  [EnumType.SHADOW_POSITION]: ShadowPosition;
-  [EnumType.STROKE_TYPE]: StrokeType;
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus;
   [EnumType.USER_STATUS]: UserStatus;
 };

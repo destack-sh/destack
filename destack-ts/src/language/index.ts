@@ -1,4 +1,5 @@
 export * from "@destack/language/access";
+export * from "@destack/language/animation";
 export * from "@destack/language/canvas";
 export * from "@destack/language/constants";
 export * from "@destack/language/core";

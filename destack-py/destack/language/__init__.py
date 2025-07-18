@@ -1,4 +1,5 @@
 from .access import *  # noqa: F403
+from .animation import *  # noqa: F403
 from .canvas import *  # noqa: F403
 from .core import *  # noqa: F403
 from .data import *  # noqa: F403

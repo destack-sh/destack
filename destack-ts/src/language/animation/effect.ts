@@ -4,6 +4,7 @@ import {
   unpackProtoDuration,
   unpackProtoTimestamp,
 } from "@destack/grpc";
+import type { Transition } from "@destack/language/animation/transition";
 import type {
   Graph,
   IsActor,
@@ -36,8 +37,7 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import { Style } from "@destack/language/style/style";
-import type { Transition } from "@destack/language/style/transition";
+import { Style } from "@destack/language/style";
 import type { Axis3 } from "@destack/language/view";
 import {
   EffectProto,
@@ -52,7 +52,7 @@ import { base64Decode, timedeltaFromISOFormat, timedeltaToISOFormat } from "@des
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100212 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2200002 ==== */
 /**
  * EffectType
  */
@@ -71,9 +71,9 @@ export enum EffectType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.EFFECT_TYPE, EffectType);
-/* ==== DESTACK_GENERATED_END:ENUM:2100212 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2200002 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100222 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2200003 ==== */
 /**
  * RepeatType
  */
@@ -87,7 +87,7 @@ export enum RepeatType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.REPEAT_TYPE, RepeatType);
-/* ==== DESTACK_GENERATED_END:ENUM:2100222 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2200003 ==== */
 
 /* ==== DESTACK_GENERATED_START:ENUM:2100223 ==== */
 /**
@@ -120,7 +120,7 @@ export enum OffscreenBehavior {
 registerEnumClass(EnumType.OFFSCREEN_BEHAVIOR, OffscreenBehavior);
 /* ==== DESTACK_GENERATED_END:ENUM:2100224 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2101000 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2200100 ==== */
 /**
  * An effect value.
  */
@@ -518,7 +518,7 @@ export class Effect extends StructFrozen {
 
   static __packValue__(object: Effect): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101000;
+    objectValue["1"] = 2200100;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -665,7 +665,7 @@ export class Effect extends StructFrozen {
   }
 
   static __packProto__(object: Effect): EffectProto {
-    const objectProto: Partial<EffectProto> = { metatype: 2101000 };
+    const objectProto: Partial<EffectProto> = { metatype: 2200100 };
     objectProto.type = Number(object.type) as EffectTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -799,7 +799,7 @@ export class Effect extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.EFFECT, Effect);
-/* ==== DESTACK_GENERATED_END:STRUCT:2101000 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2200100 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2101000 ==== */
 /**

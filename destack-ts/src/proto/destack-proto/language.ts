@@ -887,14 +887,6 @@ export interface BranchProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
-    /**
-     * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
-     */
-    icon?: IconProto;
-    /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto head_ptr = 110
-     */
-    headPtr?: NodeReferenceProto;
 }
 /**
  * @generated from protobuf message symbol.destack.BuiltinDefinitionProto
@@ -20101,6 +20093,72 @@ export interface SomeNodeProto {
          */
         sanction: SanctionProto;
     } | {
+        oneofKind: "colorStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
+         */
+        colorStyle: ColorStyleProto;
+    } | {
+        oneofKind: "borderStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 2100600
+         */
+        borderStyle: BorderStyleProto;
+    } | {
+        oneofKind: "gradientStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 2100800
+         */
+        gradientStyle: GradientStyleProto;
+    } | {
+        oneofKind: "fillStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 2100400
+         */
+        fillStyle: FillStyleProto;
+    } | {
+        oneofKind: "fontStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 2100500
+         */
+        fontStyle: FontStyleProto;
+    } | {
+        oneofKind: "palette";
+        /**
+         * @generated from protobuf field: symbol.destack.PaletteProto palette = 2100100
+         */
+        palette: PaletteProto;
+    } | {
+        oneofKind: "shadowStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 2100700
+         */
+        shadowStyle: ShadowStyleProto;
+    } | {
+        oneofKind: "strokeStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2101100
+         */
+        strokeStyle: StrokeStyleProto;
+    } | {
+        oneofKind: "theme";
+        /**
+         * @generated from protobuf field: symbol.destack.ThemeProto theme = 2100000
+         */
+        theme: ThemeProto;
+    } | {
+        oneofKind: "transitionStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
+         */
+        transitionStyle: TransitionStyleProto;
+    } | {
+        oneofKind: "effectStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
+         */
+        effectStyle: EffectStyleProto;
+    } | {
         oneofKind: "frameView";
         /**
          * @generated from protobuf field: symbol.destack.FrameViewProto frame_view = 1800200
@@ -20623,72 +20681,6 @@ export interface SomeNodeProto {
          */
         folder: FolderProto;
     } | {
-        oneofKind: "colorStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
-         */
-        colorStyle: ColorStyleProto;
-    } | {
-        oneofKind: "borderStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 2100600
-         */
-        borderStyle: BorderStyleProto;
-    } | {
-        oneofKind: "transitionStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
-         */
-        transitionStyle: TransitionStyleProto;
-    } | {
-        oneofKind: "effectStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
-         */
-        effectStyle: EffectStyleProto;
-    } | {
-        oneofKind: "gradientStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 2100800
-         */
-        gradientStyle: GradientStyleProto;
-    } | {
-        oneofKind: "fillStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 2100400
-         */
-        fillStyle: FillStyleProto;
-    } | {
-        oneofKind: "fontStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 2100500
-         */
-        fontStyle: FontStyleProto;
-    } | {
-        oneofKind: "palette";
-        /**
-         * @generated from protobuf field: symbol.destack.PaletteProto palette = 2100100
-         */
-        palette: PaletteProto;
-    } | {
-        oneofKind: "shadowStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 2100700
-         */
-        shadowStyle: ShadowStyleProto;
-    } | {
-        oneofKind: "strokeStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2101100
-         */
-        strokeStyle: StrokeStyleProto;
-    } | {
-        oneofKind: "theme";
-        /**
-         * @generated from protobuf field: symbol.destack.ThemeProto theme = 2100000
-         */
-        theme: ThemeProto;
-    } | {
         oneofKind: "client";
         /**
          * @generated from protobuf field: symbol.destack.ClientProto client = 121300
@@ -20861,6 +20853,72 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.SanctionProto sanction = 360400
          */
         sanction: SanctionProto;
+    } | {
+        oneofKind: "colorStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
+         */
+        colorStyle: ColorStyleProto;
+    } | {
+        oneofKind: "borderStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 2100600
+         */
+        borderStyle: BorderStyleProto;
+    } | {
+        oneofKind: "gradientStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 2100800
+         */
+        gradientStyle: GradientStyleProto;
+    } | {
+        oneofKind: "fillStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 2100400
+         */
+        fillStyle: FillStyleProto;
+    } | {
+        oneofKind: "fontStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 2100500
+         */
+        fontStyle: FontStyleProto;
+    } | {
+        oneofKind: "palette";
+        /**
+         * @generated from protobuf field: symbol.destack.PaletteProto palette = 2100100
+         */
+        palette: PaletteProto;
+    } | {
+        oneofKind: "shadowStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 2100700
+         */
+        shadowStyle: ShadowStyleProto;
+    } | {
+        oneofKind: "strokeStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2101100
+         */
+        strokeStyle: StrokeStyleProto;
+    } | {
+        oneofKind: "theme";
+        /**
+         * @generated from protobuf field: symbol.destack.ThemeProto theme = 2100000
+         */
+        theme: ThemeProto;
+    } | {
+        oneofKind: "transitionStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
+         */
+        transitionStyle: TransitionStyleProto;
+    } | {
+        oneofKind: "effectStyle";
+        /**
+         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
+         */
+        effectStyle: EffectStyleProto;
     } | {
         oneofKind: "frameView";
         /**
@@ -21053,72 +21111,6 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.FolderProto folder = 240000
          */
         folder: FolderProto;
-    } | {
-        oneofKind: "colorStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
-         */
-        colorStyle: ColorStyleProto;
-    } | {
-        oneofKind: "borderStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.BorderStyleProto border_style = 2100600
-         */
-        borderStyle: BorderStyleProto;
-    } | {
-        oneofKind: "transitionStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.TransitionStyleProto transition_style = 2100900
-         */
-        transitionStyle: TransitionStyleProto;
-    } | {
-        oneofKind: "effectStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.EffectStyleProto effect_style = 2101000
-         */
-        effectStyle: EffectStyleProto;
-    } | {
-        oneofKind: "gradientStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.GradientStyleProto gradient_style = 2100800
-         */
-        gradientStyle: GradientStyleProto;
-    } | {
-        oneofKind: "fillStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.FillStyleProto fill_style = 2100400
-         */
-        fillStyle: FillStyleProto;
-    } | {
-        oneofKind: "fontStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.FontStyleProto font_style = 2100500
-         */
-        fontStyle: FontStyleProto;
-    } | {
-        oneofKind: "palette";
-        /**
-         * @generated from protobuf field: symbol.destack.PaletteProto palette = 2100100
-         */
-        palette: PaletteProto;
-    } | {
-        oneofKind: "shadowStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.ShadowStyleProto shadow_style = 2100700
-         */
-        shadowStyle: ShadowStyleProto;
-    } | {
-        oneofKind: "strokeStyle";
-        /**
-         * @generated from protobuf field: symbol.destack.StrokeStyleProto stroke_style = 2101100
-         */
-        strokeStyle: StrokeStyleProto;
-    } | {
-        oneofKind: "theme";
-        /**
-         * @generated from protobuf field: symbol.destack.ThemeProto theme = 2100000
-         */
-        theme: ThemeProto;
     } | {
         oneofKind: "client";
         /**
@@ -22907,18 +22899,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_GRADIENT_TYPE = 2100209,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 2100210;
-     */
-    ENUM_TYPE_TRANSITION_TYPE = 2100210,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 2100211;
-     */
-    ENUM_TYPE_SPRING_TYPE = 2100211,
-    /**
-     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 2100212;
-     */
-    ENUM_TYPE_EFFECT_TYPE = 2100212,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_STROKE_TYPE = 2100213;
      */
     ENUM_TYPE_STROKE_TYPE = 2100213,
@@ -22955,10 +22935,6 @@ export enum EnumTypeProto {
      */
     ENUM_TYPE_DIMENSION_TYPE = 2100221,
     /**
-     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 2100222;
-     */
-    ENUM_TYPE_REPEAT_TYPE = 2100222,
-    /**
      * @generated from protobuf enum value: ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223;
      */
     ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223,
@@ -22969,7 +22945,23 @@ export enum EnumTypeProto {
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EASING = 2100225;
      */
-    ENUM_TYPE_EASING = 2100225
+    ENUM_TYPE_EASING = 2100225,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_TRANSITION_TYPE = 2200000;
+     */
+    ENUM_TYPE_TRANSITION_TYPE = 2200000,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_SPRING_TYPE = 2200001;
+     */
+    ENUM_TYPE_SPRING_TYPE = 2200001,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_EFFECT_TYPE = 2200002;
+     */
+    ENUM_TYPE_EFFECT_TYPE = 2200002,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_REPEAT_TYPE = 2200003;
+     */
+    ENUM_TYPE_REPEAT_TYPE = 2200003
 }
 /**
  * @generated from protobuf enum symbol.destack.EnvironmentTypeProto
@@ -26219,6 +26211,42 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_DATABASE_INFO = 1000001,
     /**
+     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 1800001;
+     */
+    STRUCT_TYPE_LENGTH = 1800001,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 1800002;
+     */
+    STRUCT_TYPE_POSITION = 1800002,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 1800003;
+     */
+    STRUCT_TYPE_DIMENSION = 1800003,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 1800004;
+     */
+    STRUCT_TYPE_GRID = 1800004,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 1800005;
+     */
+    STRUCT_TYPE_GRID_SPAN = 1800005,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 1800006;
+     */
+    STRUCT_TYPE_INSETS = 1800006,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 1800007;
+     */
+    STRUCT_TYPE_CORNERS = 1800007,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 1800008;
+     */
+    STRUCT_TYPE_AXIS2 = 1800008,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 1800009;
+     */
+    STRUCT_TYPE_AXIS3 = 1800009,
+    /**
      * @generated from protobuf enum value: STRUCT_TYPE_LINE = 1900100;
      */
     STRUCT_TYPE_LINE = 1900100,
@@ -26226,42 +26254,6 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_ARROW = 1900200;
      */
     STRUCT_TYPE_ARROW = 1900200,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_LENGTH = 2100018;
-     */
-    STRUCT_TYPE_LENGTH = 2100018,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_POSITION = 2100020;
-     */
-    STRUCT_TYPE_POSITION = 2100020,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_DIMENSION = 2100022;
-     */
-    STRUCT_TYPE_DIMENSION = 2100022,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID = 2100026;
-     */
-    STRUCT_TYPE_GRID = 2100026,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_GRID_SPAN = 2100028;
-     */
-    STRUCT_TYPE_GRID_SPAN = 2100028,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_INSETS = 2100030;
-     */
-    STRUCT_TYPE_INSETS = 2100030,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_CORNERS = 2100032;
-     */
-    STRUCT_TYPE_CORNERS = 2100032,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS2 = 2100034;
-     */
-    STRUCT_TYPE_AXIS2 = 2100034,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_AXIS3 = 2100036;
-     */
-    STRUCT_TYPE_AXIS3 = 2100036,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_COLOR = 2100300;
      */
@@ -26291,14 +26283,6 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_GRADIENT_STOP = 2100801,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 2100900;
-     */
-    STRUCT_TYPE_TRANSITION = 2100900,
-    /**
-     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 2101000;
-     */
-    STRUCT_TYPE_EFFECT = 2101000,
-    /**
      * @generated from protobuf enum value: STRUCT_TYPE_STROKE = 2101100;
      */
     STRUCT_TYPE_STROKE = 2101100,
@@ -26314,6 +26298,14 @@ export enum StructTypeProto {
      * @generated from protobuf enum value: STRUCT_TYPE_STROKE_POINT = 2101103;
      */
     STRUCT_TYPE_STROKE_POINT = 2101103,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_TRANSITION = 2200000;
+     */
+    STRUCT_TYPE_TRANSITION = 2200000,
+    /**
+     * @generated from protobuf enum value: STRUCT_TYPE_EFFECT = 2200100;
+     */
+    STRUCT_TYPE_EFFECT = 2200100,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VECTOR = 2400000;
      */
@@ -28692,9 +28684,7 @@ class BranchProto$Type extends MessageType<BranchProto> {
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 102, name: "icon", kind: "message", T: () => IconProto },
-            { no: 110, name: "head_ptr", kind: "message", T: () => NodeReferenceProto }
+            { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
     create(value?: PartialMessage<BranchProto>): BranchProto {
@@ -28768,12 +28758,6 @@ class BranchProto$Type extends MessageType<BranchProto> {
                 case /* string name */ 50:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.destack.IconProto icon */ 102:
-                    message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
-                    break;
-                case /* optional symbol.destack.NodeReferenceProto head_ptr */ 110:
-                    message.headPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.headPtr);
-                    break;
                 default:
                     let u = options.readUnknownField;
                     if (u === "throw")
@@ -28840,12 +28824,6 @@ class BranchProto$Type extends MessageType<BranchProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.IconProto icon = 102; */
-        if (message.icon)
-            IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.NodeReferenceProto head_ptr = 110; */
-        if (message.headPtr)
-            NodeReferenceProto.internalBinaryWrite(message.headPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -72368,6 +72346,17 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 360404, name: "sanction_revoked_event", kind: "message", oneof: "node", T: () => SanctionRevokedEventProto },
             { no: 360405, name: "sanction_expired_event", kind: "message", oneof: "node", T: () => SanctionExpiredEventProto },
             { no: 360400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
+            { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
+            { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
+            { no: 2100800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
+            { no: 2100400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
+            { no: 2100500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
+            { no: 2100100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
+            { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
+            { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
+            { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
+            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
             { no: 1800200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
             { no: 1815000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
             { no: 1800300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
@@ -72455,17 +72444,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 1400102, name: "star_added_event", kind: "message", oneof: "node", T: () => StarAddedEventProto },
             { no: 1400103, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto },
             { no: 240000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
-            { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
-            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
-            { no: 2100800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
-            { no: 2100400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
-            { no: 2100500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
-            { no: 2100100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
-            { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
-            { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
-            { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
             { no: 121300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
             { no: 100200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
             { no: 122000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
@@ -72717,6 +72695,72 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
+                    };
+                    break;
+                case /* symbol.destack.ColorStyleProto color_style */ 2100300:
+                    message.node = {
+                        oneofKind: "colorStyle",
+                        colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
+                    };
+                    break;
+                case /* symbol.destack.BorderStyleProto border_style */ 2100600:
+                    message.node = {
+                        oneofKind: "borderStyle",
+                        borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
+                    };
+                    break;
+                case /* symbol.destack.GradientStyleProto gradient_style */ 2100800:
+                    message.node = {
+                        oneofKind: "gradientStyle",
+                        gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
+                    };
+                    break;
+                case /* symbol.destack.FillStyleProto fill_style */ 2100400:
+                    message.node = {
+                        oneofKind: "fillStyle",
+                        fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
+                    };
+                    break;
+                case /* symbol.destack.FontStyleProto font_style */ 2100500:
+                    message.node = {
+                        oneofKind: "fontStyle",
+                        fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
+                    };
+                    break;
+                case /* symbol.destack.PaletteProto palette */ 2100100:
+                    message.node = {
+                        oneofKind: "palette",
+                        palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
+                    };
+                    break;
+                case /* symbol.destack.ShadowStyleProto shadow_style */ 2100700:
+                    message.node = {
+                        oneofKind: "shadowStyle",
+                        shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
+                    };
+                    break;
+                case /* symbol.destack.StrokeStyleProto stroke_style */ 2101100:
+                    message.node = {
+                        oneofKind: "strokeStyle",
+                        strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
+                    };
+                    break;
+                case /* symbol.destack.ThemeProto theme */ 2100000:
+                    message.node = {
+                        oneofKind: "theme",
+                        theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
+                    };
+                    break;
+                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
+                    message.node = {
+                        oneofKind: "transitionStyle",
+                        transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
+                    };
+                    break;
+                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
+                    message.node = {
+                        oneofKind: "effectStyle",
+                        effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
                 case /* symbol.destack.FrameViewProto frame_view */ 1800200:
@@ -73241,72 +73285,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.ColorStyleProto color_style */ 2100300:
-                    message.node = {
-                        oneofKind: "colorStyle",
-                        colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
-                    };
-                    break;
-                case /* symbol.destack.BorderStyleProto border_style */ 2100600:
-                    message.node = {
-                        oneofKind: "borderStyle",
-                        borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
-                    };
-                    break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
-                    message.node = {
-                        oneofKind: "transitionStyle",
-                        transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
-                    };
-                    break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
-                    message.node = {
-                        oneofKind: "effectStyle",
-                        effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
-                    };
-                    break;
-                case /* symbol.destack.GradientStyleProto gradient_style */ 2100800:
-                    message.node = {
-                        oneofKind: "gradientStyle",
-                        gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
-                    };
-                    break;
-                case /* symbol.destack.FillStyleProto fill_style */ 2100400:
-                    message.node = {
-                        oneofKind: "fillStyle",
-                        fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
-                    };
-                    break;
-                case /* symbol.destack.FontStyleProto font_style */ 2100500:
-                    message.node = {
-                        oneofKind: "fontStyle",
-                        fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
-                    };
-                    break;
-                case /* symbol.destack.PaletteProto palette */ 2100100:
-                    message.node = {
-                        oneofKind: "palette",
-                        palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
-                    };
-                    break;
-                case /* symbol.destack.ShadowStyleProto shadow_style */ 2100700:
-                    message.node = {
-                        oneofKind: "shadowStyle",
-                        shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
-                    };
-                    break;
-                case /* symbol.destack.StrokeStyleProto stroke_style */ 2101100:
-                    message.node = {
-                        oneofKind: "strokeStyle",
-                        strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
-                    };
-                    break;
-                case /* symbol.destack.ThemeProto theme */ 2100000:
-                    message.node = {
-                        oneofKind: "theme",
-                        theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
-                    };
-                    break;
                 case /* symbol.destack.ClientProto client */ 121300:
                     message.node = {
                         oneofKind: "client",
@@ -73811,6 +73789,17 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 360000, name: "membership", kind: "message", oneof: "node", T: () => MembershipProto },
             { no: 360200, name: "role", kind: "message", oneof: "node", T: () => RoleProto },
             { no: 360400, name: "sanction", kind: "message", oneof: "node", T: () => SanctionProto },
+            { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
+            { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
+            { no: 2100800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
+            { no: 2100400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
+            { no: 2100500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
+            { no: 2100100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
+            { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
+            { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
+            { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
+            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
+            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
             { no: 1800200, name: "frame_view", kind: "message", oneof: "node", T: () => FrameViewProto },
             { no: 1815000, name: "internal_view", kind: "message", oneof: "node", T: () => InternalViewProto },
             { no: 1800300, name: "label_view", kind: "message", oneof: "node", T: () => LabelViewProto },
@@ -73843,17 +73832,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 1400000, name: "reaction", kind: "message", oneof: "node", T: () => ReactionProto },
             { no: 1400100, name: "star", kind: "message", oneof: "node", T: () => StarProto },
             { no: 240000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
-            { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
-            { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
-            { no: 2101000, name: "effect_style", kind: "message", oneof: "node", T: () => EffectStyleProto },
-            { no: 2100800, name: "gradient_style", kind: "message", oneof: "node", T: () => GradientStyleProto },
-            { no: 2100400, name: "fill_style", kind: "message", oneof: "node", T: () => FillStyleProto },
-            { no: 2100500, name: "font_style", kind: "message", oneof: "node", T: () => FontStyleProto },
-            { no: 2100100, name: "palette", kind: "message", oneof: "node", T: () => PaletteProto },
-            { no: 2100700, name: "shadow_style", kind: "message", oneof: "node", T: () => ShadowStyleProto },
-            { no: 2101100, name: "stroke_style", kind: "message", oneof: "node", T: () => StrokeStyleProto },
-            { no: 2100000, name: "theme", kind: "message", oneof: "node", T: () => ThemeProto },
             { no: 121300, name: "client", kind: "message", oneof: "node", T: () => ClientProto },
             { no: 100200, name: "handle", kind: "message", oneof: "node", T: () => HandleProto },
             { no: 122000, name: "organization", kind: "message", oneof: "node", T: () => OrganizationProto },
@@ -74003,6 +73981,72 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "sanction",
                         sanction: SanctionProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).sanction)
+                    };
+                    break;
+                case /* symbol.destack.ColorStyleProto color_style */ 2100300:
+                    message.node = {
+                        oneofKind: "colorStyle",
+                        colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
+                    };
+                    break;
+                case /* symbol.destack.BorderStyleProto border_style */ 2100600:
+                    message.node = {
+                        oneofKind: "borderStyle",
+                        borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
+                    };
+                    break;
+                case /* symbol.destack.GradientStyleProto gradient_style */ 2100800:
+                    message.node = {
+                        oneofKind: "gradientStyle",
+                        gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
+                    };
+                    break;
+                case /* symbol.destack.FillStyleProto fill_style */ 2100400:
+                    message.node = {
+                        oneofKind: "fillStyle",
+                        fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
+                    };
+                    break;
+                case /* symbol.destack.FontStyleProto font_style */ 2100500:
+                    message.node = {
+                        oneofKind: "fontStyle",
+                        fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
+                    };
+                    break;
+                case /* symbol.destack.PaletteProto palette */ 2100100:
+                    message.node = {
+                        oneofKind: "palette",
+                        palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
+                    };
+                    break;
+                case /* symbol.destack.ShadowStyleProto shadow_style */ 2100700:
+                    message.node = {
+                        oneofKind: "shadowStyle",
+                        shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
+                    };
+                    break;
+                case /* symbol.destack.StrokeStyleProto stroke_style */ 2101100:
+                    message.node = {
+                        oneofKind: "strokeStyle",
+                        strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
+                    };
+                    break;
+                case /* symbol.destack.ThemeProto theme */ 2100000:
+                    message.node = {
+                        oneofKind: "theme",
+                        theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
+                    };
+                    break;
+                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
+                    message.node = {
+                        oneofKind: "transitionStyle",
+                        transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
+                    };
+                    break;
+                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
+                    message.node = {
+                        oneofKind: "effectStyle",
+                        effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
                     };
                     break;
                 case /* symbol.destack.FrameViewProto frame_view */ 1800200:
@@ -74195,72 +74239,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "folder",
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
-                    };
-                    break;
-                case /* symbol.destack.ColorStyleProto color_style */ 2100300:
-                    message.node = {
-                        oneofKind: "colorStyle",
-                        colorStyle: ColorStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).colorStyle)
-                    };
-                    break;
-                case /* symbol.destack.BorderStyleProto border_style */ 2100600:
-                    message.node = {
-                        oneofKind: "borderStyle",
-                        borderStyle: BorderStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).borderStyle)
-                    };
-                    break;
-                case /* symbol.destack.TransitionStyleProto transition_style */ 2100900:
-                    message.node = {
-                        oneofKind: "transitionStyle",
-                        transitionStyle: TransitionStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).transitionStyle)
-                    };
-                    break;
-                case /* symbol.destack.EffectStyleProto effect_style */ 2101000:
-                    message.node = {
-                        oneofKind: "effectStyle",
-                        effectStyle: EffectStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).effectStyle)
-                    };
-                    break;
-                case /* symbol.destack.GradientStyleProto gradient_style */ 2100800:
-                    message.node = {
-                        oneofKind: "gradientStyle",
-                        gradientStyle: GradientStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).gradientStyle)
-                    };
-                    break;
-                case /* symbol.destack.FillStyleProto fill_style */ 2100400:
-                    message.node = {
-                        oneofKind: "fillStyle",
-                        fillStyle: FillStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fillStyle)
-                    };
-                    break;
-                case /* symbol.destack.FontStyleProto font_style */ 2100500:
-                    message.node = {
-                        oneofKind: "fontStyle",
-                        fontStyle: FontStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).fontStyle)
-                    };
-                    break;
-                case /* symbol.destack.PaletteProto palette */ 2100100:
-                    message.node = {
-                        oneofKind: "palette",
-                        palette: PaletteProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).palette)
-                    };
-                    break;
-                case /* symbol.destack.ShadowStyleProto shadow_style */ 2100700:
-                    message.node = {
-                        oneofKind: "shadowStyle",
-                        shadowStyle: ShadowStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).shadowStyle)
-                    };
-                    break;
-                case /* symbol.destack.StrokeStyleProto stroke_style */ 2101100:
-                    message.node = {
-                        oneofKind: "strokeStyle",
-                        strokeStyle: StrokeStyleProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).strokeStyle)
-                    };
-                    break;
-                case /* symbol.destack.ThemeProto theme */ 2100000:
-                    message.node = {
-                        oneofKind: "theme",
-                        theme: ThemeProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).theme)
                     };
                     break;
                 case /* symbol.destack.ClientProto client */ 121300:
@@ -75288,6 +75266,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
-    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | ConstraintDefinitionProto | IndexDefinitionProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
+    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | ConstraintDefinitionProto | IndexDefinitionProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto
         

@@ -178,9 +178,6 @@ class EnumType(Enum):
     SHADOW_TYPE = 2_100_207
     SHADOW_POSITION = 2_100_208
     GRADIENT_TYPE = 2_100_209
-    TRANSITION_TYPE = 2_100_210
-    SPRING_TYPE = 2_100_211
-    EFFECT_TYPE = 2_100_212
     STROKE_TYPE = 2_100_213
     POSITION_TYPE = 2_100_214
     LENGTH_UNIT = 2_100_215
@@ -190,10 +187,15 @@ class EnumType(Enum):
     DIRECTION = 2_100_219
     OVERFLOW = 2_100_220
     DIMENSION_TYPE = 2_100_221
-    REPEAT_TYPE = 2_100_222
     TEXT_SPLIT_TYPE = 2_100_223
     OFFSCREEN_BEHAVIOR = 2_100_224
     EASING = 2_100_225
+
+    # animation [2_200_000-2_300_000]
+    TRANSITION_TYPE = 2_200_000
+    SPRING_TYPE = 2_200_001
+    EFFECT_TYPE = 2_200_002
+    REPEAT_TYPE = 2_200_003
 
 
 builtin_enum(EnumType.ENUM_TYPE)(EnumType)
@@ -310,7 +312,15 @@ class StructType(Enum):
     # ...
 
     # view [1_800_000-1_900_000]
-    # ...
+    LENGTH = 1_800_001, "Length", None, "fas fa-ruler"
+    POSITION = 1_800_002, "Position", None, "fas fa-location-crosshair"
+    DIMENSION = 1_800_003, "Dimension", None, "fas fa-ruler"
+    GRID = 1_800_004, "Grid", None, "fas fa-grid-2"
+    GRID_SPAN = 1_800_005, "Grid Span", None, "fas fa-grid-2"
+    INSETS = 1_800_006, "Insets", None, "fas fa-corner"
+    CORNERS = 1_800_007, "Corners", None, "fas fa-corner"
+    AXIS2 = 1_800_008, "Axis2", None, "fas fa-vector-square"
+    AXIS3 = 1_800_009, "Axis3", None, "fas fa-vector-square"
 
     # canvas [1_900_000-2_000_000]
     LINE = 1_900_100, "Line", None, "fas fa-line"
@@ -320,15 +330,6 @@ class StructType(Enum):
     # ...
 
     # style [2_100_000-2_200_000]
-    LENGTH = 2_100_018, "Length", None, "fas fa-ruler"
-    POSITION = 2_100_020, "Position", None, "fas fa-location-crosshair"
-    DIMENSION = 2_100_022, "Dimension", None, "fas fa-ruler"
-    GRID = 2_100_026, "Grid", None, "fas fa-grid-2"
-    GRID_SPAN = 2_100_028, "Grid Span", None, "fas fa-grid-2"
-    INSETS = 2_100_030, "Insets", None, "fas fa-corner"
-    CORNERS = 2_100_032, "Corners", None, "fas fa-corner"
-    AXIS2 = 2_100_034, "Axis2", None, "fas fa-vector-square"
-    AXIS3 = 2_100_036, "Axis3", None, "fas fa-vector-square"
     COLOR = 2_100_300, "Color", None, "fas fa-palette"
     FILL = 2_100_400, "Fill", None, "fas fa-fill"
     FONT = 2_100_500, "Font", None, "fas fa-text"
@@ -336,15 +337,14 @@ class StructType(Enum):
     SHADOW = 2_100_700, "Shadow", None, "fas fa-eclipse"
     GRADIENT = 2_100_800, "Gradient", None, "fas fa-gradient"
     GRADIENT_STOP = 2_100_801, "Gradient Stop", None, "fas fa-gradient"
-    TRANSITION = 2_100_900, "Transition", None, "fas fa-bezier-curve"
-    EFFECT = 2_101_000, "Effect", None, "fas fa-sparkle"
     STROKE = 2_101_100, "Stroke", None, "fas fa-stroke"
     STROKE_CAP = 2_101_101, "Stroke Cap", None, "fas fa-stroke"
     STROKE_PATH = 2_101_102, "Stroke Path", None, "fas fa-stroke"
     STROKE_POINT = 2_101_103, "Stroke Point", None, "fas fa-stroke"
 
     # animation [2_200_000-2_300_000]
-    # ...
+    TRANSITION = 2_200_000, "Transition", None, "fas fa-bezier-curve"
+    EFFECT = 2_200_100, "Effect", None, "fas fa-sparkle"
 
     # audio [2_300_000-2_400_000]
     # ...
@@ -491,7 +491,7 @@ class NodeType(Enum):
     TAG = 12_600, "Tag", None, "fas fa-tag"
     TAGGING = 12_700, "Tagging", None, "fas fa-tag"
     # TRAIT?
-    # LINK, ...
+    # SLOT, LINK, ...
     # TIMELINE, TRACK, (KEY)FRAME, ...
     # custom
     CUSTOM_EVENT = 20_000, "Custom Event", "Custom Event Definition", "fas fa-signal"
@@ -738,7 +738,6 @@ class NodeType(Enum):
     LINE_SHAPE = 1_900_100, "Line Shape", None, "fas fa-line"
     ARROW_SHAPE = 1_900_200, "Arrow Shape", None, "fas fa-arrow-right"
     ANNOTATION_SHAPE = 1_900_300, "Annotation Shape", None, "fas fa-comment"
-    # VECTOR/POINT/PATH/NETWORK, ...
     # RASTER/BITMAP, ...
 
     # interaction [2_000_000-2_100_000]
@@ -814,6 +813,7 @@ class NodeType(Enum):
 
     # geometry [2_400_000-2_500_000]
     # SKELETON, ...
+    # VECTOR/POINT/PATH/NETWORK, ...
 
     # physics [2_500_000-2_600_000]
     # MESH, COLLISION, ...

@@ -1,7 +1,6 @@
 import {
   Entity,
   Event,
-  IsExtensible,
   Node,
   NodeDefinitionReference,
   NodeReference,
@@ -19,7 +18,6 @@ export const NODE_ID_KEY = String(Node.property("id").id);
 export const NODE_METATYPE_KEY = String(Node.property("metatype").id);
 export const NODE_SPACE_PTR_ID = String(Node.property("space").id);
 export const NODE_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
-export const NODE_DEFINITION_PTR_ID = String(IsExtensible.property("definition").id);
 
 export const NODE_REFERENCE_TYPE_KEY = String(NodeReference.property("type").id);
 export const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
@@ -27,6 +25,7 @@ export const NODE_REFERENCE_SPACE_ID_KEY = String(NodeReference.property("space_
 export const NODE_REFERENCE_DEFINITION_ID_KEY = String(NodeReference.property("definition_id").id);
 
 export const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
+export const ENTITY_DEFINITION_PTR_KEY = String(Entity.property("definition").id);
 export const ENTITY_SNAPSHOT_KEY = String(Entity.property("snapshot").id);
 export const ENTITY_MATERIALIZATION_KEY = String(Entity.property("materialization").id);
 export const ENTITY_DELETED_AT_KEY = String(Entity.property("deleted_at").id);

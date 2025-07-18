@@ -153,7 +153,7 @@ export enum DimensionType {
 registerEnumClass(EnumType.DIMENSION_TYPE, DimensionType);
 /* ==== DESTACK_GENERATED_END:ENUM:2100221 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100018 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800001 ==== */
 /**
  * A length value.
  */
@@ -264,7 +264,7 @@ export class Length extends StructFrozen {
 
   static __packValue__(object: Length): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100018;
+    objectValue["1"] = 1800001;
     objectValue["101"] = object.unit;
     objectValue["102"] = object.value;
     return objectValue;
@@ -304,7 +304,7 @@ export class Length extends StructFrozen {
   }
 
   static __packProto__(object: Length): LengthProto {
-    const objectProto: Partial<LengthProto> = { metatype: 2100018 };
+    const objectProto: Partial<LengthProto> = { metatype: 1800001 };
     objectProto.unit = Number(object.unit) as LengthUnitProto;
     objectProto.value = object.value;
     return objectProto as LengthProto;
@@ -346,9 +346,9 @@ export class Length extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.LENGTH, Length);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100018 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800001 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100020 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800002 ==== */
 /**
  * A position value.
  */
@@ -523,7 +523,7 @@ export class Position extends StructFrozen {
 
   static __packValue__(object: Position): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100020;
+    objectValue["1"] = 1800002;
     objectValue["100"] = object.type;
     if (object.top != null) {
       objectValue["101"] = object.top.toValue();
@@ -598,7 +598,7 @@ export class Position extends StructFrozen {
   }
 
   static __packProto__(object: Position): PositionProto {
-    const objectProto: Partial<PositionProto> = { metatype: 2100020 };
+    const objectProto: Partial<PositionProto> = { metatype: 1800002 };
     objectProto.type = Number(object.type) as PositionTypeProto;
     if (object.top != null) {
       objectProto.top = object.top.toProto();
@@ -667,9 +667,9 @@ export class Position extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.POSITION, Position);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100020 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800002 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100022 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800003 ==== */
 /**
  * A dimension value (like Length but can fit or fill container).
  */
@@ -796,7 +796,7 @@ export class Dimension extends StructFrozen {
 
   static __packValue__(object: Dimension): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100022;
+    objectValue["1"] = 1800003;
     objectValue["100"] = object.type;
     objectValue["101"] = object.unit;
     objectValue["102"] = object.value;
@@ -838,7 +838,7 @@ export class Dimension extends StructFrozen {
   }
 
   static __packProto__(object: Dimension): DimensionProto {
-    const objectProto: Partial<DimensionProto> = { metatype: 2100022 };
+    const objectProto: Partial<DimensionProto> = { metatype: 1800003 };
     objectProto.type = Number(object.type) as DimensionTypeProto;
     objectProto.unit = Number(object.unit) as LengthUnitProto;
     objectProto.value = object.value;
@@ -882,9 +882,9 @@ export class Dimension extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.DIMENSION, Dimension);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100022 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800003 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100030 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800006 ==== */
 /**
  * An insets value (base + side overrides).
  */
@@ -1053,7 +1053,7 @@ export class Insets extends StructFrozen {
 
   static __packValue__(object: Insets): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100030;
+    objectValue["1"] = 1800006;
     if (object.base != null) {
       objectValue["101"] = object.base;
     }
@@ -1119,7 +1119,7 @@ export class Insets extends StructFrozen {
   }
 
   static __packProto__(object: Insets): InsetsProto {
-    const objectProto: Partial<InsetsProto> = { metatype: 2100030 };
+    const objectProto: Partial<InsetsProto> = { metatype: 1800006 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1177,9 +1177,9 @@ export class Insets extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.INSETS, Insets);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100030 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800006 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100032 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800007 ==== */
 /**
  * A corners value (base + corner overrides).
  */
@@ -1348,7 +1348,7 @@ export class Corners extends StructFrozen {
 
   static __packValue__(object: Corners): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100032;
+    objectValue["1"] = 1800007;
     if (object.base != null) {
       objectValue["101"] = object.base;
     }
@@ -1414,7 +1414,7 @@ export class Corners extends StructFrozen {
   }
 
   static __packProto__(object: Corners): CornersProto {
-    const objectProto: Partial<CornersProto> = { metatype: 2100032 };
+    const objectProto: Partial<CornersProto> = { metatype: 1800007 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1472,9 +1472,9 @@ export class Corners extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.CORNERS, Corners);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100032 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800007 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100034 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800008 ==== */
 /**
  * A gap value (base + x/y overrides).
  */
@@ -1618,7 +1618,7 @@ export class Axis2 extends StructFrozen {
 
   static __packValue__(object: Axis2): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100034;
+    objectValue["1"] = 1800008;
     if (object.base != null) {
       objectValue["101"] = object.base;
     }
@@ -1672,7 +1672,7 @@ export class Axis2 extends StructFrozen {
   }
 
   static __packProto__(object: Axis2): Axis2Proto {
-    const objectProto: Partial<Axis2Proto> = { metatype: 2100034 };
+    const objectProto: Partial<Axis2Proto> = { metatype: 1800008 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -1722,9 +1722,9 @@ export class Axis2 extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS2, Axis2);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100034 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800008 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100036 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800009 ==== */
 /**
  * A rotation value (base + x/y/z overrides).
  */
@@ -1888,7 +1888,7 @@ export class Axis3 extends StructFrozen {
 
   static __packValue__(object: Axis3): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100036;
+    objectValue["1"] = 1800009;
     if (object.base != null) {
       objectValue["101"] = object.base;
     }
@@ -1948,7 +1948,7 @@ export class Axis3 extends StructFrozen {
   }
 
   static __packProto__(object: Axis3): Axis3Proto {
-    const objectProto: Partial<Axis3Proto> = { metatype: 2100036 };
+    const objectProto: Partial<Axis3Proto> = { metatype: 1800009 };
     if (object.base != null) {
       objectProto.base = object.base;
     }
@@ -2002,9 +2002,9 @@ export class Axis3 extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.AXIS3, Axis3);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100036 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800009 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100026 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800004 ==== */
 /**
  * A grid configuration value.
  */
@@ -2175,7 +2175,7 @@ export class Grid extends StructFrozen {
 
   static __packValue__(object: Grid): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100026;
+    objectValue["1"] = 1800004;
     objectValue["101"] = object.columns;
     objectValue["102"] = object.rows;
     if (object.columnWidth != null) {
@@ -2243,7 +2243,7 @@ export class Grid extends StructFrozen {
   }
 
   static __packProto__(object: Grid): GridProto {
-    const objectProto: Partial<GridProto> = { metatype: 2100026 };
+    const objectProto: Partial<GridProto> = { metatype: 1800004 };
     objectProto.columns = object.columns;
     objectProto.rows = object.rows;
     if (object.columnWidth != null) {
@@ -2319,9 +2319,9 @@ export class Grid extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRID, Grid);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100026 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800004 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100028 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:1800005 ==== */
 /**
  * A grid span value.
  */
@@ -2432,7 +2432,7 @@ export class GridSpan extends StructFrozen {
 
   static __packValue__(object: GridSpan): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100028;
+    objectValue["1"] = 1800005;
     objectValue["101"] = object.columns;
     objectValue["102"] = object.rows;
     return objectValue;
@@ -2472,7 +2472,7 @@ export class GridSpan extends StructFrozen {
   }
 
   static __packProto__(object: GridSpan): GridSpanProto {
-    const objectProto: Partial<GridSpanProto> = { metatype: 2100028 };
+    const objectProto: Partial<GridSpanProto> = { metatype: 1800005 };
     objectProto.columns = object.columns;
     objectProto.rows = object.rows;
     return objectProto as GridSpanProto;
@@ -2514,4 +2514,4 @@ export class GridSpan extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.GRID_SPAN, GridSpan);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100028 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:1800005 ==== */
