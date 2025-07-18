@@ -1219,6 +1219,7 @@ export class File extends Resource {
       type: NodeType.FILE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,

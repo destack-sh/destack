@@ -1096,6 +1096,20 @@ __toRef__(): NodeReference {{
   }});
 }}
 """
+    elif node_type == NodeType.BRANCH:
+        ref_impl = f"""\
+__toRef__(): NodeReference {{
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  return new _NodeReference({{
+    type: NodeType.{node_type.name},
+    id: this.id,
+    spaceId: this.spacePtr?.id ?? null,
+    branchId: this.id,
+    _session: this._session,
+    _supergraph: this._supergraph,
+  }});
+}}
+"""
     elif node_type == NodeType.SNAPSHOT:
         ref_impl = f"""\
 __toRef__(): NodeReference {{
@@ -1104,6 +1118,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
+    branchId: this.branchPtr?.id ?? null,
     snapshotId: this.id,
     _session: this._session,
     _supergraph: this._supergraph,
@@ -1118,6 +1133,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
+    branchId: this.branchPtr?.id ?? null,
     snapshotId: this.snapshotPtr?.id ?? null,
     definitionId: this.definitionPtr?.id ?? null,
     _session: this._session,
@@ -1133,6 +1149,7 @@ __toRef__(): NodeReference {{
     type: NodeType.{node_type.name},
     id: this.id,
     spaceId: this.spacePtr?.id ?? null,
+    branchId: this.branchPtr?.id ?? null,
     snapshotId: this.snapshotPtr?.id ?? null,
     _session: this._session,
     _supergraph: this._supergraph,

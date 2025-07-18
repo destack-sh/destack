@@ -528,6 +528,7 @@ export class Theme extends Entity implements IsExtensible, IsOrdered {
       type: NodeType.THEME,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,

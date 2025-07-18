@@ -10837,7 +10837,11 @@ export interface NodeReferenceProto {
      */
     definitionId?: string;
     /**
-     * @generated from protobuf field: optional string snapshot_id = 103
+     * @generated from protobuf field: optional string branch_id = 103
+     */
+    branchId?: string;
+    /**
+     * @generated from protobuf field: optional string snapshot_id = 104
      */
     snapshotId?: string;
     /**
@@ -52014,7 +52018,8 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
             { no: 101, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "definition_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
-            { no: 103, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 103, name: "branch_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 104, name: "snapshot_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 110, name: "space_id", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
             { no: 111, name: "store_key", kind: "enum", opt: true, T: () => ["symbol.destack.StoreKeyProto", StoreKeyProto] }
         ]);
@@ -52045,7 +52050,10 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
                 case /* optional string definition_id */ 102:
                     message.definitionId = reader.string();
                     break;
-                case /* optional string snapshot_id */ 103:
+                case /* optional string branch_id */ 103:
+                    message.branchId = reader.string();
+                    break;
+                case /* optional string snapshot_id */ 104:
                     message.snapshotId = reader.string();
                     break;
                 case /* optional string space_id */ 110:
@@ -52078,9 +52086,12 @@ class NodeReferenceProto$Type extends MessageType<NodeReferenceProto> {
         /* optional string definition_id = 102; */
         if (message.definitionId !== undefined)
             writer.tag(102, WireType.LengthDelimited).string(message.definitionId);
-        /* optional string snapshot_id = 103; */
+        /* optional string branch_id = 103; */
+        if (message.branchId !== undefined)
+            writer.tag(103, WireType.LengthDelimited).string(message.branchId);
+        /* optional string snapshot_id = 104; */
         if (message.snapshotId !== undefined)
-            writer.tag(103, WireType.LengthDelimited).string(message.snapshotId);
+            writer.tag(104, WireType.LengthDelimited).string(message.snapshotId);
         /* optional string space_id = 110; */
         if (message.spaceId !== undefined)
             writer.tag(110, WireType.LengthDelimited).string(message.spaceId);

@@ -553,6 +553,7 @@ export class Stage extends Entity implements IsOwnable, IsOrdered, IsScriptable 
       type: NodeType.STAGE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
+      branchId: this.branchPtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
