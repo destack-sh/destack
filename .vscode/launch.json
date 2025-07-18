@@ -32,15 +32,6 @@
     },
     // general configs
     {
-      "name": "destack.user.setpassword",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["user", "setpassword", "florian", "florian"],
-      "justMyCode": true
-    },
-    {
       "name": "destack.generate",
       "type": "debugpy",
       "request": "launch",
@@ -68,15 +59,6 @@
       "justMyCode": true
     },
     {
-      "name": "destack.migrate.make",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["migrate", "make", "--no-downgrade"],
-      "justMyCode": true
-    },
-    {
       "name": "destack.bootstrap",
       "type": "debugpy",
       "request": "launch",
@@ -91,60 +73,5 @@
       "console": "integratedTerminal",
       "justMyCode": true
     }, 
-     {
-      "name": "destack.system",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["serve", "system", "--watch", "0.0.0.0", "60061"],
-      "env": {
-        "ENVIRONMENT": "dev",
-        "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "destack-system",
-      },
-      "console": "integratedTerminal",
-      "justMyCode": true
-    },
-    {
-      "name": "destack.runtime",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["serve", "runtime", "--watch", "0.0.0.0", "60062"],
-      "env": {
-        "ENVIRONMENT": "dev",
-        "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "destack-machine-runtime",
-        "DESTACK_URL": "http://localhost:60061",
-      },
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "python": "${workspaceFolder}/venv-runtime/bin/python"
-    },
-    {
-      "name": "destack.machine",
-      "type": "debugpy",
-      "request": "launch",
-      "cwd": "${workspaceFolder}",
-      "program": "${workspaceFolder}/destack-py/main.py",
-      "args": ["serve", "machine", "--watch", "0.0.0.0", "60063"],
-      "env": {
-        "ENVIRONMENT": "dev",
-        "PYTHONUNBUFFERED": "1",
-        "SERVICE_NAME": "destack-machine-desktop",
-        "DESTACK_URL": "http://localhost:60061",
-      },
-      "console": "integratedTerminal",
-      "justMyCode": true,
-      "python": "${workspaceFolder}/venv-machine/bin/python"
-    },
   ],
-  "compounds": [
-    {
-      "name": "destack.all",
-      "configurations": ["destack.system", "destack.runtime"]
-    }
-  ]
 }

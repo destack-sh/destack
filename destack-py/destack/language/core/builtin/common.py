@@ -581,6 +581,7 @@ class NodeType(Enum):
 
     # locale [600_000-700_000]
     # LOCALE, STRING, TRANSLATION, ...
+    # LOCALE_VARIANT, ...
 
     # logic [700_000-800_000]
     SCRIPT = 700_000, "Script", None, "fas fa-code"
