@@ -10,9 +10,10 @@ import {
   NodeReference,
   NodeType,
   StoreKey,
+  VERSION,
 } from "@destack/language";
 import { assertNever } from "@destack/utils";
-import { intToSemver } from "@destack/utils/semver";
+import { intToSemver, semverToInt } from "@destack/utils/semver";
 import { IDBPDatabase, IDBPTransaction, openDB } from "idb";
 
 export const MAX_RECURSION_DEPTH = 100;
@@ -38,7 +39,7 @@ export const ENTITY_CREATED_AT_KEY = String(Entity.property("created_at").id);
 export const EVENT_CREATED_AT_KEY = String(Event.property("created_at").id);
 export const EVENT_SNAPSHOT_KEY = String(Event.property("snapshot").id);
 
-// NOTE: IndexedDB doesn't allow numeric keys
+// NOTE: IndexedDB doesn't allow numeric keys for indexes (incl. primary keys)
 //  (so even simple keys like id and created_at are prefixed)
 export const ENTITY_PRIMARY_KEY = "_0"; // composite key of [id, snapshotId]
 export const ENTITY_KEYS_TO_INDEX: string[] = [
@@ -124,9 +125,10 @@ export abstract class IndexedDBStoreBase {
         tableStore = tx.objectStore(table.name);
       }
       // index
+      const objectStore = tx.objectStore(table.name);
       for (const indexedProp of table.indexedKeys) {
         const indexName = getIndexName(table, indexedProp);
-        if (!db.objectStoreNames.contains(indexName)) {
+        if (!objectStore.indexNames.contains(indexName)) {
           if (table instanceof IndexedDBEntityTable) {
             tableStore.createIndex(indexName, ENTITY_KEYS_TO_INDEX_PREFIXED[indexedProp]);
           } else if (table instanceof IndexedDBEventTable) {
@@ -145,10 +147,11 @@ export abstract class IndexedDBStoreBase {
       if (this.db != null) {
         throw new Error(`${this.dbName} database is already open`);
       }
-      this.db = await openDB(this.dbName, 1, {
+      const newVersion = VERSION;
+      const newVersionInt = semverToInt(newVersion);
+      this.db = await openDB(this.dbName, newVersionInt, {
         upgrade: (db, oldVersionInt, newVersionInt, tx) => {
-          const oldVersion = oldVersionInt == null ? null : intToSemver(BigInt(oldVersionInt));
-          const newVersion = intToSemver(BigInt(newVersionInt!));
+          const oldVersion = oldVersionInt == null ? null : intToSemver(oldVersionInt);
           this.migrateSchema(db, oldVersion, newVersion, tx);
         },
       });
