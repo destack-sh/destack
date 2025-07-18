@@ -319,12 +319,9 @@ export class CopyEvent extends ClipboardEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`CopyEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CopyEvent has no Space`);
+        throw new Error(`no active Space for CopyEvent`);
       }
       _space = _space.toRef();
     }
@@ -1070,12 +1067,9 @@ export class CutEvent extends ClipboardEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`CutEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CutEvent has no Space`);
+        throw new Error(`no active Space for CutEvent`);
       }
       _space = _space.toRef();
     }
@@ -1821,12 +1815,9 @@ export class PasteEvent extends ClipboardEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PasteEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PasteEvent has no Space`);
+        throw new Error(`no active Space for PasteEvent`);
       }
       _space = _space.toRef();
     }

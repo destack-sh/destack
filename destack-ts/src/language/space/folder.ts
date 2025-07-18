@@ -19,6 +19,7 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
   EnumType,
@@ -120,10 +121,10 @@ export class Folder
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): Folder | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -369,7 +370,7 @@ export class Folder
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Folder | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -425,12 +426,9 @@ export class Folder
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Folder has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Folder has no Space`);
+        throw new Error(`no active Space for Folder`);
       }
       _space = _space.toRef();
     }
@@ -454,6 +452,16 @@ export class Folder
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Folder`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Folder.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -586,7 +594,7 @@ export class Folder
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -639,9 +647,7 @@ export class Folder
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -737,9 +743,7 @@ export class Folder
       objectValue["6"] = object.definitionPtr.toValue();
     }
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -822,11 +826,6 @@ export class Folder
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -875,7 +874,13 @@ export class Folder
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -920,9 +925,7 @@ export class Folder
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -1036,16 +1039,13 @@ export class Folder
           : null,
       isExtensible: objectProto.isExtensible,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

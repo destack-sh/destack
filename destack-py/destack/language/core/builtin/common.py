@@ -64,6 +64,7 @@ class EnumType(Enum):
 
     # common
     RESOURCE_STATUS = 10_100
+    SNAPSHOT_TYPE = 10_300
     SNAPSHOT_STATUS = 10_301
 
     # custom
@@ -248,6 +249,7 @@ class StructType(Enum):
     OPTION_DEFINITION = 20_400
     INDEX_DEFINITION = 30_100
     CONSTRAINT_DEFINITION = 30_200
+    # EXPECTATION_DEFINITION = 30_300
     MIGRATION_DEFINITION = 31_000
     MIGRATION_OPERATION_DEFINITION = 31_100
     METHOD_DEFINITION = 32_000
@@ -579,11 +581,12 @@ class NodeType(Enum):
     # media [500_000-600_000]
     # STREAM, ...
     # ENCODING, ...
-    # SPRITE, SPRITE_SHEET, ...
+    # SPRITE, SPRITE_SHEET, NINESLICE_SPRITE, TILING_SPRITE, ...
+    # TEXTURE, ...
 
     # locale [600_000-700_000]
     # LOCALE, STRING, TRANSLATION, ...
-    # LOCALE_VARIANT, ...
+    # LOCALE_VARIANT, GEO_VARIANT, ...
 
     # logic [700_000-800_000]
     SCRIPT = 700_000, "Script", None, "fas fa-code"
@@ -1255,6 +1258,7 @@ class ValueFactory(Enum):
     REGION = 20, "Region", "Get the current Region"
     SELF = 30, "Self", "Get the current Node"
     SPACE = 31, "Space", "Get the current Space"
+    SNAPSHOT = 32, "Snapshot", "Get the current Snapshot"
     NAME = 40, "Name", "Generate a relevant name"
 
 

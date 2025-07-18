@@ -1,6 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { NodeType, StructType } from "@destack/language/core/builtin/common";
-import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import { ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
@@ -386,7 +386,7 @@ registerStructClass(StructType.CONSTRAINT_DEFINITION, ConstraintDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:30200 ==== */
 /**
- * Constraint of an Entity.
+ * Constraint of an Entity that must be satisfied.
  */
 export class Constraint extends Entity {
   static metatype: NodeType = NodeType.CONSTRAINT;
@@ -430,10 +430,10 @@ export class Constraint extends Entity {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): Constraint | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -546,7 +546,7 @@ export class Constraint extends Entity {
     parent?: (Entity & IsExtensible) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Constraint | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -595,12 +595,9 @@ export class Constraint extends Entity {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Constraint has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Constraint has no Space`);
+        throw new Error(`no active Space for Constraint`);
       }
       _space = _space.toRef();
     }
@@ -619,6 +616,16 @@ export class Constraint extends Entity {
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Constraint`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Constraint.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -702,7 +709,7 @@ export class Constraint extends Entity {
         return false;
       }
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -729,9 +736,7 @@ export class Constraint extends Entity {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -808,9 +813,7 @@ export class Constraint extends Entity {
     }
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -863,11 +866,6 @@ export class Constraint extends Entity {
         );
       }
     }
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -893,7 +891,13 @@ export class Constraint extends Entity {
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -933,9 +937,7 @@ export class Constraint extends Entity {
     }
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -997,16 +999,13 @@ export class Constraint extends Entity {
       type: Number(objectProto.type) as ConstraintType,
       properties: unpackedProperties,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1478,7 +1477,7 @@ registerStructClass(StructType.INDEX_DEFINITION, IndexDefinition);
 
 /* ==== DESTACK_GENERATED_START:NODE:30100 ==== */
 /**
- * Index of an Entity.
+ * Index of an Entity for faster querying.
  */
 export class Index extends Entity {
   static metatype: NodeType = NodeType.INDEX;
@@ -1522,10 +1521,10 @@ export class Index extends Entity {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): Index | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1638,7 +1637,7 @@ export class Index extends Entity {
     parent?: (Entity & IsExtensible) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Index | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -1687,12 +1686,9 @@ export class Index extends Entity {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Index has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Index has no Space`);
+        throw new Error(`no active Space for Index`);
       }
       _space = _space.toRef();
     }
@@ -1711,6 +1707,16 @@ export class Index extends Entity {
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Index`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Index.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1792,7 +1798,7 @@ export class Index extends Entity {
         return false;
       }
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1819,9 +1825,7 @@ export class Index extends Entity {
         h = (h * 31 + _item.hash()) & 0xffffffff;
       }
     }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -1898,9 +1902,7 @@ export class Index extends Entity {
     }
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -1953,11 +1955,6 @@ export class Index extends Entity {
         );
       }
     }
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -1983,7 +1980,13 @@ export class Index extends Entity {
       type: Number(objectValue["100"]),
       properties: unpackedProperties,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -2023,9 +2026,7 @@ export class Index extends Entity {
     }
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -2087,16 +2088,13 @@ export class Index extends Entity {
       type: Number(objectProto.type) as IndexType,
       properties: unpackedProperties,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

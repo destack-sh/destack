@@ -17,6 +17,7 @@ import type {
   Value,
 } from "@destack/language/core";
 import {
+  ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
   Entity,
   Event,
@@ -27,8 +28,6 @@ import {
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Window } from "@destack/language/scene/window";
-import type { Folder } from "@destack/language/space";
 import type { Client, Space } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view";
 import { MaterializationProto, SceneProto } from "@destack/proto";
@@ -124,12 +123,12 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
   static metatype: NodeType = NodeType.SCENE;
 
   /**
-   * Scene.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): Folder | Window | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Folder | Window | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -174,10 +173,10 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): Scene | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -387,11 +386,11 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
 
   constructor(options: {
     id?: string;
-    parent?: Folder | Window | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Scene | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -445,12 +444,9 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Scene has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Scene has no Space`);
+        throw new Error(`no active Space for Scene`);
       }
       _space = _space.toRef();
     }
@@ -474,6 +470,16 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Scene`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Scene.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -590,7 +596,7 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -622,9 +628,6 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this._rootViewPtr != null) {
       h = (h * 31 + hashString(this._rootViewPtr.id)) & 0xffffffff;
     }
@@ -639,9 +642,10 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -733,9 +737,7 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       objectValue["6"] = object.definitionPtr.toValue();
     }
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -787,11 +789,6 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const rootViewPtrValue = objectValue["200"];
     const unpackedRootViewPtr =
       rootViewPtrValue != undefined
@@ -812,10 +809,10 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
@@ -855,15 +852,21 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       }
     }
     return new Scene({
-      parent: unpackedParentPtr,
       rootView: unpackedRootViewPtr,
       icon: unpackedIcon,
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["31"],
       definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -908,9 +911,7 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -971,16 +972,6 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       }
     }
     return new Scene({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       rootView:
         objectProto.rootViewPtr != undefined
           ? _NodeReference.fromProto(
@@ -1017,17 +1008,24 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
             )
           : null,
       isExtensible: objectProto.isExtensible,
-      materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
+      parent:
+        objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
               _connection,
             )
           : null,
+      materialization: Number(objectProto.materialization) as Materialization,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

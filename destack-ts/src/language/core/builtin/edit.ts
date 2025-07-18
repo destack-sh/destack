@@ -280,12 +280,9 @@ export class EditEvent extends Event {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`EditEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`EditEvent has no Space`);
+        throw new Error(`no active Space for EditEvent`);
       }
       _space = _space.toRef();
     }

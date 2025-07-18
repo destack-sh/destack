@@ -14,10 +14,10 @@ from .scaffold import *  # noqa: F403
 # pyright: reportIncompatibleVariableOverride=false, reportIncompatibleMethodOverride=false
 
 # ===============================================
-# statsd/Common [Service]
+# cal/Common [Service]
 # ===============================================
 
 
 @entity
-class StatsdService(Service):
+class CalendarService(Service):
     pass

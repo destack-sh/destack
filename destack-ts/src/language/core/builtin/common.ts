@@ -905,6 +905,7 @@ export enum ValueFactory {
   REGION = 20,
   SELF = 30,
   SPACE = 31,
+  SNAPSHOT = 32,
   NAME = 40,
 
   /* ==== DESTACK_CUSTOM_START ==== */

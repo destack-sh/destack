@@ -395,12 +395,9 @@ export class PointerDownEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerDownEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerDownEvent has no Space`);
+        throw new Error(`no active Space for PointerDownEvent`);
       }
       _space = _space.toRef();
     }
@@ -1293,12 +1290,9 @@ export class PointerUpEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerUpEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerUpEvent has no Space`);
+        throw new Error(`no active Space for PointerUpEvent`);
       }
       _space = _space.toRef();
     }
@@ -2179,12 +2173,9 @@ export class PointerMoveEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerMoveEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerMoveEvent has no Space`);
+        throw new Error(`no active Space for PointerMoveEvent`);
       }
       _space = _space.toRef();
     }
@@ -3077,12 +3068,9 @@ export class PointerEnterEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerEnterEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerEnterEvent has no Space`);
+        throw new Error(`no active Space for PointerEnterEvent`);
       }
       _space = _space.toRef();
     }
@@ -3975,12 +3963,9 @@ export class PointerOverEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerOverEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerOverEvent has no Space`);
+        throw new Error(`no active Space for PointerOverEvent`);
       }
       _space = _space.toRef();
     }
@@ -4873,12 +4858,9 @@ export class PointerLeaveEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerLeaveEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerLeaveEvent has no Space`);
+        throw new Error(`no active Space for PointerLeaveEvent`);
       }
       _space = _space.toRef();
     }
@@ -5771,12 +5753,9 @@ export class PointerLongPressEvent extends PointerEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`PointerLongPressEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`PointerLongPressEvent has no Space`);
+        throw new Error(`no active Space for PointerLongPressEvent`);
       }
       _space = _space.toRef();
     }

@@ -16,12 +16,17 @@ _setup_test_env()
 
 from destack.language import (
     REGION,
+    NodeReference,
+    NodeType,
     Session,
+    Snapshot,
+    SnapshotType,
     Space,
     SpaceStatus,
     StoreKey,
 )
 from destack.store import MemoryEntityStore, MemoryStore
+from destack.utils.uuid import uuid4
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -58,14 +63,38 @@ async def session(memory_store: MemoryEntityStore):
 
 @pytest.fixture
 def space(session: Session):
+    space_id = uuid4()
+    epoch = session.epoch
+    now = session.oracle.utc()
+    space_ptr = NodeReference(
+        type=NodeType.SPACE,
+        id=space_id,
+        space_id=space_id,
+    )
+    snapshot = Snapshot(
+        name="Root",
+        space_ptr=space_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        type=SnapshotType.FULL,
+    )
     space = Space(
         name="Test",
         slug="test",
         status=SpaceStatus.ACTIVE,
         region=REGION,
+        id=space_id,
+        snapshot_ptr=snapshot.to_ref(),
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
     )
     session.create(space)
-    with space.active():
+    session.create(snapshot)
+    with space.active(), snapshot.active():
         yield space
 
 

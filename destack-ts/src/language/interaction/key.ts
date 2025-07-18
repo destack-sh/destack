@@ -412,12 +412,9 @@ export class KeyDownEvent extends KeyEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`KeyDownEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`KeyDownEvent has no Space`);
+        throw new Error(`no active Space for KeyDownEvent`);
       }
       _space = _space.toRef();
     }
@@ -1318,12 +1315,9 @@ export class KeyUpEvent extends KeyEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`KeyUpEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`KeyUpEvent has no Space`);
+        throw new Error(`no active Space for KeyUpEvent`);
       }
       _space = _space.toRef();
     }
@@ -2224,12 +2218,9 @@ export class KeyPressEvent extends KeyEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`KeyPressEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`KeyPressEvent has no Space`);
+        throw new Error(`no active Space for KeyPressEvent`);
       }
       _space = _space.toRef();
     }

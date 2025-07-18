@@ -60,3 +60,4 @@ class Layer(
     rotation: Optional["Axis3"] = builtin_property(143)
     skew: Optional["Vector2f"] = builtin_property(144)
     scale: Optional[float] = builtin_property(145)
+    # parallax?

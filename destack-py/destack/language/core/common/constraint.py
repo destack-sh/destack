@@ -40,7 +40,7 @@ class ConstraintDefinition(BuiltinDefinition):
 
 @builtin_node(NodeType.CONSTRAINT)
 class Constraint(Entity):
-    """Constraint of an Entity."""
+    """Constraint of an Entity that must be satisfied."""
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
     type: ConstraintType = builtin_property(100, is_repr=True)
@@ -70,7 +70,7 @@ class IndexDefinition(BuiltinDefinition):
 
 @builtin_node(NodeType.INDEX)
 class Index(Entity):
-    """Index of an Entity."""
+    """Index of an Entity for faster querying."""
 
     parent: Union["IsExtensible", None] = builtin_property_parent()
     type: IndexType = builtin_property(100, is_repr=True)

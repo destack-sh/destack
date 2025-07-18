@@ -206,22 +206,22 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly descendantTypes: readonly NodeType[];
 
   /**
-   * The parent types expected for this Node type (directly).
+   * The parent types expected for this Node type (any of).
    */
   readonly expectedParentTypes: readonly NodeType[];
 
   /**
-   * The child types expected for this Node type (directly).
+   * The child types expected for this Node type (any of).
    */
   readonly expectedChildTypes: readonly NodeType[];
 
   /**
-   * The ancestor types expected for this Node type (directly and indirectly).
+   * The ancestor types expected for this Node type (any of).
    */
   readonly expectedAncestorTypes: readonly NodeType[];
 
   /**
-   * The descendant types expected for this Node type (directly and indirectly).
+   * The descendant types expected for this Node type (any of).
    */
   readonly expectedDescendantTypes: readonly NodeType[];
 

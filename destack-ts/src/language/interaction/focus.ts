@@ -319,12 +319,9 @@ export class FocusInEvent extends FocusEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`FocusInEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`FocusInEvent has no Space`);
+        throw new Error(`no active Space for FocusInEvent`);
       }
       _space = _space.toRef();
     }
@@ -1070,12 +1067,9 @@ export class FocusOutEvent extends FocusEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`FocusOutEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`FocusOutEvent has no Space`);
+        throw new Error(`no active Space for FocusOutEvent`);
       }
       _space = _space.toRef();
     }

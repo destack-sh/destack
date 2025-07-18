@@ -339,12 +339,9 @@ export class DragStartEvent extends DragEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DragStartEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DragStartEvent has no Space`);
+        throw new Error(`no active Space for DragStartEvent`);
       }
       _space = _space.toRef();
     }
@@ -1118,12 +1115,9 @@ export class DragEndEvent extends DragEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DragEndEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DragEndEvent has no Space`);
+        throw new Error(`no active Space for DragEndEvent`);
       }
       _space = _space.toRef();
     }
@@ -1897,12 +1891,9 @@ export class DragOverEvent extends DragEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DragOverEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DragOverEvent has no Space`);
+        throw new Error(`no active Space for DragOverEvent`);
       }
       _space = _space.toRef();
     }
@@ -2676,12 +2667,9 @@ export class DragEnterEvent extends DragEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DragEnterEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DragEnterEvent has no Space`);
+        throw new Error(`no active Space for DragEnterEvent`);
       }
       _space = _space.toRef();
     }
@@ -3455,12 +3443,9 @@ export class DragLeaveEvent extends DragEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DragLeaveEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DragLeaveEvent has no Space`);
+        throw new Error(`no active Space for DragLeaveEvent`);
       }
       _space = _space.toRef();
     }
@@ -4234,12 +4219,9 @@ export class DropEvent extends DragEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DropEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DropEvent has no Space`);
+        throw new Error(`no active Space for DropEvent`);
       }
       _space = _space.toRef();
     }

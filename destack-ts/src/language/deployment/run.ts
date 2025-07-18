@@ -315,12 +315,9 @@ export class RunStartedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunStartedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunStartedEvent has no Space`);
+        throw new Error(`no active Space for RunStartedEvent`);
       }
       _space = _space.toRef();
     }
@@ -926,12 +923,9 @@ export class RunPauseRequestedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunPauseRequestedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunPauseRequestedEvent has no Space`);
+        throw new Error(`no active Space for RunPauseRequestedEvent`);
       }
       _space = _space.toRef();
     }
@@ -1549,12 +1543,9 @@ export class RunPausedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunPausedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunPausedEvent has no Space`);
+        throw new Error(`no active Space for RunPausedEvent`);
       }
       _space = _space.toRef();
     }
@@ -2160,12 +2151,9 @@ export class RunResumeRequestedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunResumeRequestedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunResumeRequestedEvent has no Space`);
+        throw new Error(`no active Space for RunResumeRequestedEvent`);
       }
       _space = _space.toRef();
     }
@@ -2783,12 +2771,9 @@ export class RunResumedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunResumedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunResumedEvent has no Space`);
+        throw new Error(`no active Space for RunResumedEvent`);
       }
       _space = _space.toRef();
     }
@@ -3394,12 +3379,9 @@ export class RunStopRequestedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunStopRequestedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunStopRequestedEvent has no Space`);
+        throw new Error(`no active Space for RunStopRequestedEvent`);
       }
       _space = _space.toRef();
     }
@@ -4017,12 +3999,9 @@ export class RunFailedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunFailedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunFailedEvent has no Space`);
+        throw new Error(`no active Space for RunFailedEvent`);
       }
       _space = _space.toRef();
     }
@@ -4628,12 +4607,9 @@ export class RunCompletedEvent extends RunEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`RunCompletedEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`RunCompletedEvent has no Space`);
+        throw new Error(`no active Space for RunCompletedEvent`);
       }
       _space = _space.toRef();
     }
@@ -5115,10 +5091,10 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   abstract get precededBy(): Run | null;
   declare readonly precededByPtr: NodeReference | null;

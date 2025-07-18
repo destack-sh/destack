@@ -11,7 +11,7 @@ import {
   TypeCardinality,
   ValueFactory,
 } from "@destack/language/core/builtin/common";
-import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import { ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import type { Snapshot } from "@destack/language/core/builtin/entity";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { CustomEvent } from "@destack/language/core/builtin/event";
@@ -107,10 +107,10 @@ export class CustomProperty extends Entity implements IsSourceable {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): CustomProperty | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -611,7 +611,7 @@ export class CustomProperty extends Entity implements IsSourceable {
     parent?: (Entity & IsCustomizable) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: CustomProperty | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -690,12 +690,9 @@ export class CustomProperty extends Entity implements IsSourceable {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`CustomProperty has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`CustomProperty has no Space`);
+        throw new Error(`no active Space for CustomProperty`);
       }
       _space = _space.toRef();
     }
@@ -714,6 +711,16 @@ export class CustomProperty extends Entity implements IsSourceable {
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for CustomProperty`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`CustomProperty.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -952,7 +959,7 @@ export class CustomProperty extends Entity implements IsSourceable {
     if (!(this._key === other._key)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1042,9 +1049,7 @@ export class CustomProperty extends Entity implements IsSourceable {
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -1141,9 +1146,7 @@ export class CustomProperty extends Entity implements IsSourceable {
     }
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -1352,11 +1355,6 @@ export class CustomProperty extends Entity implements IsSourceable {
         : null;
     const keyValue = objectValue["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -1405,7 +1403,13 @@ export class CustomProperty extends Entity implements IsSourceable {
       source: unpackedSourcePtr,
       key: unpackedKey,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -1446,9 +1450,7 @@ export class CustomProperty extends Entity implements IsSourceable {
     }
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -1673,16 +1675,13 @@ export class CustomProperty extends Entity implements IsSourceable {
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
