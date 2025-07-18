@@ -6,9 +6,10 @@ from ..builtin import (
     Enum,
     EnumType,
     Node,
+    NodeDefinitionReference,
     NodeReference,
     PropertyDeclaration,
-    Snapshot,
+    PropertyReference,
     StoreDomain,
     StructFrozen,
     StructMutable,
@@ -21,11 +22,10 @@ from ..builtin import (
     builtin_property,
     builtin_struct,
 )
-from ..builtin.relation import NodeDefinitionReference, PropertyReference
 from .value import Value
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, PropertyDefinition, QueryConnection
+    from destack.language import CustomProperty, PropertyDefinition, QueryConnection, Snapshot
 
 # pyright: reportIncompatibleVariableOverride=false
 

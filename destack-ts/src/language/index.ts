@@ -5,6 +5,7 @@ export * from "@destack/language/core";
 export * from "@destack/language/data";
 export * from "@destack/language/deployment";
 export * from "@destack/language/finalize";
+export * from "@destack/language/geometry";
 export * from "@destack/language/infrastructure";
 export * from "@destack/language/intelligence";
 export * from "@destack/language/interaction";

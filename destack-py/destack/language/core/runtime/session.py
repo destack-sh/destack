@@ -19,7 +19,6 @@ from ..builtin import (
     EventStatus,
     NodeReference,
     PropertyDeclaration,
-    TypeCardinality,
 )
 from ..common import to_value
 from .graph import Supergraph
@@ -150,20 +149,12 @@ class Session:
         prop_type = prop.to_type()
 
         # undo
-        if old_value is None or (prop.cardinality != TypeCardinality.SCALAR and not old_value):
-            undo_operation = EditOperation.CLEAR
-            old_value = None
-        else:
-            undo_operation = EditOperation.SET
-            old_value = to_value(old_value, prop_type)
+        undo_operation = EditOperation.SET
+        old_value = to_value(old_value, prop_type)
 
         # do
-        if new_value is None or (prop.cardinality != TypeCardinality.SCALAR and not new_value):
-            operation = EditOperation.CLEAR
-            new_value = None
-        else:
-            operation = EditOperation.SET
-            new_value = to_value(new_value, prop_type)
+        operation = EditOperation.SET
+        new_value = to_value(new_value, prop_type)
 
         edit = EditEvent(
             type=EditType.UPDATE,

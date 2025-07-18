@@ -8,14 +8,13 @@ from destack.language.core import (
     Event,
     IsOwnable,
     NodeType,
-    Vector2i,
     builtin_enum,
     builtin_node,
     builtin_property,
 )
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Vector2i
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -67,4 +66,4 @@ class ScreenCursor(Cursor):
     """
 
     # content
-    position: Optional[Vector2i] = builtin_property(120)
+    position: Optional["Vector2i"] = builtin_property(120)

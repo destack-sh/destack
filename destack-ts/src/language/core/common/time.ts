@@ -6,11 +6,9 @@ import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor, IsExtensible } from "@destack/language/core/builtin/trait";
-import { BuiltinDefinition } from "@destack/language/core/common/definition";
+import type { IsActor, IsOwnable } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
-import type { Snapshot } from "@destack/language/core/common/time";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
 import type { Session } from "@destack/language/core/runtime/session";
@@ -18,606 +16,64 @@ import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
-  registerStructClass,
 } from "@destack/language/registry";
 import {
+  BranchProto,
   MaterializationProto,
-  MigrationDefinitionProto,
-  MigrationOperationDefinitionProto,
-  MigrationOperationProto,
-  MigrationProto,
-  MigrationTypeProto,
+  SnapshotProto,
+  SnapshotStatusProto,
+  SnapshotTypeProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashInt, hashString } from "@destack/utils/hash";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:31000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:10300 ==== */
 /**
- * MigrationType
+ * SnapshotType
  */
-export enum MigrationType {
-  CREATE = 1,
+export enum SnapshotType {
+  PARTIAL = 1,
+  FULL = 10,
+  ROOT = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerEnumClass(EnumType.MIGRATION_TYPE, MigrationType);
-/* ==== DESTACK_GENERATED_END:ENUM:31000 ==== */
+registerEnumClass(EnumType.SNAPSHOT_TYPE, SnapshotType);
+/* ==== DESTACK_GENERATED_END:ENUM:10300 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:31000 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:10301 ==== */
 /**
- * Definition of a builtin Migration.
+ * SnapshotStatus
  */
-export class MigrationDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.MIGRATION_DEFINITION;
-  static __isFrozen__: boolean = true;
-
-  /**
-   * BuiltinDefinition.id
-   */
-  readonly id: number;
-
-  /**
-   * MigrationDefinition.type
-   */
-  readonly type: MigrationType;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  constructor(options: {
-    id: number;
-    type: MigrationType;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`MigrationDefinition.id is required`);
-    }
-    this.id = _id;
-    let _type = options.type;
-    if (_type === null) {
-      throw new Error(`MigrationDefinition.type is required`);
-    }
-    this.type = _type;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`MigrationDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.type === other.type)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`type=${MigrationType[this.type]}`);
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<MigrationDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + this.type) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = MigrationDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: MigrationDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 31000;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new MigrationDefinition({
-      type: Number(objectValue["100"]),
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    return MigrationDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): MigrationDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = MigrationDefinition.__packProto__(this);
-    }
-    return this._proto as MigrationDefinitionProto;
-  }
-
-  static __packProto__(object: MigrationDefinition): MigrationDefinitionProto {
-    const objectProto: Partial<MigrationDefinitionProto> = { metatype: 31000 };
-    objectProto.id = object.id;
-    objectProto.type = Number(object.type) as MigrationTypeProto;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as MigrationDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: MigrationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new MigrationDefinition({
-      type: Number(objectProto.type) as MigrationType,
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: MigrationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationDefinition {
-    return MigrationDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): MigrationDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
+export enum SnapshotStatus {
+  CREATING = 1,
+  ACTIVE = 10,
+  PASSIVE = 50,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.MIGRATION_DEFINITION, MigrationDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:31000 ==== */
+registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:10301 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:31100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:11100 ==== */
 /**
- * Definition of a builtin MigrationOperation.
+ * A Branch is a version of a Snapshot.
  */
-export class MigrationOperationDefinition extends BuiltinDefinition {
-  static metatype: StructType = StructType.MIGRATION_OPERATION_DEFINITION;
-  static __isFrozen__: boolean = true;
+export class Branch extends Entity implements IsOwnable {
+  static metatype: NodeType = NodeType.BRANCH;
 
   /**
-   * BuiltinDefinition.id
+   * Branch.parent
    */
-  readonly id: number;
-
-  /**
-   * BuiltinDefinition.name
-   */
-  readonly name: string;
-
-  /**
-   * BuiltinDefinition.icon
-   */
-  readonly icon: Icon | null;
-
-  /**
-   * BuiltinDefinition.description
-   */
-  readonly description: string | null;
-
-  constructor(options: {
-    id: number;
-    name: string;
-    icon?: Icon | null;
-    description?: string | null;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _hash?: number | null;
-    _repr?: string | null;
-    _proto?: any | null;
-    _value?: { [key: string]: any } | null;
-  }) {
-    super(
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-    );
-
-    // properties
-    let _id = options.id;
-    if (_id === null) {
-      throw new Error(`MigrationOperationDefinition.id is required`);
-    }
-    this.id = _id;
-    let _name = options.name;
-    if (_name === null) {
-      throw new Error(`MigrationOperationDefinition.name is required`);
-    }
-    this.name = _name;
-    let _icon = options.icon ?? null;
-    this.icon = _icon;
-    let _description = options.description ?? null;
-    this.description = _description;
-
-    // identity
-    // @ts-expect-error(readonly)
-    this._hash = options._hash ?? null;
-    // @ts-expect-error(readonly)
-    this._repr = options._repr ?? null;
-    // @ts-expect-error(readonly)
-    this._proto = options._proto ?? null;
-    // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.id === other.id)) {
-      return false;
-    }
-    if (!(this.name === other.name)) {
-      return false;
-    }
-    if (
-      (this.icon == null) !== (other.icon == null) ||
-      (this.icon != null && !this.icon.equals(other.icon))
-    ) {
-      return false;
-    }
-    if (!(this.description === other.description)) {
-      return false;
-    }
-    return true;
-  }
-
-  repr(): string {
-    if (this._repr === null) {
-      const propertyReprs: string[] = [];
-      propertyReprs.push(`id=${this.id}`);
-      propertyReprs.push(`name=${`"${this.name}"`}`);
-      if (this.description != null) {
-        propertyReprs.push(`description=${`"${this.description}"`}`);
-      }
-      // @ts-expect-error(readonly)
-      this._repr = `<MigrationOperationDefinition ${propertyReprs.join(" ")}>`;
-    }
-    return this._repr;
-  }
-
-  hash(): number {
-    if (this._hash != null) {
-      return this._hash;
-    }
-
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    h = (h * 31 + hashInt(this.id)) & 0xffffffff;
-    h = (h * 31 + hashString(this.name)) & 0xffffffff;
-    if (this.icon != null) {
-      h = (h * 31 + this.icon.hash()) & 0xffffffff;
-    }
-    if (this.description != null) {
-      h = (h * 31 + hashString(this.description)) & 0xffffffff;
-    }
-
-    // @ts-expect-error(readonly)
-    this._hash = h;
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
-      // @ts-expect-error(readonly)
-      this._value = MigrationOperationDefinition.__packValue__(this);
-    }
-    return this._value;
-  }
-
-  static __packValue__(object: MigrationOperationDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 31100;
-    objectValue["2"] = object.id;
-    objectValue["101"] = object.name;
-    if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
-    }
-    if (object.description != null) {
-      objectValue["103"] = object.description;
-    }
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const descriptionValue = objectValue["103"];
-    const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
-    return new MigrationOperationDefinition({
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
-      icon: unpackedIcon,
-      description: unpackedDescription,
-      _value: objectValue,
-      _supergraph,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    return MigrationOperationDefinition.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): MigrationOperationDefinitionProto {
-    if (this._proto === null) {
-      // @ts-expect-error(readonly)
-      this._proto = MigrationOperationDefinition.__packProto__(this);
-    }
-    return this._proto as MigrationOperationDefinitionProto;
-  }
-
-  static __packProto__(object: MigrationOperationDefinition): MigrationOperationDefinitionProto {
-    const objectProto: Partial<MigrationOperationDefinitionProto> = { metatype: 31100 };
-    objectProto.id = object.id;
-    objectProto.name = object.name;
-    if (object.icon != null) {
-      objectProto.icon = object.icon.toProto();
-    }
-    if (object.description != null) {
-      objectProto.description = object.description;
-    }
-    return objectProto as MigrationOperationDefinitionProto;
-  }
-
-  static __unpackProto__(
-    objectProto: MigrationOperationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    return new MigrationOperationDefinition({
-      id: Number(objectProto.id),
-      name: objectProto.name,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      description: objectProto.description != undefined ? objectProto.description : null,
-      _proto: objectProto,
-      _supergraph,
-    });
-  }
-
-  static fromProto(
-    objectProto: MigrationOperationDefinitionProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperationDefinition {
-    return MigrationOperationDefinition.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): MigrationOperationDefinition {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationOperationDefinitionProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerStructClass(StructType.MIGRATION_OPERATION_DEFINITION, MigrationOperationDefinition);
-/* ==== DESTACK_GENERATED_END:STRUCT:31100 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:31000 ==== */
-/**
- * Migration of an Entity.
- */
-export class Migration extends Entity {
-  static metatype: NodeType = NodeType.MIGRATION;
-
-  /**
-   * Migration.parent
-   */
-  get parent(): (Entity & IsExtensible) | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -667,10 +123,10 @@ export class Migration extends Entity {
   /**
    * The previous Entity this Entity is based on (from the base Snapshot).
    */
-  get precededBy(): Migration | null {
+  get precededBy(): Branch | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Migration | null;
+      return this._supergraph.get(nodePtr.id) as Branch | null;
     }
     return null;
   }
@@ -740,6 +196,36 @@ export class Migration extends Entity {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
+
+  /**
    * Entity.name
    */
   /**
@@ -756,29 +242,59 @@ export class Migration extends Entity {
   _name: string;
 
   /**
-   * Migration.type
+   * Branch.icon
    */
   /**
-   * Migration.type
+   * Branch.icon
    */
-  get type(): MigrationType {
-    return this._type;
+  get icon(): Icon | null {
+    return this._icon;
   }
-  set type(value: MigrationType) {
-    const prop = (this.constructor as NodeClass).__properties__["type"];
+  set icon(value: Icon | null) {
+    const prop = (this.constructor as NodeClass).__properties__["icon"];
     this._session.updateSetProperty(this, prop, value);
-    this._type = value;
+    this._icon = value;
   }
-  _type: MigrationType;
+  _icon: Icon | null;
+
+  /**
+   * Branch.head
+   */
+  get head(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.headPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  set head(node: Snapshot | null) {
+    if (node === null) {
+      this.headPtr = null;
+    } else {
+      this.headPtr = node.toRef();
+    }
+  }
+  /**
+   * Branch.head
+   */
+  get headPtr(): NodeReference | null {
+    return this._headPtr;
+  }
+  set headPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["head"];
+    this._session.updateSetProperty(this, prop, value);
+    this._headPtr = value;
+  }
+  _headPtr: NodeReference | null;
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsExtensible) | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference;
-    precededBy?: Migration | NodeReference | null;
+    precededBy?: Branch | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -787,8 +303,10 @@ export class Migration extends Entity {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
-    type: MigrationType;
+    icon?: Icon | null;
+    head?: Snapshot | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -828,12 +346,12 @@ export class Migration extends Entity {
     if (_space === null) {
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`no active Space for Migration`);
+        throw new Error(`no active Space for Branch`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`Migration.space is required`);
+      throw new Error(`Branch.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -841,7 +359,7 @@ export class Migration extends Entity {
       _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`Migration.materialization is required`);
+      throw new Error(`Branch.materialization is required`);
     }
     this.materialization = _materialization;
     let _definition = options.definition ?? null;
@@ -856,12 +374,12 @@ export class Migration extends Entity {
     if (_snapshot === null) {
       _snapshot = ACTIVE_SNAPSHOT.get();
       if (_snapshot === null) {
-        throw new Error(`no active Snapshot for Migration`);
+        throw new Error(`no active Snapshot for Branch`);
       }
       _snapshot = _snapshot.toRef();
     }
     if (_snapshot === null) {
-      throw new Error(`Migration.snapshot is required`);
+      throw new Error(`Branch.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -876,19 +394,869 @@ export class Migration extends Entity {
     this.instantiationRootPtr = _instantiationRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
+    }
+    this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "Migration";
+      _name = "Branch";
     }
     if (_name === null) {
-      throw new Error(`Migration.name is required`);
+      throw new Error(`Branch.name is required`);
+    }
+    this._name = _name;
+    let _icon = options.icon ?? null;
+    this._icon = _icon;
+    let _head = options.head ?? null;
+    if (_head != null && _head.metatype != StructType.NODE_REFERENCE) {
+      _head = (_head as Node).toRef();
+    }
+    this._headPtr = _head;
+
+    // identity
+    if (options.id == null) {
+      const now = Temporal.Now.zonedDateTimeISO("UTC");
+      const epoch = this._session.epoch;
+      this.createdAt = now;
+      this.createdEpoch = epoch;
+      this.createdByPtr = null;
+      this.updatedAt = now;
+      this.updatedEpoch = epoch;
+      this.updatedByPtr = null;
+    } else {
+      if (
+        options.createdAt == null ||
+        options.updatedAt == null ||
+        options.createdEpoch == null ||
+        options.updatedEpoch == null
+      ) {
+        throw new Error(`Branch.createdAt and Branch.updatedAt are required for existing Nodes`);
+      }
+      this.createdAt = options.createdAt;
+      this.createdEpoch = options.createdEpoch;
+      this.createdByPtr =
+        options.createdBy != null
+          ? options.createdBy.metatype == StructType.NODE_REFERENCE
+            ? (options.createdBy as NodeReference)
+            : (options.createdBy as Node).toRef()
+          : null;
+      this.updatedAt = options.updatedAt;
+      this.updatedEpoch = options.updatedEpoch;
+      this.updatedByPtr =
+        options.updatedBy != null
+          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
+            ? (options.updatedBy as NodeReference)
+            : (options.updatedBy as Node).toRef()
+          : null;
+    }
+  }
+
+  equals(other: any): boolean {
+    if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (
+      (this._icon == null) !== (other._icon == null) ||
+      (this._icon != null && !this._icon.equals(other._icon))
+    ) {
+      return false;
+    }
+    if (!(this._headPtr?.id === other._headPtr?.id)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  hash(): number {
+    let h = 1;
+    h = (h * 31 + this.metatype) & 0xffffffff;
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
+    }
+    if (this._icon != null) {
+      h = (h * 31 + this._icon.hash()) & 0xffffffff;
+    }
+    if (this._headPtr != null) {
+      h = (h * 31 + hashString(this._headPtr.id)) & 0xffffffff;
+    }
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.createdByPtr != null) {
+      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    if (this.updatedByPtr != null) {
+      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
+    }
+    if (this.deletedAt != null) {
+      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+
+    return h;
+  }
+
+  validate(): void {
+    throw new Error("not implemented");
+  }
+
+  __toRef__(): NodeReference {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    return new _NodeReference({
+      type: NodeType.BRANCH,
+      id: this.id,
+      spaceId: this.spacePtr?.id ?? null,
+      snapshotId: this.snapshotPtr?.id ?? null,
+      _session: this._session,
+      _supergraph: this._supergraph,
+    });
+  }
+
+  get _pathKey(): string {
+    return this.name;
+  }
+
+  get path(): string {
+    const pathParts: string[] = [];
+    let node: Entity | Event | null = this;
+    let lastNode: Entity | Event | null = this;
+    while (node != null) {
+      pathParts.push(node._pathKey);
+      lastNode = node;
+      node = node.parent;
+    }
+    if (!lastNode.isRoot) {
+      pathParts.push("<detached>");
+    }
+    return pathParts.reverse().join("/");
+  }
+
+  repr(): string {
+    const propertyReprs: string[] = [];
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
+    propertyReprs.push(`name=${`"${this.name}"`}`);
+    return `<Branch "${this.path}" ${propertyReprs.join(" ")}>`;
+  }
+
+  toValue(): { readonly [key: string]: any } {
+    return Branch.__packValue__(this);
+  }
+
+  static __packValue__(object: Branch): { readonly [key: string]: any } {
+    const objectValue: { [key: string]: any } = {};
+    objectValue["1"] = 11100;
+    objectValue["2"] = String(object.id);
+    if (object.parentPtr != null) {
+      objectValue["3"] = object.parentPtr.toValue();
+    }
+    objectValue["5"] = object.spacePtr.toValue();
+    objectValue["10"] = object.materialization;
+    if (object.definitionPtr != null) {
+      objectValue["11"] = object.definitionPtr.toValue();
+    }
+    objectValue["12"] = object.snapshotPtr.toValue();
+    if (object.precededByPtr != null) {
+      objectValue["13"] = object.precededByPtr.toValue();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectValue["15"] = object.instantiationRootPtr.toValue();
+    }
+    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectValue["21"] = object.createdEpoch;
+    if (object.createdByPtr != null) {
+      objectValue["22"] = object.createdByPtr.toValue();
+    }
+    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectValue["24"] = object.updatedEpoch;
+    if (object.updatedByPtr != null) {
+      objectValue["25"] = object.updatedByPtr.toValue();
+    }
+    if (object.deletedAt != null) {
+      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    if (object._ownedByPtr != null) {
+      objectValue["32"] = object._ownedByPtr.toValue();
+    }
+    objectValue["50"] = object._name;
+    if (object._icon != null) {
+      objectValue["102"] = object._icon.toValue();
+    }
+    if (object._headPtr != null) {
+      objectValue["110"] = object._headPtr.toValue();
+    }
+    return objectValue;
+  }
+
+  static __unpackValue__(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const iconValue = objectValue["102"];
+    const unpackedIcon =
+      iconValue != undefined
+        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const headPtrValue = objectValue["110"];
+    const unpackedHeadPtr =
+      headPtrValue != undefined
+        ? _NodeReference.fromValue(headPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["32"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["13"];
+    const unpackedPrecededByPtr =
+      precededByPtrValue != undefined
+        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instantiationRootPtrValue = objectValue["15"];
+    const unpackedInstantiationRootPtr =
+      instantiationRootPtrValue != undefined
+        ? _NodeReference.fromValue(
+            instantiationRootPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
+        : null;
+    const createdByPtrValue = objectValue["22"];
+    const unpackedCreatedByPtr =
+      createdByPtrValue != undefined
+        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const updatedByPtrValue = objectValue["25"];
+    const unpackedUpdatedByPtr =
+      updatedByPtrValue != undefined
+        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const deletedAtValue = objectValue["26"];
+    const unpackedDeletedAt =
+      deletedAtValue != undefined
+        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
+        : null;
+    return new Branch({
+      parent: unpackedParentPtr,
+      icon: unpackedIcon,
+      head: unpackedHeadPtr,
+      ownedBy: unpackedOwnedByPtr,
+      materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      precededBy: unpackedPrecededByPtr,
+      instantiationRoot: unpackedInstantiationRootPtr,
+      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectValue["21"]),
+      createdBy: unpackedCreatedByPtr,
+      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectValue["24"]),
+      updatedBy: unpackedUpdatedByPtr,
+      deletedAt: unpackedDeletedAt,
+      name: objectValue["50"],
+      id: String(objectValue["2"]),
+      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromValue(
+    objectValue: { readonly [key: string]: any },
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    return Branch.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  }
+
+  toProto(): BranchProto {
+    return Branch.__packProto__(this);
+  }
+
+  static __packProto__(object: Branch): BranchProto {
+    const objectProto: Partial<BranchProto> = { metatype: 11100 };
+    objectProto.id = String(object.id);
+    if (object.parentPtr != null) {
+      objectProto.parentPtr = object.parentPtr.toProto();
+    }
+    objectProto.spacePtr = object.spacePtr.toProto();
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
+    if (object.precededByPtr != null) {
+      objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
+    }
+    objectProto.createdAt = packProtoTimestamp(object.createdAt);
+    objectProto.createdEpoch = object.createdEpoch;
+    if (object.createdByPtr != null) {
+      objectProto.createdByPtr = object.createdByPtr.toProto();
+    }
+    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
+    objectProto.updatedEpoch = object.updatedEpoch;
+    if (object.updatedByPtr != null) {
+      objectProto.updatedByPtr = object.updatedByPtr.toProto();
+    }
+    if (object.deletedAt != null) {
+      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
+    }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
+    objectProto.name = object._name;
+    if (object._icon != null) {
+      objectProto.icon = object._icon.toProto();
+    }
+    if (object._headPtr != null) {
+      objectProto.headPtr = object._headPtr.toProto();
+    }
+    return objectProto as BranchProto;
+  }
+
+  static __unpackProto__(
+    objectProto: BranchProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    return new Branch({
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      icon:
+        objectProto.icon != undefined
+          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
+          : null,
+      head:
+        objectProto.headPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.headPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      materialization: Number(objectProto.materialization) as Materialization,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      precededBy:
+        objectProto.precededByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instantiationRoot:
+        objectProto.instantiationRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instantiationRootPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
+      createdEpoch: Number(objectProto.createdEpoch),
+      createdBy:
+        objectProto.createdByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.createdByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
+      updatedEpoch: Number(objectProto.updatedEpoch),
+      updatedBy:
+        objectProto.updatedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.updatedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      deletedAt:
+        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
+      name: objectProto.name,
+      id: String(objectProto.id),
+      space: _NodeReference.fromProto(
+        objectProto.spacePtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      _session,
+      _graph,
+      _connection,
+    });
+  }
+
+  static fromProto(
+    objectProto: BranchProto,
+    _session?: Session | null,
+    _supergraph?: Supergraph | null,
+    _graph?: any | null,
+    _connection?: any | null,
+  ): Branch {
+    return Branch.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  }
+
+  static fromProtoString(packedProtoString: string): Branch {
+    const packedProtoBytes = base64Decode(packedProtoString);
+    const packedProto = BranchProto.fromBinary(packedProtoBytes);
+    return this.fromProto(packedProto);
+  }
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.BRANCH, Branch);
+/* ==== DESTACK_GENERATED_END:NODE:11100 ==== */
+
+/* ==== DESTACK_GENERATED_START:NODE:11000 ==== */
+/**
+ * A Snapshot is a point in Space-time.
+ * Snapshots may branch off of other Snapshots, either as a full copy or a partial override.
+ *
+ * To avoid breaking the universe, Snapshots cannot themselves be part of any other Snapshot.
+ *  (Technically, Snapshots are part of themselves.)
+ */
+export class Snapshot extends Entity implements IsOwnable {
+  static metatype: NodeType = NodeType.SNAPSHOT;
+
+  /**
+   * Snapshot.parent
+   */
+  get parent(): Space | null {
+    const nodePtr: NodeReference | null = this.parentPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  get space(): Space | null {
+    const nodePtr: NodeReference | null = this.spacePtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Space | null;
+    }
+    return null;
+  }
+  readonly spacePtr: NodeReference;
+
+  /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): Entity | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Snapshot itself. Cannot be any other Snapshot than this Snapshot
+   */
+  get snapshot(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.snapshotPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly snapshotPtr: NodeReference;
+
+  /**
+   * The previous Entity this Entity is based on (from the base Snapshot).
+   */
+  get precededBy(): Snapshot | null {
+    const nodePtr: NodeReference | null = this.precededByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+    }
+    return null;
+  }
+  readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  get instantiationRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instantiationRootPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was created (system time).
+   */
+  readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Entity.
+   */
+  get createdBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.createdByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  readonly updatedEpoch: number;
+
+  /**
+   * The Actor that last updated this Entity.
+   */
+  get updatedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.updatedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedBy(): (Entity & IsActor) | null {
+    const nodePtr: NodeReference | null = this.ownedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
+    }
+    return null;
+  }
+  set ownedBy(node: (Entity & IsActor) | null) {
+    if (node === null) {
+      this.ownedByPtr = null;
+    } else {
+      this.ownedByPtr = node.toRef();
+    }
+  }
+  /**
+   * IsOwnable.ownedBy
+   */
+  get ownedByPtr(): NodeReference | null {
+    return this._ownedByPtr;
+  }
+  set ownedByPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
+    this._session.updateSetProperty(this, prop, value);
+    this._ownedByPtr = value;
+  }
+  _ownedByPtr: NodeReference | null;
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  get name(): string {
+    return this._name;
+  }
+  set name(value: string) {
+    const prop = (this.constructor as NodeClass).__properties__["name"];
+    this._session.updateSetProperty(this, prop, value);
+    this._name = value;
+  }
+  _name: string;
+
+  /**
+   * Snapshot.type
+   */
+  /**
+   * Snapshot.type
+   */
+  get type(): SnapshotType {
+    return this._type;
+  }
+  set type(value: SnapshotType) {
+    const prop = (this.constructor as NodeClass).__properties__["type"];
+    this._session.updateSetProperty(this, prop, value);
+    this._type = value;
+  }
+  _type: SnapshotType;
+
+  /**
+   * Snapshot.status
+   */
+  /**
+   * Snapshot.status
+   */
+  get status(): SnapshotStatus {
+    return this._status;
+  }
+  set status(value: SnapshotStatus) {
+    const prop = (this.constructor as NodeClass).__properties__["status"];
+    this._session.updateSetProperty(this, prop, value);
+    this._status = value;
+  }
+  _status: SnapshotStatus;
+
+  constructor(options: {
+    id?: string;
+    parent?: Space | NodeReference | null;
+    space?: Space | NodeReference;
+    materialization?: Materialization;
+    definition?: Entity | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
+    precededBy?: Snapshot | NodeReference | null;
+    instantiationRoot?: Entity | NodeReference | null;
+    createdAt?: Temporal.ZonedDateTime;
+    createdEpoch?: number;
+    createdBy?: (Entity & IsActor) | NodeReference | null;
+    updatedAt?: Temporal.ZonedDateTime;
+    updatedEpoch?: number;
+    updatedBy?: (Entity & IsActor) | NodeReference | null;
+    deletedAt?: Temporal.ZonedDateTime | null;
+    ownedBy?: (Entity & IsActor) | NodeReference | null;
+    name?: string;
+    type: SnapshotType;
+    status?: SnapshotStatus;
+    _session?: Session | null;
+    _supergraph?: Supergraph | null;
+    _graph?: Graph | null;
+    _connection?: QueryConnection | null;
+  }) {
+    super(
+      // id
+      options.id ?? null,
+      // parent
+      options.parent != null
+        ? options.parent.metatype == StructType.NODE_REFERENCE
+          ? (options.parent as NodeReference)
+          : (options.parent as Node).toRef()
+        : null,
+      // session
+      options._session ?? null,
+      // supergraph
+      options._supergraph ?? null,
+      // graph
+      options._graph ?? null,
+      // connection
+      options._connection ?? null,
+      // is_new
+      options.id == null,
+    );
+
+    // properties
+    let _parent = options.parent ?? null;
+    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
+      _parent = (_parent as Node).toRef();
+    }
+    this.parentPtr = _parent;
+    let _space = options.space ?? null;
+    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
+      _space = (_space as Node).toRef();
+    }
+    if (_space === null) {
+      _space = ACTIVE_SPACE.get();
+      if (_space === null) {
+        throw new Error(`no active Space for Snapshot`);
+      }
+      _space = _space.toRef();
+    }
+    if (_space === null) {
+      throw new Error(`Snapshot.space is required`);
+    }
+    this.spacePtr = _space;
+    let _materialization = options.materialization ?? null;
+    if (_materialization === null) {
+      _materialization = 11 /* Materialization.ROOT */;
+    }
+    if (_materialization === null) {
+      throw new Error(`Snapshot.materialization is required`);
+    }
+    this.materialization = _materialization;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
+    let _snapshot = options.snapshot ?? null;
+    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
+      _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = this.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Snapshot.snapshot is required`);
+    }
+    this.snapshotPtr = _snapshot;
+    let _precededBy = options.precededBy ?? null;
+    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
+      _precededBy = (_precededBy as Node).toRef();
+    }
+    this.precededByPtr = _precededBy;
+    let _instantiationRoot = options.instantiationRoot ?? null;
+    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
+      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    }
+    this.instantiationRootPtr = _instantiationRoot;
+    let _deletedAt = options.deletedAt ?? null;
+    this.deletedAt = _deletedAt;
+    let _ownedBy = options.ownedBy ?? null;
+    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
+      _ownedBy = (_ownedBy as Node).toRef();
+    }
+    this._ownedByPtr = _ownedBy;
+    let _name = options.name ?? null;
+    if (_name === null) {
+      _name = "Snapshot";
+    }
+    if (_name === null) {
+      throw new Error(`Snapshot.name is required`);
     }
     this._name = _name;
     let _type = options.type;
     if (_type === null) {
-      throw new Error(`Migration.type is required`);
+      throw new Error(`Snapshot.type is required`);
     }
     this._type = _type;
+    let _status = options.status ?? null;
+    if (_status === null) {
+      _status = 10 /* SnapshotStatus.ACTIVE */;
+    }
+    if (_status === null) {
+      throw new Error(`Snapshot.status is required`);
+    }
+    this._status = _status;
 
     // identity
     if (options.id == null) {
@@ -908,7 +1276,7 @@ export class Migration extends Entity {
         options.updatedEpoch == null
       ) {
         throw new Error(
-          `Migration.createdAt and Migration.updatedAt are required for existing Nodes`,
+          `Snapshot.createdAt and Snapshot.updatedAt are required for existing Nodes`,
         );
       }
       this.createdAt = options.createdAt;
@@ -932,11 +1300,20 @@ export class Migration extends Entity {
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
+      return false;
+    }
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this._type === other._type)) {
       return false;
     }
+    if (!(this._status === other._status)) {
+      return false;
+    }
+    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
+      return false;
+    }
     if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
@@ -955,7 +1332,12 @@ export class Migration extends Entity {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     h = (h * 31 + this._type) & 0xffffffff;
+    h = (h * 31 + this._status) & 0xffffffff;
+    if (this._ownedByPtr != null) {
+      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
+    }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
@@ -984,10 +1366,10 @@ export class Migration extends Entity {
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.MIGRATION,
+      type: NodeType.SNAPSHOT,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
+      snapshotId: this.id,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -1014,18 +1396,20 @@ export class Migration extends Entity {
 
   repr(): string {
     const propertyReprs: string[] = [];
-    propertyReprs.push(`type=${MigrationType[this.type]}`);
+    if (this.ownedBy != null) {
+      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
+    }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Migration "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Snapshot "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return Migration.__packValue__(this);
+    return Snapshot.__packValue__(this);
   }
 
-  static __packValue__(object: Migration): { readonly [key: string]: any } {
+  static __packValue__(object: Snapshot): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 31000;
+    objectValue["1"] = 11000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -1054,9 +1438,13 @@ export class Migration extends Entity {
     }
     if (object.deletedAt != null) {
       objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+    }
+    if (object._ownedByPtr != null) {
+      objectValue["32"] = object._ownedByPtr.toValue();
     }
     objectValue["50"] = object._name;
     objectValue["100"] = object._type;
+    objectValue["110"] = object._status;
     return objectValue;
   }
 
@@ -1066,12 +1454,17 @@ export class Migration extends Entity {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
+  ): Snapshot {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const ownedByPtrValue = objectValue["32"];
+    const unpackedOwnedByPtr =
+      ownedByPtrValue != undefined
+        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const definitionPtrValue = objectValue["11"];
     const unpackedDefinitionPtr =
@@ -1109,18 +1502,20 @@ export class Migration extends Entity {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    return new Migration({
+    return new Snapshot({
       parent: unpackedParentPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       type: Number(objectValue["100"]),
+      status: Number(objectValue["110"]),
+      ownedBy: unpackedOwnedByPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       precededBy: unpackedPrecededByPtr,
       instantiationRoot: unpackedInstantiationRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1145,16 +1540,16 @@ export class Migration extends Entity {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
-    return Migration.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Snapshot {
+    return Snapshot.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): MigrationProto {
-    return Migration.__packProto__(this);
+  toProto(): SnapshotProto {
+    return Snapshot.__packProto__(this);
   }
 
-  static __packProto__(object: Migration): MigrationProto {
-    const objectProto: Partial<MigrationProto> = { metatype: 31000 };
+  static __packProto__(object: Snapshot): SnapshotProto {
+    const objectProto: Partial<SnapshotProto> = { metatype: 11000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1184,36 +1579,28 @@ export class Migration extends Entity {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._ownedByPtr != null) {
+      objectProto.ownedByPtr = object._ownedByPtr.toProto();
+    }
     objectProto.name = object._name;
-    objectProto.type = Number(object._type) as MigrationTypeProto;
-    return objectProto as MigrationProto;
+    objectProto.type = Number(object._type) as SnapshotTypeProto;
+    objectProto.status = Number(object._status) as SnapshotStatusProto;
+    return objectProto as SnapshotProto;
   }
 
   static __unpackProto__(
-    objectProto: MigrationProto,
+    objectProto: SnapshotProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
+  ): Snapshot {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new Migration({
+    return new Snapshot({
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      type: Number(objectProto.type) as MigrationType,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1227,6 +1614,29 @@ export class Migration extends Entity {
         _graph,
         _connection,
       ),
+      type: Number(objectProto.type) as SnapshotType,
+      status: Number(objectProto.status) as SnapshotStatus,
+      ownedBy:
+        objectProto.ownedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      materialization: Number(objectProto.materialization) as Materialization,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1289,18 +1699,18 @@ export class Migration extends Entity {
   }
 
   static fromProto(
-    objectProto: MigrationProto,
+    objectProto: SnapshotProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Migration {
-    return Migration.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Snapshot {
+    return Snapshot.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Migration {
+  static fromProtoString(packedProtoString: string): Snapshot {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationProto.fromBinary(packedProtoBytes);
+    const packedProto = SnapshotProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1308,693 +1718,5 @@ export class Migration extends Entity {
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.MIGRATION, Migration);
-/* ==== DESTACK_GENERATED_END:NODE:31000 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:31100 ==== */
-/**
- * MigrationOperation of an Entity.
- */
-export class MigrationOperation extends Entity {
-  static metatype: NodeType = NodeType.MIGRATION_OPERATION;
-
-  /**
-   * MigrationOperation.parent
-   */
-  get parent(): (Entity & IsExtensible) | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
-
-  /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly snapshotPtr: NodeReference;
-
-  /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
-   */
-  get precededBy(): MigrationOperation | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as MigrationOperation | null;
-    }
-    return null;
-  }
-  readonly precededByPtr: NodeReference | null;
-
-  /**
-   * The (root) Entity that is being instantiated.
-   */
-  get instantiationRoot(): Entity | null {
-    const nodePtr: NodeReference | null = this.instantiationRootPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly instantiationRootPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was created (system time).
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * The logical time this Entity was created (system time).
-   */
-  readonly createdEpoch: number;
-
-  /**
-   * The Actor that created this Entity.
-   */
-  get createdBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was last updated (system time).
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * The logical time this Entity was last updated (system time).
-   */
-  readonly updatedEpoch: number;
-
-  /**
-   * The Actor that last updated this Entity.
-   */
-  get updatedBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was deleted (system time).
-   * Only set if the Entity is currently 'deleted'.
-   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
-   */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * Entity.name
-   */
-  /**
-   * Entity.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
-  constructor(options: {
-    id?: string;
-    parent?: (Entity & IsExtensible) | NodeReference | null;
-    space?: Space | NodeReference;
-    materialization?: Materialization;
-    definition?: Entity | NodeReference | null;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: MigrationOperation | NodeReference | null;
-    instantiationRoot?: Entity | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
-    deletedAt?: Temporal.ZonedDateTime | null;
-    name?: string;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    if (_space === null) {
-      _space = ACTIVE_SPACE.get();
-      if (_space === null) {
-        throw new Error(`no active Space for MigrationOperation`);
-      }
-      _space = _space.toRef();
-    }
-    if (_space === null) {
-      throw new Error(`MigrationOperation.space is required`);
-    }
-    this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = 11 /* Materialization.ROOT */;
-    }
-    if (_materialization === null) {
-      throw new Error(`MigrationOperation.materialization is required`);
-    }
-    this.materialization = _materialization;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    if (_snapshot === null) {
-      _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
-        throw new Error(`no active Snapshot for MigrationOperation`);
-      }
-      _snapshot = _snapshot.toRef();
-    }
-    if (_snapshot === null) {
-      throw new Error(`MigrationOperation.snapshot is required`);
-    }
-    this.snapshotPtr = _snapshot;
-    let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
-      _precededBy = (_precededBy as Node).toRef();
-    }
-    this.precededByPtr = _precededBy;
-    let _instantiationRoot = options.instantiationRoot ?? null;
-    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
-      _instantiationRoot = (_instantiationRoot as Node).toRef();
-    }
-    this.instantiationRootPtr = _instantiationRoot;
-    let _deletedAt = options.deletedAt ?? null;
-    this.deletedAt = _deletedAt;
-    let _name = options.name ?? null;
-    if (_name === null) {
-      _name = "MigrationOperation";
-    }
-    if (_name === null) {
-      throw new Error(`MigrationOperation.name is required`);
-    }
-    this._name = _name;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
-      this.createdAt = now;
-      this.createdEpoch = epoch;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
-    } else {
-      if (
-        options.createdAt == null ||
-        options.updatedAt == null ||
-        options.createdEpoch == null ||
-        options.updatedEpoch == null
-      ) {
-        throw new Error(
-          `MigrationOperation.createdAt and MigrationOperation.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedEpoch = options.updatedEpoch;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-            ? (options.updatedBy as NodeReference)
-            : (options.updatedBy as Node).toRef()
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new _NodeReference({
-      type: NodeType.MIGRATION_OPERATION,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.snapshotPtr?.id ?? null,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return this.name;
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Entity | Event | null = this;
-    let lastNode: Entity | Event | null = this;
-    while (node != null) {
-      pathParts.push(node._pathKey);
-      lastNode = node;
-      node = node.parent;
-    }
-    if (!lastNode.isRoot) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<MigrationOperation "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    return MigrationOperation.__packValue__(this);
-  }
-
-  static __packValue__(object: MigrationOperation): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 31100;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
-    if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
-    }
-    objectValue["12"] = object.snapshotPtr.toValue();
-    if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
-    }
-    if (object.instantiationRootPtr != null) {
-      objectValue["15"] = object.instantiationRootPtr.toValue();
-    }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
-    }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
-    }
-    if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    objectValue["50"] = object._name;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperation {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const definitionPtrValue = objectValue["11"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectValue["13"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const instantiationRootPtrValue = objectValue["15"];
-    const unpackedInstantiationRootPtr =
-      instantiationRootPtrValue != undefined
-        ? _NodeReference.fromValue(
-            instantiationRootPtrValue,
-            _session,
-            _supergraph,
-            _graph,
-            _connection,
-          )
-        : null;
-    const createdByPtrValue = objectValue["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    return new MigrationOperation({
-      parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
-      definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      precededBy: unpackedPrecededByPtr,
-      instantiationRoot: unpackedInstantiationRootPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperation {
-    return MigrationOperation.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  toProto(): MigrationOperationProto {
-    return MigrationOperation.__packProto__(this);
-  }
-
-  static __packProto__(object: MigrationOperation): MigrationOperationProto {
-    const objectProto: Partial<MigrationOperationProto> = { metatype: 31100 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    if (object.instantiationRootPtr != null) {
-      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    objectProto.name = object._name;
-    return objectProto as MigrationOperationProto;
-  }
-
-  static __unpackProto__(
-    objectProto: MigrationOperationProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperation {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new MigrationOperation({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      instantiationRoot:
-        objectProto.instantiationRootPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.instantiationRootPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      name: objectProto.name,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: MigrationOperationProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): MigrationOperation {
-    return MigrationOperation.__unpackProto__(
-      objectProto,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
-  }
-
-  static fromProtoString(packedProtoString: string): MigrationOperation {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = MigrationOperationProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.MIGRATION_OPERATION, MigrationOperation);
-/* ==== DESTACK_GENERATED_END:NODE:31100 ==== */
+registerNodeClass(NodeType.SNAPSHOT, Snapshot);
+/* ==== DESTACK_GENERATED_END:NODE:11000 ==== */

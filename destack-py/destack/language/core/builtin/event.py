@@ -69,6 +69,12 @@ class Event[N: Node = Node](Node):
         is_managed=True,
         description="The previous Event that this Event follows.",
     )
+    caused_by: Optional["Event"] = builtin_property(
+        13,
+        is_readonly=True,
+        is_managed=True,
+        description="The Event that caused this Event (if any).",
+    )
     # 20-40: node tracking
     created_at: datetime = builtin_property(
         20,

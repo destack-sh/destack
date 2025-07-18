@@ -5,6 +5,7 @@ from .data import *  # noqa: F403
 from .deployment import *  # noqa: F403
 from .finalize import finalize
 from .finance import *  # noqa: F403
+from .geometry import *  # noqa: F403
 from .infrastructure import *  # noqa: F403
 from .intelligence import *  # noqa: F403
 from .interaction import *  # noqa: F403

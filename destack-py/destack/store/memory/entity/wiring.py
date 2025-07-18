@@ -1,6 +1,5 @@
 from destack.language import (
     Entity,
-    IsExtensible,
     Materialization,
     Node,
     NodeReference,
@@ -15,8 +14,8 @@ from .core import MemoryEntityRow
 NODE_METATYPE_KEY = str(Node.property("metatype").id)
 NODE_ID_KEY = str(Node.property("id").id)
 NODE_PARENT_PTR_KEY = str(Entity.property("parent").id)
-NODE_SPACE_PTR_ID = str(Node.property("space").id)
-NODE_DEFINITION_PTR_ID = str(IsExtensible.property("definition").id)
+NODE_SPACE_PTR_KEY = str(Node.property("space").id)
+ENTITY_DEFINITION_PTR_KEY = str(Entity.property("definition").id)
 
 ENTITY_SNAPSHOT_PTR_KEY = str(Entity.property("snapshot").id)
 ENTITY_MATERIALIZATION_KEY = str(Entity.property("materialization").id)
@@ -33,11 +32,11 @@ def pack_entity_row(value: Value) -> MemoryEntityRow:
     ptr = NodeReference(
         type=node_type,
         id=UUID(value_packed[NODE_ID_KEY]),
-        space_id=UUID(value_packed[NODE_SPACE_PTR_ID][NODE_REFERENCE_ID_KEY])
-        if NODE_SPACE_PTR_ID in value_packed
+        space_id=UUID(value_packed[NODE_SPACE_PTR_KEY][NODE_REFERENCE_ID_KEY])
+        if NODE_SPACE_PTR_KEY in value_packed
         else None,
-        definition_id=UUID(value_packed[NODE_DEFINITION_PTR_ID][NODE_REFERENCE_ID_KEY])
-        if NODE_DEFINITION_PTR_ID in value_packed
+        definition_id=UUID(value_packed[ENTITY_DEFINITION_PTR_KEY][NODE_REFERENCE_ID_KEY])
+        if ENTITY_DEFINITION_PTR_KEY in value_packed
         else None,
     )
     parent_ptr = value_packed.get(NODE_PARENT_PTR_KEY)

@@ -6,9 +6,9 @@ import type {
   QueryConnection,
   Session,
   Snapshot,
+  Space,
   Supergraph,
   Value,
-  Vector2f,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -19,10 +19,11 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Vector2f } from "@destack/language/geometry";
 import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Client, Space } from "@destack/language/universe";
+import type { Client } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import {
   EventStatusProto,
@@ -52,12 +53,6 @@ export abstract class PointerEvent extends InputEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -68,6 +63,12 @@ export abstract class PointerEvent extends InputEvent {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -190,18 +191,6 @@ export class PointerDownEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -224,6 +213,18 @@ export class PointerDownEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -346,9 +347,9 @@ export class PointerDownEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -405,11 +406,6 @@ export class PointerDownEvent extends PointerEvent {
       throw new Error(`PointerDownEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -420,6 +416,11 @@ export class PointerDownEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -546,9 +547,6 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -556,6 +554,9 @@ export class PointerDownEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -607,15 +608,15 @@ export class PointerDownEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -702,14 +703,14 @@ export class PointerDownEvent extends PointerEvent {
     objectValue["1"] = 2000101;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -767,11 +768,6 @@ export class PointerDownEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -781,6 +777,11 @@ export class PointerDownEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -819,10 +820,10 @@ export class PointerDownEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -865,14 +866,14 @@ export class PointerDownEvent extends PointerEvent {
     const objectProto: Partial<PointerDownEventProto> = { metatype: 2000101 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -954,16 +955,6 @@ export class PointerDownEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -979,6 +970,16 @@ export class PointerDownEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1085,18 +1086,6 @@ export class PointerUpEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1119,6 +1108,18 @@ export class PointerUpEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -1241,9 +1242,9 @@ export class PointerUpEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -1300,11 +1301,6 @@ export class PointerUpEvent extends PointerEvent {
       throw new Error(`PointerUpEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1315,6 +1311,11 @@ export class PointerUpEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1441,9 +1442,6 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -1451,6 +1449,9 @@ export class PointerUpEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -1502,15 +1503,15 @@ export class PointerUpEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1597,14 +1598,14 @@ export class PointerUpEvent extends PointerEvent {
     objectValue["1"] = 2000102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -1662,11 +1663,6 @@ export class PointerUpEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1676,6 +1672,11 @@ export class PointerUpEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -1714,10 +1715,10 @@ export class PointerUpEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -1754,14 +1755,14 @@ export class PointerUpEvent extends PointerEvent {
     const objectProto: Partial<PointerUpEventProto> = { metatype: 2000102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -1843,16 +1844,6 @@ export class PointerUpEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1868,6 +1859,16 @@ export class PointerUpEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1968,18 +1969,6 @@ export class PointerMoveEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2002,6 +1991,18 @@ export class PointerMoveEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -2124,9 +2125,9 @@ export class PointerMoveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -2183,11 +2184,6 @@ export class PointerMoveEvent extends PointerEvent {
       throw new Error(`PointerMoveEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2198,6 +2194,11 @@ export class PointerMoveEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2324,9 +2325,6 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -2334,6 +2332,9 @@ export class PointerMoveEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -2385,15 +2386,15 @@ export class PointerMoveEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2480,14 +2481,14 @@ export class PointerMoveEvent extends PointerEvent {
     objectValue["1"] = 2000103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -2545,11 +2546,6 @@ export class PointerMoveEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -2559,6 +2555,11 @@ export class PointerMoveEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2597,10 +2598,10 @@ export class PointerMoveEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2643,14 +2644,14 @@ export class PointerMoveEvent extends PointerEvent {
     const objectProto: Partial<PointerMoveEventProto> = { metatype: 2000103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2732,16 +2733,6 @@ export class PointerMoveEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -2757,6 +2748,16 @@ export class PointerMoveEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2863,18 +2864,6 @@ export class PointerEnterEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2897,6 +2886,18 @@ export class PointerEnterEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -3019,9 +3020,9 @@ export class PointerEnterEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -3078,11 +3079,6 @@ export class PointerEnterEvent extends PointerEvent {
       throw new Error(`PointerEnterEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -3093,6 +3089,11 @@ export class PointerEnterEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -3219,9 +3220,6 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -3229,6 +3227,9 @@ export class PointerEnterEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -3280,15 +3281,15 @@ export class PointerEnterEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3375,14 +3376,14 @@ export class PointerEnterEvent extends PointerEvent {
     objectValue["1"] = 2000104;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -3440,11 +3441,6 @@ export class PointerEnterEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3454,6 +3450,11 @@ export class PointerEnterEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -3492,10 +3493,10 @@ export class PointerEnterEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -3538,14 +3539,14 @@ export class PointerEnterEvent extends PointerEvent {
     const objectProto: Partial<PointerEnterEventProto> = { metatype: 2000104 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -3627,16 +3628,6 @@ export class PointerEnterEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -3652,6 +3643,16 @@ export class PointerEnterEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3758,18 +3759,6 @@ export class PointerOverEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -3792,6 +3781,18 @@ export class PointerOverEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -3914,9 +3915,9 @@ export class PointerOverEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -3973,11 +3974,6 @@ export class PointerOverEvent extends PointerEvent {
       throw new Error(`PointerOverEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -3988,6 +3984,11 @@ export class PointerOverEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -4114,9 +4115,6 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -4124,6 +4122,9 @@ export class PointerOverEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -4175,15 +4176,15 @@ export class PointerOverEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -4270,14 +4271,14 @@ export class PointerOverEvent extends PointerEvent {
     objectValue["1"] = 2000105;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -4335,11 +4336,6 @@ export class PointerOverEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -4349,6 +4345,11 @@ export class PointerOverEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -4387,10 +4388,10 @@ export class PointerOverEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -4433,14 +4434,14 @@ export class PointerOverEvent extends PointerEvent {
     const objectProto: Partial<PointerOverEventProto> = { metatype: 2000105 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -4522,16 +4523,6 @@ export class PointerOverEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -4547,6 +4538,16 @@ export class PointerOverEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -4653,18 +4654,6 @@ export class PointerLeaveEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -4687,6 +4676,18 @@ export class PointerLeaveEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -4809,9 +4810,9 @@ export class PointerLeaveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -4868,11 +4869,6 @@ export class PointerLeaveEvent extends PointerEvent {
       throw new Error(`PointerLeaveEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -4883,6 +4879,11 @@ export class PointerLeaveEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -5009,9 +5010,6 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -5019,6 +5017,9 @@ export class PointerLeaveEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -5070,15 +5071,15 @@ export class PointerLeaveEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -5165,14 +5166,14 @@ export class PointerLeaveEvent extends PointerEvent {
     objectValue["1"] = 2000106;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -5230,11 +5231,6 @@ export class PointerLeaveEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -5244,6 +5240,11 @@ export class PointerLeaveEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -5282,10 +5283,10 @@ export class PointerLeaveEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -5328,14 +5329,14 @@ export class PointerLeaveEvent extends PointerEvent {
     const objectProto: Partial<PointerLeaveEventProto> = { metatype: 2000106 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -5417,16 +5418,6 @@ export class PointerLeaveEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -5442,6 +5433,16 @@ export class PointerLeaveEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -5548,18 +5549,6 @@ export class PointerLongPressEvent extends PointerEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -5582,6 +5571,18 @@ export class PointerLongPressEvent extends PointerEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -5704,9 +5705,9 @@ export class PointerLongPressEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -5763,11 +5764,6 @@ export class PointerLongPressEvent extends PointerEvent {
       throw new Error(`PointerLongPressEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -5778,6 +5774,11 @@ export class PointerLongPressEvent extends PointerEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -5904,9 +5905,6 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -5914,6 +5912,9 @@ export class PointerLongPressEvent extends PointerEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -5965,15 +5966,15 @@ export class PointerLongPressEvent extends PointerEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -6060,14 +6061,14 @@ export class PointerLongPressEvent extends PointerEvent {
     objectValue["1"] = 2000107;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -6125,11 +6126,6 @@ export class PointerLongPressEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -6139,6 +6135,11 @@ export class PointerLongPressEvent extends PointerEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -6177,10 +6178,10 @@ export class PointerLongPressEvent extends PointerEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -6223,14 +6224,14 @@ export class PointerLongPressEvent extends PointerEvent {
     const objectProto: Partial<PointerLongPressEventProto> = { metatype: 2000107 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -6312,16 +6313,6 @@ export class PointerLongPressEvent extends PointerEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -6337,6 +6328,16 @@ export class PointerLongPressEvent extends PointerEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,

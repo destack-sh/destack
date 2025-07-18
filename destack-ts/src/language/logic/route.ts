@@ -5,10 +5,10 @@ import type {
   Materialization,
   NodeReference,
   Snapshot,
+  Space,
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:710000 ==== */
@@ -36,6 +36,12 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   declare readonly materialization: Materialization;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
@@ -46,6 +52,12 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
    */
   abstract get precededBy(): Route | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -81,6 +93,8 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

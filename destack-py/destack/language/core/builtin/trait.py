@@ -2,7 +2,6 @@ from typing import (
     TYPE_CHECKING,
     ClassVar,
     Optional,
-    Union,
     cast,
     dataclass_transform,
 )
@@ -28,7 +27,6 @@ if TYPE_CHECKING:
     from destack.language import (
         ActionDefinition,
         ConstraintDefinition,
-        Entity,
         IndexDefinition,
         MethodDefinition,
         Node,
@@ -289,17 +287,6 @@ class IsScriptable(IsCustomizable):
 class IsExtensible(IsScriptable):
     """A Node that be customized andextended by custom Nodes (i.e. used as a base type)."""
 
-    definition: Union["Entity", None] = builtin_property(
-        6,
-        is_managed=True,
-        is_readonly=True,
-        description="The definition this CustomEntity is an instance of.",
-    )
-    # inherits?
-    # base_traits/base_trait_types?
-    if TYPE_CHECKING:
-        definition_ptr: Optional[NodeReference] = None
-
     is_extensible: bool = builtin_property(
         90,
         default=False,
@@ -307,12 +294,8 @@ class IsExtensible(IsScriptable):
         is_readonly=True,
         description="Whether this Node is extensible (whether it can be instanced).",
     )
+    # traits?
     # is_trait? is_abstract?
-
-    @property
-    def is_custom(self) -> bool:
-        """Whether this Node is a custom Node."""
-        return self.definition is not None
 
 
 @builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)

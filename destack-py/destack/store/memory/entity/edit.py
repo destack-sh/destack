@@ -185,8 +185,6 @@ def _execute_edit(
             elif edit.operation == EditOperation.SET:
                 assert edit.value is not None, f"no value for {edit!r}"
                 row.value[str(prop.id)] = edit.value.value
-            elif edit.operation == EditOperation.CLEAR:
-                row.value.pop(str(prop.id), None)
             else:
                 raise RuntimeError(f"unsupported operation: {edit!r}")
 

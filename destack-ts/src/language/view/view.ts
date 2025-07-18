@@ -1,5 +1,4 @@
 import type {
-  Dimension,
   EventStatus,
   IsActor,
   IsExtensible,
@@ -7,14 +6,15 @@ import type {
   IsViewable,
   Materialization,
   NodeReference,
-  Position,
   Snapshot,
+  Space,
   Value,
 } from "@destack/language/core";
 import { Entity, Event, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Client, Space } from "@destack/language/universe";
+import type { Client } from "@destack/language/universe";
+import type { Dimension, Position } from "@destack/language/view/common";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:1800001 ==== */
@@ -41,6 +41,12 @@ export abstract class ViewEvent extends Event {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -117,15 +123,15 @@ export abstract class View extends Entity implements IsViewable, IsExtensible, I
   declare readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -138,6 +144,12 @@ export abstract class View extends Entity implements IsViewable, IsExtensible, I
    */
   abstract get precededBy(): View | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -173,6 +185,8 @@ export abstract class View extends Entity implements IsViewable, IsExtensible, I
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

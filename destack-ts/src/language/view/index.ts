@@ -1,3 +1,4 @@
+export * from "@destack/language/view/common";
 export * from "@destack/language/view/container";
 export * from "@destack/language/view/content";
 export * from "@destack/language/view/frame";

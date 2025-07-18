@@ -1,16 +1,15 @@
 import type {
-  Dimension,
   IsActor,
   Materialization,
   NodeReference,
-  Position,
   Snapshot,
+  Space,
   Value,
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
+import type { Dimension, Position } from "@destack/language/view/common";
 import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
@@ -34,15 +33,15 @@ export abstract class InputView extends View {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -55,6 +54,12 @@ export abstract class InputView extends View {
    */
   abstract get precededBy(): InputView | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -90,6 +95,8 @@ export abstract class InputView extends View {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

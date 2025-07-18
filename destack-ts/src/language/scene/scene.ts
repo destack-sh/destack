@@ -13,6 +13,7 @@ import type {
   QueryConnection,
   Session,
   Snapshot,
+  Space,
   Supergraph,
   Value,
 } from "@destack/language/core";
@@ -28,7 +29,7 @@ import {
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Client, Space } from "@destack/language/universe";
+import type { Client } from "@destack/language/universe";
 import type { ContainerView } from "@destack/language/view";
 import { MaterializationProto, SceneProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -59,6 +60,12 @@ export abstract class SceneEvent extends Event {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -147,6 +154,11 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
   readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   get definition(): Entity | null {
@@ -157,11 +169,6 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     return null;
   }
   readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -186,6 +193,18 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  get instantiationRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -233,6 +252,8 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -388,10 +409,11 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     id?: string;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     materialization?: Materialization;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Scene | NodeReference | null;
+    instantiationRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -454,19 +476,19 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       throw new Error(`Scene.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.ROOT */;
+      _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`Scene.materialization is required`);
     }
     this.materialization = _materialization;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -487,6 +509,11 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _instantiationRoot = options.instantiationRoot ?? null;
+    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
+      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    }
+    this.instantiationRootPtr = _instantiationRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -590,16 +617,10 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
-      return false;
-    }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -638,16 +659,12 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -733,13 +750,16 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     objectValue["10"] = object.materialization;
-    objectValue["11"] = object.snapshotPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["11"] = object.definitionPtr.toValue();
+    }
+    objectValue["12"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectValue["13"] = object.precededByPtr.toValue();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectValue["15"] = object.instantiationRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -804,20 +824,31 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const definitionPtrValue = objectValue["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["13"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instantiationRootPtrValue = objectValue["15"];
+    const unpackedInstantiationRootPtr =
+      instantiationRootPtrValue != undefined
+        ? _NodeReference.fromValue(
+            instantiationRootPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -856,18 +887,19 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       icon: unpackedIcon,
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["31"],
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
       snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+        objectValue["12"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
+      instantiationRoot: unpackedInstantiationRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -907,13 +939,16 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -997,16 +1032,6 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
             )
           : null,
       orderKey: objectProto.orderKey,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
@@ -1019,6 +1044,16 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -1030,6 +1065,16 @@ export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, I
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instantiationRoot:
+        objectProto.instantiationRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instantiationRootPtr!,
               _session,
               _supergraph,
               _graph,

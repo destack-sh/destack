@@ -79,8 +79,6 @@ import type {
   Materialization,
   Record,
   Resource,
-  Snapshot,
-  SnapshotStatus,
   Tag,
   Tagging,
   Variant,
@@ -171,8 +169,15 @@ import type {
   SortMode,
   SortType,
 } from "@destack/language/core/common/query";
+import type { Space, SpaceStatus } from "@destack/language/core/common/space";
 import type { CustomStruct, Datum, DatumMutable } from "@destack/language/core/common/struct";
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
+import type {
+  Branch,
+  Snapshot,
+  SnapshotStatus,
+  SnapshotType,
+} from "@destack/language/core/common/time";
 import type {
   CollectionConstraint,
   NodeConstraint,
@@ -183,36 +188,6 @@ import type {
   Type,
 } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
-import type {
-  Vector,
-  Vector2f,
-  Vector2i,
-  Vector3f,
-  Vector3i,
-  Vector4f,
-  Vector4i,
-  Vectorf,
-  Vectori,
-} from "@destack/language/core/common/vector";
-import type {
-  Align,
-  Axis2,
-  Axis3,
-  Corners,
-  Dimension,
-  DimensionType,
-  Direction,
-  Distribute,
-  Grid,
-  GridSpan,
-  Insets,
-  Layout,
-  Length,
-  LengthUnit,
-  Overflow,
-  Position,
-  PositionType,
-} from "@destack/language/core/common/view";
 import type {
   File,
   FileFormat,
@@ -236,6 +211,17 @@ import type {
   RunStopRequestedEvent,
 } from "@destack/language/deployment/run";
 import type { SpanEvent } from "@destack/language/deployment/span";
+import type {
+  Vector,
+  Vector2f,
+  Vector2i,
+  Vector3f,
+  Vector3i,
+  Vector4f,
+  Vector4i,
+  Vectorf,
+  Vectori,
+} from "@destack/language/geometry/vector";
 import type {
   Database,
   DatabaseInfo,
@@ -351,7 +337,6 @@ import type {
   StarEvent,
   StarRemovedEvent,
 } from "@destack/language/social/star";
-import type { Branch } from "@destack/language/space/branch";
 import type { Folder, FolderType } from "@destack/language/space/folder";
 import type { Border, BorderStyle, BorderType } from "@destack/language/style/border";
 import type {
@@ -420,9 +405,27 @@ import type {
 import type { Client } from "@destack/language/universe/client";
 import type { Handle } from "@destack/language/universe/handle";
 import type { Organization, OrganizationStatus } from "@destack/language/universe/organization";
-import type { Space, SpaceStatus } from "@destack/language/universe/space";
 import type { Team } from "@destack/language/universe/team";
 import type { User, UserStatus } from "@destack/language/universe/user";
+import type {
+  Align,
+  Axis2,
+  Axis3,
+  Corners,
+  Dimension,
+  DimensionType,
+  Direction,
+  Distribute,
+  Grid,
+  GridSpan,
+  Insets,
+  Layout,
+  Length,
+  LengthUnit,
+  Overflow,
+  Position,
+  PositionType,
+} from "@destack/language/view/common";
 import type { ContainerView } from "@destack/language/view/container";
 import type { ContentView } from "@destack/language/view/content";
 import type { FrameView } from "@destack/language/view/frame";
@@ -440,7 +443,6 @@ export type NodeTypeMapping = {
   [NodeType.ENTITY]: Entity;
   [NodeType.RECORD]: Record;
   [NodeType.RESOURCE]: Resource;
-  [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.VARIANT]: Variant;
   [NodeType.TAG]: Tag;
   [NodeType.TAGGING]: Tagging;
@@ -458,7 +460,10 @@ export type NodeTypeMapping = {
   [NodeType.MIGRATION_OPERATION]: MigrationOperation;
   [NodeType.PERMISSION]: Permission;
   [NodeType.CUSTOM_PROPERTY]: CustomProperty;
+  [NodeType.SPACE]: Space;
   [NodeType.CUSTOM_STRUCT]: CustomStruct;
+  [NodeType.BRANCH]: Branch;
+  [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.ENTITLEMENT_EVENT]: EntitlementEvent;
   [NodeType.ENTITLEMENT_REQUESTED_EVENT]: EntitlementRequestedEvent;
   [NodeType.ENTITLEMENT_GRANTED_EVENT]: EntitlementGrantedEvent;
@@ -595,7 +600,6 @@ export type NodeTypeMapping = {
   [NodeType.STAR_EVENT]: StarEvent;
   [NodeType.STAR_ADDED_EVENT]: StarAddedEvent;
   [NodeType.STAR_REMOVED_EVENT]: StarRemovedEvent;
-  [NodeType.BRANCH]: Branch;
   [NodeType.FOLDER]: Folder;
   [NodeType.STYLE]: Style;
   [NodeType.COLOR_STYLE]: ColorStyle;
@@ -612,7 +616,6 @@ export type NodeTypeMapping = {
   [NodeType.CLIENT]: Client;
   [NodeType.HANDLE]: Handle;
   [NodeType.ORGANIZATION]: Organization;
-  [NodeType.SPACE]: Space;
   [NodeType.TEAM]: Team;
   [NodeType.USER]: User;
 };
@@ -680,15 +683,6 @@ export type StructTypeMapping = {
   [StructType.DATUM_MUTABLE]: DatumMutable;
   [StructType.TEXT_SPAN]: TextSpan;
   [StructType.TEXT]: Text;
-  [StructType.VECTOR]: Vector;
-  [StructType.VECTORF]: Vectorf;
-  [StructType.VECTORI]: Vectori;
-  [StructType.VECTOR2F]: Vector2f;
-  [StructType.VECTOR3F]: Vector3f;
-  [StructType.VECTOR4F]: Vector4f;
-  [StructType.VECTOR2I]: Vector2i;
-  [StructType.VECTOR3I]: Vector3i;
-  [StructType.VECTOR4I]: Vector4i;
   [StructType.LENGTH]: Length;
   [StructType.POSITION]: Position;
   [StructType.DIMENSION]: Dimension;
@@ -700,6 +694,15 @@ export type StructTypeMapping = {
   [StructType.GRID_SPAN]: GridSpan;
   [StructType.ARROW]: Arrow;
   [StructType.LINE]: Line;
+  [StructType.VECTOR]: Vector;
+  [StructType.VECTORF]: Vectorf;
+  [StructType.VECTORI]: Vectori;
+  [StructType.VECTOR2F]: Vector2f;
+  [StructType.VECTOR3F]: Vector3f;
+  [StructType.VECTOR4F]: Vector4f;
+  [StructType.VECTOR2I]: Vector2i;
+  [StructType.VECTOR3I]: Vector3i;
+  [StructType.VECTOR4I]: Vector4i;
   [StructType.DATABASE_INFO]: DatabaseInfo;
   [StructType.SCHEDULE]: Schedule;
   [StructType.COLOR]: Color;
@@ -749,7 +752,6 @@ export type EnumTypeMapping = {
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
   [EnumType.MATERIALIZATION]: Materialization;
-  [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
   [EnumType.STRUCT_DEFINITION_TYPE]: StructDefinitionType;
@@ -773,7 +775,12 @@ export type EnumTypeMapping = {
   [EnumType.JOIN_TYPE]: JoinType;
   [EnumType.QUERY_TYPE]: QueryType;
   [EnumType.QUERY_UPDATE_TYPE]: QueryUpdateType;
+  [EnumType.SPACE_STATUS]: SpaceStatus;
   [EnumType.TEXT_SPAN_TYPE]: TextSpanType;
+  [EnumType.SNAPSHOT_TYPE]: SnapshotType;
+  [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
+  [EnumType.ENTITLEMENT_TYPE]: EntitlementType;
+  [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.LAYOUT]: Layout;
   [EnumType.OVERFLOW]: Overflow;
   [EnumType.DIRECTION]: Direction;
@@ -782,8 +789,6 @@ export type EnumTypeMapping = {
   [EnumType.LENGTH_UNIT]: LengthUnit;
   [EnumType.POSITION_TYPE]: PositionType;
   [EnumType.DIMENSION_TYPE]: DimensionType;
-  [EnumType.ENTITLEMENT_TYPE]: EntitlementType;
-  [EnumType.SANCTION_TYPE]: SanctionType;
   [EnumType.ARROW_HEAD_TYPE]: ArrowHeadType;
   [EnumType.FILE_SOURCE]: FileSource;
   [EnumType.FILE_RETENTION_MODE]: FileRetentionMode;
@@ -832,6 +837,5 @@ export type EnumTypeMapping = {
   [EnumType.SHADOW_POSITION]: ShadowPosition;
   [EnumType.STROKE_TYPE]: StrokeType;
   [EnumType.ORGANIZATION_STATUS]: OrganizationStatus;
-  [EnumType.SPACE_STATUS]: SpaceStatus;
   [EnumType.USER_STATUS]: UserStatus;
 };

@@ -1,41 +1,30 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { Shape } from "@destack/language/canvas/shape";
 import type {
-  Axis2,
-  Axis3,
-  Corners,
-  Dimension,
   Graph,
-  Grid,
-  GridSpan,
-  Insets,
   IsActor,
   NodeClass,
   NodeReference,
-  Position,
   QueryConnection,
   Session,
   Snapshot,
+  Space,
   Supergraph,
   Value,
-  Vector2f,
 } from "@destack/language/core";
 import {
   ACTIVE_SNAPSHOT,
   ACTIVE_SPACE,
-  Align,
-  Direction,
-  Distribute,
   Entity,
   EnumType,
   Event,
-  Layout,
   Materialization,
   Node,
   NodeType,
   StructFrozen,
   StructType,
 } from "@destack/language/core";
+import type { Vector2f } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -44,7 +33,17 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
-import type { Space } from "@destack/language/universe";
+import type {
+  Axis2,
+  Axis3,
+  Corners,
+  Dimension,
+  Grid,
+  GridSpan,
+  Insets,
+  Position,
+} from "@destack/language/view";
+import { Align, Direction, Distribute, Layout } from "@destack/language/view";
 import {
   AlignProto,
   ArrowHeadTypeProto,
@@ -335,6 +334,11 @@ export class ArrowShape extends Shape {
   readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   get definition(): Entity | null {
@@ -345,11 +349,6 @@ export class ArrowShape extends Shape {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -374,6 +373,18 @@ export class ArrowShape extends Shape {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  get instantiationRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -421,6 +432,8 @@ export class ArrowShape extends Shape {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -1024,10 +1037,11 @@ export class ArrowShape extends Shape {
     id?: string;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     materialization?: Materialization;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference;
     precededBy?: ArrowShape | NodeReference | null;
+    instantiationRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -1120,19 +1134,19 @@ export class ArrowShape extends Shape {
       throw new Error(`ArrowShape.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.ROOT */;
+      _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`ArrowShape.materialization is required`);
     }
     this.materialization = _materialization;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1153,6 +1167,11 @@ export class ArrowShape extends Shape {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _instantiationRoot = options.instantiationRoot ?? null;
+    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
+      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    }
+    this.instantiationRootPtr = _instantiationRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -1477,9 +1496,6 @@ export class ArrowShape extends Shape {
     ) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -1489,10 +1505,7 @@ export class ArrowShape extends Shape {
     if (!(this._key === other._key)) {
       return false;
     }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
-      return false;
-    }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -1606,9 +1619,6 @@ export class ArrowShape extends Shape {
     if (this._maxHeight != null) {
       h = (h * 31 + this._maxHeight.hash()) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.sourcePtr != null) {
       h = (h * 31 + hashString(this.sourcePtr.id)) & 0xffffffff;
@@ -1619,9 +1629,8 @@ export class ArrowShape extends Shape {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1708,13 +1717,16 @@ export class ArrowShape extends Shape {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     objectValue["10"] = object.materialization;
-    objectValue["11"] = object.snapshotPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["11"] = object.definitionPtr.toValue();
+    }
+    objectValue["12"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectValue["13"] = object.precededByPtr.toValue();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectValue["15"] = object.instantiationRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -1966,11 +1978,6 @@ export class ArrowShape extends Shape {
       maxHeightValue != undefined
         ? _Dimension.fromValue(maxHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const sourcePtrValue = objectValue["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
@@ -1983,10 +1990,26 @@ export class ArrowShape extends Shape {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const definitionPtrValue = objectValue["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["13"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instantiationRootPtrValue = objectValue["15"];
+    const unpackedInstantiationRootPtr =
+      instantiationRootPtrValue != undefined
+        ? _NodeReference.fromValue(
+            instantiationRootPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2052,20 +2075,21 @@ export class ArrowShape extends Shape {
       minHeight: unpackedMinHeight,
       maxWidth: unpackedMaxWidth,
       maxHeight: unpackedMaxHeight,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
       snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+        objectValue["12"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
+      instantiationRoot: unpackedInstantiationRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2106,13 +2130,16 @@ export class ArrowShape extends Shape {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2352,16 +2379,6 @@ export class ArrowShape extends Shape {
         objectProto.maxHeight != undefined
           ? _Dimension.fromProto(objectProto.maxHeight!, _session, _supergraph, _graph, _connection)
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       source:
         objectProto.sourcePtr != undefined
@@ -2385,6 +2402,16 @@ export class ArrowShape extends Shape {
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -2396,6 +2423,16 @@ export class ArrowShape extends Shape {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instantiationRoot:
+        objectProto.instantiationRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instantiationRootPtr!,
               _session,
               _supergraph,
               _graph,

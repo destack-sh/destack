@@ -1,7 +1,7 @@
 from collections.abc import Iterator
 from typing import TYPE_CHECKING
 
-from ..builtin import (
+from destack.language.core import (
     StructFrozen,
     StructType,
     builtin_property,

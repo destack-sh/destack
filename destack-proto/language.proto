@@ -241,7 +241,7 @@ enum EdgeDirectionProto {
   EDGE_DIRECTION_UNSPECIFIED = 0;
   EDGE_DIRECTION_PARENT = 1;
   EDGE_DIRECTION_CHILD = 2;
-  EDGE_DIRECTION_SIDE = 3;
+  EDGE_DIRECTION_SIDE = 20;
 }
 
 enum EdgeTypeProto {
@@ -254,7 +254,6 @@ enum EdgeTypeProto {
 enum EditOperationProto {
   EDIT_OPERATION_UNSPECIFIED = 0;
   EDIT_OPERATION_SET = 1;
-  EDIT_OPERATION_CLEAR = 2;
 }
 
 // The type of Edit.
@@ -262,10 +261,10 @@ enum EditTypeProto {
   EDIT_TYPE_UNSPECIFIED = 0;
   EDIT_TYPE_CREATE = 1;
   EDIT_TYPE_UPSERT = 2;
-  EDIT_TYPE_UPDATE = 3;
-  EDIT_TYPE_MOVE = 4;
-  EDIT_TYPE_DELETE = 7;
-  EDIT_TYPE_RESTORE = 8;
+  EDIT_TYPE_UPDATE = 10;
+  EDIT_TYPE_MOVE = 11;
+  EDIT_TYPE_DELETE = 20;
+  EDIT_TYPE_RESTORE = 21;
 }
 
 // When the effect fires.
@@ -329,6 +328,7 @@ enum EnumTypeProto {
   ENUM_TYPE_QUERY_TYPE = 320;
   ENUM_TYPE_QUERY_UPDATE_TYPE = 321;
   ENUM_TYPE_RESOURCE_STATUS = 10100;
+  ENUM_TYPE_SNAPSHOT_TYPE = 10300;
   ENUM_TYPE_SNAPSHOT_STATUS = 10301;
   ENUM_TYPE_INDEX_TYPE = 30100;
   ENUM_TYPE_CONSTRAINT_TYPE = 30200;
@@ -713,9 +713,9 @@ enum MachineTypeProto {
 // The materialization level of an Entity.
 enum MaterializationProto {
   MATERIALIZATION_UNSPECIFIED = 0;
-  MATERIALIZATION_INSTANCE = 1;
-  MATERIALIZATION_COPY = 2;
-  MATERIALIZATION_ROOT = 3;
+  MATERIALIZATION_PARTIAL = 1;
+  MATERIALIZATION_FULL = 10;
+  MATERIALIZATION_ROOT = 11;
 }
 
 enum MethodCardinalityProto {
@@ -787,14 +787,16 @@ enum NodeTypeProto {
   NODE_TYPE_NODE = 1;
   NODE_TYPE_ENTITY = 2;
   NODE_TYPE_EVENT = 3;
-  NODE_TYPE_RECORD = 10000;
-  NODE_TYPE_RESOURCE = 10100;
-  NODE_TYPE_METRIC = 10200;
-  NODE_TYPE_SNAPSHOT = 10300;
-  NODE_TYPE_SERVICE = 10400;
-  NODE_TYPE_VARIANT = 10500;
-  NODE_TYPE_TAG = 10600;
-  NODE_TYPE_TAGGING = 10700;
+  NODE_TYPE_SPACE = 10000;
+  NODE_TYPE_SNAPSHOT = 11000;
+  NODE_TYPE_BRANCH = 11100;
+  NODE_TYPE_RECORD = 12000;
+  NODE_TYPE_RESOURCE = 12100;
+  NODE_TYPE_METRIC = 12200;
+  NODE_TYPE_SERVICE = 12400;
+  NODE_TYPE_VARIANT = 12500;
+  NODE_TYPE_TAG = 12600;
+  NODE_TYPE_TAGGING = 12700;
   NODE_TYPE_CUSTOM_EVENT = 20000;
   NODE_TYPE_CUSTOM_STRUCT = 20100;
   NODE_TYPE_CUSTOM_ENUM = 20200;
@@ -810,14 +812,12 @@ enum NodeTypeProto {
   NODE_TYPE_SIGNAL = 50000;
   NODE_TYPE_EDIT_EVENT = 50100;
   NODE_TYPE_MEASUREMENT_EVENT = 50200;
-  NODE_TYPE_SPACE = 100100;
   NODE_TYPE_HANDLE = 100200;
   NODE_TYPE_USER = 121000;
   NODE_TYPE_CLIENT = 121300;
   NODE_TYPE_ORGANIZATION = 122000;
   NODE_TYPE_TEAM = 122100;
   NODE_TYPE_FOLDER = 240000;
-  NODE_TYPE_BRANCH = 245000;
   NODE_TYPE_MEMBERSHIP = 360000;
   NODE_TYPE_MEMBERSHIP_EVENT = 360001;
   NODE_TYPE_MEMBERSHIP_JOINED_EVENT = 360002;
@@ -1227,7 +1227,15 @@ enum SnapshotStatusProto {
   SNAPSHOT_STATUS_UNSPECIFIED = 0;
   SNAPSHOT_STATUS_CREATING = 1;
   SNAPSHOT_STATUS_ACTIVE = 10;
-  SNAPSHOT_STATUS_READONLY = 50;
+  SNAPSHOT_STATUS_PASSIVE = 50;
+}
+
+// The type of a Snapshot.
+enum SnapshotTypeProto {
+  SNAPSHOT_TYPE_UNSPECIFIED = 0;
+  SNAPSHOT_TYPE_PARTIAL = 1;
+  SNAPSHOT_TYPE_FULL = 10;
+  SNAPSHOT_TYPE_ROOT = 11;
 }
 
 enum SortModeProto {
@@ -1560,8 +1568,10 @@ message ActionProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1600,10 +1610,11 @@ message AnnotationShapeProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1662,10 +1673,11 @@ message ArrowShapeProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1742,10 +1754,11 @@ message BorderStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1771,8 +1784,10 @@ message BranchProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1799,9 +1814,9 @@ message ClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1830,8 +1845,10 @@ message ClientProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1859,9 +1876,9 @@ message ClipboardEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1901,10 +1918,11 @@ message ColorStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1950,8 +1968,10 @@ message ConstraintProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -1981,10 +2001,11 @@ message ContainerViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2033,10 +2054,11 @@ message ContentViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2068,9 +2090,9 @@ message CopyEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2102,6 +2124,7 @@ message CounterMeasurementEventProto {
   NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2120,8 +2143,10 @@ message CounterMetricProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2143,8 +2168,10 @@ message CursorProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2165,8 +2192,10 @@ message CustomEnumProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2189,8 +2218,10 @@ message CustomEventProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2215,8 +2246,10 @@ message CustomOptionProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2238,8 +2271,9 @@ message CustomPropertyProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2283,8 +2317,10 @@ message CustomStructProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2307,9 +2343,9 @@ message CutEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2330,10 +2366,11 @@ message DatabaseProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2392,9 +2429,9 @@ message DoubleClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2421,9 +2458,9 @@ message DragEndEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2444,9 +2481,9 @@ message DragEnterEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2467,9 +2504,9 @@ message DragEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2490,9 +2527,9 @@ message DragLeaveEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2513,9 +2550,9 @@ message DragOverEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2536,9 +2573,9 @@ message DragStartEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2559,9 +2596,9 @@ message DropEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2584,6 +2621,7 @@ message EditEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2629,10 +2667,11 @@ message EffectStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2669,8 +2708,10 @@ message EntitlementProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2690,6 +2731,7 @@ message EntitlementEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2708,6 +2750,7 @@ message EntitlementExpiredEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2726,6 +2769,7 @@ message EntitlementGrantedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2744,6 +2788,7 @@ message EntitlementRequestedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2762,6 +2807,7 @@ message EntitlementRevokedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2774,16 +2820,24 @@ message EntitlementRevokedEventProto {
   NodeReferenceProto target_ptr = 110;
 }
 
-// An Entity is a named, versioned, stateful Node.
-// Most Entities can be attached to most other Entities to compose richer structures.
+// An Entity is a named, versioned, mutable Node.
+// Entities can be attached to (most) other Entities to compose richer structures.
+// 
+// Entities are always part of a Snapshot (in their Space).
+// State transition can only be caused by Events (which are immutable).
+// 
+// The specific version of an Entity is identified by an (id, snapshot_id) tuple,
+// where Snapshots are 'shortcuts' to certain epochs.
 message EntityProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2811,8 +2865,10 @@ message EnvironmentProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2832,6 +2888,7 @@ message EventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2850,8 +2907,10 @@ message EventCursorProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2882,10 +2941,11 @@ message FileProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2936,10 +2996,11 @@ message FillStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2965,9 +3026,9 @@ message FocusEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -2987,9 +3048,9 @@ message FocusInEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3009,9 +3070,9 @@ message FocusOutEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3032,10 +3093,11 @@ message FolderProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3062,8 +3124,10 @@ message FollowProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3081,6 +3145,7 @@ message FollowAddedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3098,6 +3163,7 @@ message FollowEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3115,6 +3181,7 @@ message FollowRemovedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3146,10 +3213,11 @@ message FontStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3179,10 +3247,11 @@ message FrameViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3240,6 +3309,7 @@ message GaugeMeasurementEventProto {
   NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3258,8 +3328,10 @@ message GaugeMetricProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3295,10 +3367,11 @@ message GradientStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3340,8 +3413,10 @@ message HandleProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3367,6 +3442,7 @@ message HistogramMeasurementEventProto {
   NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3385,8 +3461,10 @@ message HistogramMetricProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3419,8 +3497,10 @@ message IndexProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3449,9 +3529,9 @@ message InputEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3472,10 +3552,11 @@ message InputViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3516,10 +3597,11 @@ message InternalViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3549,10 +3631,11 @@ message InviteProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3577,6 +3660,7 @@ message InviteAcceptedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3599,6 +3683,7 @@ message InviteEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3619,6 +3704,7 @@ message InviteRejectedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3639,6 +3725,7 @@ message InviteRescindedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3659,6 +3746,7 @@ message InviteSentEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3688,9 +3776,9 @@ message KeyDownEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3718,9 +3806,9 @@ message KeyEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3748,9 +3836,9 @@ message KeyPressEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3778,9 +3866,9 @@ message KeyUpEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3809,10 +3897,11 @@ message LabelViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3862,8 +3951,10 @@ message LayerProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3904,10 +3995,11 @@ message LineShapeProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3959,6 +4051,7 @@ message LogEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -3980,10 +4073,11 @@ message MachineProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4020,6 +4114,7 @@ message MeasurementEventProto {
   NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4037,10 +4132,11 @@ message MembershipProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4065,6 +4161,7 @@ message MembershipEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4085,6 +4182,7 @@ message MembershipJoinedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4107,6 +4205,7 @@ message MembershipLeftEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4128,8 +4227,10 @@ message MethodProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4163,8 +4264,10 @@ message MetricProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4186,8 +4289,10 @@ message MigrationProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4215,8 +4320,10 @@ message MigrationOperationProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4240,9 +4347,9 @@ message MouseEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4264,7 +4371,8 @@ message MouseEventProto {
   MouseButtonProto button = 130;
 }
 
-// A Node with Properties and a persistent identity.
+// A Node with some Properties and a persistent identity (its id).
+// Nodes always belong to a Space and are thus identifiable by their (space_id, id) tuple.
 message NodeProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4334,10 +4442,11 @@ message NotificationProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4362,6 +4471,7 @@ message NotificationDismissedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4380,6 +4490,7 @@ message NotificationEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4398,6 +4509,7 @@ message NotificationExpiredEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4416,6 +4528,7 @@ message NotificationReadEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4434,6 +4547,7 @@ message NotificationRescindedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4452,6 +4566,7 @@ message NotificationSentEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4479,10 +4594,11 @@ message NumberInputViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4535,8 +4651,10 @@ message OrganizationProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4558,10 +4676,11 @@ message PaletteProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4582,9 +4701,9 @@ message PasteEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4606,8 +4725,10 @@ message PermissionProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4634,9 +4755,9 @@ message PointerDownEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4662,9 +4783,9 @@ message PointerEnterEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4690,9 +4811,9 @@ message PointerEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4718,9 +4839,9 @@ message PointerLeaveEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4746,9 +4867,9 @@ message PointerLongPressEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4774,9 +4895,9 @@ message PointerMoveEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4802,9 +4923,9 @@ message PointerOverEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4830,9 +4951,9 @@ message PointerUpEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4967,8 +5088,10 @@ message ReactionProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -4987,6 +5110,7 @@ message ReactionAddedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5005,6 +5129,7 @@ message ReactionEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5023,6 +5148,7 @@ message ReactionRemovedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5041,10 +5167,11 @@ message RecordProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5066,10 +5193,11 @@ message ResourceProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5091,10 +5219,11 @@ message RoleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5118,6 +5247,7 @@ message RoleAssignedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5137,6 +5267,7 @@ message RoleEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5156,6 +5287,7 @@ message RoleUnassignedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5175,8 +5307,10 @@ message RouteProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5196,8 +5330,10 @@ message RunProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5224,6 +5360,7 @@ message RunCompletedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5243,6 +5380,7 @@ message RunEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5262,6 +5400,7 @@ message RunFailedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5281,6 +5420,7 @@ message RunPauseRequestedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5300,6 +5440,7 @@ message RunPausedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5319,6 +5460,7 @@ message RunResumeRequestedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5338,6 +5480,7 @@ message RunResumedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5357,6 +5500,7 @@ message RunStartedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5376,6 +5520,7 @@ message RunStopRequestedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5395,8 +5540,10 @@ message SanctionProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5416,6 +5563,7 @@ message SanctionEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5434,6 +5582,7 @@ message SanctionExpiredEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5452,6 +5601,7 @@ message SanctionGrantedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5470,6 +5620,7 @@ message SanctionRequestedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5488,6 +5639,7 @@ message SanctionRevokedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5506,10 +5658,11 @@ message SceneProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5534,6 +5687,7 @@ message SceneEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5572,8 +5726,10 @@ message ScreenCursorProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5595,8 +5751,10 @@ message ScriptProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5622,10 +5780,11 @@ message ServiceProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5662,10 +5821,11 @@ message ShadowStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5693,10 +5853,11 @@ message ShapeProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5748,6 +5909,7 @@ message SignalProto {
   NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5767,9 +5929,9 @@ message SingleClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5797,10 +5959,11 @@ message SliderInputViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5830,16 +5993,21 @@ message SliderInputViewProto {
   optional double step = 253;
 }
 
-// A Snapshot is a point in Space time.
-// Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
+// A Snapshot is a point in Space-time.
+// Snapshots may branch off of other Snapshots, either as a full copy or a partial override.
+// 
+// To avoid breaking the universe, Snapshots cannot themselves be part of any other Snapshot.
+// (Technically, Snapshots are part of themselves.)
 message SnapshotProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5849,6 +6017,7 @@ message SnapshotProto {
   optional google.protobuf.Timestamp deleted_at = 26;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
+  SnapshotTypeProto type = 100;
   SnapshotStatusProto status = 110;
 }
 
@@ -5866,8 +6035,10 @@ message SpaceProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5896,6 +6067,7 @@ message SpanEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5913,10 +6085,11 @@ message SplitViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5966,8 +6139,10 @@ message StageProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -5989,8 +6164,10 @@ message StarProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6008,6 +6185,7 @@ message StarAddedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6025,6 +6203,7 @@ message StarEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6042,6 +6221,7 @@ message StarRemovedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6103,10 +6283,11 @@ message StrokeStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6163,10 +6344,11 @@ message StyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6181,16 +6363,17 @@ message StyleProto {
   bool is_extensible = 90;
 }
 
-// A Tag to tag a Taggable Entity with (in a Tagging).
+// A Tag to tag an Entity with (in a Tagging).
 message TagProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6215,8 +6398,10 @@ message TaggingProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6236,8 +6421,10 @@ message TeamProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6280,10 +6467,11 @@ message TextViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6319,10 +6507,11 @@ message ThemeProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6344,8 +6533,10 @@ message TimerProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6368,6 +6559,7 @@ message TimerCancelledEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6386,6 +6578,7 @@ message TimerCompletedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6404,6 +6597,7 @@ message TimerEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6422,6 +6616,7 @@ message TimerStartedEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6472,10 +6667,11 @@ message TransitionStyleProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6506,8 +6702,10 @@ message TriggerProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6533,6 +6731,7 @@ message TriggerEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6549,9 +6748,9 @@ message TripleClickEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6601,8 +6800,10 @@ message UserProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6636,10 +6837,11 @@ message VariantProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6715,10 +6917,11 @@ message ViewProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6749,6 +6952,7 @@ message ViewEventProto {
   NodeReferenceProto space_ptr = 5;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6765,9 +6969,9 @@ message WheelEventProto {
   NodeTypeProto metatype = 1;
   string id = 2;
   NodeReferenceProto space_ptr = 5;
-  optional NodeReferenceProto definition_ptr = 6;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto caused_by_ptr = 13;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6797,8 +7001,10 @@ message WindowProto {
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
   MaterializationProto materialization = 10;
-  NodeReferenceProto snapshot_ptr = 11;
-  optional NodeReferenceProto preceded_by_ptr = 12;
+  optional NodeReferenceProto definition_ptr = 11;
+  NodeReferenceProto snapshot_ptr = 12;
+  optional NodeReferenceProto preceded_by_ptr = 13;
+  optional NodeReferenceProto instantiation_root_ptr = 15;
   google.protobuf.Timestamp created_at = 20;
   int64 created_epoch = 21 [jstype = JS_NUMBER];
   optional NodeReferenceProto created_by_ptr = 22;
@@ -6816,9 +7022,8 @@ message WindowProto {
 
 message SomeNodeProto {
   oneof node {
-    SnapshotProto snapshot = 10300;
-    TagProto tag = 10600;
-    TaggingProto tagging = 10700;
+    TagProto tag = 12600;
+    TaggingProto tagging = 12700;
     CustomEventProto custom_event = 20000;
     EditEventProto edit_event = 50100;
     MethodProto method = 32000;
@@ -6831,7 +7036,10 @@ message SomeNodeProto {
     MigrationOperationProto migration_operation = 31100;
     PermissionProto permission = 33000;
     CustomPropertyProto custom_property = 20300;
+    SpaceProto space = 10000;
     CustomStructProto custom_struct = 20100;
+    BranchProto branch = 11100;
+    SnapshotProto snapshot = 11000;
     EntitlementRequestedEventProto entitlement_requested_event = 360502;
     EntitlementGrantedEventProto entitlement_granted_event = 360503;
     EntitlementRevokedEventProto entitlement_revoked_event = 360504;
@@ -6905,7 +7113,7 @@ message SomeNodeProto {
     EventCursorProto event_cursor = 712100;
     ScreenCursorProto screen_cursor = 712200;
     ScriptProto script = 700000;
-    ServiceProto service = 10400;
+    ServiceProto service = 12400;
     TimerStartedEventProto timer_started_event = 705102;
     TimerCompletedEventProto timer_completed_event = 705103;
     TimerCancelledEventProto timer_cancelled_event = 705104;
@@ -6939,7 +7147,6 @@ message SomeNodeProto {
     StarEventProto star_event = 1400101;
     StarAddedEventProto star_added_event = 1400102;
     StarRemovedEventProto star_removed_event = 1400103;
-    BranchProto branch = 245000;
     FolderProto folder = 240000;
     ColorStyleProto color_style = 2100300;
     BorderStyleProto border_style = 2100600;
@@ -6955,7 +7162,6 @@ message SomeNodeProto {
     ClientProto client = 121300;
     HandleProto handle = 100200;
     OrganizationProto organization = 122000;
-    SpaceProto space = 100100;
     TeamProto team = 122100;
     UserProto user = 121000;
   };
@@ -6963,9 +7169,8 @@ message SomeNodeProto {
 
 message SomeEntityProto {
   oneof node {
-    SnapshotProto snapshot = 10300;
-    TagProto tag = 10600;
-    TaggingProto tagging = 10700;
+    TagProto tag = 12600;
+    TaggingProto tagging = 12700;
     CustomEventProto custom_event = 20000;
     MethodProto method = 32000;
     ActionProto action = 32100;
@@ -6977,7 +7182,10 @@ message SomeEntityProto {
     MigrationOperationProto migration_operation = 31100;
     PermissionProto permission = 33000;
     CustomPropertyProto custom_property = 20300;
+    SpaceProto space = 10000;
     CustomStructProto custom_struct = 20100;
+    BranchProto branch = 11100;
+    SnapshotProto snapshot = 11000;
     EntitlementProto entitlement = 360500;
     InviteProto invite = 360100;
     MembershipProto membership = 360000;
@@ -7000,7 +7208,7 @@ message SomeEntityProto {
     EventCursorProto event_cursor = 712100;
     ScreenCursorProto screen_cursor = 712200;
     ScriptProto script = 700000;
-    ServiceProto service = 10400;
+    ServiceProto service = 12400;
     TimerProto timer = 705100;
     TriggerProto trigger = 705000;
     GaugeMetricProto gauge_metric = 1200000;
@@ -7014,7 +7222,6 @@ message SomeEntityProto {
     NotificationProto notification = 1400500;
     ReactionProto reaction = 1400000;
     StarProto star = 1400100;
-    BranchProto branch = 245000;
     FolderProto folder = 240000;
     ColorStyleProto color_style = 2100300;
     BorderStyleProto border_style = 2100600;
@@ -7030,7 +7237,6 @@ message SomeEntityProto {
     ClientProto client = 121300;
     HandleProto handle = 100200;
     OrganizationProto organization = 122000;
-    SpaceProto space = 100100;
     TeamProto team = 122100;
     UserProto user = 121000;
   };

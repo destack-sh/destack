@@ -126,7 +126,6 @@ function optimizeEdits(options: { context: IndexedDBContext; edits: EditEvent[] 
   return optimizedEdits;
 }
 
-  
 /**
  * Get the cascaded Nodes for an Edit.
  * This is a placeholder that assumes walkNode will be implemented.
@@ -213,8 +212,6 @@ async function _executeEdit(options: {
           throw new Error(`no value for ${edit.repr()}`);
         }
         row[String(edit.propertyId)] = edit.value.value;
-      } else if (edit.operation === EditOperation.CLEAR) {
-        delete row[String(edit.propertyId)];
       } else {
         throw new Error(`unsupported operation: ${edit.repr()}`);
       }

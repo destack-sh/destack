@@ -1,14 +1,18 @@
+from typing import TYPE_CHECKING
+
 from destack.language.core import (
     Enum,
     EnumType,
     NodeType,
-    Vector2f,
     builtin_enum,
     builtin_node,
     builtin_property,
 )
 
 from .pointer import PointerEvent
+
+if TYPE_CHECKING:
+    from destack.language import Vector2f
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -61,4 +65,4 @@ class TripleClickEvent(ClickEvent):
 class WheelEvent(MouseEvent):
     """A WheelEvent is a MouseEvent when a wheel is scrolled."""
 
-    delta: Vector2f = builtin_property(140)
+    delta: "Vector2f" = builtin_property(140)

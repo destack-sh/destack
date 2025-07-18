@@ -6,7 +6,6 @@ import {
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
 import { activeSession } from "@destack/language/core/builtin/const";
-import type { Snapshot } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {
@@ -17,6 +16,7 @@ import type {
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { CustomProperty } from "@destack/language/core/common/property";
+import type { Snapshot } from "@destack/language/core/common/time";
 import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";

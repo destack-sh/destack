@@ -4,12 +4,13 @@ import type {
   IsExtensible,
   NodeReference,
   Snapshot,
+  Space,
   Value,
 } from "@destack/language/core";
 import { Entity, Event, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Client, Space } from "@destack/language/universe";
+import type { Client } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
@@ -27,12 +28,6 @@ export abstract class InputEvent extends Event implements IsExtensible {
   declare readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -43,6 +38,12 @@ export abstract class InputEvent extends Event implements IsExtensible {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).

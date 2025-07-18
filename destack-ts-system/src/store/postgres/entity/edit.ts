@@ -170,8 +170,6 @@ async function _executeEdit(options: {
           throw new Error(`no value for ${JSON.stringify(edit)}`);
         }
         valuePacked = edit.value.value;
-      } else if (edit.operation === EditOperation.CLEAR) {
-        valuePacked = null;
       } else {
         throw new Error(`unsupported operation: ${JSON.stringify(edit)}`);
       }

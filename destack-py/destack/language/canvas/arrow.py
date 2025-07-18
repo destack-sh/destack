@@ -1,10 +1,11 @@
+from typing import TYPE_CHECKING
+
 from destack.language.core import (
     Enum,
     EnumType,
     NodeType,
     StructFrozen,
     StructType,
-    Vector2f,
     builtin_enum,
     builtin_node,
     builtin_property,
@@ -12,6 +13,9 @@ from destack.language.core import (
 )
 
 from .shape import Shape
+
+if TYPE_CHECKING:
+    from destack.language import Vector2f
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -28,9 +32,9 @@ class Arrow(StructFrozen):
     """An Arrow is a shape that represents an arrow."""
 
     start_type: ArrowHeadType = builtin_property(200)
-    start: Vector2f = builtin_property(201)
+    start: "Vector2f" = builtin_property(201)
     end_type: ArrowHeadType = builtin_property(210)
-    end: Vector2f = builtin_property(211)
+    end: "Vector2f" = builtin_property(211)
 
 
 @builtin_node(NodeType.ARROW_SHAPE)
@@ -39,6 +43,6 @@ class ArrowShape(Shape):
 
     # content
     start_type: ArrowHeadType = builtin_property(200)
-    start: Vector2f = builtin_property(201)
+    start: "Vector2f" = builtin_property(201)
     end_type: ArrowHeadType = builtin_property(210)
-    end: Vector2f = builtin_property(211)
+    end: "Vector2f" = builtin_property(211)

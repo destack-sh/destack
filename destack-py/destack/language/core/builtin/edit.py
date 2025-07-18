@@ -25,11 +25,11 @@ class EditType(Enum):
 
     CREATE = 1, "Create a new Entity"
     UPSERT = 2, "Upsert an Entity (create if not exists, update if exists)"
-    UPDATE = 3, "Update an existing Entity"
-    MOVE = 4, "Move an Entity to a new parent Entity (or detach)"
-    DELETE = 7, "Delete an Entity (and its descendants)"
-    RESTORE = 8, "Restore a deleted Entity (and its descendants)"
-    # MATERIALIZE?
+    # INSTANTIATE, MATERIALIZE, ...?
+    UPDATE = 10, "Update an existing Entity"
+    MOVE = 11, "Move an Entity to a new parent Entity (or detach)"
+    DELETE = 20, "Delete an Entity (and its descendants)"
+    RESTORE = 21, "Restore a deleted Entity (and its descendants)"
 
 
 CASCADING_EDIT_TYPES: tuple[EditType, ...] = (EditType.DELETE, EditType.RESTORE)
@@ -41,8 +41,8 @@ class EditOperation(Enum):
     """The update operation to perform on a Node."""
 
     # direct
-    SET = 1, "Set a Property to a value"
-    CLEAR = 2, "Clear a Property"
+    SET = 1, "Set a Property to a value (maybe an empty value)"
+    # UNSET = 3, "Unset a Property (remove it from the override)"
 
     # collection
 
