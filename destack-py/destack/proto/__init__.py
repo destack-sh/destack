@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.18.0"
+VERSION = "2025.07.18.1"
 
 # import from all generated files
 from .health_pb2 import *
@@ -27,6 +27,8 @@ AnyNodeProto = Union[
     ResourceProto,
     SnapshotProto,
     VariantProto,
+    TagProto,
+    TaggingProto,
     EventProto,
     CustomEventProto,
     SignalProto,
@@ -180,8 +182,6 @@ AnyNodeProto = Union[
     StarRemovedEventProto,
     BranchProto,
     FolderProto,
-    TagProto,
-    TaggingProto,
     StyleProto,
     ColorStyleProto,
     BorderStyleProto,

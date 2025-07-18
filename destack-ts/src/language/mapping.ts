@@ -81,6 +81,8 @@ import type {
   Resource,
   Snapshot,
   SnapshotStatus,
+  Tag,
+  Tagging,
   Variant,
 } from "@destack/language/core/builtin/entity";
 import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
@@ -351,7 +353,6 @@ import type {
 } from "@destack/language/social/star";
 import type { Branch } from "@destack/language/space/branch";
 import type { Folder, FolderType } from "@destack/language/space/folder";
-import type { Tag, Tagging } from "@destack/language/space/tag";
 import type { Border, BorderStyle, BorderType } from "@destack/language/style/border";
 import type {
   Color,
@@ -441,6 +442,8 @@ export type NodeTypeMapping = {
   [NodeType.RESOURCE]: Resource;
   [NodeType.SNAPSHOT]: Snapshot;
   [NodeType.VARIANT]: Variant;
+  [NodeType.TAG]: Tag;
+  [NodeType.TAGGING]: Tagging;
   [NodeType.EVENT]: Event;
   [NodeType.CUSTOM_EVENT]: CustomEvent;
   [NodeType.SIGNAL]: Signal;
@@ -594,8 +597,6 @@ export type NodeTypeMapping = {
   [NodeType.STAR_REMOVED_EVENT]: StarRemovedEvent;
   [NodeType.BRANCH]: Branch;
   [NodeType.FOLDER]: Folder;
-  [NodeType.TAG]: Tag;
-  [NodeType.TAGGING]: Tagging;
   [NodeType.STYLE]: Style;
   [NodeType.COLOR_STYLE]: ColorStyle;
   [NodeType.BORDER_STYLE]: BorderStyle;

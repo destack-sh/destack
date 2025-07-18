@@ -77,6 +77,8 @@ from .entity import (
     Resource,
     Snapshot,
     SnapshotStatus,
+    Tag,
+    Tagging,
 )
 from .enum import Enum, builtin_enum
 from .event import CustomEvent, Event, EventStatus
@@ -232,6 +234,8 @@ __all__ = [
     "StructFrozen",
     "StructMutable",
     "StructType",
+    "Tag",
+    "Tagging",
     "Tenancy",
     "Trait",
     "TraitType",
