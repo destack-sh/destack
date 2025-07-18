@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Branch,
   Graph,
   IsActor,
   NodeReference,
@@ -41,6 +42,12 @@ export abstract class FocusEvent extends InputEvent {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -149,6 +156,18 @@ export class FocusInEvent extends FocusEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -277,6 +296,7 @@ export class FocusInEvent extends FocusEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -330,6 +350,11 @@ export class FocusInEvent extends FocusEvent {
       throw new Error(`FocusInEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -425,6 +450,9 @@ export class FocusInEvent extends FocusEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -476,6 +504,9 @@ export class FocusInEvent extends FocusEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -566,6 +597,9 @@ export class FocusInEvent extends FocusEvent {
     objectValue["1"] = 2000601;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -620,6 +654,11 @@ export class FocusInEvent extends FocusEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -667,6 +706,7 @@ export class FocusInEvent extends FocusEvent {
     return new FocusInEvent({
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -706,6 +746,9 @@ export class FocusInEvent extends FocusEvent {
     const objectProto: Partial<FocusInEventProto> = { metatype: 2000601 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -775,6 +818,16 @@ export class FocusInEvent extends FocusEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -899,6 +952,18 @@ export class FocusOutEvent extends FocusEvent {
   readonly spacePtr: NodeReference;
 
   /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1025,6 +1090,7 @@ export class FocusOutEvent extends FocusEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -1078,6 +1144,11 @@ export class FocusOutEvent extends FocusEvent {
       throw new Error(`FocusOutEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1173,6 +1244,9 @@ export class FocusOutEvent extends FocusEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1224,6 +1298,9 @@ export class FocusOutEvent extends FocusEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1314,6 +1391,9 @@ export class FocusOutEvent extends FocusEvent {
     objectValue["1"] = 2000602;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1368,6 +1448,11 @@ export class FocusOutEvent extends FocusEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1415,6 +1500,7 @@ export class FocusOutEvent extends FocusEvent {
     return new FocusOutEvent({
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -1454,6 +1540,9 @@ export class FocusOutEvent extends FocusEvent {
     const objectProto: Partial<FocusOutEventProto> = { metatype: 2000602 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1523,6 +1612,16 @@ export class FocusOutEvent extends FocusEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(

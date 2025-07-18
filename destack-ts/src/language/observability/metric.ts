@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Branch,
   Graph,
   Icon,
   IsActor,
@@ -69,6 +70,12 @@ export abstract class Metric extends Entity implements IsSourceable {
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -192,6 +199,12 @@ export abstract class MeasurementEvent extends Event {
   declare readonly definitionPtr: NodeReference;
 
   /**
+   * The Branch this Event originated from.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -311,6 +324,18 @@ export class GaugeMetric extends Metric {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -470,6 +495,7 @@ export class GaugeMetric extends Metric {
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: GaugeMetric | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -545,6 +571,21 @@ export class GaugeMetric extends Metric {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for GaugeMetric`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`GaugeMetric.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -760,9 +801,10 @@ export class GaugeMetric extends Metric {
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -825,7 +867,7 @@ export class GaugeMetric extends Metric {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -863,8 +905,15 @@ export class GaugeMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -914,6 +963,7 @@ export class GaugeMetric extends Metric {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -994,6 +1044,13 @@ export class GaugeMetric extends Metric {
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -1118,6 +1175,18 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
   readonly definitionPtr: NodeReference;
 
   /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1223,6 +1292,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     id?: string;
     space?: Space | NodeReference;
     definition: GaugeMetric | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -1281,6 +1351,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       throw new Error(`GaugeMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1355,6 +1430,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1392,6 +1470,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1476,6 +1557,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["6"] = object.definitionPtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1513,6 +1597,11 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     _connection?: any | null,
   ): GaugeMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1553,6 +1642,7 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -1598,6 +1688,9 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1643,6 +1736,16 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1799,6 +1902,18 @@ export class CounterMetric extends Metric {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -1958,6 +2073,7 @@ export class CounterMetric extends Metric {
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: CounterMetric | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -2033,6 +2149,21 @@ export class CounterMetric extends Metric {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for CounterMetric`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`CounterMetric.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2248,9 +2379,10 @@ export class CounterMetric extends Metric {
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -2313,7 +2445,7 @@ export class CounterMetric extends Metric {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2351,8 +2483,15 @@ export class CounterMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -2402,6 +2541,7 @@ export class CounterMetric extends Metric {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -2482,6 +2622,13 @@ export class CounterMetric extends Metric {
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -2606,6 +2753,18 @@ export class CounterMeasurementEvent extends MeasurementEvent {
   readonly definitionPtr: NodeReference;
 
   /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2711,6 +2870,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     id?: string;
     space?: Space | NodeReference;
     definition: CounterMetric | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -2769,6 +2929,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       throw new Error(`CounterMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2843,6 +3008,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2880,6 +3048,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -2964,6 +3135,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["6"] = object.definitionPtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3001,6 +3175,11 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     _connection?: any | null,
   ): CounterMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3041,6 +3220,7 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -3086,6 +3266,9 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -3131,6 +3314,16 @@ export class CounterMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -3287,6 +3480,18 @@ export class HistogramMetric extends Metric {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -3446,6 +3651,7 @@ export class HistogramMetric extends Metric {
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: HistogramMetric | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -3521,6 +3727,21 @@ export class HistogramMetric extends Metric {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for HistogramMetric`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`HistogramMetric.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -3736,9 +3957,10 @@ export class HistogramMetric extends Metric {
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -3801,7 +4023,7 @@ export class HistogramMetric extends Metric {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -3839,8 +4061,15 @@ export class HistogramMetric extends Metric {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -3890,6 +4119,7 @@ export class HistogramMetric extends Metric {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -3970,6 +4200,13 @@ export class HistogramMetric extends Metric {
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -4094,6 +4331,18 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
   readonly definitionPtr: NodeReference;
 
   /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -4199,6 +4448,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     id?: string;
     space?: Space | NodeReference;
     definition: HistogramMetric | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -4257,6 +4507,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       throw new Error(`HistogramMeasurementEvent.definition is required`);
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -4331,6 +4586,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     if (!(this.definitionPtr.id === other.definitionPtr.id)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -4368,6 +4626,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -4452,6 +4713,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["6"] = object.definitionPtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -4489,6 +4753,11 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     _connection?: any | null,
   ): HistogramMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -4529,6 +4798,7 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -4574,6 +4844,9 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.definitionPtr = object.definitionPtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4619,6 +4892,16 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
         _graph,
         _connection,
       ),
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(

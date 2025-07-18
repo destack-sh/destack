@@ -1,6 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { Role } from "@destack/language/access/role";
 import type {
+  Branch,
   Graph,
   IsActor,
   IsExtensible,
@@ -54,6 +55,12 @@ export abstract class MembershipEvent extends Event {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -158,6 +165,18 @@ export class MembershipJoinedEvent extends MembershipEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -305,6 +324,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -359,6 +379,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
       throw new Error(`MembershipJoinedEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -477,6 +502,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -515,6 +543,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -595,6 +626,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     objectValue["1"] = 360002;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -634,6 +668,11 @@ export class MembershipJoinedEvent extends MembershipEvent {
     _connection?: any | null,
   ): MembershipJoinedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -691,6 +730,7 @@ export class MembershipJoinedEvent extends MembershipEvent {
         _graph,
         _connection,
       ),
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -734,6 +774,9 @@ export class MembershipJoinedEvent extends MembershipEvent {
     const objectProto: Partial<MembershipJoinedEventProto> = { metatype: 360002 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -803,6 +846,16 @@ export class MembershipJoinedEvent extends MembershipEvent {
         _graph,
         _connection,
       ),
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -920,6 +973,18 @@ export class MembershipLeftEvent extends MembershipEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -1050,6 +1115,7 @@ export class MembershipLeftEvent extends MembershipEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -1102,6 +1168,11 @@ export class MembershipLeftEvent extends MembershipEvent {
       throw new Error(`MembershipLeftEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1201,6 +1272,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1237,6 +1311,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1317,6 +1394,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     objectValue["1"] = 360003;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1354,6 +1434,11 @@ export class MembershipLeftEvent extends MembershipEvent {
     _connection?: any | null,
   ): MembershipLeftEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1403,6 +1488,7 @@ export class MembershipLeftEvent extends MembershipEvent {
         _graph,
         _connection,
       ),
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -1446,6 +1532,9 @@ export class MembershipLeftEvent extends MembershipEvent {
     const objectProto: Partial<MembershipLeftEventProto> = { metatype: 360003 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1505,6 +1594,16 @@ export class MembershipLeftEvent extends MembershipEvent {
         _graph,
         _connection,
       ),
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1651,6 +1750,18 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -1914,6 +2025,7 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Membership | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -1992,6 +2104,21 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for Membership`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`Membership.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2259,9 +2386,10 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -2335,7 +2463,7 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2398,8 +2526,15 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
       isExtensible: objectValue["90"],
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -2450,6 +2585,7 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -2564,6 +2700,13 @@ export class Membership extends Entity implements IsOwnable, IsExtensible {
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,

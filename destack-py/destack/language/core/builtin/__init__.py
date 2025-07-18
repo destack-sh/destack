@@ -37,6 +37,7 @@ from .common import (
     ValueFactory,
 )
 from .const import (
+    ACTIVE_BRANCH,
     ACTIVE_EVENT,
     ACTIVE_SESSION,
     ACTIVE_SNAPSHOT,
@@ -52,11 +53,14 @@ from .const import (
     UNSET,
     VERSION,
     DestackError,
+    active_branch,
     active_event,
     active_session,
     active_snapshot,
     active_space,
     active_space_ptr,
+    get_active_branch,
+    get_active_branch_ptr,
     get_active_event,
     get_active_session,
     get_active_snapshot,
@@ -131,6 +135,7 @@ from .trait import (
 )
 
 __all__ = [
+    "ACTIVE_BRANCH",
     "ACTIVE_EVENT",
     "ACTIVE_SESSION",
     "ACTIVE_SNAPSHOT",
@@ -239,6 +244,7 @@ __all__ = [
     "TypeDeclaration",
     "ValueFactory",
     "_is_finalized",
+    "active_branch",
     "active_event",
     "active_session",
     "active_snapshot",
@@ -251,6 +257,8 @@ __all__ = [
     "builtin_property_runtime",
     "builtin_struct",
     "builtin_trait",
+    "get_active_branch",
+    "get_active_branch_ptr",
     "get_active_event",
     "get_active_session",
     "get_active_snapshot",

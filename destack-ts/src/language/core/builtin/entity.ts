@@ -15,7 +15,7 @@ import type {
 } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
-import type { Snapshot } from "@destack/language/core/common/time";
+import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -42,7 +42,7 @@ import { Temporal } from "temporal-polyfill";
  * Entities are always part of a Snapshot (in their Space).
  * State transition can only be caused by Events (which are immutable).
  *
- * The specific version of an Entity is identified by an (id, snapshot_id) tuple,
+ * The specific version of an Entity is identified by an (id, branch_id)@(snapshot_id|epoch) tuple,
  *  where Snapshots are 'shortcuts' to certain epochs.
  */
 export abstract class Entity extends Node {
@@ -70,6 +70,12 @@ export abstract class Entity extends Node {
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -440,6 +446,12 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   declare readonly definitionPtr: NodeReference | null;
 
   /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
+
+  /**
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
@@ -578,6 +590,12 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -726,6 +744,12 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -892,6 +916,18 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -1102,6 +1138,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Tag | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -1180,6 +1217,21 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for Tag`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`Tag.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1439,9 +1491,10 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -1516,7 +1569,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1572,8 +1625,15 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -1625,6 +1685,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -1726,6 +1787,13 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -1878,6 +1946,18 @@ export class Tagging extends Entity implements IsOrdered {
   readonly definitionPtr: NodeReference | null;
 
   /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
+
+  /**
    * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
@@ -2017,6 +2097,7 @@ export class Tagging extends Entity implements IsOrdered {
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Tagging | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -2090,6 +2171,21 @@ export class Tagging extends Entity implements IsOrdered {
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for Tagging`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`Tagging.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2285,9 +2381,10 @@ export class Tagging extends Entity implements IsOrdered {
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -2329,7 +2426,7 @@ export class Tagging extends Entity implements IsOrdered {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -2366,8 +2463,15 @@ export class Tagging extends Entity implements IsOrdered {
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -2416,6 +2520,7 @@ export class Tagging extends Entity implements IsOrdered {
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -2480,6 +2585,13 @@ export class Tagging extends Entity implements IsOrdered {
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,

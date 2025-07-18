@@ -59,7 +59,7 @@ from .text import (
     title,
     to_text,
 )
-from .time import Branch, Snapshot, SnapshotStatus, SnapshotType
+from .time import Branch, BranchType, Snapshot, SnapshotStatus, SnapshotType
 from .type import (
     CollectionConstraint,
     Json,
@@ -82,6 +82,7 @@ __all__ = [
     "Aggregation",
     "AggregationType",
     "Branch",
+    "BranchType",
     "BuiltinDefinition",
     "CollectionConstraint",
     "Condition",

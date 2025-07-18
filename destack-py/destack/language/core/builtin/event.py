@@ -15,6 +15,7 @@ from .trait import IsCustomizable, IsExtensible, IsSourceable
 
 if TYPE_CHECKING:
     from destack.language import (
+        Branch,
         Client,
         Icon,
         IsActor,
@@ -57,6 +58,12 @@ class Event[N: Node = Node](Node):
     __store_domain__ = StoreDomain.EVENT
 
     # 10-20: event identity
+    branch: Optional["Branch"] = builtin_property(
+        10,
+        is_readonly=True,
+        is_managed=True,
+        description="The Branch this Event originated from.",
+    )
     snapshot: Optional["Snapshot"] = builtin_property(
         11,
         is_readonly=True,

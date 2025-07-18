@@ -7,6 +7,7 @@ from pytest_lazy_fixtures import lf
 
 from destack.language import (
     REGION,
+    Branch,
     Client,
     ClientType,
     Entity,
@@ -20,7 +21,6 @@ from destack.language import (
     Node,
     Reaction,
     Session,
-    Snapshot,
     Space,
     SpaceStatus,
     Star,
@@ -404,10 +404,9 @@ async def test_move_views(session: Session, space: Space):
     assert len(layer_children) == 1 + 4 * (4 + 1)
 
 
-# @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-@pytest.mark.skip(reason=":Incomplete")
-async def test_edit_partial_node_in_snapshot(session: Session):
-    """Create a Snapshot and query it."""
+@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+async def test_edit_partial_node_in_branch(session: Session):
+    """Create a Branch and query it."""
 
     # nocheckin: support Entity branching & variants
 
@@ -416,42 +415,41 @@ async def test_edit_partial_node_in_snapshot(session: Session):
     session.create(user)
     await session.commit()
 
-    snapshot = Snapshot(name="My Little Snapshot", space=space)
-    session.create(snapshot)
+    branch = Branch(name="My Little Branch", space=space)
+    session.create(branch)
     await session.commit()
 
-    # edit in snapshot
-    with snapshot.active():
-        snapshot_user = user.into(snapshot)
-        assert snapshot_user.id == user.id
-        assert snapshot_user.snapshot == snapshot
-        assert snapshot_user.preceded_by is user
-        assert snapshot_user
+    # edit in branch
+    with branch.active():
+        branch_user = user.into(branch)
+        assert branch_user.id == user.id
+        assert branch_user.branch == branch
+        assert branch_user.preceded_by is user
+        assert branch_user
 
-        snapshot_user.name = "Bob"
-        assert snapshot_user.snapshot == snapshot
-        assert snapshot_user.name == "Bob"
+        branch_user.name = "Bob"
+        assert branch_user.branch == branch
+        assert branch_user.name == "Bob"
 
     # should still be the same in original user
     assert user.name == "Alice"
-    assert user.snapshot is None
+    assert user.branch is None
 
     # change original user
     user.name = "Charlie"
     user.slug = "charlie"
     assert user.slug == "charlie"
 
-    # should also be updated in snapshot
-    with snapshot.active():
-        assert snapshot_user.name == "Charlie"
+    # should also be updated in branch
+    with branch.active():
+        assert branch_user.name == "Charlie"
         # except for override
-        assert snapshot_user.slug == "bob"
+        assert branch_user.slug == "bob"
 
 
-# @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-@pytest.mark.skip(reason=":Incomplete")
-async def test_edit_partial_graph_in_snapshot(session: Session, space: Space):
-    """Create a Snapshot and query it."""
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+async def test_edit_partial_graph_in_branch(session: Session, space: Space):
+    """Create a Branch and query it."""
 
     user = User(name="Alice", slug="alice", space=space)
     session.create(user)

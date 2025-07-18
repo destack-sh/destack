@@ -1,4 +1,5 @@
 import type {
+  Branch,
   IsActor,
   Materialization,
   NodeReference,
@@ -57,6 +58,12 @@ export abstract class Shape extends ContainerView {
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.

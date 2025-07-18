@@ -1,4 +1,5 @@
 import type {
+  Branch,
   EventStatus,
   IsActor,
   IsExtensible,
@@ -29,6 +30,12 @@ export abstract class ViewEvent extends Event {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -132,6 +139,12 @@ export abstract class View extends Entity implements IsViewable, IsExtensible, I
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.

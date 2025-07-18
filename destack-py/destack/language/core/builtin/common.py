@@ -63,9 +63,10 @@ class EnumType(Enum):
     QUERY_UPDATE_TYPE = 321
 
     # common
-    RESOURCE_STATUS = 10_100
-    SNAPSHOT_TYPE = 10_300
-    SNAPSHOT_STATUS = 10_301
+    BRANCH_TYPE = 11_000
+    SNAPSHOT_TYPE = 11_100
+    SNAPSHOT_STATUS = 11_101
+    RESOURCE_STATUS = 12_100
 
     # custom
     # ...
@@ -481,8 +482,8 @@ class NodeType(Enum):
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
     # common
     SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
-    SNAPSHOT = 11_000, "Snapshot", "Point in Space-time", "fas fa-save"
-    BRANCH = 11_100, "Branch", None, "fas fa-code-branch"
+    BRANCH = 11_000, "Branch", None, "fas fa-code-branch"
+    SNAPSHOT = 11_100, "Snapshot", "Point in Space-time", "fas fa-save"
     RECORD = 12_000, "Record", "Data Entity", "fas fa-database"
     RESOURCE = 12_100, "Resource", "External asset outside of Destack", "fas fa-dot"
     METRIC = 12_200, "Metric", None, "fas fa-gauge"
@@ -1259,7 +1260,8 @@ class ValueFactory(Enum):
     REGION = 20, "Region", "Get the current Region"
     SELF = 30, "Self", "Get the current Node"
     SPACE = 31, "Space", "Get the current Space"
-    SNAPSHOT = 32, "Snapshot", "Get the current Snapshot"
+    BRANCH = 32, "Branch", "Get the current Branch"
+    SNAPSHOT = 33, "Snapshot", "Get the current Snapshot"
     NAME = 40, "Name", "Generate a relevant name"
 
 

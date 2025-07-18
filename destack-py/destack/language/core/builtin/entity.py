@@ -32,6 +32,7 @@ from .trait import (
 
 if TYPE_CHECKING:
     from destack.language import (
+        Branch,
         EntityGraph,
         EntitySingletonGraph,
         Icon,
@@ -71,7 +72,7 @@ class Entity(Node):
     Entities are always part of a Snapshot (in their Space).
     State transition can only be caused by Events (which are immutable).
 
-    The specific version of an Entity is identified by an (id, snapshot_id) tuple,
+    The specific version of an Entity is identified by an (id, branch_id)@(snapshot_id|epoch) tuple,
      where Snapshots are 'shortcuts' to certain epochs.
     """
 
@@ -96,8 +97,17 @@ class Entity(Node):
         is_readonly=True,
         description="The definition this CustomEntity is an instance of.",
     )
-    snapshot: "Snapshot" = builtin_property(
+    branch: "Branch" = builtin_property(
         12,
+        is_readonly=True,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        default_factory=ValueFactory.BRANCH,
+        description="The Branch this Entity is part of.",
+    )
+    snapshot: "Snapshot" = builtin_property(
+        13,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
@@ -106,7 +116,7 @@ class Entity(Node):
         description="The Snapshot this Entity is part of.",
     )
     preceded_by: Optional[Self] = builtin_property(
-        13,
+        14,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
@@ -121,9 +131,10 @@ class Entity(Node):
         is_hash=False,
         description="The (root) Entity that is being instantiated.",
     )
-    # set_properties: 15
+    # set_properties: 16
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
+        branch_ptr: Optional["NodeReference"] = None
         snapshot_ptr: Optional["NodeReference"] = None
         preceded_by_ptr: Optional["NodeReference"] = None
         instantiation_root_ptr: Optional["NodeReference"] = None
