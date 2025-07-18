@@ -1,7 +1,6 @@
 from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Axis2,
     Enum,
     EnumType,
     NodeType,
@@ -17,7 +16,7 @@ from .color import Color
 from .style import Style
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Axis2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -46,7 +45,7 @@ class Shadow(StructFrozen):
     style: Optional["ShadowStyle"] = builtin_property(101, is_repr=True)
     color: Optional["Color"] = builtin_property(102, is_repr=True)
     position: ShadowPosition = builtin_property(103, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional[Axis2] = builtin_property(104, is_repr=True)
+    offset: Optional["Axis2"] = builtin_property(104, is_repr=True)
     blur: int | None = builtin_property(105, is_repr=True)
     spread: int | None = builtin_property(106, is_repr=True)
     diffusion: float | None = builtin_property(107, is_repr=True)
@@ -59,7 +58,7 @@ class ShadowStyle(Style):
     type: ShadowType = builtin_property(100, default=ShadowType.BOX, is_repr=True)
     color: Optional["Color"] = builtin_property(200, is_repr=True)
     position: ShadowPosition = builtin_property(201, default=ShadowPosition.OUTSIDE, is_repr=True)
-    offset: Optional[Axis2] = builtin_property(202, is_repr=True)
+    offset: Optional["Axis2"] = builtin_property(202, is_repr=True)
     blur: int | None = builtin_property(203, is_repr=True)
     spread: int | None = builtin_property(204, is_repr=True)
     diffusion: float | None = builtin_property(205, is_repr=True)

@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    Length,
     NodeType,
     StructFrozen,
     StructType,
@@ -17,7 +16,7 @@ from .fill import Fill
 from .style import Style
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Length
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -90,8 +89,8 @@ class Font(StructFrozen):
     color: Optional[Fill] = builtin_property(103, is_repr=True)
     size: Optional[FontSize] = builtin_property(104, default=FontSize.BASE, is_repr=True)
     align: Optional[TextAlign] = builtin_property(105, default=TextAlign.LEFT, is_repr=True)
-    line_height: Optional[Length] = builtin_property(106, is_repr=True)
-    letter_spacing: Optional[Length] = builtin_property(107, is_repr=True)
+    line_height: Optional["Length"] = builtin_property(106, is_repr=True)
+    letter_spacing: Optional["Length"] = builtin_property(107, is_repr=True)
     decoration: Optional[TextDecoration] = builtin_property(
         108, default=TextDecoration.NONE, is_repr=True
     )
@@ -109,8 +108,8 @@ class FontStyle(Style):
     color: Optional[Fill] = builtin_property(103, is_repr=True)
     size: Optional[FontSize] = builtin_property(104, default=FontSize.BASE, is_repr=True)
     align: Optional[TextAlign] = builtin_property(105, default=TextAlign.LEFT, is_repr=True)
-    line_height: Optional[Length] = builtin_property(106, is_repr=True)
-    letter_spacing: Optional[Length] = builtin_property(107, is_repr=True)
+    line_height: Optional["Length"] = builtin_property(106, is_repr=True)
+    letter_spacing: Optional["Length"] = builtin_property(107, is_repr=True)
     decoration: Optional[TextDecoration] = builtin_property(
         108, default=TextDecoration.NONE, is_repr=True
     )

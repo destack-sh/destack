@@ -3,7 +3,6 @@ from typing import TYPE_CHECKING, Optional
 from destack.language.core import (
     Enum,
     EnumType,
-    Insets,
     NodeType,
     StructFrozen,
     StructType,
@@ -17,7 +16,7 @@ from .color import Color
 from .style import Style
 
 if TYPE_CHECKING:
-    pass
+    from destack.language import Insets
 
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -40,7 +39,7 @@ class Border(StructFrozen):
 
     type: BorderType = builtin_property(100, default=BorderType.SOLID, is_repr=True)
     color: Optional["Color"] = builtin_property(101, is_repr=True)
-    width: Optional[Insets] = builtin_property(102, is_repr=True)
+    width: Optional["Insets"] = builtin_property(102, is_repr=True)
     style: Optional["BorderStyle"] = builtin_property(103, is_repr=True)
 
 
@@ -50,5 +49,5 @@ class BorderStyle(Style):
 
     type: BorderType = builtin_property(100, default=BorderType.SOLID, is_repr=True)
     color: Optional["Color"] = builtin_property(200, is_repr=True)
-    width: Optional[Insets] = builtin_property(201, is_repr=True)
+    width: Optional["Insets"] = builtin_property(201, is_repr=True)
     style: Optional["BorderStyle"] = builtin_property(202, is_repr=True)

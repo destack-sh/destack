@@ -6,9 +6,9 @@ import type {
   QueryConnection,
   Session,
   Snapshot,
+  Space,
   Supergraph,
   Value,
-  Vector2f,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -20,6 +20,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Vector2f } from "@destack/language/geometry";
 import { PointerEvent } from "@destack/language/interaction/pointer";
 import type { Script } from "@destack/language/logic";
 import {
@@ -27,7 +28,7 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Client, Space } from "@destack/language/universe";
+import type { Client } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import {
   DoubleClickEventProto,
@@ -71,12 +72,6 @@ export abstract class MouseEvent extends PointerEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -87,6 +82,12 @@ export abstract class MouseEvent extends PointerEvent {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -208,12 +209,6 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -224,6 +219,12 @@ export abstract class ClickEvent extends MouseEvent {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -351,18 +352,6 @@ export class SingleClickEvent extends ClickEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -385,6 +374,18 @@ export class SingleClickEvent extends ClickEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -512,9 +513,9 @@ export class SingleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -572,11 +573,6 @@ export class SingleClickEvent extends ClickEvent {
       throw new Error(`SingleClickEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -587,6 +583,11 @@ export class SingleClickEvent extends ClickEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -721,9 +722,6 @@ export class SingleClickEvent extends ClickEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -731,6 +729,9 @@ export class SingleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -783,15 +784,15 @@ export class SingleClickEvent extends ClickEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -879,14 +880,14 @@ export class SingleClickEvent extends ClickEvent {
     objectValue["1"] = 2000202;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -945,11 +946,6 @@ export class SingleClickEvent extends ClickEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -959,6 +955,11 @@ export class SingleClickEvent extends ClickEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -998,10 +999,10 @@ export class SingleClickEvent extends ClickEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -1044,14 +1045,14 @@ export class SingleClickEvent extends ClickEvent {
     const objectProto: Partial<SingleClickEventProto> = { metatype: 2000202 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -1135,16 +1136,6 @@ export class SingleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1160,6 +1151,16 @@ export class SingleClickEvent extends ClickEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1266,18 +1267,6 @@ export class DoubleClickEvent extends ClickEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1300,6 +1289,18 @@ export class DoubleClickEvent extends ClickEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -1427,9 +1428,9 @@ export class DoubleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -1487,11 +1488,6 @@ export class DoubleClickEvent extends ClickEvent {
       throw new Error(`DoubleClickEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1502,6 +1498,11 @@ export class DoubleClickEvent extends ClickEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1636,9 +1637,6 @@ export class DoubleClickEvent extends ClickEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -1646,6 +1644,9 @@ export class DoubleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -1698,15 +1699,15 @@ export class DoubleClickEvent extends ClickEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1794,14 +1795,14 @@ export class DoubleClickEvent extends ClickEvent {
     objectValue["1"] = 2000203;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -1860,11 +1861,6 @@ export class DoubleClickEvent extends ClickEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1874,6 +1870,11 @@ export class DoubleClickEvent extends ClickEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -1913,10 +1914,10 @@ export class DoubleClickEvent extends ClickEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -1959,14 +1960,14 @@ export class DoubleClickEvent extends ClickEvent {
     const objectProto: Partial<DoubleClickEventProto> = { metatype: 2000203 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2050,16 +2051,6 @@ export class DoubleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -2075,6 +2066,16 @@ export class DoubleClickEvent extends ClickEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2181,18 +2182,6 @@ export class TripleClickEvent extends ClickEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -2215,6 +2204,18 @@ export class TripleClickEvent extends ClickEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -2342,9 +2343,9 @@ export class TripleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -2402,11 +2403,6 @@ export class TripleClickEvent extends ClickEvent {
       throw new Error(`TripleClickEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2417,6 +2413,11 @@ export class TripleClickEvent extends ClickEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -2551,9 +2552,6 @@ export class TripleClickEvent extends ClickEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -2561,6 +2559,9 @@ export class TripleClickEvent extends ClickEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -2613,15 +2614,15 @@ export class TripleClickEvent extends ClickEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2709,14 +2710,14 @@ export class TripleClickEvent extends ClickEvent {
     objectValue["1"] = 2000204;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -2775,11 +2776,6 @@ export class TripleClickEvent extends ClickEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -2789,6 +2785,11 @@ export class TripleClickEvent extends ClickEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2828,10 +2829,10 @@ export class TripleClickEvent extends ClickEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2874,14 +2875,14 @@ export class TripleClickEvent extends ClickEvent {
     const objectProto: Partial<TripleClickEventProto> = { metatype: 2000204 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2965,16 +2966,6 @@ export class TripleClickEvent extends ClickEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -2990,6 +2981,16 @@ export class TripleClickEvent extends ClickEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3096,18 +3097,6 @@ export class WheelEvent extends MouseEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -3130,6 +3119,18 @@ export class WheelEvent extends MouseEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -3262,9 +3263,9 @@ export class WheelEvent extends MouseEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -3323,11 +3324,6 @@ export class WheelEvent extends MouseEvent {
       throw new Error(`WheelEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -3338,6 +3334,11 @@ export class WheelEvent extends MouseEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -3480,9 +3481,6 @@ export class WheelEvent extends MouseEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -3490,6 +3488,9 @@ export class WheelEvent extends MouseEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -3543,15 +3544,15 @@ export class WheelEvent extends MouseEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -3639,14 +3640,14 @@ export class WheelEvent extends MouseEvent {
     objectValue["1"] = 2000210;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -3706,11 +3707,6 @@ export class WheelEvent extends MouseEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3720,6 +3716,11 @@ export class WheelEvent extends MouseEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -3760,10 +3761,10 @@ export class WheelEvent extends MouseEvent {
       ctrlKey: objectValue["122"],
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -3800,14 +3801,14 @@ export class WheelEvent extends MouseEvent {
     const objectProto: Partial<WheelEventProto> = { metatype: 2000210 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -3893,16 +3894,6 @@ export class WheelEvent extends MouseEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -3918,6 +3909,16 @@ export class WheelEvent extends MouseEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,

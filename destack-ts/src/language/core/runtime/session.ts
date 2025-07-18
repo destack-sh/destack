@@ -8,7 +8,6 @@ import {
   type PropertyDefinition,
   type QueryConnection,
 } from "@destack/language";
-import { TypeCardinality } from "@destack/language/core/builtin/common";
 import { ACTIVE_SESSION } from "@destack/language/core/builtin/const";
 import { EditEvent, EditOperation, EditType } from "@destack/language/core/builtin/edit";
 import { toValue, Value } from "@destack/language/core/common/value";
@@ -159,25 +158,13 @@ export class Session {
     const propType = prop.toType();
 
     // undo
-    let undoOperation: EditOperation;
+    const undoOperation: EditOperation = EditOperation.SET;
     let oldValue: Value | null = (node as any)[propName];
-    if (oldValue == null || (prop.cardinality != TypeCardinality.SCALAR && !oldValue)) {
-      undoOperation = EditOperation.CLEAR;
-      oldValue = null;
-    } else {
-      undoOperation = EditOperation.SET;
-      oldValue = toValue(oldValue, propType);
-    }
+    oldValue = toValue(oldValue, propType);
 
     // do
-    let operation: EditOperation;
-    if (newValue == null || (prop.cardinality != TypeCardinality.SCALAR && !newValue)) {
-      operation = EditOperation.CLEAR;
-      newValue = null;
-    } else {
-      operation = EditOperation.SET;
-      newValue = toValue(newValue, propType);
-    }
+    const operation: EditOperation = EditOperation.SET;
+    newValue = toValue(newValue, propType);
 
     // edit
     const edit = new EditEvent({

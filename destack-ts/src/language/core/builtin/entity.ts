@@ -14,6 +14,8 @@ import type {
   IsSourceable,
 } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
+import type { Space } from "@destack/language/core/common/space";
+import type { Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -27,22 +29,21 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Space } from "@destack/language/universe";
-import {
-  MaterializationProto,
-  SnapshotProto,
-  SnapshotStatusProto,
-  TagProto,
-  TaggingProto,
-} from "@destack/proto";
+import { MaterializationProto, TagProto, TaggingProto } from "@destack/proto";
 import { base64Decode, getOrderKey } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**
- * An Entity is a named, versioned, stateful Node.
- * Most Entities can be attached to most other Entities to compose richer structures.
+ * An Entity is a named, versioned, mutable Node.
+ * Entities can be attached to (most) other Entities to compose richer structures.
+ *
+ * Entities are always part of a Snapshot (in their Space).
+ * State transition can only be caused by Events (which are immutable).
+ *
+ * The specific version of an Entity is identified by an (id, snapshot_id) tuple,
+ *  where Snapshots are 'shortcuts' to certain epochs.
  */
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;
@@ -65,6 +66,12 @@ export abstract class Entity extends Node {
   declare readonly materialization: Materialization;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
@@ -75,6 +82,12 @@ export abstract class Entity extends Node {
    */
   abstract get precededBy(): Entity | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -110,6 +123,8 @@ export abstract class Entity extends Node {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -383,9 +398,9 @@ registerNodeClass(NodeType.ENTITY, Entity);
  * Materialization
  */
 export enum Materialization {
-  INSTANCE = 1,
-  COPY = 2,
-  ROOT = 3,
+  PARTIAL = 1,
+  FULL = 10,
+  ROOT = 11,
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -394,23 +409,7 @@ export enum Materialization {
 registerEnumClass(EnumType.MATERIALIZATION, Materialization);
 /* ==== DESTACK_GENERATED_END:ENUM:14 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:10301 ==== */
-/**
- * SnapshotStatus
- */
-export enum SnapshotStatus {
-  CREATING = 1,
-  ACTIVE = 10,
-  READONLY = 50,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:10301 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12000 ==== */
 /**
  * A generic Record instance of a CustomEntity.
  */
@@ -430,15 +429,15 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -451,6 +450,12 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
    */
   abstract get precededBy(): Record | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -486,6 +491,8 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -539,9 +546,9 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RECORD, Record);
-/* ==== DESTACK_GENERATED_END:NODE:10000 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12000 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10100 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12100 ==== */
 /**
  * A Resource represents an external asset outside of Destack.
  * The lifecycle of a Resource may be managed by some Provisioner (Service).
@@ -562,15 +569,15 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   declare readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -583,6 +590,12 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
    */
   abstract get precededBy(): Resource | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -618,6 +631,8 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -680,698 +695,9 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.RESOURCE, Resource);
-/* ==== DESTACK_GENERATED_END:NODE:10100 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12100 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10300 ==== */
-/**
- * A Snapshot is a point in Space time.
- * Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
- */
-export class Snapshot extends Entity implements IsOwnable {
-  static metatype: NodeType = NodeType.SNAPSHOT;
-
-  /**
-   * Snapshot.parent
-   */
-  get parent(): Space | null {
-    const nodePtr: NodeReference | null = this.parentPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  get space(): Space | null {
-    const nodePtr: NodeReference | null = this.spacePtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | null;
-    }
-    return null;
-  }
-  readonly spacePtr: NodeReference;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
-
-  /**
-   * The Snapshot itself. Cannot be any other Snapshot than this Snapshot
-   */
-  get snapshot(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.snapshotPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly snapshotPtr: NodeReference;
-
-  /**
-   * The previous Snapshot this Snapshot is based on.
-   */
-  get precededBy(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.precededByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  readonly precededByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was created (system time).
-   */
-  readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * The logical time this Entity was created (system time).
-   */
-  readonly createdEpoch: number;
-
-  /**
-   * The Actor that created this Entity.
-   */
-  get createdBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.createdByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  readonly createdByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was last updated (system time).
-   */
-  readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * The logical time this Entity was last updated (system time).
-   */
-  readonly updatedEpoch: number;
-
-  /**
-   * The Actor that last updated this Entity.
-   */
-  get updatedBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.updatedByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was deleted (system time).
-   */
-  readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * IsOwnable.ownedBy
-   */
-  get ownedBy(): (Entity & IsActor) | null {
-    const nodePtr: NodeReference | null = this.ownedByPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsActor) | null;
-    }
-    return null;
-  }
-  set ownedBy(node: (Entity & IsActor) | null) {
-    if (node === null) {
-      this.ownedByPtr = null;
-    } else {
-      this.ownedByPtr = node.toRef();
-    }
-  }
-  /**
-   * IsOwnable.ownedBy
-   */
-  get ownedByPtr(): NodeReference | null {
-    return this._ownedByPtr;
-  }
-  set ownedByPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["owned_by"];
-    this._session.updateSetProperty(this, prop, value);
-    this._ownedByPtr = value;
-  }
-  _ownedByPtr: NodeReference | null;
-
-  /**
-   * Entity.name
-   */
-  /**
-   * Entity.name
-   */
-  get name(): string {
-    return this._name;
-  }
-  set name(value: string) {
-    const prop = (this.constructor as NodeClass).__properties__["name"];
-    this._session.updateSetProperty(this, prop, value);
-    this._name = value;
-  }
-  _name: string;
-
-  /**
-   * Snapshot.status
-   */
-  /**
-   * Snapshot.status
-   */
-  get status(): SnapshotStatus {
-    return this._status;
-  }
-  set status(value: SnapshotStatus) {
-    const prop = (this.constructor as NodeClass).__properties__["status"];
-    this._session.updateSetProperty(this, prop, value);
-    this._status = value;
-  }
-  _status: SnapshotStatus;
-
-  constructor(options: {
-    id?: string;
-    parent?: Space | NodeReference | null;
-    space?: Space | NodeReference;
-    materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference;
-    precededBy?: Snapshot | NodeReference | null;
-    createdAt?: Temporal.ZonedDateTime;
-    createdEpoch?: number;
-    createdBy?: (Entity & IsActor) | NodeReference | null;
-    updatedAt?: Temporal.ZonedDateTime;
-    updatedEpoch?: number;
-    updatedBy?: (Entity & IsActor) | NodeReference | null;
-    deletedAt?: Temporal.ZonedDateTime | null;
-    ownedBy?: (Entity & IsActor) | NodeReference | null;
-    name?: string;
-    status?: SnapshotStatus;
-    _session?: Session | null;
-    _supergraph?: Supergraph | null;
-    _graph?: Graph | null;
-    _connection?: QueryConnection | null;
-  }) {
-    super(
-      // id
-      options.id ?? null,
-      // parent
-      options.parent != null
-        ? options.parent.metatype == StructType.NODE_REFERENCE
-          ? (options.parent as NodeReference)
-          : (options.parent as Node).toRef()
-        : null,
-      // session
-      options._session ?? null,
-      // supergraph
-      options._supergraph ?? null,
-      // graph
-      options._graph ?? null,
-      // connection
-      options._connection ?? null,
-      // is_new
-      options.id == null,
-    );
-
-    // properties
-    let _parent = options.parent ?? null;
-    if (_parent != null && _parent.metatype != StructType.NODE_REFERENCE) {
-      _parent = (_parent as Node).toRef();
-    }
-    this.parentPtr = _parent;
-    let _space = options.space ?? null;
-    if (_space != null && _space.metatype != StructType.NODE_REFERENCE) {
-      _space = (_space as Node).toRef();
-    }
-    if (_space === null) {
-      _space = ACTIVE_SPACE.get();
-      if (_space === null) {
-        throw new Error(`no active Space for Snapshot`);
-      }
-      _space = _space.toRef();
-    }
-    if (_space === null) {
-      throw new Error(`Snapshot.space is required`);
-    }
-    this.spacePtr = _space;
-    let _materialization = options.materialization ?? null;
-    if (_materialization === null) {
-      _materialization = 3 /* Materialization.ROOT */;
-    }
-    if (_materialization === null) {
-      throw new Error(`Snapshot.materialization is required`);
-    }
-    this.materialization = _materialization;
-    let _snapshot = options.snapshot ?? null;
-    if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
-      _snapshot = (_snapshot as Node).toRef();
-    }
-    if (_snapshot === null) {
-      _snapshot = this.toRef();
-    }
-    if (_snapshot === null) {
-      throw new Error(`Snapshot.snapshot is required`);
-    }
-    this.snapshotPtr = _snapshot;
-    let _precededBy = options.precededBy ?? null;
-    if (_precededBy != null && _precededBy.metatype != StructType.NODE_REFERENCE) {
-      _precededBy = (_precededBy as Node).toRef();
-    }
-    this.precededByPtr = _precededBy;
-    let _deletedAt = options.deletedAt ?? null;
-    this.deletedAt = _deletedAt;
-    let _ownedBy = options.ownedBy ?? null;
-    if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
-      _ownedBy = (_ownedBy as Node).toRef();
-    }
-    this._ownedByPtr = _ownedBy;
-    let _name = options.name ?? null;
-    if (_name === null) {
-      _name = "Snapshot";
-    }
-    if (_name === null) {
-      throw new Error(`Snapshot.name is required`);
-    }
-    this._name = _name;
-    let _status = options.status ?? null;
-    if (_status === null) {
-      _status = 10 /* SnapshotStatus.ACTIVE */;
-    }
-    if (_status === null) {
-      throw new Error(`Snapshot.status is required`);
-    }
-    this._status = _status;
-
-    // identity
-    if (options.id == null) {
-      const now = Temporal.Now.zonedDateTimeISO("UTC");
-      const epoch = this._session.epoch;
-      this.createdAt = now;
-      this.createdEpoch = epoch;
-      this.createdByPtr = null;
-      this.updatedAt = now;
-      this.updatedEpoch = epoch;
-      this.updatedByPtr = null;
-    } else {
-      if (
-        options.createdAt == null ||
-        options.updatedAt == null ||
-        options.createdEpoch == null ||
-        options.updatedEpoch == null
-      ) {
-        throw new Error(
-          `Snapshot.createdAt and Snapshot.updatedAt are required for existing Nodes`,
-        );
-      }
-      this.createdAt = options.createdAt;
-      this.createdEpoch = options.createdEpoch;
-      this.createdByPtr =
-        options.createdBy != null
-          ? options.createdBy.metatype == StructType.NODE_REFERENCE
-            ? (options.createdBy as NodeReference)
-            : (options.createdBy as Node).toRef()
-          : null;
-      this.updatedAt = options.updatedAt;
-      this.updatedEpoch = options.updatedEpoch;
-      this.updatedByPtr =
-        options.updatedBy != null
-          ? options.updatedBy.metatype == StructType.NODE_REFERENCE
-            ? (options.updatedBy as NodeReference)
-            : (options.updatedBy as Node).toRef()
-          : null;
-    }
-  }
-
-  equals(other: any): boolean {
-    if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
-      return false;
-    }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
-      return false;
-    }
-    if (!(this._status === other._status)) {
-      return false;
-    }
-    if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
-    }
-    return true;
-  }
-
-  hash(): number {
-    let h = 1;
-    h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + this._status) & 0xffffffff;
-    if (this._ownedByPtr != null) {
-      h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.createdByPtr != null) {
-      h = (h * 31 + hashString(this.createdByPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.updatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    if (this.updatedByPtr != null) {
-      h = (h * 31 + hashString(this.updatedByPtr.id)) & 0xffffffff;
-    }
-    if (this.deletedAt != null) {
-      h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this._name)) & 0xffffffff;
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
-
-    return h;
-  }
-
-  validate(): void {
-    throw new Error("not implemented");
-  }
-
-  __toRef__(): NodeReference {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new _NodeReference({
-      type: NodeType.SNAPSHOT,
-      id: this.id,
-      spaceId: this.spacePtr?.id ?? null,
-      snapshotId: this.id,
-      _session: this._session,
-      _supergraph: this._supergraph,
-    });
-  }
-
-  get _pathKey(): string {
-    return this.name;
-  }
-
-  get path(): string {
-    const pathParts: string[] = [];
-    let node: Entity | Event | null = this;
-    let lastNode: Entity | Event | null = this;
-    while (node != null) {
-      pathParts.push(node._pathKey);
-      lastNode = node;
-      node = node.parent;
-    }
-    if (!lastNode.isRoot) {
-      pathParts.push("<detached>");
-    }
-    return pathParts.reverse().join("/");
-  }
-
-  repr(): string {
-    const propertyReprs: string[] = [];
-    if (this.ownedBy != null) {
-      propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
-    }
-    propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Snapshot "${this.path}" ${propertyReprs.join(" ")}>`;
-  }
-
-  toValue(): { readonly [key: string]: any } {
-    return Snapshot.__packValue__(this);
-  }
-
-  static __packValue__(object: Snapshot): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10300;
-    objectValue["2"] = String(object.id);
-    if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
-    }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
-    objectValue["11"] = object.snapshotPtr.toValue();
-    if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
-    }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
-    }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
-    }
-    if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
-    }
-    if (object._ownedByPtr != null) {
-      objectValue["32"] = object._ownedByPtr.toValue();
-    }
-    objectValue["50"] = object._name;
-    objectValue["110"] = object._status;
-    return objectValue;
-  }
-
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Snapshot {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const precededByPtrValue = objectValue["12"];
-    const unpackedPrecededByPtr =
-      precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const ownedByPtrValue = objectValue["32"];
-    const unpackedOwnedByPtr =
-      ownedByPtrValue != undefined
-        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const createdByPtrValue = objectValue["22"];
-    const unpackedCreatedByPtr =
-      createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const updatedByPtrValue = objectValue["25"];
-    const unpackedUpdatedByPtr =
-      updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const deletedAtValue = objectValue["26"];
-    const unpackedDeletedAt =
-      deletedAtValue != undefined
-        ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
-        : null;
-    return new Snapshot({
-      parent: unpackedParentPtr,
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      precededBy: unpackedPrecededByPtr,
-      status: Number(objectValue["110"]),
-      ownedBy: unpackedOwnedByPtr,
-      materialization: Number(objectValue["10"]),
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
-      createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
-      updatedBy: unpackedUpdatedByPtr,
-      deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Snapshot {
-    return Snapshot.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
-  }
-
-  toProto(): SnapshotProto {
-    return Snapshot.__packProto__(this);
-  }
-
-  static __packProto__(object: Snapshot): SnapshotProto {
-    const objectProto: Partial<SnapshotProto> = { metatype: 10300 };
-    objectProto.id = String(object.id);
-    if (object.parentPtr != null) {
-      objectProto.parentPtr = object.parentPtr.toProto();
-    }
-    objectProto.spacePtr = object.spacePtr.toProto();
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    if (object.precededByPtr != null) {
-      objectProto.precededByPtr = object.precededByPtr.toProto();
-    }
-    objectProto.createdAt = packProtoTimestamp(object.createdAt);
-    objectProto.createdEpoch = object.createdEpoch;
-    if (object.createdByPtr != null) {
-      objectProto.createdByPtr = object.createdByPtr.toProto();
-    }
-    objectProto.updatedAt = packProtoTimestamp(object.updatedAt);
-    objectProto.updatedEpoch = object.updatedEpoch;
-    if (object.updatedByPtr != null) {
-      objectProto.updatedByPtr = object.updatedByPtr.toProto();
-    }
-    if (object.deletedAt != null) {
-      objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
-    }
-    if (object._ownedByPtr != null) {
-      objectProto.ownedByPtr = object._ownedByPtr.toProto();
-    }
-    objectProto.name = object._name;
-    objectProto.status = Number(object._status) as SnapshotStatusProto;
-    return objectProto as SnapshotProto;
-  }
-
-  static __unpackProto__(
-    objectProto: SnapshotProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Snapshot {
-    const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    return new Snapshot({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      precededBy:
-        objectProto.precededByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.precededByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      status: Number(objectProto.status) as SnapshotStatus,
-      ownedBy:
-        objectProto.ownedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.ownedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      materialization: Number(objectProto.materialization) as Materialization,
-      createdAt: unpackProtoTimestamp(objectProto.createdAt!),
-      createdEpoch: Number(objectProto.createdEpoch),
-      createdBy:
-        objectProto.createdByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.createdByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      updatedAt: unpackProtoTimestamp(objectProto.updatedAt!),
-      updatedEpoch: Number(objectProto.updatedEpoch),
-      updatedBy:
-        objectProto.updatedByPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.updatedByPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      deletedAt:
-        objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
-      name: objectProto.name,
-      id: String(objectProto.id),
-      space: _NodeReference.fromProto(
-        objectProto.spacePtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      _session,
-      _graph,
-      _connection,
-    });
-  }
-
-  static fromProto(
-    objectProto: SnapshotProto,
-    _session?: Session | null,
-    _supergraph?: Supergraph | null,
-    _graph?: any | null,
-    _connection?: any | null,
-  ): Snapshot {
-    return Snapshot.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
-  }
-
-  static fromProtoString(packedProtoString: string): Snapshot {
-    const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = SnapshotProto.fromBinary(packedProtoBytes);
-    return this.fromProto(packedProto);
-  }
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.SNAPSHOT, Snapshot);
-/* ==== DESTACK_GENERATED_END:NODE:10300 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:10500 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12500 ==== */
 /**
  * A Variant is an alternative version of an Entity.
  */
@@ -1391,15 +717,15 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   declare readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -1412,6 +738,12 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
    */
   abstract get precededBy(): Variant | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -1447,6 +779,8 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -1509,11 +843,11 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.VARIANT, Variant);
-/* ==== DESTACK_GENERATED_END:NODE:10500 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12500 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10600 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12600 ==== */
 /**
- * A Tag to tag a Taggable Entity with (in a Tagging).
+ * A Tag to tag an Entity with (in a Tagging).
  */
 export class Tag extends Entity implements IsSourceable, IsExtensible {
   static metatype: NodeType = NodeType.TAG;
@@ -1543,6 +877,11 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
   readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   get definition(): Entity | null {
@@ -1553,11 +892,6 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     return null;
   }
   readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -1582,6 +916,18 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  get instantiationRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -1629,6 +975,8 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -1752,10 +1100,11 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     id?: string;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     materialization?: Materialization;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Tag | NodeReference | null;
+    instantiationRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -1818,19 +1167,19 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       throw new Error(`Tag.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.ROOT */;
+      _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`Tag.materialization is required`);
     }
     this.materialization = _materialization;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1851,6 +1200,11 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _instantiationRoot = options.instantiationRoot ?? null;
+    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
+      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    }
+    this.instantiationRootPtr = _instantiationRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _customValues = options.customValues ?? null;
@@ -1951,16 +1305,10 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     if (!(this._key === other._key)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
-      return false;
-    }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -1998,16 +1346,12 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2085,19 +1429,22 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
 
   static __packValue__(object: Tag): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10600;
+    objectValue["1"] = 12600;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     objectValue["10"] = object.materialization;
-    objectValue["11"] = object.snapshotPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["11"] = object.definitionPtr.toValue();
+    }
+    objectValue["12"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectValue["13"] = object.precededByPtr.toValue();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectValue["15"] = object.instantiationRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -2159,20 +1506,31 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
         : null;
     const keyValue = objectValue["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const definitionPtrValue = objectValue["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["13"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instantiationRootPtrValue = objectValue["15"];
+    const unpackedInstantiationRootPtr =
+      instantiationRootPtrValue != undefined
+        ? _NodeReference.fromValue(
+            instantiationRootPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2210,18 +1568,19 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
       snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+        objectValue["12"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
+      instantiationRoot: unpackedInstantiationRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2256,19 +1615,22 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
   }
 
   static __packProto__(object: Tag): TagProto {
-    const objectProto: Partial<TagProto> = { metatype: 10600 };
+    const objectProto: Partial<TagProto> = { metatype: 12600 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
+    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
-    objectProto.materialization = Number(object.materialization) as MaterializationProto;
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2342,16 +1704,6 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
             )
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
@@ -2364,6 +1716,16 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -2375,6 +1737,16 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instantiationRoot:
+        objectProto.instantiationRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instantiationRootPtr!,
               _session,
               _supergraph,
               _graph,
@@ -2455,9 +1827,9 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TAG, Tag);
-/* ==== DESTACK_GENERATED_END:NODE:10600 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12600 ==== */
 
-/* ==== DESTACK_GENERATED_START:NODE:10700 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:12700 ==== */
 /**
  * A Tagging of a Node by a Tag.
  */
@@ -2494,6 +1866,18 @@ export class Tagging extends Entity implements IsOrdered {
   readonly materialization: Materialization;
 
   /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): Entity | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
@@ -2516,6 +1900,18 @@ export class Tagging extends Entity implements IsOrdered {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  get instantiationRoot(): Entity | null {
+    const nodePtr: NodeReference | null = this.instantiationRootPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -2563,6 +1959,8 @@ export class Tagging extends Entity implements IsOrdered {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
@@ -2618,8 +2016,10 @@ export class Tagging extends Entity implements IsOrdered {
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
+    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Tagging | NodeReference | null;
+    instantiationRoot?: Entity | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -2679,12 +2079,17 @@ export class Tagging extends Entity implements IsOrdered {
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
-      _materialization = 3 /* Materialization.ROOT */;
+      _materialization = 11 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
       throw new Error(`Tagging.materialization is required`);
     }
     this.materialization = _materialization;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2705,6 +2110,11 @@ export class Tagging extends Entity implements IsOrdered {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _instantiationRoot = options.instantiationRoot ?? null;
+    if (_instantiationRoot != null && _instantiationRoot.metatype != StructType.NODE_REFERENCE) {
+      _instantiationRoot = (_instantiationRoot as Node).toRef();
+    }
+    this.instantiationRootPtr = _instantiationRoot;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
     let _orderKey = options.orderKey ?? null;
@@ -2777,10 +2187,7 @@ export class Tagging extends Entity implements IsOrdered {
     if (!(this._tagPtr.id === other._tagPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
-      return false;
-    }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
       return false;
     }
     if (!(this._name === other._name)) {
@@ -2800,9 +2207,8 @@ export class Tagging extends Entity implements IsOrdered {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    if (this.precededByPtr != null) {
-      h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2869,16 +2275,22 @@ export class Tagging extends Entity implements IsOrdered {
 
   static __packValue__(object: Tagging): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10700;
+    objectValue["1"] = 12700;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
-    objectValue["11"] = object.snapshotPtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["11"] = object.definitionPtr.toValue();
+    }
+    objectValue["12"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectValue["13"] = object.precededByPtr.toValue();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectValue["15"] = object.instantiationRootPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -2912,10 +2324,26 @@ export class Tagging extends Entity implements IsOrdered {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const definitionPtrValue = objectValue["11"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const precededByPtrValue = objectValue["13"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const instantiationRootPtrValue = objectValue["15"];
+    const unpackedInstantiationRootPtr =
+      instantiationRootPtrValue != undefined
+        ? _NodeReference.fromValue(
+            instantiationRootPtrValue,
+            _session,
+            _supergraph,
+            _graph,
+            _connection,
+          )
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2937,14 +2365,16 @@ export class Tagging extends Entity implements IsOrdered {
       orderKey: objectValue["31"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
       snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+        objectValue["12"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       precededBy: unpackedPrecededByPtr,
+      instantiationRoot: unpackedInstantiationRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2976,16 +2406,22 @@ export class Tagging extends Entity implements IsOrdered {
   }
 
   static __packProto__(object: Tagging): TaggingProto {
-    const objectProto: Partial<TaggingProto> = { metatype: 10700 };
+    const objectProto: Partial<TaggingProto> = { metatype: 12700 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.instantiationRootPtr != null) {
+      objectProto.instantiationRootPtr = object.instantiationRootPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -3034,6 +2470,16 @@ export class Tagging extends Entity implements IsOrdered {
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,
@@ -3045,6 +2491,16 @@ export class Tagging extends Entity implements IsOrdered {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      instantiationRoot:
+        objectProto.instantiationRootPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.instantiationRootPtr!,
               _session,
               _supergraph,
               _graph,
@@ -3113,4 +2569,4 @@ export class Tagging extends Entity implements IsOrdered {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerNodeClass(NodeType.TAGGING, Tagging);
-/* ==== DESTACK_GENERATED_END:NODE:10700 ==== */
+/* ==== DESTACK_GENERATED_END:NODE:12700 ==== */

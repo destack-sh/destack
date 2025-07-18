@@ -1,11 +1,15 @@
+from typing import TYPE_CHECKING
+
 from destack.language.core import (
     NodeType,
-    Vector2f,
     builtin_node,
     builtin_property,
 )
 
 from .input import InputEvent
+
+if TYPE_CHECKING:
+    from destack.language import Vector2f
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -14,7 +18,7 @@ from .input import InputEvent
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
-    position: Vector2f = builtin_property(110, is_repr=True)
+    position: "Vector2f" = builtin_property(110, is_repr=True)
     pressure: float | None = builtin_property(111, is_repr=True)
 
     shift_key: bool = builtin_property(120)

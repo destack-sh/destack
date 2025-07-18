@@ -6,6 +6,7 @@ import type {
   QueryConnection,
   Session,
   Snapshot,
+  Space,
   Supergraph,
   Value,
 } from "@destack/language/core";
@@ -21,7 +22,7 @@ import {
 import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Client, Space } from "@destack/language/universe";
+import type { Client } from "@destack/language/universe";
 import type { View } from "@destack/language/view";
 import { CopyEventProto, CutEventProto, EventStatusProto, PasteEventProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -42,12 +43,6 @@ export abstract class ClipboardEvent extends InputEvent {
   declare readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
@@ -58,6 +53,12 @@ export abstract class ClipboardEvent extends InputEvent {
    */
   abstract get precededBy(): Event | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  abstract get causedBy(): Event | null;
+  declare readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -150,18 +151,6 @@ export class CopyEvent extends ClipboardEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -184,6 +173,18 @@ export class CopyEvent extends ClipboardEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -276,9 +277,9 @@ export class CopyEvent extends ClipboardEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -329,11 +330,6 @@ export class CopyEvent extends ClipboardEvent {
       throw new Error(`CopyEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -344,6 +340,11 @@ export class CopyEvent extends ClipboardEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -421,9 +422,6 @@ export class CopyEvent extends ClipboardEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -431,6 +429,9 @@ export class CopyEvent extends ClipboardEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -474,15 +475,15 @@ export class CopyEvent extends ClipboardEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -565,14 +566,14 @@ export class CopyEvent extends ClipboardEvent {
     objectValue["1"] = 2000501;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -619,11 +620,6 @@ export class CopyEvent extends ClipboardEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -633,6 +629,11 @@ export class CopyEvent extends ClipboardEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -665,10 +666,10 @@ export class CopyEvent extends ClipboardEvent {
     }
     return new CopyEvent({
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -705,14 +706,14 @@ export class CopyEvent extends ClipboardEvent {
     const objectProto: Partial<CopyEventProto> = { metatype: 2000501 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -773,16 +774,6 @@ export class CopyEvent extends ClipboardEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -798,6 +789,16 @@ export class CopyEvent extends ClipboardEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -898,18 +899,6 @@ export class CutEvent extends ClipboardEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -932,6 +921,18 @@ export class CutEvent extends ClipboardEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -1024,9 +1025,9 @@ export class CutEvent extends ClipboardEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -1077,11 +1078,6 @@ export class CutEvent extends ClipboardEvent {
       throw new Error(`CutEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1092,6 +1088,11 @@ export class CutEvent extends ClipboardEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1169,9 +1170,6 @@ export class CutEvent extends ClipboardEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -1179,6 +1177,9 @@ export class CutEvent extends ClipboardEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -1222,15 +1223,15 @@ export class CutEvent extends ClipboardEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -1313,14 +1314,14 @@ export class CutEvent extends ClipboardEvent {
     objectValue["1"] = 2000502;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -1367,11 +1368,6 @@ export class CutEvent extends ClipboardEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1381,6 +1377,11 @@ export class CutEvent extends ClipboardEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -1413,10 +1414,10 @@ export class CutEvent extends ClipboardEvent {
     }
     return new CutEvent({
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -1453,14 +1454,14 @@ export class CutEvent extends ClipboardEvent {
     const objectProto: Partial<CutEventProto> = { metatype: 2000502 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -1521,16 +1522,6 @@ export class CutEvent extends ClipboardEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1546,6 +1537,16 @@ export class CutEvent extends ClipboardEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1646,18 +1647,6 @@ export class PasteEvent extends ClipboardEvent {
   readonly spacePtr: NodeReference;
 
   /**
-   * The definition this CustomEntity is an instance of.
-   */
-  get definition(): Entity | null {
-    const nodePtr: NodeReference | null = this.definitionPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Entity | null;
-    }
-    return null;
-  }
-  readonly definitionPtr: NodeReference | null;
-
-  /**
    * The Snapshot this Event originated from.
    */
   get snapshot(): Snapshot | null {
@@ -1680,6 +1669,18 @@ export class PasteEvent extends ClipboardEvent {
     return null;
   }
   readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The Event that caused this Event (if any).
+   */
+  get causedBy(): Event | null {
+    const nodePtr: NodeReference | null = this.causedByPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Event | null;
+    }
+    return null;
+  }
+  readonly causedByPtr: NodeReference | null;
 
   /**
    * The time this Event was created (set by the system).
@@ -1772,9 +1773,9 @@ export class PasteEvent extends ClipboardEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    definition?: Entity | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
+    causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -1825,11 +1826,6 @@ export class PasteEvent extends ClipboardEvent {
       throw new Error(`PasteEvent.space is required`);
     }
     this.spacePtr = _space;
-    let _definition = options.definition ?? null;
-    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
-      _definition = (_definition as Node).toRef();
-    }
-    this.definitionPtr = _definition;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1840,6 +1836,11 @@ export class PasteEvent extends ClipboardEvent {
       _precededBy = (_precededBy as Node).toRef();
     }
     this.precededByPtr = _precededBy;
+    let _causedBy = options.causedBy ?? null;
+    if (_causedBy != null && _causedBy.metatype != StructType.NODE_REFERENCE) {
+      _causedBy = (_causedBy as Node).toRef();
+    }
+    this.causedByPtr = _causedBy;
     let _client = options.client ?? null;
     if (_client != null && _client.metatype != StructType.NODE_REFERENCE) {
       _client = (_client as Node).toRef();
@@ -1917,9 +1918,6 @@ export class PasteEvent extends ClipboardEvent {
     if (!(this.nodePtr?.id === other.nodePtr?.id)) {
       return false;
     }
-    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
-      return false;
-    }
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
@@ -1927,6 +1925,9 @@ export class PasteEvent extends ClipboardEvent {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this.causedByPtr?.id === other.causedByPtr?.id)) {
       return false;
     }
     if (!(this.clientPtr?.id === other.clientPtr?.id)) {
@@ -1970,15 +1971,15 @@ export class PasteEvent extends ClipboardEvent {
     if (this.nodePtr != null) {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
-    if (this.definitionPtr != null) {
-      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
+    }
+    if (this.causedByPtr != null) {
+      h = (h * 31 + hashString(this.causedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.createdAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     if (this.createdByPtr != null) {
@@ -2061,14 +2062,14 @@ export class PasteEvent extends ClipboardEvent {
     objectValue["1"] = 2000503;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.definitionPtr != null) {
-      objectValue["6"] = object.definitionPtr.toValue();
-    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
+    }
+    if (object.causedByPtr != null) {
+      objectValue["13"] = object.causedByPtr.toValue();
     }
     objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
     objectValue["21"] = object.createdEpoch;
@@ -2115,11 +2116,6 @@ export class PasteEvent extends ClipboardEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["6"];
-    const unpackedDefinitionPtr =
-      definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -2129,6 +2125,11 @@ export class PasteEvent extends ClipboardEvent {
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const causedByPtrValue = objectValue["13"];
+    const unpackedCausedByPtr =
+      causedByPtrValue != undefined
+        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const createdByPtrValue = objectValue["22"];
     const unpackedCreatedByPtr =
@@ -2161,10 +2162,10 @@ export class PasteEvent extends ClipboardEvent {
     }
     return new PasteEvent({
       node: unpackedNodePtr,
-      definition: unpackedDefinitionPtr,
       isExtensible: objectValue["90"],
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
+      causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
       createdBy: unpackedCreatedByPtr,
@@ -2201,14 +2202,14 @@ export class PasteEvent extends ClipboardEvent {
     const objectProto: Partial<PasteEventProto> = { metatype: 2000503 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.definitionPtr != null) {
-      objectProto.definitionPtr = object.definitionPtr.toProto();
-    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
+    }
+    if (object.causedByPtr != null) {
+      objectProto.causedByPtr = object.causedByPtr.toProto();
     }
     objectProto.createdAt = packProtoTimestamp(object.createdAt);
     objectProto.createdEpoch = object.createdEpoch;
@@ -2269,16 +2270,6 @@ export class PasteEvent extends ClipboardEvent {
               _connection,
             )
           : null,
-      definition:
-        objectProto.definitionPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.definitionPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       isExtensible: objectProto.isExtensible,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -2294,6 +2285,16 @@ export class PasteEvent extends ClipboardEvent {
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.precededByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      causedBy:
+        objectProto.causedByPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.causedByPtr!,
               _session,
               _supergraph,
               _graph,

@@ -329,10 +329,11 @@ async def test_create_reaction_groups(session: Session, space: Space):
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 @pytest.mark.benchmark
-async def test_benchmark_create_reactions(session: Session, async_benchmark: AsyncBenchmarkFixture):
+async def test_benchmark_create_reactions(
+    session: Session, async_benchmark: AsyncBenchmarkFixture, space: Space
+):
     """Benchmark creating reactions without parent."""
 
-    space = Space(name="Test", slug="test", status=SpaceStatus.ACTIVE, region=REGION)
     user = User(name="User", slug="user", space=space)
     session.create(user)
     await session.commit()

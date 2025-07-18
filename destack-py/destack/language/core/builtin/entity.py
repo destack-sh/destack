@@ -1,5 +1,4 @@
-from collections.abc import Generator, Sequence
-from contextlib import contextmanager
+from collections.abc import Sequence
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -15,7 +14,7 @@ from destack.language.registry import NODE_CLASS_BY_TYPE
 from destack.utils.fractional import get_order_key
 
 from .common import EnumType, ResourceStatus, StoreDomain, TraitType, ValueFactory
-from .const import ACTIVE_SNAPSHOT, UNSET
+from .const import UNSET
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
 from .property import (
@@ -38,7 +37,7 @@ if TYPE_CHECKING:
         Icon,
         IsActor,
         NodeReference,
-        Space,
+        Snapshot,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -91,8 +90,14 @@ class Entity(Node):
         is_hash=False,
         default=Materialization.ROOT,
     )
-    snapshot: "Snapshot" = builtin_property(
+    definition: Union["Entity", None] = builtin_property(
         11,
+        is_managed=True,
+        is_readonly=True,
+        description="The definition this CustomEntity is an instance of.",
+    )
+    snapshot: "Snapshot" = builtin_property(
+        12,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
@@ -101,7 +106,7 @@ class Entity(Node):
         description="The Snapshot this Entity is part of.",
     )
     preceded_by: Optional[Self] = builtin_property(
-        12,
+        13,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
@@ -109,7 +114,7 @@ class Entity(Node):
         description="The previous Entity this Entity is based on (from the base Snapshot).",
     )
     instantiation_root: Optional["Entity"] = builtin_property(
-        14,
+        15,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
@@ -118,6 +123,7 @@ class Entity(Node):
     )
     # set_properties: 15
     if TYPE_CHECKING:
+        definition_ptr: Optional["NodeReference"] = None
         snapshot_ptr: Optional["NodeReference"] = None
         preceded_by_ptr: Optional["NodeReference"] = None
         instantiation_root_ptr: Optional["NodeReference"] = None
@@ -169,7 +175,11 @@ class Entity(Node):
         26,
         is_managed=True,
         is_eq=False,
-        description="The time this Entity was deleted (system time).",
+        description="""\
+The time this Entity was deleted (system time).
+Only set if the Entity is currently 'deleted'.
+Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+""",
     )
     if TYPE_CHECKING:
         created_by_ptr: Optional[NodeReference] = None
@@ -193,6 +203,11 @@ class Entity(Node):
 
     if not TYPE_CHECKING:
         __setattr__ = _do_set
+
+    @property
+    def is_custom(self) -> bool:
+        """Whether this Node is a custom Node."""
+        return self.definition is not None
 
     def delete(self):
         """Delete this Entity."""
@@ -503,79 +518,6 @@ class Resource(
     """
 
     status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
-
-
-@builtin_enum(EnumType.SNAPSHOT_TYPE)
-class SnapshotType(Enum):
-    """The type of a Snapshot."""
-
-    PARTIAL = 1
-    FULL = 10
-    ROOT = 11
-
-
-@builtin_enum(EnumType.SNAPSHOT_STATUS)
-class SnapshotStatus(Enum):
-    """The status of a Snapshot."""
-
-    CREATING = 1
-    ACTIVE = 10
-    READONLY = 50
-
-
-@builtin_node(NodeType.SNAPSHOT)
-class Snapshot(
-    IsOwnable,
-    Entity,
-):
-    """
-    A Snapshot is a point in Space-time.
-    Snapshots may branch off of other Snapshots, either as a full copy or a partial override.
-
-    To avoid breaking the universe, Snapshots cannot themselves be part of any other Snapshot.
-     (Technically, Snapshots are part of themselves.)
-    """
-
-    parent: Union["Space", None] = builtin_property_parent(is_readonly=True)
-
-    snapshot: "Snapshot" = builtin_property(
-        11,
-        is_readonly=True,
-        is_managed=True,
-        default_factory=ValueFactory.SELF,
-        description="The Snapshot itself. Cannot be any other Snapshot than this Snapshot",
-    )
-    preceded_by: Optional["Snapshot"] = builtin_property(
-        12,
-        is_readonly=True,
-        is_managed=True,
-        description="The previous Snapshot this Snapshot is based on.",
-    )
-
-    type: SnapshotType = builtin_property(100)
-    status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
-
-    def into(
-        self,
-        snapshot: "Snapshot",
-        *,
-        materialization: Materialization = Materialization.FULL,
-    ) -> "Self":
-        if snapshot.id == self.id:
-            return self
-        else:
-            raise RuntimeError(f"cannot turn {self!r} into another Snapshot ({snapshot!r})")
-
-    @contextmanager
-    def active(self) -> Generator[None, None, None]:
-        """
-        Context manager to set the active Snapshot to this Snapshot.
-        """
-        token = ACTIVE_SNAPSHOT.set(self)
-        try:
-            yield
-        finally:
-            ACTIVE_SNAPSHOT.reset(token)
 
 
 @builtin_node(NodeType.VARIANT, is_abstract=True)

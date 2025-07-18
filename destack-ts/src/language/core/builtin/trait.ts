@@ -334,9 +334,6 @@ registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
  * A Node that be customized andextended by custom Nodes (i.e. used as a base type).
  */
 export interface IsExtensible extends IsScriptable {
-  get definition(): Entity | null;
-  readonly definitionPtr: NodeReference | null;
-
   /**
    * Whether this Node is extensible (whether it can be instanced).
    */

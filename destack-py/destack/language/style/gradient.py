@@ -1,7 +1,6 @@
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
-    Axis2,
     Enum,
     EnumType,
     NodeType,
@@ -16,6 +15,9 @@ from destack.language.core import (
 
 from .color import Color
 from .style import Style
+
+if TYPE_CHECKING:
+    from destack.language import Axis2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -45,7 +47,7 @@ class Gradient(StructFrozen):
     style: Optional["GradientStyle"] = builtin_property(101, is_repr=True)
     angle: Optional[float] = builtin_property(102, format=NumberFormat.ANGLE, is_repr=True)
     stops: list[GradientStop] = builtin_property(103, is_repr=True)
-    center_anchor: Optional[Axis2] = builtin_property(104, is_repr=True)
+    center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
 
 
 @builtin_node(NodeType.GRADIENT_STYLE)
@@ -55,5 +57,5 @@ class GradientStyle(Style):
     type: GradientType = builtin_property(100, default=GradientType.LINEAR, is_repr=True)
     angle: Optional[float] = builtin_property(102, format=NumberFormat.ANGLE, is_repr=True)
     stops: list[GradientStop] = builtin_property(103, is_repr=True)
-    center_anchor: Optional[Axis2] = builtin_property(104, is_repr=True)
+    center_anchor: Optional["Axis2"] = builtin_property(104, is_repr=True)
     dark: Gradient | None = builtin_property(105)

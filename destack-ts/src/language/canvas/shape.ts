@@ -1,4 +1,17 @@
 import type {
+  IsActor,
+  Materialization,
+  NodeReference,
+  Snapshot,
+  Space,
+  Value,
+} from "@destack/language/core";
+import { Entity, NodeType } from "@destack/language/core";
+import type { Vector2f } from "@destack/language/geometry";
+import type { Script } from "@destack/language/logic";
+import { registerNodeClass } from "@destack/language/registry";
+import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
+import type {
   Align,
   Axis2,
   Axis3,
@@ -9,20 +22,9 @@ import type {
   Grid,
   GridSpan,
   Insets,
-  IsActor,
   Layout,
-  Materialization,
-  NodeReference,
   Position,
-  Snapshot,
-  Value,
-  Vector2f,
-} from "@destack/language/core";
-import { Entity, NodeType } from "@destack/language/core";
-import type { Script } from "@destack/language/logic";
-import { registerNodeClass } from "@destack/language/registry";
-import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
-import type { Space } from "@destack/language/universe";
+} from "@destack/language/view";
 import { ContainerView } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
@@ -46,15 +48,15 @@ export abstract class Shape extends ContainerView {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
    * The definition this CustomEntity is an instance of.
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
 
   /**
    * The Snapshot this Entity is part of.
@@ -67,6 +69,12 @@ export abstract class Shape extends ContainerView {
    */
   abstract get precededBy(): Shape | null;
   declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
 
   /**
    * The time this Entity was created (system time).
@@ -102,6 +110,8 @@ export abstract class Shape extends ContainerView {
 
   /**
    * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
    */
   declare readonly deletedAt: Temporal.ZonedDateTime | null;
 

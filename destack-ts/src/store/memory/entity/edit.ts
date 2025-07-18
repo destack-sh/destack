@@ -198,8 +198,6 @@ function _executeEdit(options: {
           throw new Error(`no value for ${edit.repr()}`);
         }
         row.value[String(edit.propertyId)] = edit.value.value;
-      } else if (edit.operation === EditOperation.CLEAR) {
-        delete row.value[String(edit.propertyId)];
       } else {
         throw new Error(`unsupported operation: ${edit.repr()}`);
       }

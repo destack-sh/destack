@@ -480,14 +480,16 @@ class NodeType(Enum):
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
     # common
-    RECORD = 10_000, "Record", "Data Entity", "fas fa-database"
-    RESOURCE = 10_100, "Resource", "External asset outside of Destack", "fas fa-dot"
-    METRIC = 10_200, "Metric", None, "fas fa-gauge"
-    SNAPSHOT = 10_300, "Snapshot", "Point in Space-time", "fas fa-save"
-    SERVICE = 10_400, "Service", None, "fas fa-screwdriver-wrench"
-    VARIANT = 10_500, "Variant", "Variant of a Scene", "fas fa-shapes"
-    TAG = 10_600, "Tag", None, "fas fa-tag"
-    TAGGING = 10_700, "Tagging", None, "fas fa-tag"
+    SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
+    SNAPSHOT = 11_000, "Snapshot", "Point in Space-time", "fas fa-save"
+    BRANCH = 11_100, "Branch", None, "fas fa-code-branch"
+    RECORD = 12_000, "Record", "Data Entity", "fas fa-database"
+    RESOURCE = 12_100, "Resource", "External asset outside of Destack", "fas fa-dot"
+    METRIC = 12_200, "Metric", None, "fas fa-gauge"
+    SERVICE = 12_400, "Service", None, "fas fa-screwdriver-wrench"
+    VARIANT = 12_500, "Variant", "Variant of a Scene", "fas fa-shapes"
+    TAG = 12_600, "Tag", None, "fas fa-tag"
+    TAGGING = 12_700, "Tagging", None, "fas fa-tag"
     # TRAIT?
     # LINK, ...
     # TIMELINE, TRACK, (KEY)FRAME, ...
@@ -519,7 +521,6 @@ class NodeType(Enum):
     MEASUREMENT_EVENT = 50_200, "Measurement of a Metric", None, "fas fa-gauge"
 
     # universe [100_000-200_000]
-    SPACE = 100_100, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
     HANDLE = 100_200, "Handle", "Unique @handle", "fas fa-at"
     # user
     USER = 121_000, "User", None, "fas fa-user"
@@ -537,7 +538,6 @@ class NodeType(Enum):
     # DEPENDENCY, ...
     # GROUP, ...
     # spacetime
-    BRANCH = 245_000, "Branch", None, "fas fa-code-branch"
     # HISTORY, REPLAY, ...
     # FORK, ...
     # LINK, PORTAL, ...
@@ -1140,7 +1140,8 @@ class CascadeAction(Enum):
 class EdgeDirection(Enum):
     PARENT = 1
     CHILD = 2
-    SIDE = 3
+    # DEFINITION, INSTANCE
+    SIDE = 20
 
 
 @builtin_enum(EnumType.PRIMITIVE_TYPE)
