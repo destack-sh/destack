@@ -30,7 +30,7 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import { Style } from "@destack/language/style/style";
+import { Style } from "@destack/language/style";
 import {
   MaterializationProto,
   SpringTypeProto,
@@ -42,7 +42,7 @@ import { base64Decode } from "@destack/utils";
 import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100210 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2200000 ==== */
 /**
  * TransitionType
  */
@@ -55,9 +55,9 @@ export enum TransitionType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.TRANSITION_TYPE, TransitionType);
-/* ==== DESTACK_GENERATED_END:ENUM:2100210 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2200000 ==== */
 
-/* ==== DESTACK_GENERATED_START:ENUM:2100211 ==== */
+/* ==== DESTACK_GENERATED_START:ENUM:2200001 ==== */
 /**
  * SpringType
  */
@@ -70,9 +70,9 @@ export enum SpringType {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerEnumClass(EnumType.SPRING_TYPE, SpringType);
-/* ==== DESTACK_GENERATED_END:ENUM:2100211 ==== */
+/* ==== DESTACK_GENERATED_END:ENUM:2200001 ==== */
 
-/* ==== DESTACK_GENERATED_START:STRUCT:2100900 ==== */
+/* ==== DESTACK_GENERATED_START:STRUCT:2200000 ==== */
 /**
  * A transition value.
  */
@@ -369,7 +369,7 @@ export class Transition extends StructFrozen {
 
   static __packValue__(object: Transition): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100900;
+    objectValue["1"] = 2200000;
     objectValue["100"] = object.type;
     if (object.stylePtr != null) {
       objectValue["101"] = object.stylePtr.toValue();
@@ -473,7 +473,7 @@ export class Transition extends StructFrozen {
   }
 
   static __packProto__(object: Transition): TransitionProto {
-    const objectProto: Partial<TransitionProto> = { metatype: 2100900 };
+    const objectProto: Partial<TransitionProto> = { metatype: 2200000 };
     objectProto.type = Number(object.type) as TransitionTypeProto;
     if (object.stylePtr != null) {
       objectProto.stylePtr = object.stylePtr.toProto();
@@ -570,7 +570,7 @@ export class Transition extends StructFrozen {
   /* ==== DESTACK_CUSTOM_END ==== */
 }
 registerStructClass(StructType.TRANSITION, Transition);
-/* ==== DESTACK_GENERATED_END:STRUCT:2100900 ==== */
+/* ==== DESTACK_GENERATED_END:STRUCT:2200000 ==== */
 
 /* ==== DESTACK_GENERATED_START:NODE:2100900 ==== */
 /**

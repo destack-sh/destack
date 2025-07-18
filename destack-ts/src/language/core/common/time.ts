@@ -7,7 +7,6 @@ import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor, IsOwnable } from "@destack/language/core/builtin/trait";
-import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -241,52 +240,6 @@ export class Branch extends Entity implements IsOwnable {
   }
   _name: string;
 
-  /**
-   * Branch.icon
-   */
-  /**
-   * Branch.icon
-   */
-  get icon(): Icon | null {
-    return this._icon;
-  }
-  set icon(value: Icon | null) {
-    const prop = (this.constructor as NodeClass).__properties__["icon"];
-    this._session.updateSetProperty(this, prop, value);
-    this._icon = value;
-  }
-  _icon: Icon | null;
-
-  /**
-   * Branch.head
-   */
-  get head(): Snapshot | null {
-    const nodePtr: NodeReference | null = this.headPtr;
-    if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
-    }
-    return null;
-  }
-  set head(node: Snapshot | null) {
-    if (node === null) {
-      this.headPtr = null;
-    } else {
-      this.headPtr = node.toRef();
-    }
-  }
-  /**
-   * Branch.head
-   */
-  get headPtr(): NodeReference | null {
-    return this._headPtr;
-  }
-  set headPtr(value: NodeReference | null) {
-    const prop = (this.constructor as NodeClass).__properties__["head"];
-    this._session.updateSetProperty(this, prop, value);
-    this._headPtr = value;
-  }
-  _headPtr: NodeReference | null;
-
   constructor(options: {
     id?: string;
     parent?: Space | NodeReference | null;
@@ -305,8 +258,6 @@ export class Branch extends Entity implements IsOwnable {
     deletedAt?: Temporal.ZonedDateTime | null;
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
-    icon?: Icon | null;
-    head?: Snapshot | NodeReference | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -407,13 +358,6 @@ export class Branch extends Entity implements IsOwnable {
       throw new Error(`Branch.name is required`);
     }
     this._name = _name;
-    let _icon = options.icon ?? null;
-    this._icon = _icon;
-    let _head = options.head ?? null;
-    if (_head != null && _head.metatype != StructType.NODE_REFERENCE) {
-      _head = (_head as Node).toRef();
-    }
-    this._headPtr = _head;
 
     // identity
     if (options.id == null) {
@@ -457,15 +401,6 @@ export class Branch extends Entity implements IsOwnable {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (
-      (this._icon == null) !== (other._icon == null) ||
-      (this._icon != null && !this._icon.equals(other._icon))
-    ) {
-      return false;
-    }
-    if (!(this._headPtr?.id === other._headPtr?.id)) {
-      return false;
-    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -486,12 +421,6 @@ export class Branch extends Entity implements IsOwnable {
     h = (h * 31 + this.metatype) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    if (this._icon != null) {
-      h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this._headPtr != null) {
-      h = (h * 31 + hashString(this._headPtr.id)) & 0xffffffff;
     }
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
@@ -601,12 +530,6 @@ export class Branch extends Entity implements IsOwnable {
       objectValue["32"] = object._ownedByPtr.toValue();
     }
     objectValue["50"] = object._name;
-    if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
-    }
-    if (object._headPtr != null) {
-      objectValue["110"] = object._headPtr.toValue();
-    }
     return objectValue;
   }
 
@@ -618,21 +541,10 @@ export class Branch extends Entity implements IsOwnable {
     _connection?: any | null,
   ): Branch {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const headPtrValue = objectValue["110"];
-    const unpackedHeadPtr =
-      headPtrValue != undefined
-        ? _NodeReference.fromValue(headPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const ownedByPtrValue = objectValue["32"];
     const unpackedOwnedByPtr =
@@ -677,8 +589,6 @@ export class Branch extends Entity implements IsOwnable {
         : null;
     return new Branch({
       parent: unpackedParentPtr,
-      icon: unpackedIcon,
-      head: unpackedHeadPtr,
       ownedBy: unpackedOwnedByPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
@@ -756,12 +666,6 @@ export class Branch extends Entity implements IsOwnable {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
     objectProto.name = object._name;
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
-    if (object._headPtr != null) {
-      objectProto.headPtr = object._headPtr.toProto();
-    }
     return objectProto as BranchProto;
   }
 
@@ -773,26 +677,11 @@ export class Branch extends Entity implements IsOwnable {
     _connection?: any | null,
   ): Branch {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Branch({
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      head:
-        objectProto.headPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.headPtr!,
               _session,
               _supergraph,
               _graph,

@@ -2,7 +2,7 @@ import { NODE_TYPE_SCALAR_BY_TYPE, NodeReference, NodeType, Value } from "@desta
 import {
   EVENT_CREATED_AT_KEY,
   EVENT_SNAPSHOT_KEY,
-  NODE_DEFINITION_PTR_ID,
+  ENTITY_DEFINITION_PTR_KEY,
   NODE_ID_KEY,
   NODE_METATYPE_KEY,
   NODE_REFERENCE_ID_KEY,
@@ -27,8 +27,8 @@ export function packEventRow(value: Value): MemoryEventRow {
     spaceId: valuePacked[NODE_SPACE_PTR_ID]
       ? String(valuePacked[NODE_SPACE_PTR_ID][NODE_REFERENCE_ID_KEY])
       : undefined,
-    definitionId: valuePacked[NODE_DEFINITION_PTR_ID]
-      ? String(valuePacked[NODE_DEFINITION_PTR_ID][NODE_REFERENCE_ID_KEY])
+    definitionId: valuePacked[ENTITY_DEFINITION_PTR_KEY]
+      ? String(valuePacked[ENTITY_DEFINITION_PTR_KEY][NODE_REFERENCE_ID_KEY])
       : undefined,
   });
 

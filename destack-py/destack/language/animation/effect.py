@@ -13,7 +13,7 @@ from destack.language.core import (
     builtin_struct,
 )
 
-from .style import Style
+from ..style.style import Style
 from .transition import Transition
 
 if TYPE_CHECKING:

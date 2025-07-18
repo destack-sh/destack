@@ -1,4 +1,5 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
+import { Easing } from "@destack/language/animation";
 import type {
   Graph,
   IsActor,
@@ -32,7 +33,6 @@ import {
   registerStructClass,
 } from "@destack/language/registry";
 import type { Color } from "@destack/language/style/color";
-import { Easing } from "@destack/language/style/easing";
 import { Style } from "@destack/language/style/style";
 import {
   EasingProto,

@@ -12,11 +12,10 @@ from destack.language.core import (
     builtin_struct,
 )
 
-from .easing import Easing
 from .style import Style
 
 if TYPE_CHECKING:
-    from destack.language import Color, Vector2f
+    from destack.language import Color, Easing, Vector2f
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -42,7 +41,9 @@ class Stroke(StructFrozen):
     streamline: float = builtin_property(
         104, description="The amount of streamlining applied to path (0-1)."
     )
-    easing: Easing = builtin_property(105, description="The easing function for pressure mapping.")
+    easing: "Easing" = builtin_property(
+        105, description="The easing function for pressure mapping."
+    )
     color: Optional["Color"] = builtin_property(106, description="The stroke color.")
     start: Optional["StrokeCap"] = builtin_property(110, description="The start cap configuration.")
     end: Optional["StrokeCap"] = builtin_property(111, description="The end cap configuration.")
@@ -54,7 +55,7 @@ class StrokeCap(StructFrozen):
 
     cap: bool = builtin_property(101, description="Whether to cap the stroke.")
     taper: bool = builtin_property(102, description="Whether to taper the stroke.")
-    easing: Easing = builtin_property(103, description="The easing function for taper.")
+    easing: "Easing" = builtin_property(103, description="The easing function for taper.")
 
 
 @builtin_node(NodeType.STROKE_STYLE)
@@ -70,7 +71,9 @@ class StrokeStyle(Style):
     streamline: float = builtin_property(
         203, description="The amount of streamlining applied to path (0-1)."
     )
-    easing: Easing = builtin_property(204, description="The easing function for pressure mapping.")
+    easing: "Easing" = builtin_property(
+        204, description="The easing function for pressure mapping."
+    )
     start: Optional["StrokeCap"] = builtin_property(205, description="The start cap configuration.")
     end: Optional["StrokeCap"] = builtin_property(206, description="The end cap configuration.")
 

@@ -296,6 +296,7 @@ class IsExtensible(IsScriptable):
     )
     # traits?
     # is_trait? is_abstract?
+    # is_locked?
 
 
 @builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)

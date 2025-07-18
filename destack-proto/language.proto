@@ -390,9 +390,6 @@ enum EnumTypeProto {
   ENUM_TYPE_SHADOW_TYPE = 2100207;
   ENUM_TYPE_SHADOW_POSITION = 2100208;
   ENUM_TYPE_GRADIENT_TYPE = 2100209;
-  ENUM_TYPE_TRANSITION_TYPE = 2100210;
-  ENUM_TYPE_SPRING_TYPE = 2100211;
-  ENUM_TYPE_EFFECT_TYPE = 2100212;
   ENUM_TYPE_STROKE_TYPE = 2100213;
   ENUM_TYPE_POSITION_TYPE = 2100214;
   ENUM_TYPE_LENGTH_UNIT = 2100215;
@@ -402,10 +399,13 @@ enum EnumTypeProto {
   ENUM_TYPE_DIRECTION = 2100219;
   ENUM_TYPE_OVERFLOW = 2100220;
   ENUM_TYPE_DIMENSION_TYPE = 2100221;
-  ENUM_TYPE_REPEAT_TYPE = 2100222;
   ENUM_TYPE_TEXT_SPLIT_TYPE = 2100223;
   ENUM_TYPE_OFFSCREEN_BEHAVIOR = 2100224;
   ENUM_TYPE_EASING = 2100225;
+  ENUM_TYPE_TRANSITION_TYPE = 2200000;
+  ENUM_TYPE_SPRING_TYPE = 2200001;
+  ENUM_TYPE_EFFECT_TYPE = 2200002;
+  ENUM_TYPE_REPEAT_TYPE = 2200003;
 }
 
 enum EnvironmentTypeProto {
@@ -1364,17 +1364,17 @@ enum StructTypeProto {
   STRUCT_TYPE_ICON = 400031;
   STRUCT_TYPE_SCHEDULE = 700001;
   STRUCT_TYPE_DATABASE_INFO = 1000001;
+  STRUCT_TYPE_LENGTH = 1800001;
+  STRUCT_TYPE_POSITION = 1800002;
+  STRUCT_TYPE_DIMENSION = 1800003;
+  STRUCT_TYPE_GRID = 1800004;
+  STRUCT_TYPE_GRID_SPAN = 1800005;
+  STRUCT_TYPE_INSETS = 1800006;
+  STRUCT_TYPE_CORNERS = 1800007;
+  STRUCT_TYPE_AXIS2 = 1800008;
+  STRUCT_TYPE_AXIS3 = 1800009;
   STRUCT_TYPE_LINE = 1900100;
   STRUCT_TYPE_ARROW = 1900200;
-  STRUCT_TYPE_LENGTH = 2100018;
-  STRUCT_TYPE_POSITION = 2100020;
-  STRUCT_TYPE_DIMENSION = 2100022;
-  STRUCT_TYPE_GRID = 2100026;
-  STRUCT_TYPE_GRID_SPAN = 2100028;
-  STRUCT_TYPE_INSETS = 2100030;
-  STRUCT_TYPE_CORNERS = 2100032;
-  STRUCT_TYPE_AXIS2 = 2100034;
-  STRUCT_TYPE_AXIS3 = 2100036;
   STRUCT_TYPE_COLOR = 2100300;
   STRUCT_TYPE_FILL = 2100400;
   STRUCT_TYPE_FONT = 2100500;
@@ -1382,12 +1382,12 @@ enum StructTypeProto {
   STRUCT_TYPE_SHADOW = 2100700;
   STRUCT_TYPE_GRADIENT = 2100800;
   STRUCT_TYPE_GRADIENT_STOP = 2100801;
-  STRUCT_TYPE_TRANSITION = 2100900;
-  STRUCT_TYPE_EFFECT = 2101000;
   STRUCT_TYPE_STROKE = 2101100;
   STRUCT_TYPE_STROKE_CAP = 2101101;
   STRUCT_TYPE_STROKE_PATH = 2101102;
   STRUCT_TYPE_STROKE_POINT = 2101103;
+  STRUCT_TYPE_TRANSITION = 2200000;
+  STRUCT_TYPE_EFFECT = 2200100;
   STRUCT_TYPE_VECTOR = 2400000;
   STRUCT_TYPE_VECTORF = 2400010;
   STRUCT_TYPE_VECTOR2F = 2400011;
@@ -1797,8 +1797,6 @@ message BranchProto {
   optional google.protobuf.Timestamp deleted_at = 26;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
-  optional IconProto icon = 102;
-  optional NodeReferenceProto head_ptr = 110;
 }
 
 message BuiltinDefinitionProto {
@@ -7061,6 +7059,17 @@ message SomeNodeProto {
     SanctionRevokedEventProto sanction_revoked_event = 360404;
     SanctionExpiredEventProto sanction_expired_event = 360405;
     SanctionProto sanction = 360400;
+    ColorStyleProto color_style = 2100300;
+    BorderStyleProto border_style = 2100600;
+    GradientStyleProto gradient_style = 2100800;
+    FillStyleProto fill_style = 2100400;
+    FontStyleProto font_style = 2100500;
+    PaletteProto palette = 2100100;
+    ShadowStyleProto shadow_style = 2100700;
+    StrokeStyleProto stroke_style = 2101100;
+    ThemeProto theme = 2100000;
+    TransitionStyleProto transition_style = 2100900;
+    EffectStyleProto effect_style = 2101000;
     FrameViewProto frame_view = 1800200;
     InternalViewProto internal_view = 1815000;
     LabelViewProto label_view = 1800300;
@@ -7148,17 +7157,6 @@ message SomeNodeProto {
     StarAddedEventProto star_added_event = 1400102;
     StarRemovedEventProto star_removed_event = 1400103;
     FolderProto folder = 240000;
-    ColorStyleProto color_style = 2100300;
-    BorderStyleProto border_style = 2100600;
-    TransitionStyleProto transition_style = 2100900;
-    EffectStyleProto effect_style = 2101000;
-    GradientStyleProto gradient_style = 2100800;
-    FillStyleProto fill_style = 2100400;
-    FontStyleProto font_style = 2100500;
-    PaletteProto palette = 2100100;
-    ShadowStyleProto shadow_style = 2100700;
-    StrokeStyleProto stroke_style = 2101100;
-    ThemeProto theme = 2100000;
     ClientProto client = 121300;
     HandleProto handle = 100200;
     OrganizationProto organization = 122000;
@@ -7191,6 +7189,17 @@ message SomeEntityProto {
     MembershipProto membership = 360000;
     RoleProto role = 360200;
     SanctionProto sanction = 360400;
+    ColorStyleProto color_style = 2100300;
+    BorderStyleProto border_style = 2100600;
+    GradientStyleProto gradient_style = 2100800;
+    FillStyleProto fill_style = 2100400;
+    FontStyleProto font_style = 2100500;
+    PaletteProto palette = 2100100;
+    ShadowStyleProto shadow_style = 2100700;
+    StrokeStyleProto stroke_style = 2101100;
+    ThemeProto theme = 2100000;
+    TransitionStyleProto transition_style = 2100900;
+    EffectStyleProto effect_style = 2101000;
     FrameViewProto frame_view = 1800200;
     InternalViewProto internal_view = 1815000;
     LabelViewProto label_view = 1800300;
@@ -7223,17 +7232,6 @@ message SomeEntityProto {
     ReactionProto reaction = 1400000;
     StarProto star = 1400100;
     FolderProto folder = 240000;
-    ColorStyleProto color_style = 2100300;
-    BorderStyleProto border_style = 2100600;
-    TransitionStyleProto transition_style = 2100900;
-    EffectStyleProto effect_style = 2101000;
-    GradientStyleProto gradient_style = 2100800;
-    FillStyleProto fill_style = 2100400;
-    FontStyleProto font_style = 2100500;
-    PaletteProto palette = 2100100;
-    ShadowStyleProto shadow_style = 2100700;
-    StrokeStyleProto stroke_style = 2101100;
-    ThemeProto theme = 2100000;
     ClientProto client = 121300;
     HandleProto handle = 100200;
     OrganizationProto organization = 122000;

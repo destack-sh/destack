@@ -40,6 +40,138 @@ import { base64Decode } from "@destack/utils";
 import { hashInt, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
+/* ==== DESTACK_GENERATED_START:NODE:12200 ==== */
+/**
+ * An Entity that represents a Metric.
+ */
+export abstract class Metric extends Entity implements IsSourceable {
+  static metatype: NodeType = NodeType.METRIC;
+
+  /**
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
+   */
+  abstract get parent(): Entity | null;
+  declare readonly parentPtr: NodeReference | null;
+
+  /**
+   * The Space this Node is in.
+   */
+  abstract get space(): Space | null;
+  declare readonly spacePtr: NodeReference;
+
+  /**
+   * Entity.materialization
+   */
+  declare readonly materialization: Materialization;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  abstract get definition(): Entity | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Snapshot this Entity is part of.
+   */
+  abstract get snapshot(): Snapshot | null;
+  declare readonly snapshotPtr: NodeReference;
+
+  /**
+   * The previous Entity this Entity is based on (from the base Snapshot).
+   */
+  abstract get precededBy(): Metric | null;
+  declare readonly precededByPtr: NodeReference | null;
+
+  /**
+   * The (root) Entity that is being instantiated.
+   */
+  abstract get instantiationRoot(): Entity | null;
+  declare readonly instantiationRootPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was created (system time).
+   */
+  declare readonly createdAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was created (system time).
+   */
+  declare readonly createdEpoch: number;
+
+  /**
+   * The Actor that created this Entity.
+   */
+  abstract get createdBy(): (Entity & IsActor) | null;
+  declare readonly createdByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was last updated (system time).
+   */
+  declare readonly updatedAt: Temporal.ZonedDateTime;
+
+  /**
+   * The logical time this Entity was last updated (system time).
+   */
+  declare readonly updatedEpoch: number;
+
+  /**
+   * The Actor that last updated this Entity.
+   */
+  abstract get updatedBy(): (Entity & IsActor) | null;
+  declare readonly updatedByPtr: NodeReference | null;
+
+  /**
+   * The time this Entity was deleted (system time).
+   * Only set if the Entity is currently 'deleted'.
+   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
+   */
+  declare readonly deletedAt: Temporal.ZonedDateTime | null;
+
+  /**
+   * The absolute order key of this Node in its parent.
+   */
+  declare readonly orderKey: string;
+
+  /**
+   * Entity.name
+   */
+  /**
+   * Entity.name
+   */
+  abstract get name(): string;
+  abstract set name(value: string);
+
+  /**
+   * The Script that defines this Node.
+   */
+  abstract get source(): Script | null;
+  declare readonly sourcePtr: NodeReference | null;
+
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  /**
+   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
+   */
+  abstract get key(): string | null;
+  abstract set key(value: string | null);
+
+  /**
+   * Metric.icon
+   */
+  /**
+   * Metric.icon
+   */
+  abstract get icon(): Icon | null;
+  abstract set icon(value: Icon | null);
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerNodeClass(NodeType.METRIC, Metric);
+/* ==== DESTACK_GENERATED_END:NODE:12200 ==== */
+
 /* ==== DESTACK_GENERATED_START:NODE:50200 ==== */
 /**
  * An Event that represents a Measurement.
@@ -4595,135 +4727,3 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
 }
 registerNodeClass(NodeType.HISTOGRAM_MEASUREMENT_EVENT, HistogramMeasurementEvent);
 /* ==== DESTACK_GENERATED_END:NODE:1200201 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:12200 ==== */
-/**
- * An Entity that represents a Metric.
- */
-export abstract class Metric extends Entity implements IsSourceable {
-  static metatype: NodeType = NodeType.METRIC;
-
-  /**
-   * The parent of this Entity. Most Entities can be attached to any other Entity.
-   */
-  abstract get parent(): Entity | null;
-  declare readonly parentPtr: NodeReference | null;
-
-  /**
-   * The Space this Node is in.
-   */
-  abstract get space(): Space | null;
-  declare readonly spacePtr: NodeReference;
-
-  /**
-   * Entity.materialization
-   */
-  declare readonly materialization: Materialization;
-
-  /**
-   * The definition this CustomEntity is an instance of.
-   */
-  abstract get definition(): Entity | null;
-  declare readonly definitionPtr: NodeReference | null;
-
-  /**
-   * The Snapshot this Entity is part of.
-   */
-  abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference;
-
-  /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
-   */
-  abstract get precededBy(): Metric | null;
-  declare readonly precededByPtr: NodeReference | null;
-
-  /**
-   * The (root) Entity that is being instantiated.
-   */
-  abstract get instantiationRoot(): Entity | null;
-  declare readonly instantiationRootPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was created (system time).
-   */
-  declare readonly createdAt: Temporal.ZonedDateTime;
-
-  /**
-   * The logical time this Entity was created (system time).
-   */
-  declare readonly createdEpoch: number;
-
-  /**
-   * The Actor that created this Entity.
-   */
-  abstract get createdBy(): (Entity & IsActor) | null;
-  declare readonly createdByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was last updated (system time).
-   */
-  declare readonly updatedAt: Temporal.ZonedDateTime;
-
-  /**
-   * The logical time this Entity was last updated (system time).
-   */
-  declare readonly updatedEpoch: number;
-
-  /**
-   * The Actor that last updated this Entity.
-   */
-  abstract get updatedBy(): (Entity & IsActor) | null;
-  declare readonly updatedByPtr: NodeReference | null;
-
-  /**
-   * The time this Entity was deleted (system time).
-   * Only set if the Entity is currently 'deleted'.
-   * Deleting and restoring an Entity counts as an update, and thus updates updated_at/updated_epoch.
-   */
-  declare readonly deletedAt: Temporal.ZonedDateTime | null;
-
-  /**
-   * The absolute order key of this Node in its parent.
-   */
-  declare readonly orderKey: string;
-
-  /**
-   * Entity.name
-   */
-  /**
-   * Entity.name
-   */
-  abstract get name(): string;
-  abstract set name(value: string);
-
-  /**
-   * The Script that defines this Node.
-   */
-  abstract get source(): Script | null;
-  declare readonly sourcePtr: NodeReference | null;
-
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  /**
-   * The key to uniquely identify this Node in reconciliation. If not set, name is used.
-   */
-  abstract get key(): string | null;
-  abstract set key(value: string | null);
-
-  /**
-   * Metric.icon
-   */
-  /**
-   * Metric.icon
-   */
-  abstract get icon(): Icon | null;
-  abstract set icon(value: Icon | null);
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerNodeClass(NodeType.METRIC, Metric);
-/* ==== DESTACK_GENERATED_END:NODE:12200 ==== */

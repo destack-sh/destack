@@ -22,10 +22,8 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import (
-        Icon,
-        Space,
-    )
+    from destack.language import Space
+
 # pyright: reportIncompatibleVariableOverride=false
 
 
@@ -37,10 +35,6 @@ class Branch(
     """A Branch is a version of a Snapshot."""
 
     parent: Optional["Space"] = builtin_property_parent()
-
-    icon: "Icon | None" = builtin_property(102)
-
-    head: Optional["Snapshot"] = builtin_property(110)
 
 
 @builtin_enum(EnumType.SNAPSHOT_TYPE)
