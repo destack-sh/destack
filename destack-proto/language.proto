@@ -4297,13 +4297,17 @@ message NodeDefinitionProto {
   repeated NodeTypeProto child_types = 131;
   repeated NodeTypeProto ancestor_types = 132;
   repeated NodeTypeProto descendant_types = 133;
-  repeated NodeTypeProto event_types = 140;
-  repeated NodeTypeProto base_event_types = 141;
-  repeated StoreKeyProto primary_store_keys = 150;
-  optional StoreDomainProto store_domain = 151;
-  repeated IndexDefinitionProto indexes = 160;
-  repeated ConstraintDefinitionProto constraints = 161;
-  repeated PermissionDefinitionProto permissions = 162;
+  repeated NodeTypeProto expected_parent_types = 140;
+  repeated NodeTypeProto expected_child_types = 141;
+  repeated NodeTypeProto expected_ancestor_types = 142;
+  repeated NodeTypeProto expected_descendant_types = 143;
+  repeated NodeTypeProto event_types = 150;
+  repeated NodeTypeProto base_event_types = 151;
+  repeated StoreKeyProto primary_store_keys = 160;
+  optional StoreDomainProto store_domain = 161;
+  repeated IndexDefinitionProto indexes = 170;
+  repeated ConstraintDefinitionProto constraints = 171;
+  repeated PermissionDefinitionProto permissions = 172;
 }
 
 message NodeDefinitionReferenceProto {

@@ -66,6 +66,10 @@ def builtin_node(
     frozen: bool = False,
     is_abstract: bool = False,
     event_types: tuple[NodeType, ...] = (),
+    expected_parent_types: tuple[NodeType, ...] = (),
+    expected_child_types: tuple[NodeType, ...] = (),
+    expected_ancestor_types: tuple[NodeType, ...] = (),
+    expected_descendant_types: tuple[NodeType, ...] = (),
     indexes: tuple["IndexDeclaration", ...] = (),
     constraints: tuple["ConstraintDeclaration", ...] = (),
     permissions: tuple["PermissionDeclaration", ...] = (),
@@ -108,6 +112,12 @@ def builtin_node(
             )
         if NodeType.EVENT in inherits:
             frozen = True  # Events are always frozen
+
+        # expected types
+        cls.__expected_parent_types__ = tuple(expected_parent_types)
+        cls.__expected_child_types__ = tuple(expected_child_types)
+        cls.__expected_ancestor_types__ = tuple(expected_ancestor_types)
+        cls.__expected_descendant_types__ = tuple(expected_descendant_types)
 
         # process class
         is_entity = any(base.__name__ == "Entity" for base in cls.__bases__)
@@ -212,6 +222,15 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The descendant types of this Node type (directly and indirectly)."""
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    """The expected parent types of this Node type (any of)."""
+    __expected_parent_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The expected child types of this Node type (any of)."""
+    __expected_child_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The expected ancestor types of this Node type (any of)."""
+    __expected_ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The expected descendant types of this Node type (any of)."""
+    __expected_descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
     """The base event types of this Node type (directly)."""
     __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()

@@ -206,6 +206,26 @@ export class NodeDefinition extends BuiltinDefinition {
   readonly descendantTypes: readonly NodeType[];
 
   /**
+   * The parent types expected for this Node type (directly).
+   */
+  readonly expectedParentTypes: readonly NodeType[];
+
+  /**
+   * The child types expected for this Node type (directly).
+   */
+  readonly expectedChildTypes: readonly NodeType[];
+
+  /**
+   * The ancestor types expected for this Node type (directly and indirectly).
+   */
+  readonly expectedAncestorTypes: readonly NodeType[];
+
+  /**
+   * The descendant types expected for this Node type (directly and indirectly).
+   */
+  readonly expectedDescendantTypes: readonly NodeType[];
+
+  /**
    * The event types of this Node (directly and indirectly).
    */
   readonly eventTypes: readonly NodeType[];
@@ -260,6 +280,10 @@ export class NodeDefinition extends BuiltinDefinition {
     childTypes?: readonly NodeType[];
     ancestorTypes?: readonly NodeType[];
     descendantTypes?: readonly NodeType[];
+    expectedParentTypes?: readonly NodeType[];
+    expectedChildTypes?: readonly NodeType[];
+    expectedAncestorTypes?: readonly NodeType[];
+    expectedDescendantTypes?: readonly NodeType[];
     eventTypes?: readonly NodeType[];
     baseEventTypes?: readonly NodeType[];
     primaryStoreKeys?: readonly StoreKey[];
@@ -368,6 +392,26 @@ export class NodeDefinition extends BuiltinDefinition {
       _descendantTypes = [];
     }
     this.descendantTypes = _descendantTypes;
+    let _expectedParentTypes = options.expectedParentTypes ?? null;
+    if (_expectedParentTypes === null) {
+      _expectedParentTypes = [];
+    }
+    this.expectedParentTypes = _expectedParentTypes;
+    let _expectedChildTypes = options.expectedChildTypes ?? null;
+    if (_expectedChildTypes === null) {
+      _expectedChildTypes = [];
+    }
+    this.expectedChildTypes = _expectedChildTypes;
+    let _expectedAncestorTypes = options.expectedAncestorTypes ?? null;
+    if (_expectedAncestorTypes === null) {
+      _expectedAncestorTypes = [];
+    }
+    this.expectedAncestorTypes = _expectedAncestorTypes;
+    let _expectedDescendantTypes = options.expectedDescendantTypes ?? null;
+    if (_expectedDescendantTypes === null) {
+      _expectedDescendantTypes = [];
+    }
+    this.expectedDescendantTypes = _expectedDescendantTypes;
     let _eventTypes = options.eventTypes ?? null;
     if (_eventTypes === null) {
       _eventTypes = [];
@@ -511,6 +555,38 @@ export class NodeDefinition extends BuiltinDefinition {
         return false;
       }
     }
+    if (this.expectedParentTypes.length != other.expectedParentTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.expectedParentTypes.length; i++) {
+      if (!(this.expectedParentTypes[i] === other.expectedParentTypes[i])) {
+        return false;
+      }
+    }
+    if (this.expectedChildTypes.length != other.expectedChildTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.expectedChildTypes.length; i++) {
+      if (!(this.expectedChildTypes[i] === other.expectedChildTypes[i])) {
+        return false;
+      }
+    }
+    if (this.expectedAncestorTypes.length != other.expectedAncestorTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.expectedAncestorTypes.length; i++) {
+      if (!(this.expectedAncestorTypes[i] === other.expectedAncestorTypes[i])) {
+        return false;
+      }
+    }
+    if (this.expectedDescendantTypes.length != other.expectedDescendantTypes.length) {
+      return false;
+    }
+    for (let i = 0; i < this.expectedDescendantTypes.length; i++) {
+      if (!(this.expectedDescendantTypes[i] === other.expectedDescendantTypes[i])) {
+        return false;
+      }
+    }
     if (this.eventTypes.length != other.eventTypes.length) {
       return false;
     }
@@ -587,6 +663,19 @@ export class NodeDefinition extends BuiltinDefinition {
       propertyReprs.push(`isAbstract=${this.isAbstract}`);
       propertyReprs.push(`isExtensible=${this.isExtensible}`);
       propertyReprs.push(`isFrozen=${this.isFrozen}`);
+      if (this.baseType != null) {
+        propertyReprs.push(`baseType=${NodeType[this.baseType]}`);
+      }
+      if (this.parentTypes.length > 0) {
+        propertyReprs.push(
+          `parentTypes=${this.parentTypes.map((_item) => NodeType[_item]).join(", ")}`,
+        );
+      }
+      if (this.childTypes.length > 0) {
+        propertyReprs.push(
+          `childTypes=${this.childTypes.map((_item) => NodeType[_item]).join(", ")}`,
+        );
+      }
       propertyReprs.push(`id=${this.id}`);
       propertyReprs.push(`name=${`"${this.name}"`}`);
       if (this.description != null) {
@@ -659,6 +748,26 @@ export class NodeDefinition extends BuiltinDefinition {
     }
     if (this.descendantTypes && this.descendantTypes.length > 0) {
       for (const _item of this.descendantTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.expectedParentTypes && this.expectedParentTypes.length > 0) {
+      for (const _item of this.expectedParentTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.expectedChildTypes && this.expectedChildTypes.length > 0) {
+      for (const _item of this.expectedChildTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.expectedAncestorTypes && this.expectedAncestorTypes.length > 0) {
+      for (const _item of this.expectedAncestorTypes) {
+        h = (h * 31 + _item) & 0xffffffff;
+      }
+    }
+    if (this.expectedDescendantTypes && this.expectedDescendantTypes.length > 0) {
+      for (const _item of this.expectedDescendantTypes) {
         h = (h * 31 + _item) & 0xffffffff;
       }
     }
@@ -809,50 +918,78 @@ export class NodeDefinition extends BuiltinDefinition {
       }
       objectValue["133"] = packedDescendantTypes;
     }
+    if (object.expectedParentTypes.length > 0) {
+      const packedExpectedParentTypes: any[] = [];
+      for (const item of object.expectedParentTypes) {
+        packedExpectedParentTypes.push(item);
+      }
+      objectValue["140"] = packedExpectedParentTypes;
+    }
+    if (object.expectedChildTypes.length > 0) {
+      const packedExpectedChildTypes: any[] = [];
+      for (const item of object.expectedChildTypes) {
+        packedExpectedChildTypes.push(item);
+      }
+      objectValue["141"] = packedExpectedChildTypes;
+    }
+    if (object.expectedAncestorTypes.length > 0) {
+      const packedExpectedAncestorTypes: any[] = [];
+      for (const item of object.expectedAncestorTypes) {
+        packedExpectedAncestorTypes.push(item);
+      }
+      objectValue["142"] = packedExpectedAncestorTypes;
+    }
+    if (object.expectedDescendantTypes.length > 0) {
+      const packedExpectedDescendantTypes: any[] = [];
+      for (const item of object.expectedDescendantTypes) {
+        packedExpectedDescendantTypes.push(item);
+      }
+      objectValue["143"] = packedExpectedDescendantTypes;
+    }
     if (object.eventTypes.length > 0) {
       const packedEventTypes: any[] = [];
       for (const item of object.eventTypes) {
         packedEventTypes.push(item);
       }
-      objectValue["140"] = packedEventTypes;
+      objectValue["150"] = packedEventTypes;
     }
     if (object.baseEventTypes.length > 0) {
       const packedBaseEventTypes: any[] = [];
       for (const item of object.baseEventTypes) {
         packedBaseEventTypes.push(item);
       }
-      objectValue["141"] = packedBaseEventTypes;
+      objectValue["151"] = packedBaseEventTypes;
     }
     if (object.primaryStoreKeys.length > 0) {
       const packedPrimaryStoreKeys: any[] = [];
       for (const item of object.primaryStoreKeys) {
         packedPrimaryStoreKeys.push(item);
       }
-      objectValue["150"] = packedPrimaryStoreKeys;
+      objectValue["160"] = packedPrimaryStoreKeys;
     }
     if (object.storeDomain != null) {
-      objectValue["151"] = object.storeDomain;
+      objectValue["161"] = object.storeDomain;
     }
     if (object.indexes.length > 0) {
       const packedIndexes: any[] = [];
       for (const item of object.indexes) {
         packedIndexes.push(item.toValue());
       }
-      objectValue["160"] = packedIndexes;
+      objectValue["170"] = packedIndexes;
     }
     if (object.constraints.length > 0) {
       const packedConstraints: any[] = [];
       for (const item of object.constraints) {
         packedConstraints.push(item.toValue());
       }
-      objectValue["161"] = packedConstraints;
+      objectValue["171"] = packedConstraints;
     }
     if (object.permissions.length > 0) {
       const packedPermissions: any[] = [];
       for (const item of object.permissions) {
         packedPermissions.push(item.toValue());
       }
-      objectValue["162"] = packedPermissions;
+      objectValue["172"] = packedPermissions;
     }
     return objectValue;
   }
@@ -941,45 +1078,69 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedDescendantTypes.push(Number(item));
       }
     }
-    const unpackedEventTypes: any[] = [];
+    const unpackedExpectedParentTypes: any[] = [];
     if (objectValue["140"] != undefined) {
       for (const item of objectValue["140"]) {
+        unpackedExpectedParentTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedChildTypes: any[] = [];
+    if (objectValue["141"] != undefined) {
+      for (const item of objectValue["141"]) {
+        unpackedExpectedChildTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedAncestorTypes: any[] = [];
+    if (objectValue["142"] != undefined) {
+      for (const item of objectValue["142"]) {
+        unpackedExpectedAncestorTypes.push(Number(item));
+      }
+    }
+    const unpackedExpectedDescendantTypes: any[] = [];
+    if (objectValue["143"] != undefined) {
+      for (const item of objectValue["143"]) {
+        unpackedExpectedDescendantTypes.push(Number(item));
+      }
+    }
+    const unpackedEventTypes: any[] = [];
+    if (objectValue["150"] != undefined) {
+      for (const item of objectValue["150"]) {
         unpackedEventTypes.push(Number(item));
       }
     }
     const unpackedBaseEventTypes: any[] = [];
-    if (objectValue["141"] != undefined) {
-      for (const item of objectValue["141"]) {
+    if (objectValue["151"] != undefined) {
+      for (const item of objectValue["151"]) {
         unpackedBaseEventTypes.push(Number(item));
       }
     }
     const unpackedPrimaryStoreKeys: any[] = [];
-    if (objectValue["150"] != undefined) {
-      for (const item of objectValue["150"]) {
+    if (objectValue["160"] != undefined) {
+      for (const item of objectValue["160"]) {
         unpackedPrimaryStoreKeys.push(Number(item));
       }
     }
-    const storeDomainValue = objectValue["151"];
+    const storeDomainValue = objectValue["161"];
     const unpackedStoreDomain = storeDomainValue != undefined ? Number(storeDomainValue) : null;
     const unpackedIndexes: any[] = [];
-    if (objectValue["160"] != undefined) {
-      for (const item of objectValue["160"]) {
+    if (objectValue["170"] != undefined) {
+      for (const item of objectValue["170"]) {
         unpackedIndexes.push(
           _IndexDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedConstraints: any[] = [];
-    if (objectValue["161"] != undefined) {
-      for (const item of objectValue["161"]) {
+    if (objectValue["171"] != undefined) {
+      for (const item of objectValue["171"]) {
         unpackedConstraints.push(
           _ConstraintDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedPermissions: any[] = [];
-    if (objectValue["162"] != undefined) {
-      for (const item of objectValue["162"]) {
+    if (objectValue["172"] != undefined) {
+      for (const item of objectValue["172"]) {
         unpackedPermissions.push(
           _PermissionDefinition.fromValue(item, _session, _supergraph, _graph, _connection),
         );
@@ -1008,6 +1169,10 @@ export class NodeDefinition extends BuiltinDefinition {
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
       descendantTypes: unpackedDescendantTypes,
+      expectedParentTypes: unpackedExpectedParentTypes,
+      expectedChildTypes: unpackedExpectedChildTypes,
+      expectedAncestorTypes: unpackedExpectedAncestorTypes,
+      expectedDescendantTypes: unpackedExpectedDescendantTypes,
       eventTypes: unpackedEventTypes,
       baseEventTypes: unpackedBaseEventTypes,
       primaryStoreKeys: unpackedPrimaryStoreKeys,
@@ -1128,6 +1293,34 @@ export class NodeDefinition extends BuiltinDefinition {
         packedDescendantTypes.push(Number(item) as NodeTypeProto);
       }
       objectProto.descendantTypes = packedDescendantTypes;
+    }
+    if (object.expectedParentTypes) {
+      const packedExpectedParentTypes: any[] = [];
+      for (const item of object.expectedParentTypes) {
+        packedExpectedParentTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.expectedParentTypes = packedExpectedParentTypes;
+    }
+    if (object.expectedChildTypes) {
+      const packedExpectedChildTypes: any[] = [];
+      for (const item of object.expectedChildTypes) {
+        packedExpectedChildTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.expectedChildTypes = packedExpectedChildTypes;
+    }
+    if (object.expectedAncestorTypes) {
+      const packedExpectedAncestorTypes: any[] = [];
+      for (const item of object.expectedAncestorTypes) {
+        packedExpectedAncestorTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.expectedAncestorTypes = packedExpectedAncestorTypes;
+    }
+    if (object.expectedDescendantTypes) {
+      const packedExpectedDescendantTypes: any[] = [];
+      for (const item of object.expectedDescendantTypes) {
+        packedExpectedDescendantTypes.push(Number(item) as NodeTypeProto);
+      }
+      objectProto.expectedDescendantTypes = packedExpectedDescendantTypes;
     }
     if (object.eventTypes) {
       const packedEventTypes: any[] = [];
@@ -1259,6 +1452,30 @@ export class NodeDefinition extends BuiltinDefinition {
         unpackedDescendantTypes.push(Number(item) as NodeType);
       }
     }
+    const unpackedExpectedParentTypes: any[] = [];
+    if (objectProto.expectedParentTypes) {
+      for (const item of objectProto.expectedParentTypes) {
+        unpackedExpectedParentTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedExpectedChildTypes: any[] = [];
+    if (objectProto.expectedChildTypes) {
+      for (const item of objectProto.expectedChildTypes) {
+        unpackedExpectedChildTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedExpectedAncestorTypes: any[] = [];
+    if (objectProto.expectedAncestorTypes) {
+      for (const item of objectProto.expectedAncestorTypes) {
+        unpackedExpectedAncestorTypes.push(Number(item) as NodeType);
+      }
+    }
+    const unpackedExpectedDescendantTypes: any[] = [];
+    if (objectProto.expectedDescendantTypes) {
+      for (const item of objectProto.expectedDescendantTypes) {
+        unpackedExpectedDescendantTypes.push(Number(item) as NodeType);
+      }
+    }
     const unpackedEventTypes: any[] = [];
     if (objectProto.eventTypes) {
       for (const item of objectProto.eventTypes) {
@@ -1318,6 +1535,10 @@ export class NodeDefinition extends BuiltinDefinition {
       childTypes: unpackedChildTypes,
       ancestorTypes: unpackedAncestorTypes,
       descendantTypes: unpackedDescendantTypes,
+      expectedParentTypes: unpackedExpectedParentTypes,
+      expectedChildTypes: unpackedExpectedChildTypes,
+      expectedAncestorTypes: unpackedExpectedAncestorTypes,
+      expectedDescendantTypes: unpackedExpectedDescendantTypes,
       eventTypes: unpackedEventTypes,
       baseEventTypes: unpackedBaseEventTypes,
       primaryStoreKeys: unpackedPrimaryStoreKeys,
