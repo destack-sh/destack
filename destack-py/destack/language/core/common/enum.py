@@ -4,7 +4,6 @@ from ..builtin import (
     Entity,
     IsCustomizable,
     IsSourceable,
-    IsTaggable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -18,7 +17,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_ENUM)
 class CustomEnum(
-    IsTaggable,
     IsSourceable,
     IsCustomizable,
     Entity,
@@ -30,7 +28,6 @@ class CustomEnum(
 
 @builtin_node(NodeType.CUSTOM_OPTION)
 class CustomOption(
-    IsTaggable,
     IsSourceable,
     Entity,
 ):

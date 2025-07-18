@@ -6,7 +6,6 @@ from ..builtin import (
     Entity,
     IsCustomizable,
     IsSourceable,
-    IsTaggable,
     NodeType,
     StructFrozen,
     StructMutable,
@@ -24,7 +23,6 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.CUSTOM_STRUCT)
 class CustomStruct(
-    IsTaggable,
     IsSourceable,
     IsCustomizable,
     Entity,

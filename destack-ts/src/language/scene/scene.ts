@@ -7,7 +7,6 @@ import type {
   IsExtensible,
   IsOrdered,
   IsOwnable,
-  IsTaggable,
   IsViewable,
   NodeClass,
   NodeReference,
@@ -121,10 +120,7 @@ registerNodeClass(NodeType.SCENE_EVENT, SceneEvent);
 /**
  * A Scene is a container for an interaction point.
  */
-export class Scene
-  extends Entity
-  implements IsViewable, IsOwnable, IsOrdered, IsTaggable, IsExtensible
-{
+export class Scene extends Entity implements IsViewable, IsOwnable, IsOrdered, IsExtensible {
   static metatype: NodeType = NodeType.SCENE;
 
   /**

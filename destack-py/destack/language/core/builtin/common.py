@@ -388,7 +388,7 @@ class TraitType(Enum):
     # ...
 
     # space [200_000-300_000]
-    TAGGABLE = 201_000, "Taggable", "Can be tagged", "fas fa-tag"
+    # ...
 
     # access [300_000-400_000]
     OWNABLE = 300_000, "Ownable", "Is ownable", "fas fa-user"

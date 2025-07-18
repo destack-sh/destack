@@ -4,7 +4,6 @@ import type {
   IsActor,
   IsExtensible,
   IsOrdered,
-  IsTaggable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -34,7 +33,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Theme with common Styles.
  */
-export class Theme extends Entity implements IsExtensible, IsTaggable, IsOrdered {
+export class Theme extends Entity implements IsExtensible, IsOrdered {
   static metatype: NodeType = NodeType.THEME;
 
   /**

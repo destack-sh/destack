@@ -11,7 +11,6 @@ from destack.language.core import (
     IsOwnable,
     IsReactable,
     IsStarable,
-    IsTaggable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -37,7 +36,6 @@ class FolderType(Enum):
 
 @builtin_node(NodeType.FOLDER)
 class Folder(
-    IsTaggable,
     IsOwnable,
     IsJoinable,
     IsOrdered,

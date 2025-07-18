@@ -16811,7 +16811,7 @@ export interface StyleProto {
     isExtensible: boolean;
 }
 /**
- * A Tag definition to tag a Taggable Entity (in a Tagging).
+ * A Tag to tag a Taggable Entity with (in a Tagging).
  *
  * @generated from protobuf message symbol.destack.TagProto
  */
@@ -16832,6 +16832,10 @@ export interface TagProto {
      * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
+     */
+    definitionPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
@@ -16873,6 +16877,12 @@ export interface TagProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -16888,6 +16898,14 @@ export interface TagProto {
      * @generated from protobuf field: optional string key = 70
      */
     key?: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: bool is_extensible = 90
+     */
+    isExtensible: boolean;
     /**
      * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
@@ -16964,7 +16982,7 @@ export interface TaggingProto {
      */
     name: string;
     /**
-     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto tag_ptr = 110
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto tag_ptr = 110
      */
     tagPtr?: NodeReferenceProto;
 }
@@ -25756,10 +25774,6 @@ export enum TraitTypeProto {
      * @generated from protobuf enum value: TRAIT_TYPE_IRREVERSIBLE = 10300;
      */
     TRAIT_TYPE_IRREVERSIBLE = 10300,
-    /**
-     * @generated from protobuf enum value: TRAIT_TYPE_TAGGABLE = 201000;
-     */
-    TRAIT_TYPE_TAGGABLE = 201000,
     /**
      * @generated from protobuf enum value: TRAIT_TYPE_OWNABLE = 300000;
      */
@@ -64713,6 +64727,7 @@ class TagProto$Type extends MessageType<TagProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -64723,10 +64738,13 @@ class TagProto$Type extends MessageType<TagProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 60, name: "source_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 70, name: "key", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto }
         ]);
     }
@@ -64737,8 +64755,10 @@ class TagProto$Type extends MessageType<TagProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.isExtensible = false;
         if (value !== undefined)
             reflectionMergePartial<TagProto>(this, message, value);
         return message;
@@ -64759,6 +64779,9 @@ class TagProto$Type extends MessageType<TagProto> {
                     break;
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -64790,6 +64813,9 @@ class TagProto$Type extends MessageType<TagProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
@@ -64801,6 +64827,12 @@ class TagProto$Type extends MessageType<TagProto> {
                     break;
                 case /* optional string key */ 70:
                     message.key = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                case /* bool is_extensible */ 90:
+                    message.isExtensible = reader.bool();
                     break;
                 case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
@@ -64816,6 +64848,22 @@ class TagProto$Type extends MessageType<TagProto> {
         }
         return message;
     }
+    private binaryReadMap30(map: TagProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof TagProto["customValues"] | undefined, val: TagProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.TagProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: TagProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -64829,6 +64877,9 @@ class TagProto$Type extends MessageType<TagProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -64859,6 +64910,13 @@ class TagProto$Type extends MessageType<TagProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
@@ -64871,6 +64929,12 @@ class TagProto$Type extends MessageType<TagProto> {
         /* optional string key = 70; */
         if (message.key !== undefined)
             writer.tag(70, WireType.LengthDelimited).string(message.key);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_extensible = 90; */
+        if (message.isExtensible !== false)
+            writer.tag(90, WireType.Varint).bool(message.isExtensible);
         /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
             IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
@@ -64973,7 +65037,7 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
                 case /* string name */ 50:
                     message.name = reader.string();
                     break;
-                case /* optional symbol.destack.NodeReferenceProto tag_ptr */ 110:
+                case /* symbol.destack.NodeReferenceProto tag_ptr */ 110:
                     message.tagPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.tagPtr);
                     break;
                 default:
@@ -65036,7 +65100,7 @@ class TaggingProto$Type extends MessageType<TaggingProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
-        /* optional symbol.destack.NodeReferenceProto tag_ptr = 110; */
+        /* symbol.destack.NodeReferenceProto tag_ptr = 110; */
         if (message.tagPtr)
             NodeReferenceProto.internalBinaryWrite(message.tagPtr, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;

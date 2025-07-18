@@ -2,7 +2,6 @@ import type {
   IsActor,
   IsExtensible,
   IsOrdered,
-  IsTaggable,
   Materialization,
   NodeReference,
   Snapshot,
@@ -18,7 +17,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Style defines a base visual appearance in some context.
  */
-export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsExtensible {
+export abstract class Style extends Entity implements IsOrdered, IsExtensible {
   static metatype: NodeType = NodeType.STYLE;
 
   /**

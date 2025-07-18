@@ -3,15 +3,16 @@ import type {
   Graph,
   Icon,
   IsActor,
+  IsExtensible,
   IsOrdered,
   IsSourceable,
-  IsTaggable,
   NodeClass,
   NodeReference,
   QueryConnection,
   Session,
   Snapshot,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -27,14 +28,14 @@ import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/regis
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, TagProto, TaggingProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:241000 ==== */
 /**
- * A Tag definition to tag a Taggable Entity (in a Tagging).
+ * A Tag to tag a Taggable Entity with (in a Tagging).
  */
-export class Tag extends Entity implements IsSourceable {
+export class Tag extends Entity implements IsSourceable, IsExtensible {
   static metatype: NodeType = NodeType.TAG;
 
   /**
@@ -60,6 +61,18 @@ export class Tag extends Entity implements IsSourceable {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): Entity | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * Entity.materialization
@@ -140,6 +153,22 @@ export class Tag extends Entity implements IsSourceable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
@@ -189,6 +218,41 @@ export class Tag extends Entity implements IsSourceable {
   _key: string | null;
 
   /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
+
+  /**
    * Tag.icon
    */
   /**
@@ -208,6 +272,7 @@ export class Tag extends Entity implements IsSourceable {
     id?: string;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
+    definition?: Entity | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Tag | NodeReference | null;
@@ -218,10 +283,13 @@ export class Tag extends Entity implements IsSourceable {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     name?: string;
     source?: Script | NodeReference | null;
     key?: string | null;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -273,6 +341,11 @@ export class Tag extends Entity implements IsSourceable {
       throw new Error(`Tag.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 3 /* Materialization.ROOT */;
@@ -293,6 +366,11 @@ export class Tag extends Entity implements IsSourceable {
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -316,6 +394,19 @@ export class Tag extends Entity implements IsSourceable {
     this.sourcePtr = _source;
     let _key = options.key ?? null;
     this._key = _key;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`Tag.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -373,6 +464,12 @@ export class Tag extends Entity implements IsSourceable {
     if (!(this._key === other._key)) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -382,8 +479,22 @@ export class Tag extends Entity implements IsSourceable {
     if (!(this._name === other._name)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
     }
     return true;
   }
@@ -400,6 +511,10 @@ export class Tag extends Entity implements IsSourceable {
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -422,8 +537,17 @@ export class Tag extends Entity implements IsSourceable {
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
 
     return h;
   }
@@ -439,6 +563,7 @@ export class Tag extends Entity implements IsSourceable {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -481,6 +606,9 @@ export class Tag extends Entity implements IsSourceable {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -501,6 +629,13 @@ export class Tag extends Entity implements IsSourceable {
     if (object.deletedAt != null) {
       objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["30"] = packedCustomValues;
+    }
     objectValue["31"] = object.orderKey;
     objectValue["50"] = object._name;
     if (object.sourcePtr != null) {
@@ -509,6 +644,10 @@ export class Tag extends Entity implements IsSourceable {
     if (object._key != null) {
       objectValue["70"] = object._key;
     }
+    if (object._scriptPtr != null) {
+      objectValue["80"] = object._scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -522,6 +661,7 @@ export class Tag extends Entity implements IsSourceable {
     _graph?: any | null,
     _connection?: any | null,
   ): Tag {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectValue["102"];
@@ -536,6 +676,11 @@ export class Tag extends Entity implements IsSourceable {
         : null;
     const keyValue = objectValue["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
@@ -566,10 +711,29 @@ export class Tag extends Entity implements IsSourceable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     return new Tag({
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -583,8 +747,10 @@ export class Tag extends Entity implements IsSourceable {
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       orderKey: objectValue["31"],
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -612,6 +778,9 @@ export class Tag extends Entity implements IsSourceable {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -632,6 +801,12 @@ export class Tag extends Entity implements IsSourceable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
     if (object.sourcePtr != null) {
@@ -640,6 +815,10 @@ export class Tag extends Entity implements IsSourceable {
     if (object._key != null) {
       objectProto.key = object._key;
     }
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -653,8 +832,18 @@ export class Tag extends Entity implements IsSourceable {
     _graph?: any | null,
     _connection?: any | null,
   ): Tag {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Tag({
       icon:
         objectProto.icon != undefined
@@ -671,6 +860,17 @@ export class Tag extends Entity implements IsSourceable {
             )
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -730,6 +930,16 @@ export class Tag extends Entity implements IsSourceable {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       orderKey: objectProto.orderKey,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -738,6 +948,7 @@ export class Tag extends Entity implements IsSourceable {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -771,16 +982,16 @@ registerNodeClass(NodeType.TAG, Tag);
 /**
  * A Tagging of a Node by a Tag.
  */
-export class Tagging extends Entity implements IsTaggable, IsOrdered {
+export class Tagging extends Entity implements IsOrdered {
   static metatype: NodeType = NodeType.TAGGING;
 
   /**
-   * Tagging.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): (Entity & IsTaggable) | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsTaggable) | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -907,29 +1118,25 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
     }
     return null;
   }
-  set tag(node: Tag | null) {
-    if (node === null) {
-      this.tagPtr = null;
-    } else {
-      this.tagPtr = node.toRef();
-    }
+  set tag(node: Tag) {
+    this.tagPtr = node.toRef();
   }
   /**
    * Tagging.tag
    */
-  get tagPtr(): NodeReference | null {
+  get tagPtr(): NodeReference {
     return this._tagPtr;
   }
-  set tagPtr(value: NodeReference | null) {
+  set tagPtr(value: NodeReference) {
     const prop = (this.constructor as NodeClass).__properties__["tag"];
     this._session.updateSetProperty(this, prop, value);
     this._tagPtr = value;
   }
-  _tagPtr: NodeReference | null;
+  _tagPtr: NodeReference;
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsTaggable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -943,7 +1150,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
     deletedAt?: Temporal.ZonedDateTime | null;
     orderKey?: string;
     name?: string;
-    tag?: Tag | NodeReference | null;
+    tag: Tag | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1030,9 +1237,12 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
       throw new Error(`Tagging.name is required`);
     }
     this._name = _name;
-    let _tag = options.tag ?? null;
+    let _tag = options.tag;
     if (_tag != null && _tag.metatype != StructType.NODE_REFERENCE) {
       _tag = (_tag as Node).toRef();
+    }
+    if (_tag === null) {
+      throw new Error(`Tagging.tag is required`);
     }
     this._tagPtr = _tag;
 
@@ -1078,7 +1288,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
     if (!(this.metatype === other.metatype)) {
       return false;
     }
-    if (!(this._tagPtr?.id === other._tagPtr?.id)) {
+    if (!(this._tagPtr.id === other._tagPtr.id)) {
       return false;
     }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
@@ -1099,13 +1309,11 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
+    h = (h * 31 + hashString(this._tagPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this._tagPtr != null) {
-      h = (h * 31 + hashString(this._tagPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1205,9 +1413,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
     }
     objectValue["31"] = object.orderKey;
     objectValue["50"] = object._name;
-    if (object._tagPtr != null) {
-      objectValue["110"] = object._tagPtr.toValue();
-    }
+    objectValue["110"] = object._tagPtr.toValue();
     return objectValue;
   }
 
@@ -1223,11 +1429,6 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const tagPtrValue = objectValue["110"];
-    const unpackedTagPtr =
-      tagPtrValue != undefined
-        ? _NodeReference.fromValue(tagPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -1255,9 +1456,9 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Tagging({
-      parent: unpackedParentPtr,
-      tag: unpackedTagPtr,
+      tag: _NodeReference.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       orderKey: objectValue["31"],
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -1320,9 +1521,7 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
     }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
-    if (object._tagPtr != null) {
-      objectProto.tagPtr = object._tagPtr.toProto();
-    }
+    objectProto.tagPtr = object._tagPtr.toProto();
     return objectProto as TaggingProto;
   }
 
@@ -1335,6 +1534,14 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
   ): Tagging {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new Tagging({
+      tag: _NodeReference.fromProto(
+        objectProto.tagPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      orderKey: objectProto.orderKey,
       parent:
         objectProto.parentPtr != undefined
           ? _NodeReference.fromProto(
@@ -1345,17 +1552,6 @@ export class Tagging extends Entity implements IsTaggable, IsOrdered {
               _connection,
             )
           : null,
-      tag:
-        objectProto.tagPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.tagPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      orderKey: objectProto.orderKey,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined

@@ -7,7 +7,6 @@ from destack.language.core import (
     IsOwnable,
     IsRunnable,
     IsSourceable,
-    IsTaggable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -23,7 +22,6 @@ if TYPE_CHECKING:
 @builtin_node(NodeType.SERVICE)
 class Service(
     IsOwnable,
-    IsTaggable,
     IsExtensible,
     IsSourceable,
     IsActor,

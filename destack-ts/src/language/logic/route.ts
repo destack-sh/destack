@@ -2,7 +2,6 @@ import type {
   IsActor,
   IsOrdered,
   IsOwnable,
-  IsTaggable,
   Materialization,
   NodeReference,
   Snapshot,
@@ -16,7 +15,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Route is a path to something (a Scene, a View in a Scene, an Action, etc.).
  */
-export abstract class Route extends Entity implements IsOrdered, IsOwnable, IsTaggable {
+export abstract class Route extends Entity implements IsOrdered, IsOwnable {
   static metatype: NodeType = NodeType.ROUTE;
 
   /**

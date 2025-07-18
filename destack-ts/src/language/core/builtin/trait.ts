@@ -124,25 +124,6 @@ export const IsActor = new IsActor$Type(TraitType.ACTOR);
 registerTraitClass(TraitType.ACTOR, IsActor);
 /* ==== DESTACK_GENERATED_END:TRAIT:300004 ==== */
 
-/* ==== DESTACK_GENERATED_START:TRAIT:201000 ==== */
-/**
- * An Entity that can be tagged (with a Tag).
- */
-export interface IsTaggable {
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-
-/**
- * An Entity that can be tagged (with a Tag).
- */
-class IsTaggable$Type extends TraitClass<IsTaggable, TraitType.TAGGABLE> {}
-
-export const IsTaggable = new IsTaggable$Type(TraitType.TAGGABLE);
-registerTraitClass(TraitType.TAGGABLE, IsTaggable);
-/* ==== DESTACK_GENERATED_END:TRAIT:201000 ==== */
-
 /* ==== DESTACK_GENERATED_START:TRAIT:1400032 ==== */
 /**
  * An Entity that can be reacted to (with Reactions).

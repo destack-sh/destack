@@ -5,7 +5,6 @@ import type {
   IsActor,
   IsExtensible,
   IsOrdered,
-  IsTaggable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -35,7 +34,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Palette of Colors.
  */
-export class Palette extends Entity implements IsExtensible, IsOrdered, IsTaggable {
+export class Palette extends Entity implements IsExtensible, IsOrdered {
   static metatype: NodeType = NodeType.PALETTE;
 
   /**
