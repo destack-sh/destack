@@ -1,4 +1,5 @@
 import type {
+  Branch,
   IsActor,
   IsOrdered,
   IsOwnable,
@@ -40,6 +41,12 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable {
    */
   abstract get definition(): Entity | null;
   declare readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.

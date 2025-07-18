@@ -1,4 +1,5 @@
 import type {
+  Branch,
   EventStatus,
   IsActor,
   IsExtensible,
@@ -26,6 +27,12 @@ export abstract class InputEvent extends Event implements IsExtensible {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.

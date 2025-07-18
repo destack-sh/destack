@@ -8,7 +8,7 @@ import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type { IsActor } from "@destack/language/core/builtin/trait";
 import type { CustomProperty } from "@destack/language/core/common/property";
 import type { Space } from "@destack/language/core/common/space";
-import type { Snapshot } from "@destack/language/core/common/time";
+import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -92,6 +92,18 @@ export class EditEvent extends Event {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -245,6 +257,7 @@ export class EditEvent extends Event {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -303,6 +316,11 @@ export class EditEvent extends Event {
       throw new Error(`EditEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -435,6 +453,9 @@ export class EditEvent extends Event {
     ) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -490,6 +511,9 @@ export class EditEvent extends Event {
     }
     if (this.reverseValue != null) {
       h = (h * 31 + this.reverseValue.hash()) & 0xffffffff;
+    }
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -591,6 +615,9 @@ export class EditEvent extends Event {
     objectValue["1"] = 50100;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -682,6 +709,11 @@ export class EditEvent extends Event {
       reverseValueValue != undefined
         ? _Value.fromValue(reverseValueValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -725,6 +757,7 @@ export class EditEvent extends Event {
       value: unpackedValue,
       reverseOperation: unpackedReverseOperation,
       reverseValue: unpackedReverseValue,
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -762,6 +795,9 @@ export class EditEvent extends Event {
     const objectProto: Partial<EditEventProto> = { metatype: 50100 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -859,6 +895,16 @@ export class EditEvent extends Event {
       reverseValue:
         objectProto.reverseValue != undefined
           ? _Value.fromProto(objectProto.reverseValue!, _session, _supergraph, _graph, _connection)
+          : null,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
           : null,
       snapshot:
         objectProto.snapshotPtr != undefined

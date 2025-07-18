@@ -5,6 +5,7 @@ import {
   unpackProtoTimestamp,
 } from "@destack/grpc";
 import type {
+  Branch,
   Graph,
   IsActor,
   NodeReference,
@@ -72,6 +73,18 @@ export class LogEvent extends Event {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -193,6 +206,7 @@ export class LogEvent extends Event {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -246,6 +260,11 @@ export class LogEvent extends Event {
       throw new Error(`LogEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -341,6 +360,9 @@ export class LogEvent extends Event {
     if (!(this.level === other.level)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -385,6 +407,9 @@ export class LogEvent extends Event {
       }
     }
     h = (h * 31 + this.level) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -468,6 +493,9 @@ export class LogEvent extends Event {
     objectValue["1"] = 1110011;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -520,6 +548,11 @@ export class LogEvent extends Event {
         unpackedAttributes[key] = value as any;
       }
     }
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -556,6 +589,7 @@ export class LogEvent extends Event {
       content: objectValue["110"],
       attributes: unpackedAttributes,
       level: Number(objectValue["112"]),
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -594,6 +628,9 @@ export class LogEvent extends Event {
     const objectProto: Partial<LogEventProto> = { metatype: 1110011 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -649,6 +686,16 @@ export class LogEvent extends Event {
       content: objectProto.content,
       attributes: unpackedAttributes,
       level: Number(objectProto.level) as LogLevel,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(

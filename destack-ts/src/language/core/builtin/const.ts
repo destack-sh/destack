@@ -1,10 +1,10 @@
-import type { Session, Snapshot, Space } from "@destack/language";
+import type { Branch, Session, Snapshot, Space } from "@destack/language";
 import { uuid4 } from "@destack/utils";
 import { ContextVar } from "@destack/utils/context";
 import { Temporal } from "temporal-polyfill";
 
 // forever constants
-export const VERSION = "2025.07.18.1";
+export const VERSION = "2025.07.18.3";
 export const FLOAT_EPSILON = 1e-6;
 export const BEGINNING_OF_TIME = Temporal.ZonedDateTime.from("1970-01-01T00:00:00+00:00[UTC]");
 
@@ -18,6 +18,7 @@ export const EMPTY_DICT: Record<string, any> = {};
 // runtime context
 export const ACTIVE_SESSION: ContextVar<Session | null> = new ContextVar(null);
 export const ACTIVE_SPACE: ContextVar<Space | null> = new ContextVar(null);
+export const ACTIVE_BRANCH: ContextVar<Branch | null> = new ContextVar(null);
 export const ACTIVE_SNAPSHOT: ContextVar<Snapshot | null> = new ContextVar(null);
 export const ACTIVE_EVENT: ContextVar<Event | null> = new ContextVar(null);
 
@@ -47,6 +48,20 @@ export function activeSpace(): Space {
     throw new Error("no active Space");
   }
   return space;
+}
+
+/** Gets the currently active Branch (if any). */
+export function getActiveBranch(): Branch | null {
+  return ACTIVE_BRANCH.get();
+}
+
+/** Gets the currently active Branch (error if none). */
+export function activeBranch(): Branch {
+  const branch = ACTIVE_BRANCH.get();
+  if (branch == null) {
+    throw new Error("no active Branch");
+  }
+  return branch;
 }
 
 /** Gets the currently active Snapshot (if any). */

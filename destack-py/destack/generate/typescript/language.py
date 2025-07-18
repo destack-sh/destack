@@ -532,6 +532,15 @@ if (_{ts_name_in} === null) {{
     }}
     _{ts_name_in} = _{ts_name_in}.toRef();
 }}""")
+            elif prop.default_factory == ValueFactory.BRANCH:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = ACTIVE_BRANCH.get();
+    if (_{ts_name_in} === null) {{
+        throw new Error(`no active Branch for {cls.__name__}`);
+    }}
+    _{ts_name_in} = _{ts_name_in}.toRef();
+}}""")
             elif prop.default_factory == ValueFactory.SNAPSHOT:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{

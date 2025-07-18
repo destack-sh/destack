@@ -189,6 +189,7 @@ import type { CustomStruct, Datum, DatumMutable } from "@destack/language/core/c
 import type { Text, TextSpan, TextSpanType } from "@destack/language/core/common/text";
 import type {
   Branch,
+  BranchType,
   Snapshot,
   SnapshotStatus,
   SnapshotType,
@@ -777,6 +778,7 @@ export type EnumTypeMapping = {
   [EnumType.QUERY_UPDATE_TYPE]: QueryUpdateType;
   [EnumType.SPACE_STATUS]: SpaceStatus;
   [EnumType.TEXT_SPAN_TYPE]: TextSpanType;
+  [EnumType.BRANCH_TYPE]: BranchType;
   [EnumType.SNAPSHOT_TYPE]: SnapshotType;
   [EnumType.SNAPSHOT_STATUS]: SnapshotStatus;
   [EnumType.ENTITLEMENT_TYPE]: EntitlementType;

@@ -13,7 +13,7 @@ import { Struct, StructFrozen } from "@destack/language/core/builtin/struct";
 import type { IsActor, IsCustomizable, IsSourceable } from "@destack/language/core/builtin/trait";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { Space } from "@destack/language/core/common/space";
-import type { Snapshot } from "@destack/language/core/common/time";
+import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -583,6 +583,18 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
   readonly definitionPtr: NodeReference | null;
 
   /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
+
+  /**
    * The Snapshot this Entity is part of.
    */
   get snapshot(): Snapshot | null {
@@ -788,6 +800,7 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: CustomStruct | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -866,6 +879,21 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for CustomStruct`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`CustomStruct.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1126,9 +1154,10 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -1229,7 +1258,7 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -1270,8 +1299,15 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -1321,6 +1357,7 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -1436,6 +1473,13 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,

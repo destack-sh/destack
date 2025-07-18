@@ -8,6 +8,7 @@ from typing import (
 )
 
 from ..builtin import (
+    ACTIVE_BRANCH,
     ACTIVE_SNAPSHOT,
     Entity,
     Enum,
@@ -27,23 +28,53 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
+@builtin_enum(EnumType.BRANCH_TYPE)
+class BranchType(Enum):
+    """The type of a Branch."""
+
+    ROOT = 1
+    FULL = 2
+
+
 @builtin_node(NodeType.BRANCH)
 class Branch(
     IsOwnable,
     Entity,
 ):
-    """A Branch is a version of a Snapshot."""
+    """
+    A Branch is a version of a Snapshot.
+
+    """
 
     parent: Optional["Space"] = builtin_property_parent()
+    type: BranchType = builtin_property(100)
+
+    branch: "Branch" = builtin_property(
+        12,
+        is_readonly=True,
+        is_managed=True,
+        default_factory=ValueFactory.SELF,
+        description="The Branch itself. Cannot be any other Branch than this Branch",
+    )
+
+    @contextmanager
+    def active(self) -> Generator[None, None, None]:
+        """
+        Context manager to set the active Branch to this Branch.
+        """
+        token = ACTIVE_BRANCH.set(self)
+        try:
+            yield
+        finally:
+            ACTIVE_BRANCH.reset(token)
 
 
 @builtin_enum(EnumType.SNAPSHOT_TYPE)
 class SnapshotType(Enum):
     """The type of a Snapshot."""
 
-    PARTIAL = 1
-    FULL = 10
-    ROOT = 11
+    ROOT = 1
+    FULL = 2
 
 
 @builtin_enum(EnumType.SNAPSHOT_STATUS)
@@ -71,7 +102,7 @@ class Snapshot(
     parent: Union["Space", None] = builtin_property_parent(is_readonly=True)
 
     snapshot: "Snapshot" = builtin_property(
-        12,
+        13,
         is_readonly=True,
         is_managed=True,
         default_factory=ValueFactory.SELF,

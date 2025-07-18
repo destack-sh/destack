@@ -41,6 +41,7 @@ from .common import (
     ValueFactory,
 )
 from .const import (
+    ACTIVE_BRANCH,
     ACTIVE_EVENT,
     ACTIVE_SESSION,
     ACTIVE_SNAPSHOT,
@@ -152,6 +153,7 @@ def _generate_init[ObjectT: BuiltinObject](
     # NOTE: Structs can use direct assignment, Nodes shouldn't (because of custom __setattr__)
     extra_glbls["ACTIVE_SESSION"] = ACTIVE_SESSION
     extra_glbls["ACTIVE_SPACE"] = ACTIVE_SPACE
+    extra_glbls["ACTIVE_BRANCH"] = ACTIVE_BRANCH
     extra_glbls["ACTIVE_SNAPSHOT"] = ACTIVE_SNAPSHOT
     extra_glbls["ACTIVE_EVENT"] = ACTIVE_EVENT
     extra_glbls["EMPTY_LIST"] = frozenlist()
@@ -336,6 +338,13 @@ if {self_name} is None:
     if space is None:
         raise RuntimeError("no active Space for {cls.__name__}")
     {self_name} = space.to_ref()""")
+            elif prop.default_factory == ValueFactory.BRANCH:
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    branch = ACTIVE_BRANCH.get()
+    if branch is None:
+        raise RuntimeError("no active Branch for {cls.__name__}")
+    {self_name} = branch.to_ref()""")
             elif prop.default_factory == ValueFactory.SNAPSHOT:
                 method_body_lines.append(f"""\
 if {self_name} is None:
@@ -560,6 +569,15 @@ def __to_ref__(self) -> "NodeReference":
         type=NodeType.{node_type.name},
         id=self.id,
         space_id=self.id,
+    )
+"""
+    elif node_type == NodeType.BRANCH:
+        ref_impl = f"""\
+def __to_ref__(self) -> "NodeReference":
+    return NodeReference(
+        type=NodeType.{node_type.name},
+        id=self.id,
+        space_id=space_ptr.id if (space_ptr := self.space_ptr) is not None else None,
     )
 """
     elif node_type == NodeType.SNAPSHOT:

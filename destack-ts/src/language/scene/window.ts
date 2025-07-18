@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Branch,
   Graph,
   IsActor,
   IsOrdered,
@@ -99,6 +100,18 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
     return null;
   }
   readonly definitionPtr: NodeReference | null;
+
+  /**
+   * The Branch this Entity is part of.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Entity is part of.
@@ -306,6 +319,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
+    branch?: Branch | NodeReference;
     snapshot?: Snapshot | NodeReference;
     precededBy?: Window | NodeReference | null;
     instantiationRoot?: Entity | NodeReference | null;
@@ -382,6 +396,21 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
       _definition = (_definition as Node).toRef();
     }
     this.definitionPtr = _definition;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for Window`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`Window.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -622,9 +651,10 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
     if (object.definitionPtr != null) {
       objectValue["11"] = object.definitionPtr.toValue();
     }
-    objectValue["12"] = object.snapshotPtr.toValue();
+    objectValue["12"] = object.branchPtr.toValue();
+    objectValue["13"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
-      objectValue["13"] = object.precededByPtr.toValue();
+      objectValue["14"] = object.precededByPtr.toValue();
     }
     if (object.instantiationRootPtr != null) {
       objectValue["15"] = object.instantiationRootPtr.toValue();
@@ -690,7 +720,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["13"];
+    const precededByPtrValue = objectValue["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
         ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
@@ -741,8 +771,15 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       definition: unpackedDefinitionPtr,
-      snapshot: _NodeReference.fromValue(
+      branch: _NodeReference.fromValue(
         objectValue["12"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["13"],
         _session,
         _supergraph,
         _graph,
@@ -792,6 +829,7 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
     if (object.definitionPtr != null) {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
+    objectProto.branchPtr = object.branchPtr.toProto();
     objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
@@ -892,6 +930,13 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
               _connection,
             )
           : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       snapshot: _NodeReference.fromProto(
         objectProto.snapshotPtr!,
         _session,

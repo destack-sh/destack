@@ -14,7 +14,7 @@ from destack.utils.uuid import uuid4
 from .common import Cloud, Region
 
 if TYPE_CHECKING:
-    from destack.language import Event, Node, NodeReference, Session, Snapshot, Space
+    from destack.language import Branch, Event, Node, NodeReference, Session, Snapshot, Space
 
 
 class _Unset:
@@ -26,7 +26,7 @@ class _Unset:
 
 
 # forever constants
-VERSION = "2025.07.18.1"
+VERSION = "2025.07.18.3"
 FLOAT_EPSILON = 1e-6
 BEGINNING_OF_TIME = datetime.fromisoformat("1970-01-01T00:00:00+00:00")
 
@@ -44,6 +44,9 @@ ACTIVE_SESSION: contextvars.ContextVar[Optional["Session"]] = contextvars.Contex
 )
 ACTIVE_SPACE: contextvars.ContextVar[Optional["Space"]] = contextvars.ContextVar(
     "active_space", default=None
+)
+ACTIVE_BRANCH: contextvars.ContextVar[Optional["Branch"]] = contextvars.ContextVar(
+    "active_branch", default=None
 )
 ACTIVE_SNAPSHOT: contextvars.ContextVar[Optional["Snapshot"]] = contextvars.ContextVar(
     "active_snapshot", default=None
@@ -93,6 +96,24 @@ def active_space_ptr() -> "NodeReference":
 def get_active_snapshot() -> Optional["Snapshot"]:
     """Gets the currently active Snapshot (if any)."""
     return ACTIVE_SNAPSHOT.get()
+
+
+def get_active_branch() -> Optional["Branch"]:
+    """Gets the currently active Branch (if any)."""
+    return ACTIVE_BRANCH.get()
+
+
+def active_branch() -> "Branch":
+    """Gets the currently active Branch (error if none)."""
+    branch = ACTIVE_BRANCH.get()
+    assert branch is not None, "no active branch"
+    return branch
+
+
+def get_active_branch_ptr() -> Optional["NodeReference"]:
+    """Gets the currently active Branch (if any)."""
+    branch = ACTIVE_BRANCH.get()
+    return branch.to_ref() if branch else None
 
 
 def active_snapshot() -> "Snapshot":

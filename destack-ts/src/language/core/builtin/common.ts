@@ -44,9 +44,10 @@ export enum EnumType {
   EXPRESSION_TYPE = 306,
   QUERY_TYPE = 320,
   QUERY_UPDATE_TYPE = 321,
-  RESOURCE_STATUS = 10100,
-  SNAPSHOT_TYPE = 10300,
-  SNAPSHOT_STATUS = 10301,
+  BRANCH_TYPE = 11000,
+  SNAPSHOT_TYPE = 11100,
+  SNAPSHOT_STATUS = 11101,
+  RESOURCE_STATUS = 12100,
   INDEX_TYPE = 30100,
   CONSTRAINT_TYPE = 30200,
   MIGRATION_TYPE = 31000,
@@ -260,8 +261,8 @@ export enum NodeType {
   ENTITY = 2,
   EVENT = 3,
   SPACE = 10000,
-  SNAPSHOT = 11000,
-  BRANCH = 11100,
+  BRANCH = 11000,
+  SNAPSHOT = 11100,
   RECORD = 12000,
   RESOURCE = 12100,
   METRIC = 12200,
@@ -906,7 +907,8 @@ export enum ValueFactory {
   REGION = 20,
   SELF = 30,
   SPACE = 31,
-  SNAPSHOT = 32,
+  BRANCH = 32,
+  SNAPSHOT = 33,
   NAME = 40,
 
   /* ==== DESTACK_CUSTOM_START ==== */
@@ -915,28 +917,6 @@ export enum ValueFactory {
 }
 registerEnumClass(EnumType.VALUE_FACTORY, ValueFactory);
 /* ==== DESTACK_GENERATED_END:ENUM:103 ==== */
-
-/* ==== DESTACK_GENERATED_START:ENUM:10100 ==== */
-/**
- * ResourceStatus
- */
-export enum ResourceStatus {
-  PENDING = 1,
-  CREATING = 2,
-  RETRYING = 3,
-  AVAILABLE = 10,
-  SLEEPING = 11,
-  UNAVAILABLE = 15,
-  IMPAIRED = 16,
-  OFFLINE = 30,
-  FAILED = 31,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
-/* ==== DESTACK_GENERATED_END:ENUM:10100 ==== */
 
 export const JS_TYPE_BY_PRIMITIVE_TYPE: Record<PrimitiveType, any> = {
   [PrimitiveType.BOOLEAN]: Boolean,
@@ -965,3 +945,25 @@ export const PRIMITIVE_TYPE_BY_JS_TYPE_NAME: Map<string, PrimitiveType> = new Ma
   ["PlainTime", PrimitiveType.TIME],
   ["Duration", PrimitiveType.DURATION],
 ] as any);
+
+/* ==== DESTACK_GENERATED_START:ENUM:12100 ==== */
+/**
+ * ResourceStatus
+ */
+export enum ResourceStatus {
+  PENDING = 1,
+  CREATING = 2,
+  RETRYING = 3,
+  AVAILABLE = 10,
+  SLEEPING = 11,
+  UNAVAILABLE = 15,
+  IMPAIRED = 16,
+  OFFLINE = 30,
+  FAILED = 31,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.RESOURCE_STATUS, ResourceStatus);
+/* ==== DESTACK_GENERATED_END:ENUM:12100 ==== */

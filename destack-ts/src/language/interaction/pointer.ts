@@ -1,5 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
+  Branch,
   Graph,
   IsActor,
   NodeReference,
@@ -51,6 +52,12 @@ export abstract class PointerEvent extends InputEvent {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  abstract get branch(): Branch | null;
+  declare readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -189,6 +196,18 @@ export class PointerDownEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -347,6 +366,7 @@ export class PointerDownEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -406,6 +426,11 @@ export class PointerDownEvent extends PointerEvent {
       throw new Error(`PointerDownEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -550,6 +575,9 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -609,6 +637,9 @@ export class PointerDownEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -703,6 +734,9 @@ export class PointerDownEvent extends PointerEvent {
     objectValue["1"] = 2000101;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -768,6 +802,11 @@ export class PointerDownEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -821,6 +860,7 @@ export class PointerDownEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -866,6 +906,9 @@ export class PointerDownEvent extends PointerEvent {
     const objectProto: Partial<PointerDownEventProto> = { metatype: 2000101 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -956,6 +999,16 @@ export class PointerDownEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1084,6 +1137,18 @@ export class PointerUpEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -1242,6 +1307,7 @@ export class PointerUpEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -1301,6 +1367,11 @@ export class PointerUpEvent extends PointerEvent {
       throw new Error(`PointerUpEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -1445,6 +1516,9 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -1504,6 +1578,9 @@ export class PointerUpEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -1598,6 +1675,9 @@ export class PointerUpEvent extends PointerEvent {
     objectValue["1"] = 2000102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -1663,6 +1743,11 @@ export class PointerUpEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -1716,6 +1801,7 @@ export class PointerUpEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -1755,6 +1841,9 @@ export class PointerUpEvent extends PointerEvent {
     const objectProto: Partial<PointerUpEventProto> = { metatype: 2000102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -1845,6 +1934,16 @@ export class PointerUpEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -1967,6 +2066,18 @@ export class PointerMoveEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -2125,6 +2236,7 @@ export class PointerMoveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -2184,6 +2296,11 @@ export class PointerMoveEvent extends PointerEvent {
       throw new Error(`PointerMoveEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -2328,6 +2445,9 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -2387,6 +2507,9 @@ export class PointerMoveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -2481,6 +2604,9 @@ export class PointerMoveEvent extends PointerEvent {
     objectValue["1"] = 2000103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -2546,6 +2672,11 @@ export class PointerMoveEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -2599,6 +2730,7 @@ export class PointerMoveEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -2644,6 +2776,9 @@ export class PointerMoveEvent extends PointerEvent {
     const objectProto: Partial<PointerMoveEventProto> = { metatype: 2000103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -2734,6 +2869,16 @@ export class PointerMoveEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -2862,6 +3007,18 @@ export class PointerEnterEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -3020,6 +3177,7 @@ export class PointerEnterEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -3079,6 +3237,11 @@ export class PointerEnterEvent extends PointerEvent {
       throw new Error(`PointerEnterEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -3223,6 +3386,9 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -3282,6 +3448,9 @@ export class PointerEnterEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -3376,6 +3545,9 @@ export class PointerEnterEvent extends PointerEvent {
     objectValue["1"] = 2000104;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -3441,6 +3613,11 @@ export class PointerEnterEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -3494,6 +3671,7 @@ export class PointerEnterEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -3539,6 +3717,9 @@ export class PointerEnterEvent extends PointerEvent {
     const objectProto: Partial<PointerEnterEventProto> = { metatype: 2000104 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -3629,6 +3810,16 @@ export class PointerEnterEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -3757,6 +3948,18 @@ export class PointerOverEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -3915,6 +4118,7 @@ export class PointerOverEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -3974,6 +4178,11 @@ export class PointerOverEvent extends PointerEvent {
       throw new Error(`PointerOverEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -4118,6 +4327,9 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -4177,6 +4389,9 @@ export class PointerOverEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -4271,6 +4486,9 @@ export class PointerOverEvent extends PointerEvent {
     objectValue["1"] = 2000105;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -4336,6 +4554,11 @@ export class PointerOverEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -4389,6 +4612,7 @@ export class PointerOverEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -4434,6 +4658,9 @@ export class PointerOverEvent extends PointerEvent {
     const objectProto: Partial<PointerOverEventProto> = { metatype: 2000105 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -4524,6 +4751,16 @@ export class PointerOverEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -4652,6 +4889,18 @@ export class PointerLeaveEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -4810,6 +5059,7 @@ export class PointerLeaveEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -4869,6 +5119,11 @@ export class PointerLeaveEvent extends PointerEvent {
       throw new Error(`PointerLeaveEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -5013,6 +5268,9 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -5072,6 +5330,9 @@ export class PointerLeaveEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -5166,6 +5427,9 @@ export class PointerLeaveEvent extends PointerEvent {
     objectValue["1"] = 2000106;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -5231,6 +5495,11 @@ export class PointerLeaveEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -5284,6 +5553,7 @@ export class PointerLeaveEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -5329,6 +5599,9 @@ export class PointerLeaveEvent extends PointerEvent {
     const objectProto: Partial<PointerLeaveEventProto> = { metatype: 2000106 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -5419,6 +5692,16 @@ export class PointerLeaveEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(
@@ -5547,6 +5830,18 @@ export class PointerLongPressEvent extends PointerEvent {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The Branch this Event originated from.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Branch | null;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference | null;
 
   /**
    * The Snapshot this Event originated from.
@@ -5705,6 +6000,7 @@ export class PointerLongPressEvent extends PointerEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
+    branch?: Branch | NodeReference | null;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
@@ -5764,6 +6060,11 @@ export class PointerLongPressEvent extends PointerEvent {
       throw new Error(`PointerLongPressEvent.space is required`);
     }
     this.spacePtr = _space;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
@@ -5908,6 +6209,9 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
+    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -5967,6 +6271,9 @@ export class PointerLongPressEvent extends PointerEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
+    if (this.branchPtr != null) {
+      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -6061,6 +6368,9 @@ export class PointerLongPressEvent extends PointerEvent {
     objectValue["1"] = 2000107;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.branchPtr != null) {
+      objectValue["10"] = object.branchPtr.toValue();
+    }
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
     }
@@ -6126,6 +6436,11 @@ export class PointerLongPressEvent extends PointerEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const branchPtrValue = objectValue["10"];
+    const unpackedBranchPtr =
+      branchPtrValue != undefined
+        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -6179,6 +6494,7 @@ export class PointerLongPressEvent extends PointerEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
+      branch: unpackedBranchPtr,
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
@@ -6224,6 +6540,9 @@ export class PointerLongPressEvent extends PointerEvent {
     const objectProto: Partial<PointerLongPressEventProto> = { metatype: 2000107 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.branchPtr != null) {
+      objectProto.branchPtr = object.branchPtr.toProto();
+    }
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
     }
@@ -6314,6 +6633,16 @@ export class PointerLongPressEvent extends PointerEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
+      branch:
+        objectProto.branchPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.branchPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       snapshot:
         objectProto.snapshotPtr != undefined
           ? _NodeReference.fromProto(

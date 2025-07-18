@@ -1,4 +1,3 @@
-import re
 from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 
@@ -16,6 +15,8 @@ _setup_test_env()
 
 from destack.language import (
     REGION,
+    Branch,
+    BranchType,
     NodeReference,
     NodeType,
     Session,
@@ -32,11 +33,6 @@ logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
 
 pytestmark = pytest.mark.asyncio(loop_scope="session")
-
-
-def _clean_name(name: str) -> str:
-    """Turn a name into a valid Python identifier"""
-    return re.sub(r"[^a-zA-Z0-9]", "_", name)
 
 
 @pytest.fixture
@@ -71,7 +67,21 @@ def space(session: Session):
         id=space_id,
         space_id=space_id,
     )
+    snapshot_id = uuid4()
+    snapshot_ptr = NodeReference(
+        type=NodeType.SNAPSHOT,
+        id=snapshot_id,
+        space_id=space_id,
+        snapshot_id=snapshot_id,
+    )
+    branch_id = uuid4()
+    branch_ptr = NodeReference(
+        type=NodeType.BRANCH,
+        id=branch_id,
+        space_id=space_id,
+    )
     snapshot = Snapshot(
+        id=snapshot_id,
         name="Root",
         space_ptr=space_ptr,
         created_epoch=epoch,
@@ -79,14 +89,28 @@ def space(session: Session):
         updated_epoch=epoch,
         updated_at=now,
         type=SnapshotType.FULL,
+        branch_ptr=branch_ptr,
+    )
+    branch = Branch(
+        id=branch_id,
+        name="Main",
+        space_ptr=space_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        type=BranchType.ROOT,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
     )
     space = Space(
+        id=space_id,
         name="Test",
         slug="test",
         status=SpaceStatus.ACTIVE,
         region=REGION,
-        id=space_id,
-        snapshot_ptr=snapshot.to_ref(),
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
         created_epoch=epoch,
         created_at=now,
         updated_epoch=epoch,
@@ -94,7 +118,7 @@ def space(session: Session):
     )
     session.create(space)
     session.create(snapshot)
-    with space.active(), snapshot.active():
+    with space.active(), branch.active(), snapshot.active():
         yield space
 
 
