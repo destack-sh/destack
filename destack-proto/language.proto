@@ -793,6 +793,8 @@ enum NodeTypeProto {
   NODE_TYPE_SNAPSHOT = 10300;
   NODE_TYPE_SERVICE = 10400;
   NODE_TYPE_VARIANT = 10500;
+  NODE_TYPE_TAG = 10600;
+  NODE_TYPE_TAGGING = 10700;
   NODE_TYPE_CUSTOM_EVENT = 20000;
   NODE_TYPE_CUSTOM_STRUCT = 20100;
   NODE_TYPE_CUSTOM_ENUM = 20200;
@@ -815,8 +817,6 @@ enum NodeTypeProto {
   NODE_TYPE_ORGANIZATION = 122000;
   NODE_TYPE_TEAM = 122100;
   NODE_TYPE_FOLDER = 240000;
-  NODE_TYPE_TAG = 241000;
-  NODE_TYPE_TAGGING = 241100;
   NODE_TYPE_BRANCH = 245000;
   NODE_TYPE_MEMBERSHIP = 360000;
   NODE_TYPE_MEMBERSHIP_EVENT = 360001;
@@ -6812,6 +6812,8 @@ message WindowProto {
 message SomeNodeProto {
   oneof node {
     SnapshotProto snapshot = 10300;
+    TagProto tag = 10600;
+    TaggingProto tagging = 10700;
     CustomEventProto custom_event = 20000;
     EditEventProto edit_event = 50100;
     MethodProto method = 32000;
@@ -6934,8 +6936,6 @@ message SomeNodeProto {
     StarRemovedEventProto star_removed_event = 1400103;
     BranchProto branch = 245000;
     FolderProto folder = 240000;
-    TagProto tag = 241000;
-    TaggingProto tagging = 241100;
     ColorStyleProto color_style = 2100300;
     BorderStyleProto border_style = 2100600;
     TransitionStyleProto transition_style = 2100900;
@@ -6959,6 +6959,8 @@ message SomeNodeProto {
 message SomeEntityProto {
   oneof node {
     SnapshotProto snapshot = 10300;
+    TagProto tag = 10600;
+    TaggingProto tagging = 10700;
     CustomEventProto custom_event = 20000;
     MethodProto method = 32000;
     ActionProto action = 32100;
@@ -7009,8 +7011,6 @@ message SomeEntityProto {
     StarProto star = 1400100;
     BranchProto branch = 245000;
     FolderProto folder = 240000;
-    TagProto tag = 241000;
-    TaggingProto tagging = 241100;
     ColorStyleProto color_style = 2100300;
     BorderStyleProto border_style = 2100600;
     TransitionStyleProto transition_style = 2100900;

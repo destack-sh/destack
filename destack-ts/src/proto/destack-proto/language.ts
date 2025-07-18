@@ -19095,6 +19095,18 @@ export interface SomeNodeProto {
          */
         snapshot: SnapshotProto;
     } | {
+        oneofKind: "tag";
+        /**
+         * @generated from protobuf field: symbol.destack.TagProto tag = 10600
+         */
+        tag: TagProto;
+    } | {
+        oneofKind: "tagging";
+        /**
+         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 10700
+         */
+        tagging: TaggingProto;
+    } | {
         oneofKind: "customEvent";
         /**
          * @generated from protobuf field: symbol.destack.CustomEventProto custom_event = 20000
@@ -19827,18 +19839,6 @@ export interface SomeNodeProto {
          */
         folder: FolderProto;
     } | {
-        oneofKind: "tag";
-        /**
-         * @generated from protobuf field: symbol.destack.TagProto tag = 241000
-         */
-        tag: TagProto;
-    } | {
-        oneofKind: "tagging";
-        /**
-         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 241100
-         */
-        tagging: TaggingProto;
-    } | {
         oneofKind: "colorStyle";
         /**
          * @generated from protobuf field: symbol.destack.ColorStyleProto color_style = 2100300
@@ -19957,6 +19957,18 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.SnapshotProto snapshot = 10300
          */
         snapshot: SnapshotProto;
+    } | {
+        oneofKind: "tag";
+        /**
+         * @generated from protobuf field: symbol.destack.TagProto tag = 10600
+         */
+        tag: TagProto;
+    } | {
+        oneofKind: "tagging";
+        /**
+         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 10700
+         */
+        tagging: TaggingProto;
     } | {
         oneofKind: "customEvent";
         /**
@@ -20257,18 +20269,6 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.FolderProto folder = 240000
          */
         folder: FolderProto;
-    } | {
-        oneofKind: "tag";
-        /**
-         * @generated from protobuf field: symbol.destack.TagProto tag = 241000
-         */
-        tag: TagProto;
-    } | {
-        oneofKind: "tagging";
-        /**
-         * @generated from protobuf field: symbol.destack.TaggingProto tagging = 241100
-         */
-        tagging: TaggingProto;
     } | {
         oneofKind: "colorStyle";
         /**
@@ -23483,6 +23483,14 @@ export enum NodeTypeProto {
      */
     NODE_TYPE_VARIANT = 10500,
     /**
+     * @generated from protobuf enum value: NODE_TYPE_TAG = 10600;
+     */
+    NODE_TYPE_TAG = 10600,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 10700;
+     */
+    NODE_TYPE_TAGGING = 10700,
+    /**
      * @generated from protobuf enum value: NODE_TYPE_CUSTOM_EVENT = 20000;
      */
     NODE_TYPE_CUSTOM_EVENT = 20000,
@@ -23570,14 +23578,6 @@ export enum NodeTypeProto {
      * @generated from protobuf enum value: NODE_TYPE_FOLDER = 240000;
      */
     NODE_TYPE_FOLDER = 240000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_TAG = 241000;
-     */
-    NODE_TYPE_TAG = 241000,
-    /**
-     * @generated from protobuf enum value: NODE_TYPE_TAGGING = 241100;
-     */
-    NODE_TYPE_TAGGING = 241100,
     /**
      * @generated from protobuf enum value: NODE_TYPE_BRANCH = 245000;
      */
@@ -70144,6 +70144,8 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
     constructor() {
         super("symbol.destack.SomeNodeProto", [
             { no: 10300, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
+            { no: 10600, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
+            { no: 10700, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 20000, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventProto },
             { no: 50100, name: "edit_event", kind: "message", oneof: "node", T: () => EditEventProto },
             { no: 32000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
@@ -70266,8 +70268,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 1400103, name: "star_removed_event", kind: "message", oneof: "node", T: () => StarRemovedEventProto },
             { no: 245000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 240000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 241000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
-            { no: 241100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
             { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
             { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
@@ -70303,6 +70303,18 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                     message.node = {
                         oneofKind: "snapshot",
                         snapshot: SnapshotProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).snapshot)
+                    };
+                    break;
+                case /* symbol.destack.TagProto tag */ 10600:
+                    message.node = {
+                        oneofKind: "tag",
+                        tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
+                    };
+                    break;
+                case /* symbol.destack.TaggingProto tagging */ 10700:
+                    message.node = {
+                        oneofKind: "tagging",
+                        tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
                     };
                     break;
                 case /* symbol.destack.CustomEventProto custom_event */ 20000:
@@ -71037,18 +71049,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagProto tag */ 241000:
-                    message.node = {
-                        oneofKind: "tag",
-                        tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
-                    };
-                    break;
-                case /* symbol.destack.TaggingProto tagging */ 241100:
-                    message.node = {
-                        oneofKind: "tagging",
-                        tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
-                    };
-                    break;
                 case /* symbol.destack.ColorStyleProto color_style */ 2100300:
                     message.node = {
                         oneofKind: "colorStyle",
@@ -71169,6 +71169,12 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.ServiceProto service = 10400; */
         if (message.node.oneofKind === "service")
             ServiceProto.internalBinaryWrite(message.node.service, writer.tag(10400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagProto tag = 10600; */
+        if (message.node.oneofKind === "tag")
+            TagProto.internalBinaryWrite(message.node.tag, writer.tag(10600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingProto tagging = 10700; */
+        if (message.node.oneofKind === "tagging")
+            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(10700, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.CustomEventProto custom_event = 20000; */
         if (message.node.oneofKind === "customEvent")
             CustomEventProto.internalBinaryWrite(message.node.customEvent, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
@@ -71229,12 +71235,6 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.FolderProto folder = 240000; */
         if (message.node.oneofKind === "folder")
             FolderProto.internalBinaryWrite(message.node.folder, writer.tag(240000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagProto tag = 241000; */
-        if (message.node.oneofKind === "tag")
-            TagProto.internalBinaryWrite(message.node.tag, writer.tag(241000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingProto tagging = 241100; */
-        if (message.node.oneofKind === "tagging")
-            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(241100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.BranchProto branch = 245000; */
         if (message.node.oneofKind === "branch")
             BranchProto.internalBinaryWrite(message.node.branch, writer.tag(245000, WireType.LengthDelimited).fork(), options).join();
@@ -71604,6 +71604,8 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
     constructor() {
         super("symbol.destack.SomeEntityProto", [
             { no: 10300, name: "snapshot", kind: "message", oneof: "node", T: () => SnapshotProto },
+            { no: 10600, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
+            { no: 10700, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 20000, name: "custom_event", kind: "message", oneof: "node", T: () => CustomEventProto },
             { no: 32000, name: "method", kind: "message", oneof: "node", T: () => MethodProto },
             { no: 32100, name: "action", kind: "message", oneof: "node", T: () => ActionProto },
@@ -71654,8 +71656,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 1400100, name: "star", kind: "message", oneof: "node", T: () => StarProto },
             { no: 245000, name: "branch", kind: "message", oneof: "node", T: () => BranchProto },
             { no: 240000, name: "folder", kind: "message", oneof: "node", T: () => FolderProto },
-            { no: 241000, name: "tag", kind: "message", oneof: "node", T: () => TagProto },
-            { no: 241100, name: "tagging", kind: "message", oneof: "node", T: () => TaggingProto },
             { no: 2100300, name: "color_style", kind: "message", oneof: "node", T: () => ColorStyleProto },
             { no: 2100600, name: "border_style", kind: "message", oneof: "node", T: () => BorderStyleProto },
             { no: 2100900, name: "transition_style", kind: "message", oneof: "node", T: () => TransitionStyleProto },
@@ -71691,6 +71691,18 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "snapshot",
                         snapshot: SnapshotProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).snapshot)
+                    };
+                    break;
+                case /* symbol.destack.TagProto tag */ 10600:
+                    message.node = {
+                        oneofKind: "tag",
+                        tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
+                    };
+                    break;
+                case /* symbol.destack.TaggingProto tagging */ 10700:
+                    message.node = {
+                        oneofKind: "tagging",
+                        tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
                     };
                     break;
                 case /* symbol.destack.CustomEventProto custom_event */ 20000:
@@ -71993,18 +72005,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                         folder: FolderProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).folder)
                     };
                     break;
-                case /* symbol.destack.TagProto tag */ 241000:
-                    message.node = {
-                        oneofKind: "tag",
-                        tag: TagProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tag)
-                    };
-                    break;
-                case /* symbol.destack.TaggingProto tagging */ 241100:
-                    message.node = {
-                        oneofKind: "tagging",
-                        tagging: TaggingProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).tagging)
-                    };
-                    break;
                 case /* symbol.destack.ColorStyleProto color_style */ 2100300:
                     message.node = {
                         oneofKind: "colorStyle",
@@ -72125,6 +72125,12 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.ServiceProto service = 10400; */
         if (message.node.oneofKind === "service")
             ServiceProto.internalBinaryWrite(message.node.service, writer.tag(10400, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TagProto tag = 10600; */
+        if (message.node.oneofKind === "tag")
+            TagProto.internalBinaryWrite(message.node.tag, writer.tag(10600, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.TaggingProto tagging = 10700; */
+        if (message.node.oneofKind === "tagging")
+            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(10700, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.CustomEventProto custom_event = 20000; */
         if (message.node.oneofKind === "customEvent")
             CustomEventProto.internalBinaryWrite(message.node.customEvent, writer.tag(20000, WireType.LengthDelimited).fork(), options).join();
@@ -72182,12 +72188,6 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.FolderProto folder = 240000; */
         if (message.node.oneofKind === "folder")
             FolderProto.internalBinaryWrite(message.node.folder, writer.tag(240000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TagProto tag = 241000; */
-        if (message.node.oneofKind === "tag")
-            TagProto.internalBinaryWrite(message.node.tag, writer.tag(241000, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.TaggingProto tagging = 241100; */
-        if (message.node.oneofKind === "tagging")
-            TaggingProto.internalBinaryWrite(message.node.tagging, writer.tag(241100, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.BranchProto branch = 245000; */
         if (message.node.oneofKind === "branch")
             BranchProto.internalBinaryWrite(message.node.branch, writer.tag(245000, WireType.LengthDelimited).fork(), options).join();
@@ -73102,6 +73102,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
     export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | ConstraintDefinitionProto | IndexDefinitionProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
         

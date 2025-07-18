@@ -484,6 +484,8 @@ class NodeType(Enum):
     SNAPSHOT = 10_300, "Snapshot", "Point in Space-time", "fas fa-save"
     SERVICE = 10_400, "Service", None, "fas fa-screwdriver-wrench"
     VARIANT = 10_500, "Variant", "Variant of a Scene", "fas fa-shapes"
+    TAG = 10_600, "Tag", None, "fas fa-tag"
+    TAGGING = 10_700, "Tagging", None, "fas fa-tag"
     # TRAIT?
     # LINK, ...
     # TIMELINE, TRACK, (KEY)FRAME, ...
@@ -529,8 +531,6 @@ class NodeType(Enum):
     # folder
     FOLDER = 240_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
     # DEPENDENCY, ...
-    TAG = 241_000, "Tag", None, "fas fa-tag"
-    TAGGING = 241_100, "Tagging", None, "fas fa-tag"
     # GROUP, ...
     # spacetime
     BRANCH = 245_000, "Branch", None, "fas fa-code-branch"
