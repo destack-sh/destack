@@ -11,11 +11,7 @@ import type {
 import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Scene } from "@destack/language/scene";
-import type { Palette } from "@destack/language/style/palette";
-import type { Theme } from "@destack/language/style/theme";
 import type { Space } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2100200 ==== */
@@ -26,9 +22,9 @@ export abstract class Style extends Entity implements IsOrdered, IsTaggable, IsE
   static metatype: NodeType = NodeType.STYLE;
 
   /**
-   * Style.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  abstract get parent(): Scene | View | Theme | Palette | null;
+  abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

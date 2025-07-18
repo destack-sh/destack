@@ -451,6 +451,12 @@ export class FocusInEvent extends FocusEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -461,12 +467,6 @@ export class FocusInEvent extends FocusEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -501,17 +501,17 @@ export class FocusInEvent extends FocusEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -649,6 +649,11 @@ export class FocusInEvent extends FocusEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -661,11 +666,6 @@ export class FocusInEvent extends FocusEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FocusInEvent({
       node: unpackedNodePtr,
       definition: unpackedDefinitionPtr,
@@ -680,10 +680,10 @@ export class FocusInEvent extends FocusEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -833,7 +833,6 @@ export class FocusInEvent extends FocusEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -852,6 +851,7 @@ export class FocusInEvent extends FocusEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1202,6 +1202,12 @@ export class FocusOutEvent extends FocusEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -1212,12 +1218,6 @@ export class FocusOutEvent extends FocusEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -1252,17 +1252,17 @@ export class FocusOutEvent extends FocusEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1400,6 +1400,11 @@ export class FocusOutEvent extends FocusEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -1412,11 +1417,6 @@ export class FocusOutEvent extends FocusEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FocusOutEvent({
       node: unpackedNodePtr,
       definition: unpackedDefinitionPtr,
@@ -1431,10 +1431,10 @@ export class FocusOutEvent extends FocusEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1584,7 +1584,6 @@ export class FocusOutEvent extends FocusEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1603,6 +1602,7 @@ export class FocusOutEvent extends FocusEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

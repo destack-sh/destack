@@ -479,6 +479,12 @@ export class DragStartEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -489,12 +495,6 @@ export class DragStartEvent extends DragEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -530,17 +530,17 @@ export class DragStartEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -681,6 +681,11 @@ export class DragStartEvent extends DragEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -693,11 +698,6 @@ export class DragStartEvent extends DragEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragStartEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
@@ -713,10 +713,10 @@ export class DragStartEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -875,7 +875,6 @@ export class DragStartEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -894,6 +893,7 @@ export class DragStartEvent extends DragEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1258,6 +1258,12 @@ export class DragEndEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -1268,12 +1274,6 @@ export class DragEndEvent extends DragEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -1309,17 +1309,17 @@ export class DragEndEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1460,6 +1460,11 @@ export class DragEndEvent extends DragEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -1472,11 +1477,6 @@ export class DragEndEvent extends DragEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragEndEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
@@ -1492,10 +1492,10 @@ export class DragEndEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1654,7 +1654,6 @@ export class DragEndEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1673,6 +1672,7 @@ export class DragEndEvent extends DragEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2037,6 +2037,12 @@ export class DragOverEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -2047,12 +2053,6 @@ export class DragOverEvent extends DragEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -2088,17 +2088,17 @@ export class DragOverEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2239,6 +2239,11 @@ export class DragOverEvent extends DragEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -2251,11 +2256,6 @@ export class DragOverEvent extends DragEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragOverEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
@@ -2271,10 +2271,10 @@ export class DragOverEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2433,7 +2433,6 @@ export class DragOverEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -2452,6 +2451,7 @@ export class DragOverEvent extends DragEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2816,6 +2816,12 @@ export class DragEnterEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -2826,12 +2832,6 @@ export class DragEnterEvent extends DragEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -2867,17 +2867,17 @@ export class DragEnterEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3018,6 +3018,11 @@ export class DragEnterEvent extends DragEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -3030,11 +3035,6 @@ export class DragEnterEvent extends DragEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragEnterEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
@@ -3050,10 +3050,10 @@ export class DragEnterEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3212,7 +3212,6 @@ export class DragEnterEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -3231,6 +3230,7 @@ export class DragEnterEvent extends DragEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3595,6 +3595,12 @@ export class DragLeaveEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -3605,12 +3611,6 @@ export class DragLeaveEvent extends DragEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -3646,17 +3646,17 @@ export class DragLeaveEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3797,6 +3797,11 @@ export class DragLeaveEvent extends DragEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -3809,11 +3814,6 @@ export class DragLeaveEvent extends DragEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DragLeaveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
@@ -3829,10 +3829,10 @@ export class DragLeaveEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3991,7 +3991,6 @@ export class DragLeaveEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -4010,6 +4009,7 @@ export class DragLeaveEvent extends DragEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -4374,6 +4374,12 @@ export class DropEvent extends DragEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -4384,12 +4390,6 @@ export class DropEvent extends DragEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -4425,17 +4425,17 @@ export class DropEvent extends DragEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -4576,6 +4576,11 @@ export class DropEvent extends DragEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -4588,11 +4593,6 @@ export class DropEvent extends DragEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new DropEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
@@ -4608,10 +4608,10 @@ export class DropEvent extends DragEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -4770,7 +4770,6 @@ export class DropEvent extends DragEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -4789,6 +4788,7 @@ export class DropEvent extends DragEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

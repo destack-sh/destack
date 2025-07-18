@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
@@ -25,7 +25,7 @@ class Script(
 ):
     """A Script."""
 
-    parent: Union[IsScriptable, "Script", None] = builtin_property_parent()
+    parent: Optional[IsScriptable] = builtin_property_parent()
 
     code: str = builtin_property(110)
     # type, language, code, ...

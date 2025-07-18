@@ -1,9 +1,8 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
     IsOrdered,
-    IsScriptable,
     IsSourceable,
     IsTaggable,
     NodeType,
@@ -13,7 +12,7 @@ from destack.language.core import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Folder, Icon
+    from destack.language import Icon
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -23,9 +22,8 @@ class Tag(
     IsSourceable,
     Entity,
 ):
-    """A Tag to tag something."""
+    """A Tag definition to tag a Taggable Entity (in a Tagging)."""
 
-    parent: Union["Folder", "IsScriptable", None] = builtin_property_parent()
     icon: "Icon | None" = builtin_property(102)
 
 

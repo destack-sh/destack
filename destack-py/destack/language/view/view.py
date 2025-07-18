@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
@@ -10,14 +10,11 @@ from destack.language.core import (
     NodeType,
     builtin_node,
     builtin_property,
-    builtin_property_parent,
 )
 
 if TYPE_CHECKING:
     from destack.language import (
-        ContainerView,
         Dimension,
-        Layer,
         Position,
         View,
     )
@@ -53,8 +50,6 @@ class View(
     Entity,
 ):
     """A View is a graphical interface."""
-
-    parent: Union["Layer", "ContainerView", None] = builtin_property_parent()
 
     # sizing
     position: Optional["Position"] = builtin_property(110)

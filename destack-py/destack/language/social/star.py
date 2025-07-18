@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     ConstraintDeclaration,
@@ -34,7 +34,7 @@ class Star(
 ):
     """A Star is a relationship between a Actor and a Starred Node."""
 
-    parent: Union["IsStarable", None] = builtin_property_parent()
+    parent: Optional["IsStarable"] = builtin_property_parent()
 
 
 @builtin_node(NodeType.STAR_EVENT, frozen=True)

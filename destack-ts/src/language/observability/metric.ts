@@ -46,7 +46,7 @@ export abstract class Metric extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.METRIC;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
@@ -250,7 +250,7 @@ export class GaugeMetric extends Metric {
   static metatype: NodeType = NodeType.GAUGE_METRIC;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -1612,7 +1612,7 @@ export class CounterMetric extends Metric {
   static metatype: NodeType = NodeType.COUNTER_METRIC;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -2974,7 +2974,7 @@ export class HistogramMetric extends Metric {
   static metatype: NodeType = NodeType.HISTOGRAM_METRIC;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;

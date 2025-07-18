@@ -669,7 +669,7 @@ def builtin_property(
     )
 
 
-def builtin_property_parent(*, is_readonly: bool = False) -> Any:
+def builtin_property_parent(*, is_readonly: bool = False, description: str | None = None) -> Any:
     """The parent of a node, must be of one of the given types."""
     return PropertyDeclaration(
         id=3,  # NOTE: never change this id!
@@ -682,6 +682,7 @@ def builtin_property_parent(*, is_readonly: bool = False) -> Any:
         is_eq=False,
         is_readonly=is_readonly,
         cascade=CascadeAction.CASCADE,
+        description=description,
     )
 
 

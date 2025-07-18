@@ -2,8 +2,8 @@ import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
   Graph,
   IsActor,
-  IsCustomizable,
   IsFollowable,
+  IsScriptable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -22,7 +22,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Cursor } from "@destack/language/logic";
+import type { Cursor, Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -54,7 +54,7 @@ registerEnumClass(EnumType.USER_STATUS, UserStatus);
 /**
  * A User is a human using Destack.
  */
-export class User extends Entity implements IsActor, IsFollowable, IsCustomizable {
+export class User extends Entity implements IsActor, IsFollowable, IsScriptable {
   static metatype: NodeType = NodeType.USER;
 
   /**
@@ -190,6 +190,36 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
 
   /**
    * User.slug
@@ -379,6 +409,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     deletedAt?: Temporal.ZonedDateTime | null;
     customValues?: { readonly [key: string]: Value };
     name?: string;
+    script?: Script | NodeReference | null;
     slug: string;
     status?: UserStatus;
     lastLoggedInAt?: Temporal.ZonedDateTime | null;
@@ -471,6 +502,11 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       throw new Error(`User.name is required`);
     }
     this._name = _name;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`User.slug is required`);
@@ -574,6 +610,18 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (!(this._email === other._email)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+      return false;
+    }
+    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
+      return false;
+    }
+    if (!(this._name === other._name)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -584,15 +632,6 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
-    }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
-      return false;
-    }
-    if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
-      return false;
-    }
-    if (!(this._name === other._name)) {
-      return false;
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
@@ -629,11 +668,8 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     if (this._passwordHash != null) {
       h = (h * 31 + hashBytes(this._passwordHash)) & 0xffffffff;
     }
-    if (this._customValues && Object.keys(this._customValues).length > 0) {
-      for (const [_key, _value] of Object.entries(this._customValues)) {
-        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
-        h = (h * 31 + _value.hash()) & 0xffffffff;
-      }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -654,6 +690,12 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -742,6 +784,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       objectValue["30"] = packedCustomValues;
     }
     objectValue["50"] = object._name;
+    if (object._scriptPtr != null) {
+      objectValue["80"] = object._scriptPtr.toValue();
+    }
     objectValue["102"] = object._slug;
     objectValue["110"] = object._status;
     if (object._lastLoggedInAt != null) {
@@ -803,18 +848,11 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
     const passwordHashValue = objectValue["132"];
     const unpackedPasswordHash =
       passwordHashValue != undefined ? base64Decode(passwordHashValue) : null;
-    const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
-          value as any,
-          _session,
-          _supergraph,
-          _graph,
-          _connection,
-        );
-      }
-    }
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -840,6 +878,18 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     return new User({
       parent: unpackedParentPtr,
       slug: objectValue["102"],
@@ -851,7 +901,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       email: unpackedEmail,
       passwordSalt: unpackedPasswordSalt,
       passwordHash: unpackedPasswordHash,
-      customValues: unpackedCustomValues,
+      script: unpackedScriptPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -864,6 +914,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
+      customValues: unpackedCustomValues,
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -919,6 +970,9 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       }
     }
     objectProto.name = object._name;
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
     objectProto.slug = object._slug;
     objectProto.status = Number(object._status) as UserStatusProto;
     if (object._lastLoggedInAt != null) {
@@ -1002,7 +1056,16 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
       email: objectProto.email != undefined ? objectProto.email : null,
       passwordSalt: objectProto.passwordSalt != undefined ? objectProto.passwordSalt : null,
       passwordHash: objectProto.passwordHash != undefined ? objectProto.passwordHash : null,
-      customValues: unpackedCustomValues,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -1052,6 +1115,7 @@ export class User extends Entity implements IsActor, IsFollowable, IsCustomizabl
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
+      customValues: unpackedCustomValues,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

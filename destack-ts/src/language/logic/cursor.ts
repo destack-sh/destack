@@ -67,7 +67,7 @@ export abstract class Cursor extends Entity implements IsOwnable {
   static metatype: NodeType = NodeType.CURSOR;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
@@ -185,7 +185,7 @@ export class EventCursor extends Cursor {
   static metatype: NodeType = NodeType.EVENT_CURSOR;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -982,7 +982,7 @@ export class ScreenCursor extends Cursor {
   static metatype: NodeType = NodeType.SCREEN_CURSOR;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;

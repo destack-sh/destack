@@ -897,6 +897,7 @@ enum NodeTypeProto {
   NODE_TYPE_NOTIFICATION_READ_EVENT = 1400504;
   NODE_TYPE_NOTIFICATION_DISMISSED_EVENT = 1400505;
   NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 1400506;
+  NODE_TYPE_STAGE = 1700000;
   NODE_TYPE_WINDOW = 1700100;
   NODE_TYPE_SCENE = 1700200;
   NODE_TYPE_SCENE_EVENT = 1700201;
@@ -2774,6 +2775,7 @@ message EntitlementRevokedEventProto {
 }
 
 // An Entity is a named, versioned, stateful Node.
+// Most Entities can be attached to most other Entities to compose richer structures.
 message EntityProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -3030,6 +3032,7 @@ message FolderProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
@@ -3040,9 +3043,12 @@ message FolderProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   FolderTypeProto type = 100;
   optional IconProto icon = 102;
   optional string slug = 103;
@@ -3865,9 +3871,11 @@ message LayerProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
   LayerTypeProto type = 100;
   optional IconProto icon = 102;
   optional bool is_visible = 140;
@@ -4532,7 +4540,9 @@ message OrganizationProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
   string slug = 101;
   OrganizationStatusProto status = 102;
   optional NodeReferenceProto handle_ptr = 111;
@@ -4544,6 +4554,7 @@ message PaletteProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
@@ -4554,8 +4565,11 @@ message PaletteProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional IconProto icon = 102;
 }
 
@@ -5017,10 +5031,7 @@ message ReactionRemovedEventProto {
   string content = 102;
 }
 
-// A generic Record instance of a CustomEntityDefinition like a relational Table.
-// The Archivable, Deletable, and Ownable traits are always present for plain Records
-// (but must be explicitly added to the CustomEntityDefinition to use them).
-// More specific base Entity types will be instanced of that base type instead.
+// A generic Record instance of a CustomEntity.
 message RecordProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -5491,6 +5502,7 @@ message SceneProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
@@ -5501,9 +5513,12 @@ message SceneProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
   optional IconProto icon = 102;
   optional NodeReferenceProto root_view_ptr = 200;
 }
@@ -5856,8 +5871,10 @@ message SpaceProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
   string slug = 102;
   SpaceStatusProto status = 110;
   optional NodeReferenceProto handle_ptr = 111;
@@ -5936,6 +5953,29 @@ message SplitViewProto {
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
   optional CornersProto radius = 148;
+}
+
+// A Stage for someone to interact with a Space.
+message StageProto {
+  NodeTypeProto metatype = 1;
+  string id = 2;
+  optional NodeReferenceProto parent_ptr = 3;
+  NodeReferenceProto space_ptr = 5;
+  MaterializationProto materialization = 10;
+  optional NodeReferenceProto snapshot_ptr = 11;
+  optional NodeReferenceProto preceded_by_ptr = 12;
+  google.protobuf.Timestamp created_at = 20;
+  int64 created_epoch = 21 [jstype = JS_NUMBER];
+  optional NodeReferenceProto created_by_ptr = 22;
+  google.protobuf.Timestamp updated_at = 23;
+  int64 updated_epoch = 24 [jstype = JS_NUMBER];
+  optional NodeReferenceProto updated_by_ptr = 25;
+  optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
+  string order_key = 31;
+  optional NodeReferenceProto owned_by_ptr = 32;
+  string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
 }
 
 // A Star is a relationship between a Actor and a Starred Node.
@@ -6137,7 +6177,7 @@ message StyleProto {
   bool is_extensible = 90;
 }
 
-// A Tag to tag something.
+// A Tag definition to tag a Taggable Entity (in a Tagging).
 message TagProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6197,7 +6237,9 @@ message TeamProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
   string slug = 102;
 }
 
@@ -6269,6 +6311,7 @@ message ThemeProto {
   string id = 2;
   optional NodeReferenceProto parent_ptr = 3;
   NodeReferenceProto space_ptr = 5;
+  optional NodeReferenceProto definition_ptr = 6;
   MaterializationProto materialization = 10;
   optional NodeReferenceProto snapshot_ptr = 11;
   optional NodeReferenceProto preceded_by_ptr = 12;
@@ -6279,8 +6322,11 @@ message ThemeProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
+  bool is_extensible = 90;
 }
 
 // A Timer.
@@ -6558,6 +6604,7 @@ message UserProto {
   optional google.protobuf.Timestamp deleted_at = 26;
   map<string, ValueProto> custom_values = 30;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
   string slug = 102;
   UserStatusProto status = 110;
   optional google.protobuf.Timestamp last_logged_in_at = 111;
@@ -6735,7 +6782,7 @@ message WheelEventProto {
   Vector2fProto delta = 140;
 }
 
-// A Window for someone to interact with Destack (in a Space).
+// A Window for someone to interact with a Space.
 message WindowProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -6751,9 +6798,11 @@ message WindowProto {
   int64 updated_epoch = 24 [jstype = JS_NUMBER];
   optional NodeReferenceProto updated_by_ptr = 25;
   optional google.protobuf.Timestamp deleted_at = 26;
+  map<string, ValueProto> custom_values = 30;
   string order_key = 31;
   optional NodeReferenceProto owned_by_ptr = 32;
   string name = 50;
+  optional NodeReferenceProto script_ptr = 80;
   WindowTypeProto type = 100;
 }
 
@@ -6860,6 +6909,7 @@ message SomeNodeProto {
     HistogramMeasurementEventProto histogram_measurement_event = 1200201;
     LayerProto layer = 1700300;
     SceneProto scene = 1700200;
+    StageProto stage = 1700000;
     WindowProto window = 1700100;
     FollowProto follow = 1400200;
     FollowEventProto follow_event = 1400201;
@@ -6948,6 +6998,7 @@ message SomeEntityProto {
     HistogramMetricProto histogram_metric = 1200200;
     LayerProto layer = 1700300;
     SceneProto scene = 1700200;
+    StageProto stage = 1700000;
     WindowProto window = 1700100;
     FollowProto follow = 1400200;
     NotificationProto notification = 1400500;

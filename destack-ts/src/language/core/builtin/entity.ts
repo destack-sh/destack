@@ -31,12 +31,13 @@ import { Temporal } from "temporal-polyfill";
 /* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**
  * An Entity is a named, versioned, stateful Node.
+ * Most Entities can be attached to most other Entities to compose richer structures.
  */
 export abstract class Entity extends Node {
   static metatype: NodeType = NodeType.ENTITY;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
@@ -378,16 +379,13 @@ registerEnumClass(EnumType.SNAPSHOT_STATUS, SnapshotStatus);
 
 /* ==== DESTACK_GENERATED_START:NODE:10000 ==== */
 /**
- * A generic Record instance of a CustomEntityDefinition like a relational Table.
- * The Archivable, Deletable, and Ownable traits are always present for plain Records
- *  (but must be explicitly added to the CustomEntityDefinition to use them).
- * More specific base Entity types will be instanced of that base type instead.
+ * A generic Record instance of a CustomEntity.
  */
 export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   static metatype: NodeType = NodeType.RECORD;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
@@ -519,7 +517,7 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   static metatype: NodeType = NodeType.RESOURCE;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
@@ -662,10 +660,10 @@ export class Snapshot extends Entity implements IsOwnable {
   /**
    * Snapshot.parent
    */
-  get parent(): Space | Snapshot | null {
+  get parent(): Space | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Space | Snapshot | null;
+      return this._supergraph.get(nodePtr.id) as Space | null;
     }
     return null;
   }
@@ -825,7 +823,7 @@ export class Snapshot extends Entity implements IsOwnable {
 
   constructor(options: {
     id?: string;
-    parent?: Space | Snapshot | NodeReference | null;
+    parent?: Space | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference;

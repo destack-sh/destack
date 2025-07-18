@@ -11,9 +11,7 @@ import type {
 import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Layer } from "@destack/language/scene";
 import type { Space } from "@destack/language/universe";
-import type { ContainerView } from "@destack/language/view/container";
 import { View } from "@destack/language/view/view";
 import { Temporal } from "temporal-polyfill";
 
@@ -25,9 +23,9 @@ export abstract class ContentView extends View {
   static metatype: NodeType = NodeType.CONTENT_VIEW;
 
   /**
-   * View.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  abstract get parent(): Layer | ContainerView | null;
+  abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

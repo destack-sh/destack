@@ -4485,6 +4485,7 @@ export interface EntitlementRevokedEventProto {
 }
 /**
  * An Entity is a named, versioned, stateful Node.
+ * Most Entities can be attached to most other Entities to compose richer structures.
  *
  * @generated from protobuf message symbol.destack.EntityProto
  */
@@ -5415,6 +5416,10 @@ export interface FolderProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
@@ -5455,6 +5460,12 @@ export interface FolderProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -5466,6 +5477,14 @@ export interface FolderProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: bool is_extensible = 90
+     */
+    isExtensible: boolean;
     /**
      * @generated from protobuf field: symbol.destack.FolderTypeProto type = 100
      */
@@ -8456,6 +8475,12 @@ export interface LayerProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -8467,6 +8492,10 @@ export interface LayerProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.LayerTypeProto type = 100
      */
@@ -10843,9 +10872,19 @@ export interface OrganizationProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: string slug = 101
      */
@@ -10881,6 +10920,10 @@ export interface PaletteProto {
      * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
      */
     spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
+     */
+    definitionPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
@@ -10922,6 +10965,12 @@ export interface PaletteProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -10929,6 +10978,14 @@ export interface PaletteProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: bool is_extensible = 90
+     */
+    isExtensible: boolean;
     /**
      * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
@@ -12609,10 +12666,7 @@ export interface ReactionRemovedEventProto {
     content: string;
 }
 /**
- * A generic Record instance of a CustomEntityDefinition like a relational Table.
- * The Archivable, Deletable, and Ownable traits are always present for plain Records
- * (but must be explicitly added to the CustomEntityDefinition to use them).
- * More specific base Entity types will be instanced of that base type instead.
+ * A generic Record instance of a CustomEntity.
  *
  * @generated from protobuf message symbol.destack.RecordProto
  */
@@ -14302,6 +14356,10 @@ export interface SceneProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
@@ -14342,6 +14400,12 @@ export interface SceneProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -14353,6 +14417,14 @@ export interface SceneProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: bool is_extensible = 90
+     */
+    isExtensible: boolean;
     /**
      * @generated from protobuf field: optional symbol.destack.IconProto icon = 102
      */
@@ -15643,6 +15715,12 @@ export interface SpaceProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 32
      */
     ownedByPtr?: NodeReferenceProto;
@@ -15650,6 +15728,10 @@ export interface SpaceProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: string slug = 102
      */
@@ -15946,6 +16028,91 @@ export interface SplitViewProto {
      * @generated from protobuf field: optional symbol.destack.CornersProto radius = 148
      */
     radius?: CornersProto;
+}
+/**
+ * A Stage for someone to interact with a Space.
+ *
+ * @generated from protobuf message symbol.destack.StageProto
+ */
+export interface StageProto {
+    /**
+     * @generated from protobuf field: symbol.destack.NodeTypeProto metatype = 1
+     */
+    metatype: NodeTypeProto;
+    /**
+     * @generated from protobuf field: string id = 2
+     */
+    id: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto parent_ptr = 3
+     */
+    parentPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.NodeReferenceProto space_ptr = 5
+     */
+    spacePtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
+     */
+    materialization: MaterializationProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto snapshot_ptr = 11
+     */
+    snapshotPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12
+     */
+    precededByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp created_at = 20
+     */
+    createdAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 created_epoch = 21 [jstype = JS_NUMBER]
+     */
+    createdEpoch: number;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto created_by_ptr = 22
+     */
+    createdByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: google.protobuf.Timestamp updated_at = 23
+     */
+    updatedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: int64 updated_epoch = 24 [jstype = JS_NUMBER]
+     */
+    updatedEpoch: number;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto updated_by_ptr = 25
+     */
+    updatedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: optional google.protobuf.Timestamp deleted_at = 26
+     */
+    deletedAt?: Timestamp;
+    /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
+     * @generated from protobuf field: string order_key = 31
+     */
+    orderKey: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto owned_by_ptr = 32
+     */
+    ownedByPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: string name = 50
+     */
+    name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
 }
 /**
  * A Star is a relationship between a Actor and a Starred Node.
@@ -16644,7 +16811,7 @@ export interface StyleProto {
     isExtensible: boolean;
 }
 /**
- * A Tag to tag something.
+ * A Tag definition to tag a Taggable Entity (in a Tagging).
  *
  * @generated from protobuf message symbol.destack.TagProto
  */
@@ -16864,9 +17031,19 @@ export interface TeamProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: string slug = 102
      */
@@ -17122,6 +17299,10 @@ export interface ThemeProto {
      */
     spacePtr?: NodeReferenceProto;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto definition_ptr = 6
+     */
+    definitionPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: symbol.destack.MaterializationProto materialization = 10
      */
     materialization: MaterializationProto;
@@ -17162,6 +17343,12 @@ export interface ThemeProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -17169,6 +17356,14 @@ export interface ThemeProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
+    /**
+     * @generated from protobuf field: bool is_extensible = 90
+     */
+    isExtensible: boolean;
 }
 /**
  * A Timer.
@@ -18175,6 +18370,10 @@ export interface UserProto {
      */
     name: string;
     /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
+    /**
      * @generated from protobuf field: string slug = 102
      */
     slug: string;
@@ -18776,7 +18975,7 @@ export interface WheelEventProto {
     delta?: Vector2fProto;
 }
 /**
- * A Window for someone to interact with Destack (in a Space).
+ * A Window for someone to interact with a Space.
  *
  * @generated from protobuf message symbol.destack.WindowProto
  */
@@ -18838,6 +19037,12 @@ export interface WindowProto {
      */
     deletedAt?: Timestamp;
     /**
+     * @generated from protobuf field: map<string, symbol.destack.ValueProto> custom_values = 30
+     */
+    customValues: {
+        [key: string]: ValueProto;
+    };
+    /**
      * @generated from protobuf field: string order_key = 31
      */
     orderKey: string;
@@ -18849,6 +19054,10 @@ export interface WindowProto {
      * @generated from protobuf field: string name = 50
      */
     name: string;
+    /**
+     * @generated from protobuf field: optional symbol.destack.NodeReferenceProto script_ptr = 80
+     */
+    scriptPtr?: NodeReferenceProto;
     /**
      * @generated from protobuf field: symbol.destack.WindowTypeProto type = 100
      */
@@ -19468,6 +19677,12 @@ export interface SomeNodeProto {
          */
         scene: SceneProto;
     } | {
+        oneofKind: "stage";
+        /**
+         * @generated from protobuf field: symbol.destack.StageProto stage = 1700000
+         */
+        stage: StageProto;
+    } | {
         oneofKind: "window";
         /**
          * @generated from protobuf field: symbol.destack.WindowProto window = 1700100
@@ -19976,6 +20191,12 @@ export interface SomeEntityProto {
          * @generated from protobuf field: symbol.destack.SceneProto scene = 1700200
          */
         scene: SceneProto;
+    } | {
+        oneofKind: "stage";
+        /**
+         * @generated from protobuf field: symbol.destack.StageProto stage = 1700000
+         */
+        stage: StageProto;
     } | {
         oneofKind: "window";
         /**
@@ -23659,6 +23880,10 @@ export enum NodeTypeProto {
      * @generated from protobuf enum value: NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 1400506;
      */
     NODE_TYPE_NOTIFICATION_EXPIRED_EVENT = 1400506,
+    /**
+     * @generated from protobuf enum value: NODE_TYPE_STAGE = 1700000;
+     */
+    NODE_TYPE_STAGE = 1700000,
     /**
      * @generated from protobuf enum value: NODE_TYPE_WINDOW = 1700100;
      */
@@ -38123,6 +38348,7 @@ class FolderProto$Type extends MessageType<FolderProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -38133,9 +38359,12 @@ class FolderProto$Type extends MessageType<FolderProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.FolderTypeProto", FolderTypeProto] },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 103, name: "slug", kind: "scalar", opt: true, T: 9 /*ScalarType.STRING*/ },
@@ -38149,8 +38378,10 @@ class FolderProto$Type extends MessageType<FolderProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.isExtensible = false;
         message.type = 0;
         if (value !== undefined)
             reflectionMergePartial<FolderProto>(this, message, value);
@@ -38172,6 +38403,9 @@ class FolderProto$Type extends MessageType<FolderProto> {
                     break;
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -38203,6 +38437,9 @@ class FolderProto$Type extends MessageType<FolderProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
@@ -38211,6 +38448,12 @@ class FolderProto$Type extends MessageType<FolderProto> {
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                case /* bool is_extensible */ 90:
+                    message.isExtensible = reader.bool();
                     break;
                 case /* symbol.destack.FolderTypeProto type */ 100:
                     message.type = reader.int32();
@@ -38235,6 +38478,22 @@ class FolderProto$Type extends MessageType<FolderProto> {
         }
         return message;
     }
+    private binaryReadMap30(map: FolderProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof FolderProto["customValues"] | undefined, val: FolderProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.FolderProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: FolderProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -38248,6 +38507,9 @@ class FolderProto$Type extends MessageType<FolderProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -38278,6 +38540,13 @@ class FolderProto$Type extends MessageType<FolderProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
@@ -38287,6 +38556,12 @@ class FolderProto$Type extends MessageType<FolderProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_extensible = 90; */
+        if (message.isExtensible !== false)
+            writer.tag(90, WireType.Varint).bool(message.isExtensible);
         /* symbol.destack.FolderTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
@@ -44940,9 +45215,11 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.LayerTypeProto", LayerTypeProto] },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 140, name: "is_visible", kind: "scalar", opt: true, T: 8 /*ScalarType.BOOL*/ },
@@ -44960,6 +45237,7 @@ class LayerProto$Type extends MessageType<LayerProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
         message.type = 0;
@@ -45014,6 +45292,9 @@ class LayerProto$Type extends MessageType<LayerProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
@@ -45022,6 +45303,9 @@ class LayerProto$Type extends MessageType<LayerProto> {
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* symbol.destack.LayerTypeProto type */ 100:
                     message.type = reader.int32();
@@ -45057,6 +45341,22 @@ class LayerProto$Type extends MessageType<LayerProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap30(map: LayerProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof LayerProto["customValues"] | undefined, val: LayerProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.LayerProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: LayerProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -45101,6 +45401,13 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
@@ -45110,6 +45417,9 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.LayerTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
@@ -50554,7 +50864,9 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 101, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 102, name: "status", kind: "enum", T: () => ["symbol.destack.OrganizationStatusProto", OrganizationStatusProto] },
             { no: 111, name: "handle_ptr", kind: "message", T: () => NodeReferenceProto }
@@ -50567,6 +50879,7 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.name = "";
         message.slug = "";
         message.status = 0;
@@ -50621,8 +50934,14 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* string slug */ 101:
                     message.slug = reader.string();
@@ -50643,6 +50962,22 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap30(map: OrganizationProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof OrganizationProto["customValues"] | undefined, val: OrganizationProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.OrganizationProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: OrganizationProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -50687,9 +51022,19 @@ class OrganizationProto$Type extends MessageType<OrganizationProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* string slug = 101; */
         if (message.slug !== "")
             writer.tag(101, WireType.LengthDelimited).string(message.slug);
@@ -50717,6 +51062,7 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -50727,8 +51073,11 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto }
         ]);
     }
@@ -50739,8 +51088,10 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.isExtensible = false;
         if (value !== undefined)
             reflectionMergePartial<PaletteProto>(this, message, value);
         return message;
@@ -50761,6 +51112,9 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
                     break;
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -50792,11 +51146,20 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                case /* bool is_extensible */ 90:
+                    message.isExtensible = reader.bool();
                     break;
                 case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
@@ -50812,6 +51175,22 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
         }
         return message;
     }
+    private binaryReadMap30(map: PaletteProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof PaletteProto["customValues"] | undefined, val: PaletteProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.PaletteProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: PaletteProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -50825,6 +51204,9 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -50855,12 +51237,25 @@ class PaletteProto$Type extends MessageType<PaletteProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_extensible = 90; */
+        if (message.isExtensible !== false)
+            writer.tag(90, WireType.Varint).bool(message.isExtensible);
         /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
             IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
@@ -58509,6 +58904,7 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -58519,9 +58915,12 @@ class SceneProto$Type extends MessageType<SceneProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 102, name: "icon", kind: "message", T: () => IconProto },
             { no: 200, name: "root_view_ptr", kind: "message", T: () => NodeReferenceProto }
         ]);
@@ -58533,8 +58932,10 @@ class SceneProto$Type extends MessageType<SceneProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.isExtensible = false;
         if (value !== undefined)
             reflectionMergePartial<SceneProto>(this, message, value);
         return message;
@@ -58555,6 +58956,9 @@ class SceneProto$Type extends MessageType<SceneProto> {
                     break;
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -58586,6 +58990,9 @@ class SceneProto$Type extends MessageType<SceneProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
@@ -58594,6 +59001,12 @@ class SceneProto$Type extends MessageType<SceneProto> {
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                case /* bool is_extensible */ 90:
+                    message.isExtensible = reader.bool();
                     break;
                 case /* optional symbol.destack.IconProto icon */ 102:
                     message.icon = IconProto.internalBinaryRead(reader, reader.uint32(), options, message.icon);
@@ -58612,6 +59025,22 @@ class SceneProto$Type extends MessageType<SceneProto> {
         }
         return message;
     }
+    private binaryReadMap30(map: SceneProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof SceneProto["customValues"] | undefined, val: SceneProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.SceneProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
     internalBinaryWrite(message: SceneProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
         if (message.metatype !== 0)
@@ -58625,6 +59054,9 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -58655,6 +59087,13 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
@@ -58664,6 +59103,12 @@ class SceneProto$Type extends MessageType<SceneProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_extensible = 90; */
+        if (message.isExtensible !== false)
+            writer.tag(90, WireType.Varint).bool(message.isExtensible);
         /* optional symbol.destack.IconProto icon = 102; */
         if (message.icon)
             IconProto.internalBinaryWrite(message.icon, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
@@ -61515,8 +61960,10 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 110, name: "status", kind: "enum", T: () => ["symbol.destack.SpaceStatusProto", SpaceStatusProto] },
             { no: 111, name: "handle_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -61534,6 +61981,7 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.name = "";
         message.slug = "";
         message.status = 0;
@@ -61589,11 +62037,17 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 32:
                     message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* string slug */ 102:
                     message.slug = reader.string();
@@ -61629,6 +62083,22 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap30(map: SpaceProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof SpaceProto["customValues"] | undefined, val: SpaceProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.SpaceProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: SpaceProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -61673,12 +62143,22 @@ class SpaceProto$Type extends MessageType<SpaceProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 32; */
         if (message.ownedByPtr)
             NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* string slug = 102; */
         if (message.slug !== "")
             writer.tag(102, WireType.LengthDelimited).string(message.slug);
@@ -62259,6 +62739,206 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
  * @generated MessageType for protobuf message symbol.destack.SplitViewProto
  */
 export const SplitViewProto = new SplitViewProto$Type();
+// @generated message type with reflection information, may provide speed optimized methods
+class StageProto$Type extends MessageType<StageProto> {
+    constructor() {
+        super("symbol.destack.StageProto", [
+            { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.NodeTypeProto", NodeTypeProto] },
+            { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
+            { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 20, name: "created_at", kind: "message", T: () => Timestamp },
+            { no: 21, name: "created_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 22, name: "created_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 23, name: "updated_at", kind: "message", T: () => Timestamp },
+            { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
+            { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
+            { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto }
+        ]);
+    }
+    create(value?: PartialMessage<StageProto>): StageProto {
+        const message = globalThis.Object.create((this.messagePrototype!));
+        message.metatype = 0;
+        message.id = "";
+        message.materialization = 0;
+        message.createdEpoch = 0;
+        message.updatedEpoch = 0;
+        message.customValues = {};
+        message.orderKey = "";
+        message.name = "";
+        if (value !== undefined)
+            reflectionMergePartial<StageProto>(this, message, value);
+        return message;
+    }
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: StageProto): StageProto {
+        let message = target ?? this.create(), end = reader.pos + length;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case /* symbol.destack.NodeTypeProto metatype */ 1:
+                    message.metatype = reader.int32();
+                    break;
+                case /* string id */ 2:
+                    message.id = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto parent_ptr */ 3:
+                    message.parentPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.parentPtr);
+                    break;
+                case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
+                    message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* symbol.destack.MaterializationProto materialization */ 10:
+                    message.materialization = reader.int32();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto snapshot_ptr */ 11:
+                    message.snapshotPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.snapshotPtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto preceded_by_ptr */ 12:
+                    message.precededByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.precededByPtr);
+                    break;
+                case /* google.protobuf.Timestamp created_at */ 20:
+                    message.createdAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.createdAt);
+                    break;
+                case /* int64 created_epoch = 21 [jstype = JS_NUMBER] */ 21:
+                    message.createdEpoch = reader.int64().toNumber();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto created_by_ptr */ 22:
+                    message.createdByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.createdByPtr);
+                    break;
+                case /* google.protobuf.Timestamp updated_at */ 23:
+                    message.updatedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.updatedAt);
+                    break;
+                case /* int64 updated_epoch = 24 [jstype = JS_NUMBER] */ 24:
+                    message.updatedEpoch = reader.int64().toNumber();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto updated_by_ptr */ 25:
+                    message.updatedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.updatedByPtr);
+                    break;
+                case /* optional google.protobuf.Timestamp deleted_at */ 26:
+                    message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
+                    break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
+                case /* string order_key */ 31:
+                    message.orderKey = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto owned_by_ptr */ 32:
+                    message.ownedByPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.ownedByPtr);
+                    break;
+                case /* string name */ 50:
+                    message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                default:
+                    let u = options.readUnknownField;
+                    if (u === "throw")
+                        throw new globalThis.Error(`Unknown field ${fieldNo} (wire type ${wireType}) for ${this.typeName}`);
+                    let d = reader.skip(wireType);
+                    if (u !== false)
+                        (u === true ? UnknownFieldHandler.onRead : u)(this.typeName, message, fieldNo, wireType, d);
+            }
+        }
+        return message;
+    }
+    private binaryReadMap30(map: StageProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof StageProto["customValues"] | undefined, val: StageProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.StageProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
+    }
+    internalBinaryWrite(message: StageProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+        /* symbol.destack.NodeTypeProto metatype = 1; */
+        if (message.metatype !== 0)
+            writer.tag(1, WireType.Varint).int32(message.metatype);
+        /* string id = 2; */
+        if (message.id !== "")
+            writer.tag(2, WireType.LengthDelimited).string(message.id);
+        /* optional symbol.destack.NodeReferenceProto parent_ptr = 3; */
+        if (message.parentPtr)
+            NodeReferenceProto.internalBinaryWrite(message.parentPtr, writer.tag(3, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.NodeReferenceProto space_ptr = 5; */
+        if (message.spacePtr)
+            NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.MaterializationProto materialization = 10; */
+        if (message.materialization !== 0)
+            writer.tag(10, WireType.Varint).int32(message.materialization);
+        /* optional symbol.destack.NodeReferenceProto snapshot_ptr = 11; */
+        if (message.snapshotPtr)
+            NodeReferenceProto.internalBinaryWrite(message.snapshotPtr, writer.tag(11, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto preceded_by_ptr = 12; */
+        if (message.precededByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.precededByPtr, writer.tag(12, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp created_at = 20; */
+        if (message.createdAt)
+            Timestamp.internalBinaryWrite(message.createdAt, writer.tag(20, WireType.LengthDelimited).fork(), options).join();
+        /* int64 created_epoch = 21 [jstype = JS_NUMBER]; */
+        if (message.createdEpoch !== 0)
+            writer.tag(21, WireType.Varint).int64(message.createdEpoch);
+        /* optional symbol.destack.NodeReferenceProto created_by_ptr = 22; */
+        if (message.createdByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.createdByPtr, writer.tag(22, WireType.LengthDelimited).fork(), options).join();
+        /* google.protobuf.Timestamp updated_at = 23; */
+        if (message.updatedAt)
+            Timestamp.internalBinaryWrite(message.updatedAt, writer.tag(23, WireType.LengthDelimited).fork(), options).join();
+        /* int64 updated_epoch = 24 [jstype = JS_NUMBER]; */
+        if (message.updatedEpoch !== 0)
+            writer.tag(24, WireType.Varint).int64(message.updatedEpoch);
+        /* optional symbol.destack.NodeReferenceProto updated_by_ptr = 25; */
+        if (message.updatedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.updatedByPtr, writer.tag(25, WireType.LengthDelimited).fork(), options).join();
+        /* optional google.protobuf.Timestamp deleted_at = 26; */
+        if (message.deletedAt)
+            Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
+        /* string order_key = 31; */
+        if (message.orderKey !== "")
+            writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
+        /* optional symbol.destack.NodeReferenceProto owned_by_ptr = 32; */
+        if (message.ownedByPtr)
+            NodeReferenceProto.internalBinaryWrite(message.ownedByPtr, writer.tag(32, WireType.LengthDelimited).fork(), options).join();
+        /* string name = 50; */
+        if (message.name !== "")
+            writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        let u = options.writeUnknownFields;
+        if (u !== false)
+            (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
+        return writer;
+    }
+}
+/**
+ * @generated MessageType for protobuf message symbol.destack.StageProto
+ */
+export const StageProto = new StageProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class StarProto$Type extends MessageType<StarProto> {
     constructor() {
@@ -64387,7 +65067,9 @@ class TeamProto$Type extends MessageType<TeamProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
         ]);
     }
@@ -64398,6 +65080,7 @@ class TeamProto$Type extends MessageType<TeamProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.name = "";
         message.slug = "";
         if (value !== undefined)
@@ -64451,8 +65134,14 @@ class TeamProto$Type extends MessageType<TeamProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* string slug */ 102:
                     message.slug = reader.string();
@@ -64467,6 +65156,22 @@ class TeamProto$Type extends MessageType<TeamProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap30(map: TeamProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof TeamProto["customValues"] | undefined, val: TeamProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.TeamProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: TeamProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -64511,9 +65216,19 @@ class TeamProto$Type extends MessageType<TeamProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* string slug = 102; */
         if (message.slug !== "")
             writer.tag(102, WireType.LengthDelimited).string(message.slug);
@@ -65049,6 +65764,7 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
             { no: 2, name: "id", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 3, name: "parent_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 5, name: "space_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 6, name: "definition_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 10, name: "materialization", kind: "enum", T: () => ["symbol.destack.MaterializationProto", MaterializationProto] },
             { no: 11, name: "snapshot_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 12, name: "preceded_by_ptr", kind: "message", T: () => NodeReferenceProto },
@@ -65059,8 +65775,11 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
-            { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ }
+            { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
+            { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ }
         ]);
     }
     create(value?: PartialMessage<ThemeProto>): ThemeProto {
@@ -65070,8 +65789,10 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
+        message.isExtensible = false;
         if (value !== undefined)
             reflectionMergePartial<ThemeProto>(this, message, value);
         return message;
@@ -65092,6 +65813,9 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
                     break;
                 case /* symbol.destack.NodeReferenceProto space_ptr */ 5:
                     message.spacePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.spacePtr);
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto definition_ptr */ 6:
+                    message.definitionPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.definitionPtr);
                     break;
                 case /* symbol.destack.MaterializationProto materialization */ 10:
                     message.materialization = reader.int32();
@@ -65123,11 +65847,20 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
+                    break;
+                case /* bool is_extensible */ 90:
+                    message.isExtensible = reader.bool();
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -65139,6 +65872,22 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap30(map: ThemeProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof ThemeProto["customValues"] | undefined, val: ThemeProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.ThemeProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: ThemeProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -65153,6 +65902,9 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
         /* symbol.destack.NodeReferenceProto space_ptr = 5; */
         if (message.spacePtr)
             NodeReferenceProto.internalBinaryWrite(message.spacePtr, writer.tag(5, WireType.LengthDelimited).fork(), options).join();
+        /* optional symbol.destack.NodeReferenceProto definition_ptr = 6; */
+        if (message.definitionPtr)
+            NodeReferenceProto.internalBinaryWrite(message.definitionPtr, writer.tag(6, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.MaterializationProto materialization = 10; */
         if (message.materialization !== 0)
             writer.tag(10, WireType.Varint).int32(message.materialization);
@@ -65183,12 +65935,25 @@ class ThemeProto$Type extends MessageType<ThemeProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
+        /* bool is_extensible = 90; */
+        if (message.isExtensible !== false)
+            writer.tag(90, WireType.Varint).bool(message.isExtensible);
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -67363,6 +68128,7 @@ class UserProto$Type extends MessageType<UserProto> {
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
             { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "slug", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 110, name: "status", kind: "enum", T: () => ["symbol.destack.UserStatusProto", UserStatusProto] },
             { no: 111, name: "last_logged_in_at", kind: "message", T: () => Timestamp },
@@ -67442,6 +68208,9 @@ class UserProto$Type extends MessageType<UserProto> {
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* string slug */ 102:
                     message.slug = reader.string();
@@ -67550,6 +68319,9 @@ class UserProto$Type extends MessageType<UserProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* string slug = 102; */
         if (message.slug !== "")
             writer.tag(102, WireType.LengthDelimited).string(message.slug);
@@ -69113,9 +69885,11 @@ class WindowProto$Type extends MessageType<WindowProto> {
             { no: 24, name: "updated_epoch", kind: "scalar", T: 3 /*ScalarType.INT64*/, L: 2 /*LongType.NUMBER*/ },
             { no: 25, name: "updated_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 26, name: "deleted_at", kind: "message", T: () => Timestamp },
+            { no: 30, name: "custom_values", kind: "map", K: 9 /*ScalarType.STRING*/, V: { kind: "message", T: () => ValueProto } },
             { no: 31, name: "order_key", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
             { no: 32, name: "owned_by_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 50, name: "name", kind: "scalar", T: 9 /*ScalarType.STRING*/ },
+            { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.WindowTypeProto", WindowTypeProto] }
         ]);
     }
@@ -69126,6 +69900,7 @@ class WindowProto$Type extends MessageType<WindowProto> {
         message.materialization = 0;
         message.createdEpoch = 0;
         message.updatedEpoch = 0;
+        message.customValues = {};
         message.orderKey = "";
         message.name = "";
         message.type = 0;
@@ -69180,6 +69955,9 @@ class WindowProto$Type extends MessageType<WindowProto> {
                 case /* optional google.protobuf.Timestamp deleted_at */ 26:
                     message.deletedAt = Timestamp.internalBinaryRead(reader, reader.uint32(), options, message.deletedAt);
                     break;
+                case /* map<string, symbol.destack.ValueProto> custom_values */ 30:
+                    this.binaryReadMap30(message.customValues, reader, options);
+                    break;
                 case /* string order_key */ 31:
                     message.orderKey = reader.string();
                     break;
@@ -69188,6 +69966,9 @@ class WindowProto$Type extends MessageType<WindowProto> {
                     break;
                 case /* string name */ 50:
                     message.name = reader.string();
+                    break;
+                case /* optional symbol.destack.NodeReferenceProto script_ptr */ 80:
+                    message.scriptPtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.scriptPtr);
                     break;
                 case /* symbol.destack.WindowTypeProto type */ 100:
                     message.type = reader.int32();
@@ -69202,6 +69983,22 @@ class WindowProto$Type extends MessageType<WindowProto> {
             }
         }
         return message;
+    }
+    private binaryReadMap30(map: WindowProto["customValues"], reader: IBinaryReader, options: BinaryReadOptions): void {
+        let len = reader.uint32(), end = reader.pos + len, key: keyof WindowProto["customValues"] | undefined, val: WindowProto["customValues"][any] | undefined;
+        while (reader.pos < end) {
+            let [fieldNo, wireType] = reader.tag();
+            switch (fieldNo) {
+                case 1:
+                    key = reader.string();
+                    break;
+                case 2:
+                    val = ValueProto.internalBinaryRead(reader, reader.uint32(), options);
+                    break;
+                default: throw new globalThis.Error("unknown map entry field for symbol.destack.WindowProto.custom_values");
+            }
+        }
+        map[key ?? ""] = val ?? ValueProto.create();
     }
     internalBinaryWrite(message: WindowProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.NodeTypeProto metatype = 1; */
@@ -69246,6 +70043,13 @@ class WindowProto$Type extends MessageType<WindowProto> {
         /* optional google.protobuf.Timestamp deleted_at = 26; */
         if (message.deletedAt)
             Timestamp.internalBinaryWrite(message.deletedAt, writer.tag(26, WireType.LengthDelimited).fork(), options).join();
+        /* map<string, symbol.destack.ValueProto> custom_values = 30; */
+        for (let k of globalThis.Object.keys(message.customValues)) {
+            writer.tag(30, WireType.LengthDelimited).fork().tag(1, WireType.LengthDelimited).string(k);
+            writer.tag(2, WireType.LengthDelimited).fork();
+            ValueProto.internalBinaryWrite(message.customValues[k], writer, options);
+            writer.join().join();
+        }
         /* string order_key = 31; */
         if (message.orderKey !== "")
             writer.tag(31, WireType.LengthDelimited).string(message.orderKey);
@@ -69255,6 +70059,9 @@ class WindowProto$Type extends MessageType<WindowProto> {
         /* string name = 50; */
         if (message.name !== "")
             writer.tag(50, WireType.LengthDelimited).string(message.name);
+        /* optional symbol.destack.NodeReferenceProto script_ptr = 80; */
+        if (message.scriptPtr)
+            NodeReferenceProto.internalBinaryWrite(message.scriptPtr, writer.tag(80, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.WindowTypeProto type = 100; */
         if (message.type !== 0)
             writer.tag(100, WireType.Varint).int32(message.type);
@@ -69373,6 +70180,7 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
             { no: 1200201, name: "histogram_measurement_event", kind: "message", oneof: "node", T: () => HistogramMeasurementEventProto },
             { no: 1700300, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
             { no: 1700200, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
+            { no: 1700000, name: "stage", kind: "message", oneof: "node", T: () => StageProto },
             { no: 1700100, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
             { no: 1400200, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
             { no: 1400201, name: "follow_event", kind: "message", oneof: "node", T: () => FollowEventProto },
@@ -70033,6 +70841,12 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
                         scene: SceneProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
                     };
                     break;
+                case /* symbol.destack.StageProto stage */ 1700000:
+                    message.node = {
+                        oneofKind: "stage",
+                        stage: StageProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).stage)
+                    };
+                    break;
                 case /* symbol.destack.WindowProto window */ 1700100:
                     message.node = {
                         oneofKind: "window",
@@ -70561,6 +71375,9 @@ class SomeNodeProto$Type extends MessageType<SomeNodeProto> {
         /* symbol.destack.NotificationExpiredEventProto notification_expired_event = 1400506; */
         if (message.node.oneofKind === "notificationExpiredEvent")
             NotificationExpiredEventProto.internalBinaryWrite(message.node.notificationExpiredEvent, writer.tag(1400506, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StageProto stage = 1700000; */
+        if (message.node.oneofKind === "stage")
+            StageProto.internalBinaryWrite(message.node.stage, writer.tag(1700000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.WindowProto window = 1700100; */
         if (message.node.oneofKind === "window")
             WindowProto.internalBinaryWrite(message.node.window, writer.tag(1700100, WireType.LengthDelimited).fork(), options).join();
@@ -70765,6 +71582,7 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
             { no: 1200200, name: "histogram_metric", kind: "message", oneof: "node", T: () => HistogramMetricProto },
             { no: 1700300, name: "layer", kind: "message", oneof: "node", T: () => LayerProto },
             { no: 1700200, name: "scene", kind: "message", oneof: "node", T: () => SceneProto },
+            { no: 1700000, name: "stage", kind: "message", oneof: "node", T: () => StageProto },
             { no: 1700100, name: "window", kind: "message", oneof: "node", T: () => WindowProto },
             { no: 1400200, name: "follow", kind: "message", oneof: "node", T: () => FollowProto },
             { no: 1400500, name: "notification", kind: "message", oneof: "node", T: () => NotificationProto },
@@ -71061,6 +71879,12 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
                     message.node = {
                         oneofKind: "scene",
                         scene: SceneProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).scene)
+                    };
+                    break;
+                case /* symbol.destack.StageProto stage */ 1700000:
+                    message.node = {
+                        oneofKind: "stage",
+                        stage: StageProto.internalBinaryRead(reader, reader.uint32(), options, (message.node as any).stage)
                     };
                     break;
                 case /* symbol.destack.WindowProto window */ 1700100:
@@ -71366,6 +72190,9 @@ class SomeEntityProto$Type extends MessageType<SomeEntityProto> {
         /* symbol.destack.NotificationProto notification = 1400500; */
         if (message.node.oneofKind === "notification")
             NotificationProto.internalBinaryWrite(message.node.notification, writer.tag(1400500, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.StageProto stage = 1700000; */
+        if (message.node.oneofKind === "stage")
+            StageProto.internalBinaryWrite(message.node.stage, writer.tag(1700000, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.WindowProto window = 1700100; */
         if (message.node.oneofKind === "window")
             WindowProto.internalBinaryWrite(message.node.window, writer.tag(1700100, WireType.LengthDelimited).fork(), options).join();
@@ -72211,6 +73038,6 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
 
-    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
+    export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | SnapshotProto | VariantProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | ConstraintProto | IndexProto | CustomEnumProto | CustomOptionProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | CustomStructProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | BranchProto | FolderProto | TagProto | TaggingProto | StyleProto | ColorStyleProto | BorderStyleProto | TransitionStyleProto | EffectStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | ClientProto | HandleProto | OrganizationProto | SpaceProto | TeamProto | UserProto
     export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | ConstraintDefinitionProto | IndexDefinitionProto | IconProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | DatabaseInfoProto | ScheduleProto | ColorProto | BorderProto | TransitionProto | EffectProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto
         

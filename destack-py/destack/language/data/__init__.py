@@ -9,10 +9,7 @@ from .file import (
     FileRetentionMode,
     FileSource,
     FileType,
-    detect_file_format,
     download_file_batch,
-    extract_file_info,
-    upload_file,
     upload_file_batch,
 )
 
@@ -27,9 +24,6 @@ __all__ = [
     "FileRetentionMode",
     "FileSource",
     "FileType",
-    "detect_file_format",
     "download_file_batch",
-    "extract_file_info",
-    "upload_file",
     "upload_file_batch",
 ]

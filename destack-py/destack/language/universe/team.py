@@ -4,6 +4,7 @@ from destack.language.core import (
     Entity,
     IsActor,
     IsJoinable,
+    IsScriptable,
     NodeType,
     builtin_node,
     builtin_property,
@@ -17,7 +18,12 @@ if TYPE_CHECKING:
 
 
 @builtin_node(NodeType.TEAM)
-class Team(IsActor, IsJoinable, Entity):
+class Team(
+    IsActor,
+    IsJoinable,
+    IsScriptable,
+    Entity,
+):
     """
     An Team with Users and Teams.
     """

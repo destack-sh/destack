@@ -576,6 +576,12 @@ export class PointerDownEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -586,12 +592,6 @@ export class PointerDownEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -634,17 +634,17 @@ export class PointerDownEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -797,6 +797,11 @@ export class PointerDownEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -809,11 +814,6 @@ export class PointerDownEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerDownEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -834,10 +834,10 @@ export class PointerDownEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1014,7 +1014,6 @@ export class PointerDownEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1033,6 +1032,7 @@ export class PointerDownEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1474,6 +1474,12 @@ export class PointerUpEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -1484,12 +1490,6 @@ export class PointerUpEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -1532,17 +1532,17 @@ export class PointerUpEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1695,6 +1695,11 @@ export class PointerUpEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -1707,11 +1712,6 @@ export class PointerUpEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerUpEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -1732,10 +1732,10 @@ export class PointerUpEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1906,7 +1906,6 @@ export class PointerUpEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1925,6 +1924,7 @@ export class PointerUpEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2360,6 +2360,12 @@ export class PointerMoveEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -2370,12 +2376,6 @@ export class PointerMoveEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -2418,17 +2418,17 @@ export class PointerMoveEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2581,6 +2581,11 @@ export class PointerMoveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -2593,11 +2598,6 @@ export class PointerMoveEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerMoveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -2618,10 +2618,10 @@ export class PointerMoveEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2798,7 +2798,6 @@ export class PointerMoveEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -2817,6 +2816,7 @@ export class PointerMoveEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3258,6 +3258,12 @@ export class PointerEnterEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -3268,12 +3274,6 @@ export class PointerEnterEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -3316,17 +3316,17 @@ export class PointerEnterEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -3479,6 +3479,11 @@ export class PointerEnterEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -3491,11 +3496,6 @@ export class PointerEnterEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerEnterEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -3516,10 +3516,10 @@ export class PointerEnterEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -3696,7 +3696,6 @@ export class PointerEnterEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -3715,6 +3714,7 @@ export class PointerEnterEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -4156,6 +4156,12 @@ export class PointerOverEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -4166,12 +4172,6 @@ export class PointerOverEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -4214,17 +4214,17 @@ export class PointerOverEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -4377,6 +4377,11 @@ export class PointerOverEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -4389,11 +4394,6 @@ export class PointerOverEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerOverEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -4414,10 +4414,10 @@ export class PointerOverEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -4594,7 +4594,6 @@ export class PointerOverEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -4613,6 +4612,7 @@ export class PointerOverEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -5054,6 +5054,12 @@ export class PointerLeaveEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -5064,12 +5070,6 @@ export class PointerLeaveEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -5112,17 +5112,17 @@ export class PointerLeaveEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -5275,6 +5275,11 @@ export class PointerLeaveEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -5287,11 +5292,6 @@ export class PointerLeaveEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerLeaveEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -5312,10 +5312,10 @@ export class PointerLeaveEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -5492,7 +5492,6 @@ export class PointerLeaveEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -5511,6 +5510,7 @@ export class PointerLeaveEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -5952,6 +5952,12 @@ export class PointerLongPressEvent extends PointerEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -5962,12 +5968,6 @@ export class PointerLongPressEvent extends PointerEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -6010,17 +6010,17 @@ export class PointerLongPressEvent extends PointerEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -6173,6 +6173,11 @@ export class PointerLongPressEvent extends PointerEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -6185,11 +6190,6 @@ export class PointerLongPressEvent extends PointerEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new PointerLongPressEvent({
       position: _Vector2f.fromValue(objectValue["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
@@ -6210,10 +6210,10 @@ export class PointerLongPressEvent extends PointerEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -6390,7 +6390,6 @@ export class PointerLongPressEvent extends PointerEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -6409,6 +6408,7 @@ export class PointerLongPressEvent extends PointerEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

@@ -21,7 +21,6 @@ import type {
 import { Entity, NodeType } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Layer } from "@destack/language/scene";
 import type { Border, Fill, Shadow } from "@destack/language/style";
 import type { Space } from "@destack/language/universe";
 import { View } from "@destack/language/view/view";
@@ -36,9 +35,9 @@ export abstract class ContainerView extends View {
   static metatype: NodeType = NodeType.CONTAINER_VIEW;
 
   /**
-   * View.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  abstract get parent(): Layer | ContainerView | null;
+  abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

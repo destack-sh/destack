@@ -252,9 +252,9 @@ registerTraitClass(TraitType.SOURCEABLE, IsSourceable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:700002 ==== */
 /**
- * An Entity that can be scripted.
+ * An Entity that can be customized with custom Properties and a Script.
  */
-export interface IsScriptable {
+export interface IsScriptable extends IsCustomizable {
   get script(): Script | null;
   set script(value: Script | null);
   /**
@@ -269,7 +269,7 @@ export interface IsScriptable {
 }
 
 /**
- * An Entity that can be scripted.
+ * An Entity that can be customized with custom Properties and a Script.
  */
 class IsScriptable$Type extends TraitClass<IsScriptable, TraitType.SCRIPTABLE> {}
 
@@ -350,9 +350,9 @@ registerTraitClass(TraitType.CUSTOMIZABLE, IsCustomizable);
 
 /* ==== DESTACK_GENERATED_START:TRAIT:10200 ==== */
 /**
- * A Node that be extended by custom Nodes (i.e. used as a base type).
+ * A Node that be customized andextended by custom Nodes (i.e. used as a base type).
  */
-export interface IsExtensible extends IsCustomizable, IsScriptable {
+export interface IsExtensible extends IsScriptable {
   get definition(): Entity | null;
   readonly definitionPtr: NodeReference | null;
 
@@ -367,7 +367,7 @@ export interface IsExtensible extends IsCustomizable, IsScriptable {
 }
 
 /**
- * A Node that be extended by custom Nodes (i.e. used as a base type).
+ * A Node that be customized andextended by custom Nodes (i.e. used as a base type).
  */
 class IsExtensible$Type extends TraitClass<IsExtensible, TraitType.EXTENSIBLE> {}
 

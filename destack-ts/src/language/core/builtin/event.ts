@@ -144,7 +144,7 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
   static metatype: NodeType = NodeType.CUSTOM_EVENT;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;

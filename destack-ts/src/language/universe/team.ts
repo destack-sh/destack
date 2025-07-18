@@ -3,12 +3,14 @@ import type {
   Graph,
   IsActor,
   IsJoinable,
+  IsScriptable,
   NodeClass,
   NodeReference,
   QueryConnection,
   Session,
   Snapshot,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -19,6 +21,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Organization } from "@destack/language/universe/organization";
 import type { Space } from "@destack/language/universe/space";
@@ -31,7 +34,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * An Team with Users and Teams.
  */
-export class Team extends Entity implements IsActor, IsJoinable {
+export class Team extends Entity implements IsActor, IsJoinable, IsScriptable {
   static metatype: NodeType = NodeType.TEAM;
 
   /**
@@ -137,6 +140,22 @@ export class Team extends Entity implements IsActor, IsJoinable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
    * Entity.name
    */
   /**
@@ -151,6 +170,36 @@ export class Team extends Entity implements IsActor, IsJoinable {
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
 
   /**
    * Team.slug
@@ -182,7 +231,9 @@ export class Team extends Entity implements IsActor, IsJoinable {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: { readonly [key: string]: Value };
     name?: string;
+    script?: Script | NodeReference | null;
     slug: string;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -254,6 +305,11 @@ export class Team extends Entity implements IsActor, IsJoinable {
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _name = options.name ?? null;
     if (_name === null) {
       _name = "Team";
@@ -262,6 +318,11 @@ export class Team extends Entity implements IsActor, IsJoinable {
       throw new Error(`Team.name is required`);
     }
     this._name = _name;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Team.slug is required`);
@@ -313,6 +374,9 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (!(this._slug === other._slug)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -321,6 +385,17 @@ export class Team extends Entity implements IsActor, IsJoinable {
     }
     if (!(this._name === other._name)) {
       return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
     }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
@@ -335,6 +410,9 @@ export class Team extends Entity implements IsActor, IsJoinable {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._slug)) & 0xffffffff;
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     }
@@ -354,6 +432,12 @@ export class Team extends Entity implements IsActor, IsJoinable {
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
@@ -433,7 +517,17 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (object.deletedAt != null) {
       objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["30"] = packedCustomValues;
+    }
     objectValue["50"] = object._name;
+    if (object._scriptPtr != null) {
+      objectValue["80"] = object._scriptPtr.toValue();
+    }
     objectValue["102"] = object._slug;
     return objectValue;
   }
@@ -445,11 +539,17 @@ export class Team extends Entity implements IsActor, IsJoinable {
     _graph?: any | null,
     _connection?: any | null,
   ): Team {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -476,9 +576,22 @@ export class Team extends Entity implements IsActor, IsJoinable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     return new Team({
       parent: unpackedParentPtr,
       slug: objectValue["102"],
+      script: unpackedScriptPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -491,6 +604,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
+      customValues: unpackedCustomValues,
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
@@ -539,7 +653,16 @@ export class Team extends Entity implements IsActor, IsJoinable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.name = object._name;
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
     objectProto.slug = object._slug;
     return objectProto as TeamProto;
   }
@@ -551,7 +674,17 @@ export class Team extends Entity implements IsActor, IsJoinable {
     _graph?: any | null,
     _connection?: any | null,
   ): Team {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Team({
       parent:
         objectProto.parentPtr != undefined
@@ -564,6 +697,16 @@ export class Team extends Entity implements IsActor, IsJoinable {
             )
           : null,
       slug: objectProto.slug,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined
@@ -613,6 +756,7 @@ export class Team extends Entity implements IsActor, IsJoinable {
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
+      customValues: unpackedCustomValues,
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
         _session,

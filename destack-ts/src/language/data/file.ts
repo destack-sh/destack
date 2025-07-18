@@ -1047,6 +1047,12 @@ export class File extends Resource {
     if (!(this._name === other._name)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -1057,12 +1063,6 @@ export class File extends Resource {
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -1149,17 +1149,17 @@ export class File extends Resource {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1411,6 +1411,11 @@ export class File extends Resource {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -1423,11 +1428,6 @@ export class File extends Resource {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new File({
       parent: unpackedParentPtr,
       type: Number(objectValue["100"]),
@@ -1463,10 +1463,10 @@ export class File extends Resource {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1705,7 +1705,6 @@ export class File extends Resource {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1724,6 +1723,7 @@ export class File extends Resource {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

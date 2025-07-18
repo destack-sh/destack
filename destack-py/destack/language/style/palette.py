@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
+    IsExtensible,
     IsOrdered,
     IsTaggable,
     NodeType,
@@ -17,6 +18,7 @@ if TYPE_CHECKING:
 
 @builtin_node(NodeType.PALETTE)
 class Palette(
+    IsExtensible,
     IsOrdered,
     IsTaggable,
     Entity,

@@ -7,7 +7,7 @@ import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
 import type { NodeReference } from "@destack/language/core/builtin/relation";
-import type { IsActor, IsJoinable, IsSourceable } from "@destack/language/core/builtin/trait";
+import type { IsActor, IsExtensible, IsSourceable } from "@destack/language/core/builtin/trait";
 import { BuiltinDefinition } from "@destack/language/core/common/definition";
 import type { Icon } from "@destack/language/core/common/icon";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
@@ -19,7 +19,6 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, PermissionDefinitionProto, PermissionProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -305,10 +304,10 @@ export class Permission extends Entity implements IsSourceable {
   /**
    * Permission.parent
    */
-  get parent(): (Entity & IsJoinable) | Folder | null {
+  get parent(): (Entity & IsExtensible) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsJoinable) | Folder | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsExtensible) | null;
     }
     return null;
   }
@@ -455,7 +454,7 @@ export class Permission extends Entity implements IsSourceable {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsJoinable) | Folder | NodeReference | null;
+    parent?: (Entity & IsExtensible) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;

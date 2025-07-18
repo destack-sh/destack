@@ -4,6 +4,7 @@ from destack.language.core import (
     Entity,
     Enum,
     EnumType,
+    IsExtensible,
     IsFollowable,
     IsJoinable,
     IsOrdered,
@@ -43,6 +44,7 @@ class Folder(
     IsStarable,
     IsFollowable,
     IsReactable,
+    IsExtensible,
     Entity,
 ):
     """A Folder is a sub-space of a Space."""

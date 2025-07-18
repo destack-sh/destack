@@ -5,6 +5,7 @@ import type {
   IsFollowable,
   IsJoinable,
   IsOwnable,
+  IsScriptable,
   IsStarable,
   NodeClass,
   NodeReference,
@@ -12,6 +13,7 @@ import type {
   Session,
   Snapshot,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   Entity,
@@ -23,6 +25,7 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Database } from "@destack/language/infrastructure";
+import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
@@ -54,11 +57,14 @@ registerEnumClass(EnumType.SPACE_STATUS, SpaceStatus);
 /**
  * A Space is the home of your personal software studio.
  */
-export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable, IsStarable {
+export class Space
+  extends Entity
+  implements IsFollowable, IsJoinable, IsOwnable, IsStarable, IsScriptable
+{
   static metatype: NodeType = NodeType.SPACE;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -160,6 +166,22 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
    * IsOwnable.ownedBy
    */
   get ownedBy(): (Entity & IsActor) | null {
@@ -204,6 +226,36 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     this._name = value;
   }
   _name: string;
+
+  /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
 
   /**
    * Space.slug
@@ -403,8 +455,10 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: { readonly [key: string]: Value };
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
+    script?: Script | NodeReference | null;
     slug: string;
     status: SpaceStatus;
     handle?: Handle | NodeReference | null;
@@ -476,6 +530,11 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _ownedBy = options.ownedBy ?? null;
     if (_ownedBy != null && _ownedBy.metatype != StructType.NODE_REFERENCE) {
       _ownedBy = (_ownedBy as Node).toRef();
@@ -489,6 +548,11 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       throw new Error(`Space.name is required`);
     }
     this._name = _name;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
     let _slug = options.slug;
     if (_slug === null) {
       throw new Error(`Space.slug is required`);
@@ -599,6 +663,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -607,6 +674,17 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     if (!(this._name === other._name)) {
       return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
     }
     return true;
   }
@@ -636,6 +714,9 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
@@ -658,6 +739,12 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
 
     return h;
   }
@@ -728,10 +815,20 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (object.deletedAt != null) {
       objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["30"] = packedCustomValues;
+    }
     if (object._ownedByPtr != null) {
       objectValue["32"] = object._ownedByPtr.toValue();
     }
     objectValue["50"] = object._name;
+    if (object._scriptPtr != null) {
+      objectValue["80"] = object._scriptPtr.toValue();
+    }
     objectValue["102"] = object._slug;
     objectValue["110"] = object._status;
     if (object._handlePtr != null) {
@@ -760,6 +857,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     _graph?: any | null,
     _connection?: any | null,
   ): Space {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const handlePtrValue = objectValue["111"];
     const unpackedHandlePtr =
@@ -787,6 +885,11 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
         ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -818,6 +921,18 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     return new Space({
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
       slug: objectValue["102"],
@@ -829,6 +944,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       galaxyName: unpackedGalaxyName,
       database: unpackedDatabasePtr,
       ownedBy: unpackedOwnedByPtr,
+      script: unpackedScriptPtr,
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
@@ -842,6 +958,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
       id: String(objectValue["2"]),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -889,10 +1006,19 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     if (object._ownedByPtr != null) {
       objectProto.ownedByPtr = object._ownedByPtr.toProto();
     }
     objectProto.name = object._name;
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
     objectProto.slug = object._slug;
     objectProto.status = Number(object._status) as SpaceStatusProto;
     if (object._handlePtr != null) {
@@ -921,7 +1047,17 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
     _graph?: any | null,
     _connection?: any | null,
   ): Space {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Space({
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -978,6 +1114,16 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.ownedByPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1043,6 +1189,7 @@ export class Space extends Entity implements IsFollowable, IsJoinable, IsOwnable
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
       id: String(objectProto.id),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

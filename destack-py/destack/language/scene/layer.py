@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     Entity,
@@ -6,6 +6,7 @@ from destack.language.core import (
     EnumType,
     IsOrdered,
     IsOwnable,
+    IsScriptable,
     IsTaggable,
     IsViewable,
     NodeType,
@@ -42,11 +43,12 @@ class Layer(
     IsOwnable,
     IsOrdered,
     IsTaggable,
+    IsScriptable,
     Entity,
 ):
     """A Layer is a named container for Views."""
 
-    parent: Union["Scene", None] = builtin_property_parent()
+    parent: Optional["Scene"] = builtin_property_parent()
     type: LayerType = builtin_property(100, default=LayerType.GENERAL)
     icon: "Icon | None" = builtin_property(102)
 

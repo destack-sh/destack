@@ -157,6 +157,7 @@ AnyNodeProto = Union[
     LayerProto,
     SceneEventProto,
     SceneProto,
+    StageProto,
     WindowProto,
     FollowProto,
     FollowEventProto,

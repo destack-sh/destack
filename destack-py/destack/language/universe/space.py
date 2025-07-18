@@ -10,6 +10,7 @@ from destack.language.core import (
     IsFollowable,
     IsJoinable,
     IsOwnable,
+    IsScriptable,
     IsStarable,
     NodeType,
     Region,
@@ -39,6 +40,7 @@ class Space(
     IsJoinable,
     IsOwnable,
     IsStarable,
+    IsScriptable,
     Entity,
 ):
     """

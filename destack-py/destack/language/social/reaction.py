@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     ConstraintDeclaration,
@@ -32,7 +32,7 @@ if TYPE_CHECKING:
 class Reaction(IsOwned, Entity):
     """A Reaction is a relationship between a Actor and a Reaction Node."""
 
-    parent: Union["IsReactable", None] = builtin_property_parent()
+    parent: Optional["IsReactable"] = builtin_property_parent()
 
     content: str = builtin_property(101, is_repr=True)
 

@@ -608,6 +608,12 @@ export class KeyDownEvent extends KeyEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -618,12 +624,6 @@ export class KeyDownEvent extends KeyEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -666,17 +666,17 @@ export class KeyDownEvent extends KeyEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -825,6 +825,11 @@ export class KeyDownEvent extends KeyEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -837,11 +842,6 @@ export class KeyDownEvent extends KeyEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new KeyDownEvent({
       key: objectValue["110"],
       code: objectValue["111"],
@@ -864,10 +864,10 @@ export class KeyDownEvent extends KeyEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1033,7 +1033,6 @@ export class KeyDownEvent extends KeyEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1052,6 +1051,7 @@ export class KeyDownEvent extends KeyEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1514,6 +1514,12 @@ export class KeyUpEvent extends KeyEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -1524,12 +1530,6 @@ export class KeyUpEvent extends KeyEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -1572,17 +1572,17 @@ export class KeyUpEvent extends KeyEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -1731,6 +1731,11 @@ export class KeyUpEvent extends KeyEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -1743,11 +1748,6 @@ export class KeyUpEvent extends KeyEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new KeyUpEvent({
       key: objectValue["110"],
       code: objectValue["111"],
@@ -1770,10 +1770,10 @@ export class KeyUpEvent extends KeyEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1939,7 +1939,6 @@ export class KeyUpEvent extends KeyEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1958,6 +1957,7 @@ export class KeyUpEvent extends KeyEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2420,6 +2420,12 @@ export class KeyPressEvent extends KeyEvent {
     if (!(this.status === other.status)) {
       return false;
     }
+    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
+      return false;
+    }
+    if (!(this.spacePtr.id === other.spacePtr.id)) {
+      return false;
+    }
     if (Object.keys(this.customValues).length !== Object.keys(other.customValues).length) {
       return false;
     }
@@ -2430,12 +2436,6 @@ export class KeyPressEvent extends KeyEvent {
       if (!this.customValues[key].equals(other.customValues[key])) {
         return false;
       }
-    }
-    if (!(this.scriptPtr?.id === other.scriptPtr?.id)) {
-      return false;
-    }
-    if (!(this.spacePtr.id === other.spacePtr.id)) {
-      return false;
     }
     return true;
   }
@@ -2478,17 +2478,17 @@ export class KeyPressEvent extends KeyEvent {
       (h * 31 + hashString(this.clientCreatedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     h = (h * 31 + hashInt(this.clientEpoch)) & 0xffffffff;
     h = (h * 31 + this.status) & 0xffffffff;
+    if (this.scriptPtr != null) {
+      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
+    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
     if (this.customValues && Object.keys(this.customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this.customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
     }
-    if (this.scriptPtr != null) {
-      h = (h * 31 + hashString(this.scriptPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
-    h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
 
     return h;
   }
@@ -2637,6 +2637,11 @@ export class KeyPressEvent extends KeyEvent {
         : null;
     const clientNonceValue = objectValue["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -2649,11 +2654,6 @@ export class KeyPressEvent extends KeyEvent {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new KeyPressEvent({
       key: objectValue["110"],
       code: objectValue["111"],
@@ -2676,10 +2676,10 @@ export class KeyPressEvent extends KeyEvent {
       clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
       clientEpoch: Number(objectValue["26"]),
       status: Number(objectValue["40"]),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -2845,7 +2845,6 @@ export class KeyPressEvent extends KeyEvent {
       clientCreatedAt: unpackProtoTimestamp(objectProto.clientCreatedAt!),
       clientEpoch: Number(objectProto.clientEpoch),
       status: Number(objectProto.status) as EventStatus,
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -2864,6 +2863,7 @@ export class KeyPressEvent extends KeyEvent {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
