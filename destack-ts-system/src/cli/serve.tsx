@@ -4,17 +4,16 @@ import { render } from "ink";
 
 import { getLogger, getTracer } from "@destack/utils";
 
-const logger = getLogger(__filename);
-const tracer = getTracer(__filename);
+const logger = getLogger("serve");
+const tracer = getTracer("serve");
 
 /** Serve the gRPC server */
 export async function serve(options: { port: number; host: string }): Promise<void> {
   logger.info("server.starting");
 
-  // create gRPC server
   const server = new grpc.Server();
 
-  // simple health check service
+  // add services
   server.addService(
     {
       check: {

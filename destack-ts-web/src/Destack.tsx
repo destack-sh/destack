@@ -17,7 +17,7 @@ const store = new IndexedDBStore({
   keys: [StoreKey.ENTITY_PRIMARY],
 });
 await store.open();
-const session = new ReactiveSession({ store });
+const session = new ReactiveSession({ store, epoch: 0 });
 ACTIVE_SESSION.set(session);
 
 let space = await Space.get({ where: Space.property("slug").eq("my-space") }).executeOneOrNone();

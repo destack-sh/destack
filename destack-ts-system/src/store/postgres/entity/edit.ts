@@ -15,6 +15,7 @@ import {
   NodeReference,
   ScalarType,
   StoreDomain,
+  traceFunction,
 } from "destack";
 import { Temporal } from "temporal-polyfill";
 import { PostgresContext } from "./core";
@@ -27,8 +28,8 @@ const ENTITY_PARENT_KEY = String(Entity.property("parent").id);
 const ENTITY_PARENT_PROPERTY = Entity.property("parent");
 const ENTITY_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
 
-const logger = getLogger(__filename);
-const tracer = getTracer(__filename);
+const logger = getLogger("postgres.entity.edit");
+const tracer = getTracer("postgres.entity.edit");
 
 /**
  * Optimize the Edits while retaining semantic equivalence.
@@ -101,7 +102,7 @@ async function executeCascade(options: {
  * Execute the Edits to the data (data only, no schema).
  * Returns the Edits and any cascaded Edits.
  */
-async function executeEdit(options: {
+async function _executeEdit(options: {
   tx: TransactionSQL;
   context: PostgresContext;
   definition: NodeDefinitionReference;
@@ -349,11 +350,12 @@ WHERE "${NODE_ID_KEY}" IN (${nodePtrs.map((_, i) => `$${i + 1}`).join(", ")})`;
     throw new Error(`unexpected edit type: ${editType}`);
   }
 }
+const executeEdit = traceFunction(tracer, "execute_edit", _executeEdit);
 
 /**
  * Execute the Edits in Postgres.
  */
-export async function executeEdits(options: {
+async function _executeEdits(options: {
   tx: TransactionSQL;
   context: PostgresContext;
   edits: EditEvent[];
@@ -406,3 +408,4 @@ export async function executeEdits(options: {
 
   return { edits: appliedEdits, cascadedEdits };
 }
+export const executeEdits = traceFunction(tracer, "execute_edits", _executeEdits);

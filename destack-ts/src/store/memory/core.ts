@@ -9,8 +9,8 @@ import {
   StoreDomain,
 } from "@destack/language";
 import { getSubdefinitionsForNodeType, NODE_CLASS_BY_TYPE } from "@destack/language/registry";
-import { MemoryEntityTable } from "./entity/core";
-import { MemoryEventTable } from "./event/core";
+import { MemoryEntityTable } from "@destack/store/memory/entity/core";
+import { MemoryEventTable } from "@destack/store/memory/event/core";
 
 export const MAX_RECURSION_DEPTH = 100;
 

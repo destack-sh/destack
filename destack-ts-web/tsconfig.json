@@ -20,6 +20,6 @@
     },
     "lib": ["esnext", "dom", "dom.iterable", "scripthost"]
   },
-  "include": ["src/**/*", "../destack-ts-system/src/test/store/entity.test.ts"],
+  "include": ["src/**/*", "../destack-ts-system/src/test/store/entity.test.ts", "../destack-ts-system/src/utils/telemetry.ts"],
   "exclude": ["node_modules", "dist"]
 }

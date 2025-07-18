@@ -1,17 +1,14 @@
 import { ReactiveGraph, ReactiveSupergraph } from "@destack-web/language/core/runtime/graph";
 import { batch } from "@preact/signals-react";
 import {
-  Client,
   EditEvent,
   Entity,
   EntityStore,
   Event,
   EventStore,
-  Isactor,
-  Node,
+  NodeReference,
   Oracle,
   Session,
-  Space,
 } from "destack";
 
 /** A reactive variant of Session. */
@@ -21,11 +18,11 @@ export class ReactiveSession extends Session {
 
   constructor(options?: {
     oracle?: Oracle;
-    space?: Space | null;
-    client?: Client | null;
+    clientPtr?: NodeReference | null;
     clientNonce?: string | null;
-    actor?: (Node & Isactor) | null;
+    actorPtr?: NodeReference | null;
     store?: EventStore | EntityStore | null;
+    epoch?: number;
   }) {
     super({
       ...options,
@@ -54,16 +51,6 @@ export class ReactiveSession extends Session {
     this._dirtyEntities.set(node.id, node);
   }
 
-  override archive(node: Entity): void {
-    super.archive(node);
-    this._dirtyEntities.set(node.id, node);
-  }
-
-  override unarchive(node: Entity): void {
-    super.unarchive(node);
-    this._dirtyEntities.set(node.id, node);
-  }
-
   override delete(node: Entity): void {
     super.delete(node);
     this._dirtyEntities.delete(node.id);
@@ -78,7 +65,7 @@ export class ReactiveSession extends Session {
     batch(() => {
       for (const node of this._dirtyEntities.values()) {
         if ("touch" in node._graph) {
-          (node._graph as ReactiveGraph).touch(node.id);
+          (node._graph as ReactiveGraph<Entity>).touch(node.id);
         }
       }
     });

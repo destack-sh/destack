@@ -34,12 +34,15 @@ import {
   evaluateSortKey,
   extractIdCondition,
 } from "@destack/store/memory/evaluate";
-import { assertNever } from "@destack/utils";
+import { assertNever, getLogger, getTracer, traceFunction } from "@destack/utils";
+
+const logger = getLogger("memory.entity.query");
+const tracer = getTracer("memory.entity.query");
 
 /**
  * Filter rows based on where condition and snapshot.
  */
-function filterRows(options: {
+function _filterRows(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   where: Condition | null;
@@ -116,11 +119,12 @@ function filterRows(options: {
 
   return filteredRows;
 }
+const filterRows = traceFunction(tracer, "filter_rows", _filterRows);
 
 /**
  * Execute a node Query.
  */
-function queryNode(options: {
+function _queryNode(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   select: Select | null;
@@ -212,6 +216,7 @@ function queryNode(options: {
 
   return { nodes: values, nodesPtrs: nodesPtrs };
 }
+const queryNode = traceFunction(tracer, "query_node", _queryNode);
 
 /**
  * Execute a scalar Query.
@@ -238,7 +243,7 @@ function queryScalar(options: {
 /**
  * Execute a grouped node Query.
  */
-function queryGroupedNode(options: {
+function _queryGroupedNode(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   select: Select | null;
@@ -330,11 +335,12 @@ function queryGroupedNode(options: {
 
   return results;
 }
+const queryGroupedNode = traceFunction(tracer, "query_grouped_node", _queryGroupedNode);
 
 /**
  * Execute a grouped scalar Query.
  */
-function queryGroupedScalar(options: {
+function _queryGroupedScalar(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   aggregation: Aggregation;
@@ -395,11 +401,12 @@ function queryGroupedScalar(options: {
 
   return results;
 }
+const queryGroupedScalar = traceFunction(tracer, "query_grouped_scalar", _queryGroupedScalar);
 
 /**
  * Walk nodes in a specific direction with optional recursion.
  */
-export function walkNode(options: {
+function _walkNode(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   nodesPtrs: readonly NodeReference[];
@@ -520,11 +527,12 @@ export function walkNode(options: {
 
   return { cascadedNodePtrs: Array.from(nodesById.values()), sourceIdByNodeId };
 }
+export const walkNode = traceFunction(tracer, "walk_node", _walkNode);
 
 /**
  * Execute the specific Query "clause" (ignoring subqueries).
  */
-function queryClause(options: { context: MemoryContext; query: Query; where: Condition | null }): {
+function _queryClause(options: { context: MemoryContext; query: Query; where: Condition | null }): {
   result: QueryResult;
   nodesPtrs: NodeReference[];
 } {
@@ -650,6 +658,7 @@ function queryClause(options: { context: MemoryContext; query: Query; where: Con
 
   return { result, nodesPtrs };
 }
+const queryClause = traceFunction(tracer, "query_clause", _queryClause);
 
 /**
  * Execute a subquery to a main Query.
@@ -756,7 +765,7 @@ function executeSubquery(options: {
 /**
  * Execute the Query (and any subqueries).
  */
-export function executeQuery(options: {
+function _executeQuery(options: {
   context: MemoryContext;
   query: Query;
   where?: Condition;
@@ -778,3 +787,4 @@ export function executeQuery(options: {
 
   return result;
 }
+export const executeQuery = traceFunction(tracer, "execute_query", _executeQuery);

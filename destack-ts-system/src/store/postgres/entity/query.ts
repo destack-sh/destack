@@ -34,6 +34,7 @@ import {
   Sort,
   SortType,
   toValue,
+  traceFunction,
   Value,
 } from "destack";
 
@@ -46,8 +47,8 @@ const ENTITY_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
 
 const NODE_REFERENCE_ID_KEY = String(NodeReference.property("id").id);
 
-const logger = getLogger(__filename);
-const tracer = getTracer(__filename);
+const logger = getLogger("postgres.entity.query");
+const tracer = getTracer("postgres.entity.query");
 
 /** Compile a Value into a SQL expression. */
 function compileValue(options: {
@@ -369,7 +370,7 @@ function makeTimestampArrayPlaceholder(values: readonly string[], argumentsOut: 
 }
 
 /** Get the cascaded Nodes for a query. */
-export async function walkNode(options: {
+async function _walkNode(options: {
   tx: SQL;
   context: PostgresContext;
   definition: NodeDefinitionReference;
@@ -602,9 +603,10 @@ FROM tree;`;
   // exhaustive
   assertNever(direction);
 }
+export const walkNode = traceFunction(tracer, "walk_node", _walkNode);
 
 /** Execute a node Query. */
-async function queryNode(options: {
+async function _queryNode(options: {
   tx: SQL;
   context: PostgresContext;
   definition: NodeDefinitionReference;
@@ -687,9 +689,10 @@ async function queryNode(options: {
 
   return { nodes: nodesValue, nodesPtrs: nodesPtr };
 }
+const queryNode = traceFunction(tracer, "query_node", _queryNode);
 
 /** Execute a scalar Query. */
-async function queryScalar(options: {
+async function _queryScalar(options: {
   tx: SQL;
   context: PostgresContext;
   definition: NodeDefinitionReference;
@@ -734,9 +737,10 @@ async function queryScalar(options: {
 
   return { result: scalarValue };
 }
+const queryScalar = traceFunction(tracer, "query_scalar", _queryScalar);
 
 /** Execute a grouped node Query. */
-async function queryGroupedNode(options: {
+async function _queryGroupedNode(options: {
   tx: SQL;
   context: PostgresContext;
   definition: NodeDefinitionReference;
@@ -847,9 +851,10 @@ async function queryGroupedNode(options: {
 
   return { results };
 }
+const queryGroupedNode = traceFunction(tracer, "query_grouped_node", _queryGroupedNode);
 
 /** Execute a grouped scalar Query. */
-async function queryGroupedScalar(options: {
+async function _queryGroupedScalar(options: {
   tx: SQL;
   context: PostgresContext;
   definition: NodeDefinitionReference;
@@ -920,9 +925,10 @@ async function queryGroupedScalar(options: {
 
   return { results };
 }
+const queryGroupedScalar = traceFunction(tracer, "query_grouped_scalar", _queryGroupedScalar);
 
 /** Execute the specific Query "clause" (ignoring subqueries). */
-async function queryClause(options: {
+async function _queryClause(options: {
   tx: SQL;
   context: PostgresContext;
   query: Query;
@@ -1036,9 +1042,10 @@ async function queryClause(options: {
 
   return { result, nodesPtrs };
 }
+const queryClause = traceFunction(tracer, "query_clause", _queryClause);
 
 /** Execute a Subquery. */
-async function executeSubquery(options: {
+async function _executeSubquery(options: {
   tx: SQL;
   context: PostgresContext;
   query: Query;
@@ -1139,9 +1146,10 @@ async function executeSubquery(options: {
     assertNever(subquery.join.type);
   }
 }
+const executeSubquery = traceFunction(tracer, "execute_subquery", _executeSubquery);
 
 /** Execute a Query. */
-export async function executeQuery(options: {
+async function _executeQuery(options: {
   tx: SQL;
   context: PostgresContext;
   query: Query;
@@ -1166,3 +1174,4 @@ export async function executeQuery(options: {
 
   return { result };
 }
+export const executeQuery = traceFunction(tracer, "execute_query", _executeQuery);
