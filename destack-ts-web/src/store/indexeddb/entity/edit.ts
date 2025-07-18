@@ -8,7 +8,6 @@ import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
 import { getEntityKey } from "@destack-web/store/indexeddb/map";
 import {
   CASCADING_EDIT_TYPES,
-  Condition,
   EdgeDirection,
   EditEvent,
   EditOperation,
@@ -18,16 +17,19 @@ import {
   NodeReference,
   ScalarType,
 } from "@destack/language";
+import { getLogger, getTracer, traceFunction } from "@destack/utils";
 import { IDBPTransaction } from "idb";
-import { Temporal } from "temporal-polyfill";
 
 // define these constants since they're not in Indexeddb core yet
 const NODE_DELETED_AT_KEY = String(Entity.property("deleted_at").id);
 
+const tracer = getTracer("indexeddb.entity.edit");
+const logger = getLogger("indexeddb.entity.edit");
+
 /**
  * Execute the Edits in IndexedDB.
  */
-export async function executeEdits(options: {
+async function _executeEdits(options: {
   tx: IDBPTransaction<unknown, string[], "readwrite">;
   context: IndexedDBContext;
   edits: EditEvent[];
@@ -82,6 +84,7 @@ export async function executeEdits(options: {
 
   return { edits: appliedEdits, cascadedEdits };
 }
+export const executeEdits = traceFunction(tracer, "execute_edits", _executeEdits);
 
 /**
  * Optimize the Edits while retaining semantic equivalence.
@@ -123,11 +126,12 @@ function optimizeEdits(options: { context: IndexedDBContext; edits: EditEvent[] 
   return optimizedEdits;
 }
 
+  
 /**
  * Get the cascaded Nodes for an Edit.
  * This is a placeholder that assumes walkNode will be implemented.
  */
-async function executeCascade(options: {
+async function _executeCascade(options: {
   tx: IDBPTransaction<unknown, string[], "readonly" | "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -147,12 +151,13 @@ async function executeCascade(options: {
   });
   return { cascadedNodePtrs, sourceIdByNodeId };
 }
+const executeCascade = traceFunction(tracer, "execute_cascade", _executeCascade);
 
 /**
  * Execute the Edits to the data (data only, no schema).
  * Returns the applied Edits and any cascaded Edits.
  */
-async function executeEdit(options: {
+async function _executeEdit(options: {
   tx: IDBPTransaction<unknown, string[], "readwrite">;
   context: IndexedDBContext;
   definition: NodeDefinitionReference;
@@ -323,3 +328,4 @@ async function executeEdit(options: {
     throw new Error(`unsupported edit type: ${EditType[editType]}`);
   }
 }
+const executeEdit = traceFunction(tracer, "execute_edit", _executeEdit);

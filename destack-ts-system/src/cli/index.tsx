@@ -1,5 +1,7 @@
 #!/usr/bin/env bun
 import { serve } from "@desys/cli/serve";
+import { setupLogging } from "@desys/utils/log";
+import { setupTelemetry } from "@desys/utils/telemetry";
 import meow from "meow";
 
 const cli = meow(
@@ -34,12 +36,12 @@ const cli = meow(
 async function main() {
   const command = cli.input[0];
 
+  setupTelemetry();
+  setupLogging();
+
   switch (command) {
     case "serve":
-      await serve({
-        port: cli.flags.port,
-        host: cli.flags.host,
-      });
+      await serve({ port: cli.flags.port, host: cli.flags.host });
       break;
     default:
       cli.showHelp();

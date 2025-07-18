@@ -1,12 +1,16 @@
 import { Event, NodeType, toValue } from "@destack/language";
 import { NODE_CLASS_BY_TYPE } from "@destack/language/registry";
+import { getLogger, getTracer, traceFunction } from "@destack/utils";
 import { MemoryContext } from "../core";
 import { packEventRow } from "./wiring";
+
+const logger = getLogger("memory.event.append");
+const tracer = getTracer("memory.event.append");
 
 /**
  * Append Events to in-memory hierarchical Event tables.
  */
-export function executeAppend(context: MemoryContext, events: Event[]): Event[] {
+function _executeAppend(context: MemoryContext, events: Event[]): Event[] {
   for (const event of events) {
     const nodeType = event.metatype as NodeType;
     const eventValue = toValue(event, undefined, { nodeAsValue: true });
@@ -49,3 +53,4 @@ export function executeAppend(context: MemoryContext, events: Event[]): Event[] 
 
   return events;
 }
+export const executeAppend = traceFunction(tracer, "execute_append", _executeAppend);

@@ -1,6 +1,4 @@
 /* eslint-disable no-console */
-import "./polyfills";
-
 import { VERSION } from "@destack/language";
 import { ENV, IS_DEV, TELEMETRY } from "@destack/utils/env";
 import { getLogger } from "@destack/utils/log";

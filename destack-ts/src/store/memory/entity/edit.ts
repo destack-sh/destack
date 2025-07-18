@@ -16,11 +16,15 @@ import {
 } from "@destack/store/memory/core";
 import { walkNode } from "@destack/store/memory/entity/query";
 import { packEntityRow } from "@destack/store/memory/entity/wiring";
+import { getLogger, getTracer, traceFunction } from "@destack/utils";
+
+const logger = getLogger("memory.entity.edit");
+const tracer = getTracer("memory.entity.edit");
 
 /**
  * Execute the Edits in-memory.
  */
-export function executeEdits(options: { context: MemoryContext; edits: EditEvent[] }): {
+function _executeEdits(options: { context: MemoryContext; edits: EditEvent[] }): {
   edits: EditEvent[];
   cascadedEdits: EditEvent[];
 } {
@@ -69,6 +73,7 @@ export function executeEdits(options: { context: MemoryContext; edits: EditEvent
 
   return { edits: appliedEdits, cascadedEdits };
 }
+export const executeEdits = traceFunction(tracer, "execute_edits", _executeEdits);
 
 /**
  * Optimize the Edits while retaining semantic equivalence.
@@ -113,7 +118,7 @@ function optimizeEdits(options: { context: MemoryContext; edits: EditEvent[] }):
 /**
  * Get the cascaded Nodes for an Edit.
  */
-function executeCascade(options: {
+function _executeCascade(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   nodePtrs: NodeReference[];
@@ -131,12 +136,13 @@ function executeCascade(options: {
   });
   return { cascadedNodePtrs, sourceIdByNodeId };
 }
+const executeCascade = traceFunction(tracer, "execute_cascade", _executeCascade);
 
 /**
  * Execute the Edits to the data (data only, no schema).
  * Returns the applied Edits and any cascaded Edits.
  */
-function executeEdit(options: {
+function _executeEdit(options: {
   context: MemoryContext;
   definition: NodeDefinitionReference;
   editType: EditType;
@@ -308,3 +314,4 @@ function executeEdit(options: {
     throw new Error(`unsupported edit type: ${EditType[editType]}`);
   }
 }
+const executeEdit = traceFunction(tracer, "execute_edit", _executeEdit);
