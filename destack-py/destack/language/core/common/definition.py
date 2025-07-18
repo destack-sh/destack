@@ -75,7 +75,6 @@ class NodeDefinition(BuiltinDefinition):
 
     type: NodeType = builtin_property(100, is_repr=True)
     properties: list["PropertyDefinition"] = builtin_property(105)
-
     is_abstract: bool = builtin_property(
         110,
         is_repr=True,
@@ -92,52 +91,89 @@ class NodeDefinition(BuiltinDefinition):
         description="Whether this Node cannot be modified.",
     )
 
+    # inheritance
     base_type: NodeType | None = builtin_property(
-        120, description="The base type this Node extends (directly)."
+        120,
+        is_repr=True,
+        description="The base type this Node extends (directly).",
     )
     extended_by: list[NodeType] = builtin_property(
-        121, description="Nodes that extend this Node type (directly)."
+        121,
+        description="Nodes that extend this Node type (directly).",
     )
     inherits: list[NodeType] = builtin_property(
-        122, description="Nodes that this Node inherits (directly and indirectly)."
+        122,
+        description="Nodes that this Node inherits (directly and indirectly).",
     )
     inherited_by: list[NodeType] = builtin_property(
-        123, description="Nodes that inherit this Node type (directly and indirectly)."
+        123,
+        description="Nodes that inherit this Node type (directly and indirectly).",
     )
     base_traits: list[TraitType] = builtin_property(
-        124, description="Traits directly inherited by this Node (directly)."
+        124,
+        description="Traits directly inherited by this Node (directly).",
     )
     traits: list[TraitType] = builtin_property(
         125,
         description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
     )
 
+    # tree
     parent_types: list[NodeType] = builtin_property(
-        130, description="The parent types of this Node type (directly)."
+        130,
+        is_repr=True,
+        description="The parent types of this Node type (directly).",
     )
     child_types: list[NodeType] = builtin_property(
-        131, description="The child types of this Node type (directly)."
+        131,
+        is_repr=True,
+        description="The child types of this Node type (directly).",
     )
     ancestor_types: list[NodeType] = builtin_property(
-        132, description="The ancestor types of this Node type (directly and indirectly)."
+        132,
+        description="The ancestor types of this Node type (directly and indirectly).",
     )
     descendant_types: list[NodeType] = builtin_property(
-        133, description="The descendant types of this Node type (directly and indirectly)."
+        133,
+        description="The descendant types of this Node type (directly and indirectly).",
     )
 
+    # expected tree
+    expected_parent_types: list[NodeType] = builtin_property(
+        140,
+        description="The parent types expected for this Node type (any of).",
+    )
+    expected_child_types: list[NodeType] = builtin_property(
+        141,
+        description="The child types expected for this Node type (any of).",
+    )
+    expected_ancestor_types: list[NodeType] = builtin_property(
+        142,
+        description="The ancestor types expected for this Node type (any of).",
+    )
+    expected_descendant_types: list[NodeType] = builtin_property(
+        143,
+        description="The descendant types expected for this Node type (any of).",
+    )
+
+    # event
     event_types: list[NodeType] = builtin_property(
-        140, description="The event types of this Node (directly and indirectly)."
+        150,
+        description="The event types of this Node (directly and indirectly).",
     )
     base_event_types: list[NodeType] = builtin_property(
-        141, description="The base event types of this Node (directly)."
+        151,
+        description="The base event types of this Node (directly).",
     )
 
-    primary_store_keys: list[StoreKey] = builtin_property(150)
-    store_domain: StoreDomain | None = builtin_property(151)
+    # store
+    primary_store_keys: list[StoreKey] = builtin_property(160)
+    store_domain: StoreDomain | None = builtin_property(161)
 
-    indexes: list["IndexDefinition"] = builtin_property(160)
-    constraints: list["ConstraintDefinition"] = builtin_property(161)
-    permissions: list["PermissionDefinition"] = builtin_property(162)
+    # index
+    indexes: list["IndexDefinition"] = builtin_property(170)
+    constraints: list["ConstraintDefinition"] = builtin_property(171)
+    permissions: list["PermissionDefinition"] = builtin_property(172)
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -156,20 +192,30 @@ class NodeDefinition(BuiltinDefinition):
             is_abstract=node_cls.__is_abstract__,
             is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
             is_frozen=node_cls.__is_frozen__,
+            # inheritance
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
             inherits=list(node_cls.__inherits__),
             inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
             base_traits=list(node_cls.__base_traits__),
+            # tree
             parent_types=list(node_cls.__parent_types__),
             child_types=list(node_cls.__child_types__),
             ancestor_types=list(node_cls.__ancestor_types__),
             descendant_types=list(node_cls.__descendant_types__),
+            # expected tree
+            expected_parent_types=list(node_cls.__expected_parent_types__),
+            expected_child_types=list(node_cls.__expected_child_types__),
+            expected_ancestor_types=list(node_cls.__expected_ancestor_types__),
+            expected_descendant_types=list(node_cls.__expected_descendant_types__),
+            # event
             event_types=list(node_cls.__event_types__),
             base_event_types=list(node_cls.__base_event_types__),
+            # store
             primary_store_keys=list(node_cls.__primary_store_keys__),
             store_domain=node_cls.__store_domain__,
+            # index
             indexes=list(node_cls.__indexes__),
             constraints=list(node_cls.__constraints__),
             permissions=list(node_cls.__permissions__),

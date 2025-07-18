@@ -50,6 +50,7 @@ TRAIT_PREFIXES = ("Is",)
 @dataclass_transform(kw_only_default=True, field_specifiers=_PROPERTY_SPECIFIERS)
 def builtin_trait(
     trait_type: TraitType | None,
+    *,
     is_extensible: bool = False,
     event_types: tuple[NodeType, ...] = (),
     permissions: tuple["PermissionDeclaration", ...] = (),

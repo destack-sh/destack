@@ -36,7 +36,10 @@ class LayerType(Enum):
     # RASTER, ...
 
 
-@builtin_node(NodeType.LAYER)
+@builtin_node(
+    NodeType.LAYER,
+    expected_descendant_types=(NodeType.VIEW,),
+)
 class Layer(
     IsViewable,
     IsOwnable,

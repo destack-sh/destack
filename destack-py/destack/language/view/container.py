@@ -25,7 +25,11 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.CONTAINER_VIEW, is_abstract=True)
+@builtin_node(
+    NodeType.CONTAINER_VIEW,
+    is_abstract=True,
+    expected_descendant_types=(NodeType.VIEW,),
+)
 class ContainerView(View):
     """
     A container View contains other Views.

@@ -5097,7 +5097,7 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   /**
    * Run.parent
    */
-  abstract get parent(): Space | null;
+  abstract get parent(): Space | Run | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

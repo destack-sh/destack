@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from destack.language.core import (
     Entity,
@@ -141,7 +141,7 @@ class Run(IsCustomizable, IsIrreversible, Entity):
     Run of a Runnable.
     """
 
-    parent: Optional["Space"] = builtin_property_parent()
+    parent: Union["Space", "Run", None] = builtin_property_parent()
     target: Optional["IsRunnable"] = builtin_property(111)
     status: RunStatus = builtin_property(112, is_repr=True)
     duration: Optional[timedelta] = builtin_property(

@@ -498,6 +498,7 @@ class NodeType(Enum):
     # intrinsic
     INDEX = 30_100, "Index", "Index of an Entity", "fas fa-database"
     CONSTRAINT = 30_200, "Constraint", "Constraint of an Entity", "fas fa-database"
+    # EXPECTATION, ...
     MIGRATION = 31_000, "Migration", "Migration of an Entity", "fas fa-database"
     MIGRATION_OPERATION = (
         31_100,
@@ -530,6 +531,7 @@ class NodeType(Enum):
     # space [200_000-300_000]
     # folder
     FOLDER = 240_000, "Folder", "Sub-space of a Space", "fas fa-folder-open"
+    # APPLICATION (extends Folder?), ...
     # DEPENDENCY, ...
     # GROUP, ...
     # spacetime

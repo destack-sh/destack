@@ -28,7 +28,10 @@ class SceneEvent(Event["Scene"]):
     node: "Scene" = builtin_property(101)
 
 
-@builtin_node(NodeType.SCENE, event_types=())
+@builtin_node(
+    NodeType.SCENE,
+    event_types=(NodeType.SCENE_EVENT,),
+)
 class Scene(
     IsViewable,
     IsOwnable,
