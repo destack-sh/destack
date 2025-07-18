@@ -526,14 +526,20 @@ if (_{ts_name_in} === null) {{
             elif prop.default_factory == ValueFactory.SPACE:
                 body_parts.append(f"""\
 if (_{ts_name_in} === null) {{
-    if (this._session === null) {{
-        throw new Error(`{cls.__name__} has no Session`);
+    _{ts_name_in} = ACTIVE_SPACE.get()
+    if (_{ts_name_in} === null) {{
+        throw new Error(`no active Space for {cls.__name__}`);
     }}
-    _space = ACTIVE_SPACE.get()
-    if (_space === null) {{
-        throw new Error(`{cls.__name__} has no Space`);
+    _{ts_name_in} = _{ts_name_in}.toRef();
+}}""")
+            elif prop.default_factory == ValueFactory.SNAPSHOT:
+                body_parts.append(f"""\
+if (_{ts_name_in} === null) {{
+    _{ts_name_in} = ACTIVE_SNAPSHOT.get();
+    if (_{ts_name_in} === null) {{
+        throw new Error(`no active Snapshot for {cls.__name__}`);
     }}
-    _{ts_name_in} = _space.toRef();
+    _{ts_name_in} = _{ts_name_in}.toRef();
 }}""")
             elif prop.default_factory == ValueFactory.NAME:
                 body_parts.append(f"""\
@@ -1793,8 +1799,19 @@ def _generate_file(
         "activeSession",
         "ACTIVE_SPACE",
         "activeSpace",
+        "ACTIVE_SNAPSHOT",
+        "activeSnapshot",
     }
-    value_dependencies.update(("ACTIVE_SESSION", "activeSession", "ACTIVE_SPACE", "activeSpace"))
+    value_dependencies.update(
+        (
+            "ACTIVE_SESSION",
+            "activeSession",
+            "ACTIVE_SPACE",
+            "activeSpace",
+            "ACTIVE_SNAPSHOT",
+            "activeSnapshot",
+        )
+    )
     language_imports_by_module["core.builtin.node"] = {"Node", "NodeClass", "isNode", "hasTrait"}
     value_dependencies.update(("Node", "isNode", "hasTrait"))
     language_imports_by_module["core.builtin.trait"] = {"TraitClass"}

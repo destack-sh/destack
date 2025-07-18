@@ -1,4 +1,5 @@
-from collections.abc import Sequence
+from collections.abc import Generator, Sequence
+from contextlib import contextmanager
 from datetime import datetime
 from typing import (
     TYPE_CHECKING,
@@ -48,11 +49,14 @@ object_set_ = object.__setattr__
 
 @builtin_enum(EnumType.MATERIALIZATION)
 class Materialization(Enum):
-    """The materialization level of an Entity."""
+    """
+    The materialization level of an Entity.
 
-    INSTANCE = 1, "Instance", "A partial instance copy of a template"
-    COPY = 2, "Copy", "A full instance copy of a template"
-    ROOT = 3, "Root", "A full Node"
+    """
+
+    PARTIAL = 1
+    FULL = 10
+    ROOT = 11
 
 
 @builtin_node(
@@ -62,8 +66,14 @@ class Materialization(Enum):
 )
 class Entity(Node):
     """
-    An Entity is a named, versioned, stateful Node.
-    Most Entities can be attached to most other Entities to compose richer structures.
+    An Entity is a named, versioned, mutable Node.
+    Entities can be attached to (most) other Entities to compose richer structures.
+
+    Entities are always part of a Snapshot (in their Space).
+    State transition can only be caused by Events (which are immutable).
+
+    The specific version of an Entity is identified by an (id, snapshot_id) tuple,
+     where Snapshots are 'shortcuts' to certain epochs.
     """
 
     __store_domain__ = StoreDomain.ENTITY
@@ -76,38 +86,41 @@ class Entity(Node):
     # 10-20: entity materialization
     materialization: Materialization = builtin_property(
         10,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        default=Materialization.ROOT,
+    )
+    snapshot: "Snapshot" = builtin_property(
+        11,
         is_readonly=True,
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        is_repr=False,
-        default=Materialization.ROOT,
-    )
-    # nocheckin: always put Entity in Snapshots
-    snapshot: Optional["Snapshot"] = builtin_property(
-        11,
-        is_readonly=True,
-        is_managed=True,
+        default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Entity is part of.",
     )
     preceded_by: Optional[Self] = builtin_property(
         12,
         is_readonly=True,
         is_managed=True,
-        description="The previous Entity this Entity is based on (from another Snapshot).",
+        is_eq=False,
+        is_hash=False,
+        description="The previous Entity this Entity is based on (from the base Snapshot).",
     )
-    # instance_root: Optional["Entity"] = builtin_property(
-    #     14,
-    #     is_readonly=True,
-    #     is_managed=True,
-    #     node_space_from="self",
-    #     description="The (root) Entity in this Entity's instance tree (not the template tree).",
-    # )
-    # Entity.set_properties: 15
+    instantiation_root: Optional["Entity"] = builtin_property(
+        14,
+        is_readonly=True,
+        is_managed=True,
+        is_eq=False,
+        is_hash=False,
+        description="The (root) Entity that is being instantiated.",
+    )
+    # set_properties: 15
     if TYPE_CHECKING:
         snapshot_ptr: Optional["NodeReference"] = None
         preceded_by_ptr: Optional["NodeReference"] = None
-        # instance_root_ptr: Optional["NodeReference"] = None
+        instantiation_root_ptr: Optional["NodeReference"] = None
 
     # 20-40: node tracking
     created_at: datetime = builtin_property(
@@ -363,17 +376,35 @@ class Entity(Node):
     def remove_child(self, child: "Entity") -> Self:
         """
         Remove a child Entity from this Entity.
-        The child Entity will NOT be deleted or archived, it will simply be detached.
-        (The same applies to all descendants.)
+        The child will NOT be deleted, it will simply be detached.
         """
         child.detach()
         return self
+
+    def add_tag(self, tag: "Tag") -> "Tagging":
+        """Add or get a Tagging for a Tag on this Entity."""
+        for tagging in self.get_children(Tagging):
+            if tagging.tag.id == tag.id:
+                return tagging
+        else:
+            # create new Tagging
+            tagging = Tagging(tag=tag)
+            self.add_child(tagging)
+            return tagging
+
+    def remove_tag(self, tag: "Tag") -> "Tagging | None":
+        """Remove a Tag from this Entity."""
+        for tagging in self.get_children(Tagging):
+            if tagging.tag_ptr.id == tag.id:
+                self.remove_child(tagging)
+                return tagging
+        else:
+            return None
 
     def get_children[N: Entity = Entity](
         self,
         type: NodeType | TraitType | type[N] | None = None,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the children of this Entity."""
         return self._graph.get_children(self, type=type)
@@ -383,7 +414,6 @@ class Entity(Node):
         type: NodeType | type[N] | TraitType,
         name: str,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> N | None:
         """Gets a specific child of this Node by name."""
         if isinstance(type, type_):
@@ -398,7 +428,6 @@ class Entity(Node):
         type: NodeType | type[N] | TraitType,
         name: str,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> N:
         """Gets a specific child of this Node by name, or raises an error if not found."""
         child = self.get_child(type, name)
@@ -410,7 +439,6 @@ class Entity(Node):
         self,
         type: NodeType | TraitType | type[N] | None = None,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the ancestors of this Node."""
         return self._graph.get_ancestors(self, type=type)
@@ -419,7 +447,6 @@ class Entity(Node):
         self,
         type: NodeType | TraitType | type[N] | None = None,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the descendants of this Node."""
         return self._graph.get_descendants(self, type=type)
@@ -428,7 +455,6 @@ class Entity(Node):
         self,
         type: NodeType | TraitType | type[N] | None = None,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the roots of this Node."""
         return self._graph.get_roots(node_type=type)
@@ -437,25 +463,18 @@ class Entity(Node):
         self,
         type: NodeType | TraitType | type[N] | None = None,
         include_deleted: bool = False,
-        include_archived: bool = False,
     ) -> Sequence[N]:
         """Gets the leaves of this Node."""
         return self._graph.get_leaves(node_type=type, node=self)
 
-    def into(
-        self,
-        snapshot: "Snapshot",
-        *,
-        materialization: Materialization = Materialization.INSTANCE,
-    ) -> "Self":
+    def into(self, snapshot: "Snapshot") -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Snapshot.
         """
+        raise NotImplementedError
 
-        # bail if already in the given Snapshot
-        if (snapshot_ptr := self.snapshot_ptr) is not None and snapshot_ptr.id == snapshot.id:
-            return self
-
+    def instantiate(self) -> "Self":
+        """Instantiate this Entity into a new Entity."""
         raise NotImplementedError
 
 
@@ -486,6 +505,15 @@ class Resource(
     status: ResourceStatus = builtin_property(40, default=ResourceStatus.PENDING)
 
 
+@builtin_enum(EnumType.SNAPSHOT_TYPE)
+class SnapshotType(Enum):
+    """The type of a Snapshot."""
+
+    PARTIAL = 1
+    FULL = 10
+    ROOT = 11
+
+
 @builtin_enum(EnumType.SNAPSHOT_STATUS)
 class SnapshotStatus(Enum):
     """The status of a Snapshot."""
@@ -501,8 +529,11 @@ class Snapshot(
     Entity,
 ):
     """
-    A Snapshot is a point in Space time.
-    Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
+    A Snapshot is a point in Space-time.
+    Snapshots may branch off of other Snapshots, either as a full copy or a partial override.
+
+    To avoid breaking the universe, Snapshots cannot themselves be part of any other Snapshot.
+     (Technically, Snapshots are part of themselves.)
     """
 
     parent: Union["Space", None] = builtin_property_parent(is_readonly=True)
@@ -521,30 +552,30 @@ class Snapshot(
         description="The previous Snapshot this Snapshot is based on.",
     )
 
+    type: SnapshotType = builtin_property(100)
     status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
-
-    _token: Any | None = builtin_property_runtime()
 
     def into(
         self,
         snapshot: "Snapshot",
         *,
-        materialization: Materialization = Materialization.ROOT,
+        materialization: Materialization = Materialization.FULL,
     ) -> "Self":
         if snapshot.id == self.id:
             return self
         else:
             raise RuntimeError(f"cannot turn {self!r} into another Snapshot ({snapshot!r})")
 
-    def __enter__(self) -> "Self":
-        assert self._token is None, f"already in {self!r}"
-        self._token = ACTIVE_SNAPSHOT.set(self)
-        return self
-
-    def __exit__(self, exc_type, exc_value, traceback) -> None:
-        assert self._token is not None, f"not in {self!r}"
-        ACTIVE_SNAPSHOT.reset(self._token)
-        self._token = None
+    @contextmanager
+    def active(self) -> Generator[None, None, None]:
+        """
+        Context manager to set the active Snapshot to this Snapshot.
+        """
+        token = ACTIVE_SNAPSHOT.set(self)
+        try:
+            yield
+        finally:
+            ACTIVE_SNAPSHOT.reset(token)
 
 
 @builtin_node(NodeType.VARIANT, is_abstract=True)
@@ -565,7 +596,7 @@ class Tag(
     IsExtensible,
     Entity,
 ):
-    """A Tag to tag a Taggable Entity with (in a Tagging)."""
+    """A Tag to tag an Entity with (in a Tagging)."""
 
     icon: "Icon | None" = builtin_property(102)
 
@@ -578,3 +609,5 @@ class Tagging(
     """A Tagging of a Node by a Tag."""
 
     tag: Tag = builtin_property(110)
+    if TYPE_CHECKING:
+        tag_ptr: NodeReference = UNSET

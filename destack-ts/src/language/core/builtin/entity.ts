@@ -1,7 +1,7 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type { ResourceStatus } from "@destack/language/core/builtin/common";
 import { EnumType, NodeType, StructType, TraitType } from "@destack/language/core/builtin/common";
-import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import { ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, hasTrait } from "@destack/language/core/builtin/node";
@@ -68,10 +68,10 @@ export abstract class Entity extends Node {
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   abstract get precededBy(): Entity | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -297,12 +297,34 @@ export abstract class Entity extends Node {
 
   /**
    * Remove a child Entity from this Entity.
-   * The child Entity will NOT be deleted or archived, it will simply be detached.
-   * (The same applies to all descendants.)
+   * The child Entity will NOT be deleted, it will simply be detached.
    */
   removeChild(child: Entity): this {
     child.detach();
     return this;
+  }
+
+  /** Add or get a Tagging for a Tag on this Entity. */
+  addTag(tag: Tag): Tagging {
+    const tagging = this.getChildren(Tagging).find((t) => t.tagPtr.id === tag.id);
+    if (tagging) {
+      return tagging;
+    } else {
+      const newTagging = new Tagging({ tag });
+      this.addChild(newTagging);
+      return newTagging;
+    }
+  }
+
+  /** Remove a Tag from this Entity. */
+  removeTag(tag: Tag): Tagging | null {
+    const tagging = this.getChildren(Tagging).find((t) => t.tagPtr.id === tag.id);
+    if (tagging) {
+      this.removeChild(tagging);
+      return tagging;
+    } else {
+      return null;
+    }
   }
 
   /** Assign an order key to a child Entity. */
@@ -422,10 +444,10 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   abstract get precededBy(): Record | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -554,10 +576,10 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   abstract get precededBy(): Resource | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -886,12 +908,9 @@ export class Snapshot extends Entity implements IsOwnable {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Snapshot has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Snapshot has no Space`);
+        throw new Error(`no active Space for Snapshot`);
       }
       _space = _space.toRef();
     }
@@ -1386,10 +1405,10 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   abstract get precededBy(): Variant | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -1550,10 +1569,10 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): Tag | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1735,7 +1754,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Tag | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -1789,12 +1808,9 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Tag has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Tag has no Space`);
+        throw new Error(`no active Space for Tag`);
       }
       _space = _space.toRef();
     }
@@ -1818,6 +1834,16 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Tag`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Tag.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1931,7 +1957,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1979,9 +2005,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -2071,9 +2095,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       objectValue["6"] = object.definitionPtr.toValue();
     }
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2147,11 +2169,6 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2197,7 +2214,13 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       isExtensible: objectValue["90"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -2243,9 +2266,7 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
       objectProto.definitionPtr = object.definitionPtr.toProto();
     }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -2343,16 +2364,13 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2485,10 +2503,10 @@ export class Tagging extends Entity implements IsOrdered {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   get precededBy(): Tagging | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -2600,7 +2618,7 @@ export class Tagging extends Entity implements IsOrdered {
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
-    snapshot?: Snapshot | NodeReference | null;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Tagging | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
@@ -2649,12 +2667,9 @@ export class Tagging extends Entity implements IsOrdered {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`Tagging has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Tagging has no Space`);
+        throw new Error(`no active Space for Tagging`);
       }
       _space = _space.toRef();
     }
@@ -2673,6 +2688,16 @@ export class Tagging extends Entity implements IsOrdered {
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Tagging`);
+      }
+      _snapshot = _snapshot.toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`Tagging.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -2752,7 +2777,7 @@ export class Tagging extends Entity implements IsOrdered {
     if (!(this._tagPtr.id === other._tagPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -2775,9 +2800,7 @@ export class Tagging extends Entity implements IsOrdered {
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -2853,9 +2876,7 @@ export class Tagging extends Entity implements IsOrdered {
     }
     objectValue["5"] = object.spacePtr.toValue();
     objectValue["10"] = object.materialization;
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2891,11 +2912,6 @@ export class Tagging extends Entity implements IsOrdered {
       parentPtrValue != undefined
         ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2921,7 +2937,13 @@ export class Tagging extends Entity implements IsOrdered {
       orderKey: objectValue["31"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
-      snapshot: unpackedSnapshotPtr,
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
       createdEpoch: Number(objectValue["21"]),
@@ -2961,9 +2983,7 @@ export class Tagging extends Entity implements IsOrdered {
     }
     objectProto.spacePtr = object.spacePtr.toProto();
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -3014,16 +3034,13 @@ export class Tagging extends Entity implements IsOrdered {
             )
           : null,
       materialization: Number(objectProto.materialization) as Materialization,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

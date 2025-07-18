@@ -336,6 +336,13 @@ if {self_name} is None:
     if space is None:
         raise RuntimeError("no active Space for {cls.__name__}")
     {self_name} = space.to_ref()""")
+            elif prop.default_factory == ValueFactory.SNAPSHOT:
+                method_body_lines.append(f"""\
+if {self_name} is None:
+    snapshot = ACTIVE_SNAPSHOT.get()
+    if snapshot is None:
+        raise RuntimeError("no active Snapshot for {cls.__name__}")
+    {self_name} = snapshot.to_ref()""")
             elif prop.default_factory == ValueFactory.NAME:
                 assert is_node, (
                     f"{cls.__name__} is not a Node, cannot use {prop.default_factory} in {prop!r}"

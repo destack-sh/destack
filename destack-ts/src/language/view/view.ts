@@ -131,10 +131,10 @@ export abstract class View extends Entity implements IsViewable, IsExtensible, I
    * The Snapshot this Entity is part of.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from another Snapshot).
+   * The previous Entity this Entity is based on (from the base Snapshot).
    */
   abstract get precededBy(): View | null;
   declare readonly precededByPtr: NodeReference | null;

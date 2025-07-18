@@ -27,11 +27,6 @@ import { registerNodeClass, STRUCT_CLASS_BY_TYPE } from "@destack/language/regis
 import { Casing, toCasing } from "@destack/utils/string";
 import { uuid4, uuid7 } from "@destack/utils/uuid";
 
-export type NodeFilter = {
-  includeDeleted?: boolean;
-  includeArchived?: boolean;
-};
-
 /** A Node is a collection of properties with an identity. */
 export abstract class Node extends BuiltinObject {
   static readonly metatype: NodeType = NodeType.NODE;

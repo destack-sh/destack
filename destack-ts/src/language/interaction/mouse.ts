@@ -562,12 +562,9 @@ export class SingleClickEvent extends ClickEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`SingleClickEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`SingleClickEvent has no Space`);
+        throw new Error(`no active Space for SingleClickEvent`);
       }
       _space = _space.toRef();
     }
@@ -1480,12 +1477,9 @@ export class DoubleClickEvent extends ClickEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`DoubleClickEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`DoubleClickEvent has no Space`);
+        throw new Error(`no active Space for DoubleClickEvent`);
       }
       _space = _space.toRef();
     }
@@ -2398,12 +2392,9 @@ export class TripleClickEvent extends ClickEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`TripleClickEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`TripleClickEvent has no Space`);
+        throw new Error(`no active Space for TripleClickEvent`);
       }
       _space = _space.toRef();
     }
@@ -3322,12 +3313,9 @@ export class WheelEvent extends MouseEvent {
       _space = (_space as Node).toRef();
     }
     if (_space === null) {
-      if (this._session === null) {
-        throw new Error(`WheelEvent has no Session`);
-      }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`WheelEvent has no Space`);
+        throw new Error(`no active Space for WheelEvent`);
       }
       _space = _space.toRef();
     }

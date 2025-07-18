@@ -1504,6 +1504,7 @@ class ValueFactoryProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     VALUE_FACTORY_REGION: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_SELF: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_SPACE: _ClassVar[ValueFactoryProto]
+    VALUE_FACTORY_SNAPSHOT: _ClassVar[ValueFactoryProto]
     VALUE_FACTORY_NAME: _ClassVar[ValueFactoryProto]
 
 class WindowTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -2649,6 +2650,7 @@ VALUE_FACTORY_EPOCH: ValueFactoryProto
 VALUE_FACTORY_REGION: ValueFactoryProto
 VALUE_FACTORY_SELF: ValueFactoryProto
 VALUE_FACTORY_SPACE: ValueFactoryProto
+VALUE_FACTORY_SNAPSHOT: ValueFactoryProto
 VALUE_FACTORY_NAME: ValueFactoryProto
 WINDOW_TYPE_UNSPECIFIED: WindowTypeProto
 WINDOW_TYPE_BROWSER: WindowTypeProto

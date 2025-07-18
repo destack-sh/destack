@@ -29,6 +29,7 @@ class EditType(Enum):
     MOVE = 4, "Move an Entity to a new parent Entity (or detach)"
     DELETE = 7, "Delete an Entity (and its descendants)"
     RESTORE = 8, "Restore a deleted Entity (and its descendants)"
+    # MATERIALIZE?
 
 
 CASCADING_EDIT_TYPES: tuple[EditType, ...] = (EditType.DELETE, EditType.RESTORE)

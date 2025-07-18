@@ -176,7 +176,8 @@ def builtin_node(
 @builtin_node(node_type=NodeType.NODE, is_abstract=True)
 class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """
-    A Node with Properties and a persistent identity.
+    A Node with some Properties and a persistent identity (its id).
+    Nodes always belong to a Space and are thus identifiable by their (space_id, id) tuple.
     """
 
     """The specific metatype of this Node."""

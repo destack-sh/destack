@@ -1,5 +1,5 @@
 import warnings
-from collections.abc import AsyncGenerator, Generator, Mapping
+from collections.abc import AsyncGenerator, Mapping
 from contextlib import contextmanager
 
 import grpclib
@@ -54,7 +54,7 @@ async def session():
 
 
 @pytest.fixture
-def space(session: Session) -> Generator[Space, None, None]:
+def space(session: Session):
     space = Space(
         name="Test",
         slug="test",

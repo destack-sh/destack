@@ -77,6 +77,7 @@ from .entity import (
     Resource,
     Snapshot,
     SnapshotStatus,
+    SnapshotType,
     Tag,
     Tagging,
 )
@@ -225,6 +226,7 @@ __all__ = [
     "ScalarType",
     "Snapshot",
     "SnapshotStatus",
+    "SnapshotType",
     "StoreDomain",
     "StoreKey",
     "StoreTier",
