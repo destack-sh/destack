@@ -29,14 +29,10 @@ import {
   registerNodeClass,
   registerStructClass,
 } from "@destack/language/registry";
-import type { Scene } from "@destack/language/scene";
 import type { Color } from "@destack/language/style/color";
 import type { Gradient } from "@destack/language/style/gradient";
-import type { Palette } from "@destack/language/style/palette";
 import { Style } from "@destack/language/style/style";
-import type { Theme } from "@destack/language/style/theme";
 import type { Space } from "@destack/language/universe";
-import type { View } from "@destack/language/view";
 import {
   FillPositionProto,
   FillProto,
@@ -524,12 +520,12 @@ export class FillStyle extends Style {
   static metatype: NodeType = NodeType.FILL_STYLE;
 
   /**
-   * Style.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): Scene | View | Theme | Palette | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Scene | View | Theme | Palette | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -821,7 +817,7 @@ export class FillStyle extends Style {
 
   constructor(options: {
     id?: string;
-    parent?: Scene | View | Theme | Palette | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     definition?: Entity | NodeReference | null;
     materialization?: Materialization;
@@ -1059,6 +1055,9 @@ export class FillStyle extends Style {
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
       return false;
     }
@@ -1069,9 +1068,6 @@ export class FillStyle extends Style {
       if (!this._customValues[key].equals(other._customValues[key])) {
         return false;
       }
-    }
-    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
-      return false;
     }
     return true;
   }
@@ -1123,14 +1119,14 @@ export class FillStyle extends Style {
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     if (this._customValues && Object.keys(this._customValues).length > 0) {
       for (const [_key, _value] of Object.entries(this._customValues)) {
         h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
         h = (h * 31 + _value.hash()) & 0xffffffff;
       }
-    }
-    if (this._scriptPtr != null) {
-      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
     }
 
     return h;
@@ -1326,6 +1322,11 @@ export class FillStyle extends Style {
       definitionPtrValue != undefined
         ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const unpackedCustomValues = {} as any;
     if (objectValue["30"] != undefined) {
       for (const [key, value] of Object.entries(objectValue["30"])) {
@@ -1338,11 +1339,6 @@ export class FillStyle extends Style {
         );
       }
     }
-    const scriptPtrValue = objectValue["80"];
-    const unpackedScriptPtr =
-      scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     return new FillStyle({
       type: Number(objectValue["100"]),
       color: unpackedColor,
@@ -1367,8 +1363,8 @@ export class FillStyle extends Style {
       isExtensible: objectValue["90"],
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
-      customValues: unpackedCustomValues,
       script: unpackedScriptPtr,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -1571,7 +1567,6 @@ export class FillStyle extends Style {
         _graph,
         _connection,
       ),
-      customValues: unpackedCustomValues,
       script:
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
@@ -1582,6 +1577,7 @@ export class FillStyle extends Style {
               _connection,
             )
           : null,
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

@@ -547,7 +547,7 @@ export class CustomStruct extends Entity implements IsTaggable, IsSourceable, Is
   static metatype: NodeType = NodeType.CUSTOM_STRUCT;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;

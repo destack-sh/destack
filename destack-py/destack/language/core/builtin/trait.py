@@ -250,21 +250,11 @@ class IsFollowable(Trait):
     pass
 
 
-#
-# View
-#
-
-
 @builtin_trait(TraitType.VIEWABLE)
 class IsViewable(Trait):
     """An Entity that can be presented visually."""
 
     pass
-
-
-#
-# Logic
-#
 
 
 @builtin_trait(TraitType.SOURCEABLE)
@@ -285,25 +275,11 @@ class IsSourceable(IsOrdered):
     # aliases: list[str]?
 
 
-@builtin_trait(TraitType.SCRIPTABLE)
-class IsScriptable(Trait):
-    """An Entity that can be scripted."""
-
-    script: Optional["Script"] = builtin_property(
-        80, description="The main / root Script of this Node."
-    )
-
-
 @builtin_trait(TraitType.RUNNABLE)
 class IsRunnable(Trait):
     """An Entity that can be (directly, with Runs)."""
 
     pass
-
-
-#
-# Common
-#
 
 
 @builtin_trait(TraitType.CUSTOMIZABLE)
@@ -316,9 +292,18 @@ class IsCustomizable(Trait):
     )
 
 
+@builtin_trait(TraitType.SCRIPTABLE)
+class IsScriptable(IsCustomizable):
+    """An Entity that can be customized with custom Properties and a Script."""
+
+    script: Optional["Script"] = builtin_property(
+        80, description="The main / root Script of this Node."
+    )
+
+
 @builtin_trait(TraitType.EXTENSIBLE)
-class IsExtensible(IsCustomizable, IsScriptable):
-    """A Node that be extended by custom Nodes (i.e. used as a base type)."""
+class IsExtensible(IsScriptable):
+    """A Node that be customized andextended by custom Nodes (i.e. used as a base type)."""
 
     definition: Union["Entity", None] = builtin_property(
         6,

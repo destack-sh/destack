@@ -6,6 +6,7 @@ from destack.language.core import (
     EnumType,
     IsOrdered,
     IsOwnable,
+    IsScriptable,
     NodeType,
     builtin_enum,
     builtin_node,
@@ -29,10 +30,11 @@ class WindowType(Enum):
 class Window(
     IsOwnable,
     IsOrdered,
+    IsScriptable,
     Entity,
 ):
     """
-    A Window for someone to interact with Destack (in a Space).
+    A Window for someone to interact with a Space.
     """
 
     type: WindowType = builtin_property(100, is_repr=True)

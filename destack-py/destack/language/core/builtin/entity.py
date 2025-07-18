@@ -62,12 +62,15 @@ class Materialization(Enum):
 class Entity(Node):
     """
     An Entity is a named, versioned, stateful Node.
+    Most Entities can be attached to most other Entities to compose richer structures.
     """
 
     __store_domain__ = StoreDomain.ENTITY
     __parent_property__: ClassVar[PropertyDeclaration] = UNSET
 
-    parent: Optional["Entity"] = builtin_property_parent()
+    parent: Optional["Entity"] = builtin_property_parent(
+        description="The parent of this Entity. Most Entities can be attached to any other Entity."
+    )
 
     # 10-20: entity materialization
     materialization: Materialization = builtin_property(
@@ -462,10 +465,7 @@ class Record(
     Entity,
 ):
     """
-    A generic Record instance of a CustomEntityDefinition like a relational Table.
-    The Archivable, Deletable, and Ownable traits are always present for plain Records
-     (but must be explicitly added to the CustomEntityDefinition to use them).
-    More specific base Entity types will be instanced of that base type instead.
+    A generic Record instance of a CustomEntity.
     """
 
     pass
@@ -504,7 +504,7 @@ class Snapshot(
     Snapshots cannot be instanced, and they cannot be part of any other Snapshot.
     """
 
-    parent: Union["Space", "Snapshot", None] = builtin_property_parent(is_readonly=True)
+    parent: Union["Space", None] = builtin_property_parent(is_readonly=True)
 
     snapshot: "Snapshot" = builtin_property(
         11,

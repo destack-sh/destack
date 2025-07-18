@@ -2,7 +2,6 @@ import type {
   IsActor,
   IsOrdered,
   IsOwnable,
-  IsScriptable,
   IsTaggable,
   Materialization,
   NodeReference,
@@ -10,7 +9,6 @@ import type {
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
 import { registerNodeClass } from "@destack/language/registry";
-import type { Folder } from "@destack/language/space";
 import type { Space } from "@destack/language/universe";
 import { Temporal } from "temporal-polyfill";
 
@@ -22,9 +20,9 @@ export abstract class Route extends Entity implements IsOrdered, IsOwnable, IsTa
   static metatype: NodeType = NodeType.ROUTE;
 
   /**
-   * Route.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  abstract get parent(): Folder | (Entity & IsScriptable) | null;
+  abstract get parent(): Entity | null;
   declare readonly parentPtr: NodeReference | null;
 
   /**

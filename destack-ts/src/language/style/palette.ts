@@ -3,6 +3,7 @@ import type {
   Graph,
   Icon,
   IsActor,
+  IsExtensible,
   IsOrdered,
   IsTaggable,
   NodeClass,
@@ -11,6 +12,7 @@ import type {
   Session,
   Snapshot,
   Supergraph,
+  Value,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
@@ -21,22 +23,23 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
+import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, PaletteProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashString } from "@destack/utils/hash";
+import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:2100100 ==== */
 /**
  * A Palette of Colors.
  */
-export class Palette extends Entity implements IsOrdered, IsTaggable {
+export class Palette extends Entity implements IsExtensible, IsOrdered, IsTaggable {
   static metatype: NodeType = NodeType.PALETTE;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
@@ -58,6 +61,18 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     return null;
   }
   readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this CustomEntity is an instance of.
+   */
+  get definition(): Entity | null {
+    const nodePtr: NodeReference | null = this.definitionPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Entity | null;
+    }
+    return null;
+  }
+  readonly definitionPtr: NodeReference | null;
 
   /**
    * Entity.materialization
@@ -138,6 +153,22 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
   readonly deletedAt: Temporal.ZonedDateTime | null;
 
   /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  /**
+   * The custom Values of this Node, keyed by custom Property id. May hold both static and instance values.
+   */
+  get customValues(): { readonly [key: string]: Value } {
+    return this._customValues;
+  }
+  set customValues(value: { readonly [key: string]: Value }) {
+    const prop = (this.constructor as NodeClass).__properties__["custom_values"];
+    this._session.updateSetProperty(this, prop, value);
+    this._customValues = value;
+  }
+  _customValues: { readonly [key: string]: Value };
+
+  /**
    * The absolute order key of this Node in its parent.
    */
   readonly orderKey: string;
@@ -159,6 +190,41 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
   _name: string;
 
   /**
+   * The main / root Script of this Node.
+   */
+  get script(): Script | null {
+    const nodePtr: NodeReference | null = this.scriptPtr;
+    if (nodePtr != null) {
+      return this._supergraph.get(nodePtr.id) as Script | null;
+    }
+    return null;
+  }
+  set script(node: Script | null) {
+    if (node === null) {
+      this.scriptPtr = null;
+    } else {
+      this.scriptPtr = node.toRef();
+    }
+  }
+  /**
+   * The main / root Script of this Node.
+   */
+  get scriptPtr(): NodeReference | null {
+    return this._scriptPtr;
+  }
+  set scriptPtr(value: NodeReference | null) {
+    const prop = (this.constructor as NodeClass).__properties__["script"];
+    this._session.updateSetProperty(this, prop, value);
+    this._scriptPtr = value;
+  }
+  _scriptPtr: NodeReference | null;
+
+  /**
+   * Whether this Node is extensible (whether it can be instanced).
+   */
+  readonly isExtensible: boolean;
+
+  /**
    * Palette.icon
    */
   /**
@@ -178,6 +244,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     id?: string;
     parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
+    definition?: Entity | NodeReference | null;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
     precededBy?: Palette | NodeReference | null;
@@ -188,8 +255,11 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     updatedEpoch?: number;
     updatedBy?: (Entity & IsActor) | NodeReference | null;
     deletedAt?: Temporal.ZonedDateTime | null;
+    customValues?: { readonly [key: string]: Value };
     orderKey?: string;
     name?: string;
+    script?: Script | NodeReference | null;
+    isExtensible?: boolean;
     icon?: Icon | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
@@ -241,6 +311,11 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       throw new Error(`Palette.space is required`);
     }
     this.spacePtr = _space;
+    let _definition = options.definition ?? null;
+    if (_definition != null && _definition.metatype != StructType.NODE_REFERENCE) {
+      _definition = (_definition as Node).toRef();
+    }
+    this.definitionPtr = _definition;
     let _materialization = options.materialization ?? null;
     if (_materialization === null) {
       _materialization = 3 /* Materialization.ROOT */;
@@ -261,6 +336,11 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     this.precededByPtr = _precededBy;
     let _deletedAt = options.deletedAt ?? null;
     this.deletedAt = _deletedAt;
+    let _customValues = options.customValues ?? null;
+    if (_customValues === null) {
+      _customValues = {};
+    }
+    this._customValues = _customValues;
     let _orderKey = options.orderKey ?? null;
     if (_orderKey === null) {
       _orderKey = "a0";
@@ -277,6 +357,19 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       throw new Error(`Palette.name is required`);
     }
     this._name = _name;
+    let _script = options.script ?? null;
+    if (_script != null && _script.metatype != StructType.NODE_REFERENCE) {
+      _script = (_script as Node).toRef();
+    }
+    this._scriptPtr = _script;
+    let _isExtensible = options.isExtensible ?? null;
+    if (_isExtensible === null) {
+      _isExtensible = false;
+    }
+    if (_isExtensible === null) {
+      throw new Error(`Palette.isExtensible is required`);
+    }
+    this.isExtensible = _isExtensible;
     let _icon = options.icon ?? null;
     this._icon = _icon;
 
@@ -328,6 +421,12 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     ) {
       return false;
     }
+    if (!(this.definitionPtr?.id === other.definitionPtr?.id)) {
+      return false;
+    }
+    if (!(this.isExtensible === other.isExtensible)) {
+      return false;
+    }
     if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
       return false;
     }
@@ -337,8 +436,22 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     if (!(this._name === other._name)) {
       return false;
     }
+    if (!(this._scriptPtr?.id === other._scriptPtr?.id)) {
+      return false;
+    }
     if (!(this.spacePtr.id === other.spacePtr.id)) {
       return false;
+    }
+    if (Object.keys(this._customValues).length !== Object.keys(other._customValues).length) {
+      return false;
+    }
+    for (const key in this._customValues) {
+      if (!(key in other._customValues)) {
+        return false;
+      }
+      if (!this._customValues[key].equals(other._customValues[key])) {
+        return false;
+      }
     }
     return true;
   }
@@ -349,6 +462,10 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
+    if (this.definitionPtr != null) {
+      h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
+    }
+    h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this.parentPtr != null) {
       h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
@@ -371,8 +488,17 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       h = (h * 31 + hashString(this.deletedAt.toString({ timeZoneName: "never" }))) & 0xffffffff;
     }
     h = (h * 31 + hashString(this._name)) & 0xffffffff;
+    if (this._scriptPtr != null) {
+      h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
     h = (h * 31 + hashString(this.id.toString())) & 0xffffffff;
     h = (h * 31 + hashString(this.spacePtr.id)) & 0xffffffff;
+    if (this._customValues && Object.keys(this._customValues).length > 0) {
+      for (const [_key, _value] of Object.entries(this._customValues)) {
+        h = (h * 31 + hashString(_key.toString())) & 0xffffffff;
+        h = (h * 31 + _value.hash()) & 0xffffffff;
+      }
+    }
 
     return h;
   }
@@ -388,6 +514,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
+      definitionId: this.definitionPtr?.id ?? null,
       _session: this._session,
       _supergraph: this._supergraph,
     });
@@ -430,6 +557,9 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       objectValue["3"] = object.parentPtr.toValue();
     }
     objectValue["5"] = object.spacePtr.toValue();
+    if (object.definitionPtr != null) {
+      objectValue["6"] = object.definitionPtr.toValue();
+    }
     objectValue["10"] = object.materialization;
     if (object.snapshotPtr != null) {
       objectValue["11"] = object.snapshotPtr.toValue();
@@ -450,8 +580,19 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     if (object.deletedAt != null) {
       objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
+    if (Object.keys(object._customValues).length > 0) {
+      const packedCustomValues: { [key: string]: any } = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        packedCustomValues[String(String(key))] = value.toValue();
+      }
+      objectValue["30"] = packedCustomValues;
+    }
     objectValue["31"] = object.orderKey;
     objectValue["50"] = object._name;
+    if (object._scriptPtr != null) {
+      objectValue["80"] = object._scriptPtr.toValue();
+    }
+    objectValue["90"] = object.isExtensible;
     if (object._icon != null) {
       objectValue["102"] = object._icon.toValue();
     }
@@ -465,12 +606,18 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     _graph?: any | null,
     _connection?: any | null,
   ): Palette {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
         ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const definitionPtrValue = objectValue["6"];
+    const unpackedDefinitionPtr =
+      definitionPtrValue != undefined
+        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const parentPtrValue = objectValue["3"];
     const unpackedParentPtr =
@@ -502,8 +649,27 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
+    const scriptPtrValue = objectValue["80"];
+    const unpackedScriptPtr =
+      scriptPtrValue != undefined
+        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const unpackedCustomValues = {} as any;
+    if (objectValue["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectValue["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromValue(
+          value as any,
+          _session,
+          _supergraph,
+          _graph,
+          _connection,
+        );
+      }
+    }
     return new Palette({
       icon: unpackedIcon,
+      definition: unpackedDefinitionPtr,
+      isExtensible: objectValue["90"],
       orderKey: objectValue["31"],
       parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
@@ -517,8 +683,10 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
       name: objectValue["50"],
+      script: unpackedScriptPtr,
       id: String(objectValue["2"]),
       space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,
@@ -546,6 +714,9 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       objectProto.parentPtr = object.parentPtr.toProto();
     }
     objectProto.spacePtr = object.spacePtr.toProto();
+    if (object.definitionPtr != null) {
+      objectProto.definitionPtr = object.definitionPtr.toProto();
+    }
     objectProto.materialization = Number(object.materialization) as MaterializationProto;
     if (object.snapshotPtr != null) {
       objectProto.snapshotPtr = object.snapshotPtr.toProto();
@@ -566,8 +737,18 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     if (object.deletedAt != null) {
       objectProto.deletedAt = packProtoTimestamp(object.deletedAt);
     }
+    if (object._customValues) {
+      objectProto.customValues = {} as any;
+      for (const [key, value] of Object.entries(object._customValues)) {
+        objectProto.customValues![String(key)] = value.toProto();
+      }
+    }
     objectProto.orderKey = object.orderKey;
     objectProto.name = object._name;
+    if (object._scriptPtr != null) {
+      objectProto.scriptPtr = object._scriptPtr.toProto();
+    }
+    objectProto.isExtensible = object.isExtensible;
     if (object._icon != null) {
       objectProto.icon = object._icon.toProto();
     }
@@ -581,13 +762,34 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
     _graph?: any | null,
     _connection?: any | null,
   ): Palette {
+    const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
+    const unpackedCustomValues = {} as any;
+    if (objectProto.customValues) {
+      for (const [key, value] of Object.entries(objectProto.customValues)) {
+        unpackedCustomValues.set(
+          String(key),
+          _Value.fromProto((value as any)!, _session, _supergraph, _graph, _connection),
+        );
+      }
+    }
     return new Palette({
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
           : null,
+      definition:
+        objectProto.definitionPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.definitionPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      isExtensible: objectProto.isExtensible,
       orderKey: objectProto.orderKey,
       parent:
         objectProto.parentPtr != undefined
@@ -647,6 +849,16 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
       deletedAt:
         objectProto.deletedAt != undefined ? unpackProtoTimestamp(objectProto.deletedAt!) : null,
       name: objectProto.name,
+      script:
+        objectProto.scriptPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       id: String(objectProto.id),
       space: _NodeReference.fromProto(
         objectProto.spacePtr!,
@@ -655,6 +867,7 @@ export class Palette extends Entity implements IsOrdered, IsTaggable {
         _graph,
         _connection,
       ),
+      customValues: unpackedCustomValues,
       _session,
       _graph,
       _connection,

@@ -1,5 +1,4 @@
 import base64
-import hashlib
 import io
 import tempfile
 from collections.abc import Collection, Sequence
@@ -9,7 +8,6 @@ from typing import (
     Literal,
     Optional,
     Union,
-    assert_never,
     overload,
 )
 
@@ -18,7 +16,6 @@ from opentelemetry import trace
 from PIL import Image
 
 from destack.language.core import (
-    Entity,
     Enum,
     EnumType,
     NodeType,
@@ -598,61 +595,6 @@ class File(Resource):
         else:
             raise ValueError(f"cannot get image content of {self!r}")
 
-    @staticmethod
-    async def inline(
-        content: bytes | str,
-        name: str,
-        mime_type: str | None = None,
-        type: FileType | None = None,
-        format: FileFormat | str | None = None,
-    ) -> "File":
-        """Creates a new inline file."""
-
-        # inline data from URI (e.g., data:image/png;base64,iVBORw0KGgoAAAAN...)
-        if isinstance(content, str):
-            if content.startswith("data:"):
-                parts = content.split(",", 1)
-                if len(parts) != 2:
-                    raise ValueError(f"invalid data URI: {content!r}")
-                header, encoded_data = parts
-                if ";base64" in header:
-                    content = base64.b64decode(encoded_data)
-                else:
-                    content = encoded_data.encode("utf-8")
-                if mime_type is None and header.startswith("data:"):
-                    mime_type = header[5:].split(";")[0]
-            else:
-                # regular string to bytes
-                content = content.encode("utf-8")
-
-        file, _ = await extract_file_info(
-            content, name=name, mime_type=mime_type, type=type, format=format
-        )
-        file.content = content
-        return file
-
-    @staticmethod
-    def external(
-        url: str,
-        name: str | None = None,
-        mime_type: str | None = None,
-        type: FileType | None = None,
-        format: FileFormat | str | None = None,
-        width: int | None = None,
-        height: int | None = None,
-    ) -> "File":
-        """Creates a new external file."""
-        file = guess_file_info(
-            url,
-            name=name,
-            mime_type=mime_type,
-            type=type,
-            format=format,
-            width=width,
-            height=height,
-        )
-        return file
-
 
 @tracer.start_as_current_span("file.upload_batch")
 async def upload_file_batch(
@@ -674,155 +616,3 @@ async def download_file_batch(
 
 
 FileIn = Union[bytes, Image.Image]
-
-
-@tracer.start_as_current_span("file.extract_info")
-async def extract_file_info(  # noqa: RUF029
-    file_in: FileIn,
-    name: str,
-    *,
-    mime_type: str | None = None,
-    type: FileType | None = None,
-    format: FileFormat | str | None = None,
-) -> tuple["File", bytes]:  # :ExtractFileInfo
-    """Extracts the metadata from a file."""
-    # content
-    content: bytes
-    if isinstance(file_in, (bytes, bytearray, memoryview)):
-        content = file_in
-    elif isinstance(file_in, Image.Image):
-        content_io = io.BytesIO()
-        file_in.save(content_io, format="PNG")
-        content = content_io.getvalue()
-    else:
-        assert_never(file_in)
-
-    # guess file type
-    if isinstance(format, str):
-        format = format.lower()
-        assert format in FILE_FORMAT_BY_EXTENSION, f"unknown format: {format}"
-        format = FILE_FORMAT_BY_EXTENSION.get(format)
-    if format is None and name is not None and "." in name:
-        format = FILE_FORMAT_BY_EXTENSION.get(name.split(".")[-1])
-    if format is not None:
-        type = format.type
-    elif type is None:
-        type = FileType.GENERIC
-    if mime_type is None and format is not None:
-        mime_type = format.mime_type
-
-    # guess with magika if needed
-    if format is None:
-        mime_type, format = detect_file_format(content)
-        if format is not None:
-            type = format.type
-
-    # add extension if needed
-    if format is not None and name is not None and "." not in name and format.extension is not None:
-        name = f"{name}.{format.extension}"
-
-    size = len(content)
-    sha256 = hashlib.sha256(content).hexdigest()
-    file = File(
-        source=FileSource.SPACE,
-        name=name,
-        type=type,
-        mime_type=mime_type,
-        format=format,
-        size=size,
-        sha256=sha256,
-    )
-
-    # TODO :Incomplete: extract more file metadata :ExtractFileInfo
-
-    # image metadata
-    if type == FileType.IMAGE:
-        image = file_in if isinstance(file_in, Image.Image) else Image.open(io.BytesIO(content))
-        file.width, file.height = image.size
-        file.aspect_ratio = file.width / file.height
-
-    return file, content
-
-
-def guess_file_info(
-    file_url: str,
-    name: str | None = None,
-    mime_type: str | None = None,
-    type: FileType | None = None,
-    format: FileFormat | str | None = None,
-    width: int | None = None,
-    height: int | None = None,
-) -> File:
-    """Guesses the file info from the given file URL (without downloading it)."""
-    import os
-    import urllib.parse
-
-    # parse format from extension if not provided
-    if isinstance(format, str):
-        format_str = format.lower()
-        if format_str in FILE_FORMAT_BY_EXTENSION:
-            format = FILE_FORMAT_BY_EXTENSION.get(format_str)
-
-    # find the last valid extension in the URL
-    if format is None:
-        url_parts = file_url.lower().split(".")
-        for i in range(len(url_parts) - 1, 0, -1):
-            ext = url_parts[i]
-            if ext in FILE_FORMAT_BY_EXTENSION:
-                format = FILE_FORMAT_BY_EXTENSION[ext]
-                break
-
-    # get filename from URL path if name not provided
-    if name is None:
-        parsed_url = urllib.parse.urlparse(file_url)
-        name = os.path.basename(parsed_url.path)
-        name = urllib.parse.unquote(name)
-
-    # determine type from format
-    file_format = None
-    if format is not None and isinstance(format, FileFormat):
-        file_format = format
-        if type is None:
-            type = file_format.type
-    elif type is None:
-        type = FileType.GENERIC
-
-    # get mime_type from format if not provided
-    if mime_type is None and file_format is not None:
-        mime_type = file_format.mime_type
-
-    # file
-    file = File(
-        source=FileSource.EXTERNAL,
-        name=name,
-        type=type,
-        mime_type=mime_type,
-        format=file_format,
-        url=file_url,
-        width=width,
-        height=height,
-        aspect_ratio=width / height if width is not None and height is not None else None,
-    )
-    return file
-
-
-@tracer.start_as_current_span("file.upload")
-async def upload_file(
-    file_in: FileIn,
-    name: str,
-    *,
-    mime_type: str | None = None,
-    type: FileType | None = None,
-    format: FileFormat | str | None = None,
-    parent: Union["Entity", None] = None,
-    session: "Session | None" = None,
-) -> "File":
-    """Uploads the given file to the given (or current) session."""
-
-    raise NotImplementedError
-
-
-@tracer.start_as_current_span("file.detect_format")
-def detect_file_format(content: bytes) -> tuple[str | None, FileFormat | None]:
-    """Detects the file format from the given file content."""
-    raise NotImplementedError

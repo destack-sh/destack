@@ -2,9 +2,9 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
-    IsExtensible,
     IsOrdered,
-    IsTaggable,
+    IsOwnable,
+    IsScriptable,
     NodeType,
     builtin_node,
 )
@@ -15,13 +15,15 @@ if TYPE_CHECKING:
 # pyright: reportIncompatibleVariableOverride=false
 
 
-@builtin_node(NodeType.STYLE, is_abstract=True)
-class Style(
-    Entity,
+@builtin_node(NodeType.STAGE)
+class Stage(
+    IsOwnable,
     IsOrdered,
-    IsTaggable,
-    IsExtensible,
+    IsScriptable,
+    Entity,
 ):
-    """A Style defines a base visual appearance in some context."""
+    """
+    A Stage for someone to interact with a Space.
+    """
 
     pass

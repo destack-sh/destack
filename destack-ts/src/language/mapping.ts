@@ -320,6 +320,7 @@ import type {
 } from "@destack/language/observability/metric";
 import type { Layer, LayerType } from "@destack/language/scene/layer";
 import type { Scene, SceneEvent } from "@destack/language/scene/scene";
+import type { Stage } from "@destack/language/scene/stage";
 import type { Window, WindowType } from "@destack/language/scene/window";
 import type {
   Follow,
@@ -571,6 +572,7 @@ export type NodeTypeMapping = {
   [NodeType.LAYER]: Layer;
   [NodeType.SCENE_EVENT]: SceneEvent;
   [NodeType.SCENE]: Scene;
+  [NodeType.STAGE]: Stage;
   [NodeType.WINDOW]: Window;
   [NodeType.FOLLOW]: Follow;
   [NodeType.FOLLOW_EVENT]: FollowEvent;
@@ -627,9 +629,9 @@ export type TraitTypeMapping = {
   [TraitType.FOLLOWABLE]: IsFollowable;
   [TraitType.VIEWABLE]: IsViewable;
   [TraitType.SOURCEABLE]: IsSourceable;
-  [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.RUNNABLE]: IsRunnable;
   [TraitType.CUSTOMIZABLE]: IsCustomizable;
+  [TraitType.SCRIPTABLE]: IsScriptable;
   [TraitType.EXTENSIBLE]: IsExtensible;
   [TraitType.IRREVERSIBLE]: IsIrreversible;
 };

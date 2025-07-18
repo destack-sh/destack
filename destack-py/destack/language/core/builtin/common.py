@@ -443,6 +443,7 @@ class TraitType(Enum):
 
     # view [1_800_000-1_900_000]
     VIEWABLE = 1_800_000, "Viewable", "Can be presented visually", "fas fa-presentation"
+    # ANIMATABLE/TWEENABLE, ...
 
     # canvas [1_900_000-2_000_000]
 
@@ -687,13 +688,14 @@ class NodeType(Enum):
     # ORDER, INVOICE, DISCOUNT, DISPUTE, REFUND, ...
 
     # scene [1_700_000-1_800_000]
-    # STAGE?
+    STAGE = 1_700_000, "Stage", None, "fas fa-masks-theater"
     WINDOW = 1_700_100, "Window", None, "fas fa-galaxy"
     SCENE = 1_700_200, "Scene", "Scene of an Application", "fas fa-masks-theater"
     SCENE_EVENT = 1_700_201, "Scene Event", None, "fas fa-masks-theater"
     LAYER = 1_700_300, "Layer", "Layer of a Scene", "fas fa-layer-group"
     # VIEW_VARIANT, BREAKPOINT_VARIANT, ...
     # VIEWPORT, OVERLAY, WIDGET, HUD, ...
+    # ROOM, ...
     # FORM, MENU, ...
 
     # view [1_800_000-1_900_000]

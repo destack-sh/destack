@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Union
+from typing import TYPE_CHECKING, Optional
 
 from destack.language.core import (
     ConstraintDeclaration,
@@ -34,7 +34,7 @@ class Follow(
 ):
     """A Follow is a relationship between a Actor and an IsFollowable Node."""
 
-    parent: Union["IsFollowable", None] = builtin_property_parent()
+    parent: Optional["IsFollowable"] = builtin_property_parent()
 
 
 @builtin_node(NodeType.FOLLOW_EVENT, frozen=True)

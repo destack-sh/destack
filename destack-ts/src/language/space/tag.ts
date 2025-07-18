@@ -4,7 +4,6 @@ import type {
   Icon,
   IsActor,
   IsOrdered,
-  IsScriptable,
   IsSourceable,
   IsTaggable,
   NodeClass,
@@ -25,7 +24,6 @@ import {
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
-import type { Folder } from "@destack/language/space/folder";
 import type { Space } from "@destack/language/universe";
 import { MaterializationProto, TagProto, TaggingProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -34,18 +32,18 @@ import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:NODE:241000 ==== */
 /**
- * A Tag to tag something.
+ * A Tag definition to tag a Taggable Entity (in a Tagging).
  */
 export class Tag extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.TAG;
 
   /**
-   * Tag.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): Folder | (Entity & IsScriptable) | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Folder | (Entity & IsScriptable) | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -208,7 +206,7 @@ export class Tag extends Entity implements IsSourceable {
 
   constructor(options: {
     id?: string;
-    parent?: Folder | (Entity & IsScriptable) | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
@@ -393,9 +391,6 @@ export class Tag extends Entity implements IsSourceable {
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
     }
@@ -404,6 +399,9 @@ export class Tag extends Entity implements IsSourceable {
     }
     if (this._key != null) {
       h = (h * 31 + hashString(this._key)) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -526,11 +524,6 @@ export class Tag extends Entity implements IsSourceable {
   ): Tag {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectValue["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -543,6 +536,11 @@ export class Tag extends Entity implements IsSourceable {
         : null;
     const keyValue = objectValue["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
       snapshotPtrValue != undefined
@@ -569,10 +567,10 @@ export class Tag extends Entity implements IsSourceable {
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Tag({
-      parent: unpackedParentPtr,
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -658,16 +656,6 @@ export class Tag extends Entity implements IsSourceable {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     return new Tag({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       icon:
         objectProto.icon != undefined
           ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
@@ -683,6 +671,16 @@ export class Tag extends Entity implements IsSourceable {
             )
           : null,
       key: objectProto.key != undefined ? objectProto.key : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
       materialization: Number(objectProto.materialization) as Materialization,
       snapshot:
         objectProto.snapshotPtr != undefined

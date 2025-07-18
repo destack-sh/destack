@@ -39,10 +39,10 @@ export class Script extends Entity implements IsOrdered, IsCustomizable {
   /**
    * Script.parent
    */
-  get parent(): (Entity & IsScriptable) | Script | null {
+  get parent(): (Entity & IsScriptable) | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as (Entity & IsScriptable) | Script | null;
+      return this._supergraph.get(nodePtr.id) as (Entity & IsScriptable) | null;
     }
     return null;
   }
@@ -193,7 +193,7 @@ export class Script extends Entity implements IsOrdered, IsCustomizable {
 
   constructor(options: {
     id?: string;
-    parent?: (Entity & IsScriptable) | Script | NodeReference | null;
+    parent?: (Entity & IsScriptable) | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;

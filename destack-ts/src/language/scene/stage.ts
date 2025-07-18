@@ -1,14 +1,10 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import type {
-  Axis3,
   Graph,
-  Icon,
   IsActor,
   IsOrdered,
   IsOwnable,
   IsScriptable,
-  IsTaggable,
-  IsViewable,
   NodeClass,
   NodeReference,
   QueryConnection,
@@ -16,12 +12,10 @@ import type {
   Snapshot,
   Supergraph,
   Value,
-  Vector2f,
 } from "@destack/language/core";
 import {
   ACTIVE_SPACE,
   Entity,
-  EnumType,
   Event,
   Materialization,
   Node,
@@ -29,51 +23,27 @@ import {
   StructType,
 } from "@destack/language/core";
 import type { Script } from "@destack/language/logic";
-import {
-  STRUCT_CLASS_BY_TYPE,
-  registerEnumClass,
-  registerNodeClass,
-} from "@destack/language/registry";
-import type { Scene } from "@destack/language/scene/scene";
-import type { Fill } from "@destack/language/style";
+import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Space } from "@destack/language/universe";
-import { LayerProto, LayerTypeProto, MaterializationProto } from "@destack/proto";
+import { MaterializationProto, StageProto } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
-import { hashBool, hashFloat, hashString } from "@destack/utils/hash";
+import { hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-/* ==== DESTACK_GENERATED_START:ENUM:1700200 ==== */
+/* ==== DESTACK_GENERATED_START:NODE:1700000 ==== */
 /**
- * LayerType
+ * A Stage for someone to interact with a Space.
  */
-export enum LayerType {
-  GENERAL = 1,
-  SHAPE = 2,
-
-  /* ==== DESTACK_CUSTOM_START ==== */
-  // ...
-  /* ==== DESTACK_CUSTOM_END ==== */
-}
-registerEnumClass(EnumType.LAYER_TYPE, LayerType);
-/* ==== DESTACK_GENERATED_END:ENUM:1700200 ==== */
-
-/* ==== DESTACK_GENERATED_START:NODE:1700300 ==== */
-/**
- * A Layer is a named container for Views.
- */
-export class Layer
-  extends Entity
-  implements IsViewable, IsOwnable, IsOrdered, IsTaggable, IsScriptable
-{
-  static metatype: NodeType = NodeType.LAYER;
+export class Stage extends Entity implements IsOwnable, IsOrdered, IsScriptable {
+  static metatype: NodeType = NodeType.STAGE;
 
   /**
-   * Layer.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): Scene | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Scene | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -111,10 +81,10 @@ export class Layer
   /**
    * The previous Entity this Entity is based on (from another Snapshot).
    */
-  get precededBy(): Layer | null {
+  get precededBy(): Stage | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Layer | null;
+      return this._supergraph.get(nodePtr.id) as Stage | null;
     }
     return null;
   }
@@ -266,141 +236,13 @@ export class Layer
   }
   _scriptPtr: NodeReference | null;
 
-  /**
-   * Layer.type
-   */
-  /**
-   * Layer.type
-   */
-  get type(): LayerType {
-    return this._type;
-  }
-  set type(value: LayerType) {
-    const prop = (this.constructor as NodeClass).__properties__["type"];
-    this._session.updateSetProperty(this, prop, value);
-    this._type = value;
-  }
-  _type: LayerType;
-
-  /**
-   * Layer.icon
-   */
-  /**
-   * Layer.icon
-   */
-  get icon(): Icon | null {
-    return this._icon;
-  }
-  set icon(value: Icon | null) {
-    const prop = (this.constructor as NodeClass).__properties__["icon"];
-    this._session.updateSetProperty(this, prop, value);
-    this._icon = value;
-  }
-  _icon: Icon | null;
-
-  /**
-   * Layer.isVisible
-   */
-  /**
-   * Layer.isVisible
-   */
-  get isVisible(): boolean | null {
-    return this._isVisible;
-  }
-  set isVisible(value: boolean | null) {
-    const prop = (this.constructor as NodeClass).__properties__["is_visible"];
-    this._session.updateSetProperty(this, prop, value);
-    this._isVisible = value;
-  }
-  _isVisible: boolean | null;
-
-  /**
-   * Layer.opacity
-   */
-  /**
-   * Layer.opacity
-   */
-  get opacity(): number | null {
-    return this._opacity;
-  }
-  set opacity(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["opacity"];
-    this._session.updateSetProperty(this, prop, value);
-    this._opacity = value;
-  }
-  _opacity: number | null;
-
-  /**
-   * Layer.fill
-   */
-  /**
-   * Layer.fill
-   */
-  get fill(): Fill | null {
-    return this._fill;
-  }
-  set fill(value: Fill | null) {
-    const prop = (this.constructor as NodeClass).__properties__["fill"];
-    this._session.updateSetProperty(this, prop, value);
-    this._fill = value;
-  }
-  _fill: Fill | null;
-
-  /**
-   * Layer.rotation
-   */
-  /**
-   * Layer.rotation
-   */
-  get rotation(): Axis3 | null {
-    return this._rotation;
-  }
-  set rotation(value: Axis3 | null) {
-    const prop = (this.constructor as NodeClass).__properties__["rotation"];
-    this._session.updateSetProperty(this, prop, value);
-    this._rotation = value;
-  }
-  _rotation: Axis3 | null;
-
-  /**
-   * Layer.skew
-   */
-  /**
-   * Layer.skew
-   */
-  get skew(): Vector2f | null {
-    return this._skew;
-  }
-  set skew(value: Vector2f | null) {
-    const prop = (this.constructor as NodeClass).__properties__["skew"];
-    this._session.updateSetProperty(this, prop, value);
-    this._skew = value;
-  }
-  _skew: Vector2f | null;
-
-  /**
-   * Layer.scale
-   */
-  /**
-   * Layer.scale
-   */
-  get scale(): number | null {
-    return this._scale;
-  }
-  set scale(value: number | null) {
-    const prop = (this.constructor as NodeClass).__properties__["scale"];
-    this._session.updateSetProperty(this, prop, value);
-    this._scale = value;
-  }
-  _scale: number | null;
-
   constructor(options: {
     id?: string;
-    parent?: Scene | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     snapshot?: Snapshot | NodeReference | null;
-    precededBy?: Layer | NodeReference | null;
+    precededBy?: Stage | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
     createdEpoch?: number;
     createdBy?: (Entity & IsActor) | NodeReference | null;
@@ -413,14 +255,6 @@ export class Layer
     ownedBy?: (Entity & IsActor) | NodeReference | null;
     name?: string;
     script?: Script | NodeReference | null;
-    type?: LayerType;
-    icon?: Icon | null;
-    isVisible?: boolean | null;
-    opacity?: number | null;
-    fill?: Fill | null;
-    rotation?: Axis3 | null;
-    skew?: Vector2f | null;
-    scale?: number | null;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -459,16 +293,16 @@ export class Layer
     }
     if (_space === null) {
       if (this._session === null) {
-        throw new Error(`Layer has no Session`);
+        throw new Error(`Stage has no Session`);
       }
       _space = ACTIVE_SPACE.get();
       if (_space === null) {
-        throw new Error(`Layer has no Space`);
+        throw new Error(`Stage has no Space`);
       }
       _space = _space.toRef();
     }
     if (_space === null) {
-      throw new Error(`Layer.space is required`);
+      throw new Error(`Stage.space is required`);
     }
     this.spacePtr = _space;
     let _materialization = options.materialization ?? null;
@@ -476,7 +310,7 @@ export class Layer
       _materialization = 3 /* Materialization.ROOT */;
     }
     if (_materialization === null) {
-      throw new Error(`Layer.materialization is required`);
+      throw new Error(`Stage.materialization is required`);
     }
     this.materialization = _materialization;
     let _snapshot = options.snapshot ?? null;
@@ -501,7 +335,7 @@ export class Layer
       _orderKey = "a0";
     }
     if (_orderKey === null) {
-      throw new Error(`Layer.orderKey is required`);
+      throw new Error(`Stage.orderKey is required`);
     }
     this.orderKey = _orderKey;
     let _ownedBy = options.ownedBy ?? null;
@@ -511,10 +345,10 @@ export class Layer
     this._ownedByPtr = _ownedBy;
     let _name = options.name ?? null;
     if (_name === null) {
-      _name = "Layer";
+      _name = "Stage";
     }
     if (_name === null) {
-      throw new Error(`Layer.name is required`);
+      throw new Error(`Stage.name is required`);
     }
     this._name = _name;
     let _script = options.script ?? null;
@@ -522,28 +356,6 @@ export class Layer
       _script = (_script as Node).toRef();
     }
     this._scriptPtr = _script;
-    let _type = options.type ?? null;
-    if (_type === null) {
-      _type = 1 /* LayerType.GENERAL */;
-    }
-    if (_type === null) {
-      throw new Error(`Layer.type is required`);
-    }
-    this._type = _type;
-    let _icon = options.icon ?? null;
-    this._icon = _icon;
-    let _isVisible = options.isVisible ?? null;
-    this._isVisible = _isVisible;
-    let _opacity = options.opacity ?? null;
-    this._opacity = _opacity;
-    let _fill = options.fill ?? null;
-    this._fill = _fill;
-    let _rotation = options.rotation ?? null;
-    this._rotation = _rotation;
-    let _skew = options.skew ?? null;
-    this._skew = _skew;
-    let _scale = options.scale ?? null;
-    this._scale = _scale;
 
     // identity
     if (options.id == null) {
@@ -562,7 +374,7 @@ export class Layer
         options.createdEpoch == null ||
         options.updatedEpoch == null
       ) {
-        throw new Error(`Layer.createdAt and Layer.updatedAt are required for existing Nodes`);
+        throw new Error(`Stage.createdAt and Stage.updatedAt are required for existing Nodes`);
       }
       this.createdAt = options.createdAt;
       this.createdEpoch = options.createdEpoch;
@@ -585,50 +397,6 @@ export class Layer
 
   equals(other: any): boolean {
     if (!(this.metatype === other.metatype)) {
-      return false;
-    }
-    if (!(this._type === other._type)) {
-      return false;
-    }
-    if (
-      (this._icon == null) !== (other._icon == null) ||
-      (this._icon != null && !this._icon.equals(other._icon))
-    ) {
-      return false;
-    }
-    if (!(this._isVisible === other._isVisible)) {
-      return false;
-    }
-    if (
-      (this._opacity == null) !== (other._opacity == null) ||
-      (this._opacity != null &&
-        !(this._opacity === other._opacity || Math.abs(this._opacity - other._opacity) < 1e-10))
-    ) {
-      return false;
-    }
-    if (
-      (this._fill == null) !== (other._fill == null) ||
-      (this._fill != null && !this._fill.equals(other._fill))
-    ) {
-      return false;
-    }
-    if (
-      (this._rotation == null) !== (other._rotation == null) ||
-      (this._rotation != null && !this._rotation.equals(other._rotation))
-    ) {
-      return false;
-    }
-    if (
-      (this._skew == null) !== (other._skew == null) ||
-      (this._skew != null && !this._skew.equals(other._skew))
-    ) {
-      return false;
-    }
-    if (
-      (this._scale == null) !== (other._scale == null) ||
-      (this._scale != null &&
-        !(this._scale === other._scale || Math.abs(this._scale - other._scale) < 1e-10))
-    ) {
       return false;
     }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
@@ -666,37 +434,15 @@ export class Layer
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
-    h = (h * 31 + this._type) & 0xffffffff;
-    if (this._icon != null) {
-      h = (h * 31 + this._icon.hash()) & 0xffffffff;
-    }
-    if (this._isVisible != null) {
-      h = (h * 31 + hashBool(this._isVisible)) & 0xffffffff;
-    }
-    if (this._opacity != null) {
-      h = (h * 31 + hashFloat(this._opacity)) & 0xffffffff;
-    }
-    if (this._fill != null) {
-      h = (h * 31 + this._fill.hash()) & 0xffffffff;
-    }
-    if (this._rotation != null) {
-      h = (h * 31 + this._rotation.hash()) & 0xffffffff;
-    }
-    if (this._skew != null) {
-      h = (h * 31 + this._skew.hash()) & 0xffffffff;
-    }
-    if (this._scale != null) {
-      h = (h * 31 + hashFloat(this._scale)) & 0xffffffff;
-    }
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.snapshotPtr != null) {
       h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
@@ -735,7 +481,7 @@ export class Layer
   __toRef__(): NodeReference {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     return new _NodeReference({
-      type: NodeType.LAYER,
+      type: NodeType.STAGE,
       id: this.id,
       spaceId: this.spacePtr?.id ?? null,
       snapshotId: this.snapshotPtr?.id ?? null,
@@ -769,16 +515,16 @@ export class Layer
       propertyReprs.push(`ownedBy=${this.ownedBy?.repr()}`);
     }
     propertyReprs.push(`name=${`"${this.name}"`}`);
-    return `<Layer "${this.path}" ${propertyReprs.join(" ")}>`;
+    return `<Stage "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
   toValue(): { readonly [key: string]: any } {
-    return Layer.__packValue__(this);
+    return Stage.__packValue__(this);
   }
 
-  static __packValue__(object: Layer): { readonly [key: string]: any } {
+  static __packValue__(object: Stage): { readonly [key: string]: any } {
     const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1700300;
+    objectValue["1"] = 1700000;
     objectValue["2"] = String(object.id);
     if (object.parentPtr != null) {
       objectValue["3"] = object.parentPtr.toValue();
@@ -819,28 +565,6 @@ export class Layer
     if (object._scriptPtr != null) {
       objectValue["80"] = object._scriptPtr.toValue();
     }
-    objectValue["100"] = object._type;
-    if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
-    }
-    if (object._isVisible != null) {
-      objectValue["140"] = object._isVisible;
-    }
-    if (object._opacity != null) {
-      objectValue["141"] = object._opacity;
-    }
-    if (object._fill != null) {
-      objectValue["142"] = object._fill.toValue();
-    }
-    if (object._rotation != null) {
-      objectValue["143"] = object._rotation.toValue();
-    }
-    if (object._skew != null) {
-      objectValue["144"] = object._skew.toValue();
-    }
-    if (object._scale != null) {
-      objectValue["145"] = object._scale;
-    }
     return objectValue;
   }
 
@@ -850,44 +574,9 @@ export class Layer
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Layer {
+  ): Stage {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const parentPtrValue = objectValue["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const iconValue = objectValue["102"];
-    const unpackedIcon =
-      iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const isVisibleValue = objectValue["140"];
-    const unpackedIsVisible = isVisibleValue != undefined ? isVisibleValue : null;
-    const opacityValue = objectValue["141"];
-    const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const fillValue = objectValue["142"];
-    const unpackedFill =
-      fillValue != undefined
-        ? _Fill.fromValue(fillValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const rotationValue = objectValue["143"];
-    const unpackedRotation =
-      rotationValue != undefined
-        ? _Axis3.fromValue(rotationValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const skewValue = objectValue["144"];
-    const unpackedSkew =
-      skewValue != undefined
-        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const scaleValue = objectValue["145"];
-    const unpackedScale = scaleValue != undefined ? scaleValue : null;
     const ownedByPtrValue = objectValue["32"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
@@ -897,6 +586,11 @@ export class Layer
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectValue["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const snapshotPtrValue = objectValue["11"];
     const unpackedSnapshotPtr =
@@ -935,19 +629,11 @@ export class Layer
         );
       }
     }
-    return new Layer({
-      parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
-      icon: unpackedIcon,
-      isVisible: unpackedIsVisible,
-      opacity: unpackedOpacity,
-      fill: unpackedFill,
-      rotation: unpackedRotation,
-      skew: unpackedSkew,
-      scale: unpackedScale,
+    return new Stage({
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectValue["31"],
       script: unpackedScriptPtr,
+      parent: unpackedParentPtr,
       materialization: Number(objectValue["10"]),
       snapshot: unpackedSnapshotPtr,
       precededBy: unpackedPrecededByPtr,
@@ -974,16 +660,16 @@ export class Layer
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Layer {
-    return Layer.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+  ): Stage {
+    return Stage.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): LayerProto {
-    return Layer.__packProto__(this);
+  toProto(): StageProto {
+    return Stage.__packProto__(this);
   }
 
-  static __packProto__(object: Layer): LayerProto {
-    const objectProto: Partial<LayerProto> = { metatype: 1700300 };
+  static __packProto__(object: Stage): StageProto {
+    const objectProto: Partial<StageProto> = { metatype: 1700000 };
     objectProto.id = String(object.id);
     if (object.parentPtr != null) {
       objectProto.parentPtr = object.parentPtr.toProto();
@@ -1023,44 +709,18 @@ export class Layer
     if (object._scriptPtr != null) {
       objectProto.scriptPtr = object._scriptPtr.toProto();
     }
-    objectProto.type = Number(object._type) as LayerTypeProto;
-    if (object._icon != null) {
-      objectProto.icon = object._icon.toProto();
-    }
-    if (object._isVisible != null) {
-      objectProto.isVisible = object._isVisible;
-    }
-    if (object._opacity != null) {
-      objectProto.opacity = object._opacity;
-    }
-    if (object._fill != null) {
-      objectProto.fill = object._fill.toProto();
-    }
-    if (object._rotation != null) {
-      objectProto.rotation = object._rotation.toProto();
-    }
-    if (object._skew != null) {
-      objectProto.skew = object._skew.toProto();
-    }
-    if (object._scale != null) {
-      objectProto.scale = object._scale;
-    }
-    return objectProto as LayerProto;
+    return objectProto as StageProto;
   }
 
   static __unpackProto__(
-    objectProto: LayerProto,
+    objectProto: StageProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Layer {
+  ): Stage {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
-    const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1070,37 +730,7 @@ export class Layer
         );
       }
     }
-    return new Layer({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      type: Number(objectProto.type) as LayerType,
-      icon:
-        objectProto.icon != undefined
-          ? _Icon.fromProto(objectProto.icon!, _session, _supergraph, _graph, _connection)
-          : null,
-      isVisible: objectProto.isVisible != undefined ? objectProto.isVisible : null,
-      opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
-      fill:
-        objectProto.fill != undefined
-          ? _Fill.fromProto(objectProto.fill!, _session, _supergraph, _graph, _connection)
-          : null,
-      rotation:
-        objectProto.rotation != undefined
-          ? _Axis3.fromProto(objectProto.rotation!, _session, _supergraph, _graph, _connection)
-          : null,
-      skew:
-        objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
-          : null,
-      scale: objectProto.scale != undefined ? objectProto.scale : null,
+    return new Stage({
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1116,6 +746,16 @@ export class Layer
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,
@@ -1186,18 +826,18 @@ export class Layer
   }
 
   static fromProto(
-    objectProto: LayerProto,
+    objectProto: StageProto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Layer {
-    return Layer.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Stage {
+    return Stage.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Layer {
+  static fromProtoString(packedProtoString: string): Stage {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = LayerProto.fromBinary(packedProtoBytes);
+    const packedProto = StageProto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
@@ -1205,5 +845,5 @@ export class Layer
   // ...
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerNodeClass(NodeType.LAYER, Layer);
-/* ==== DESTACK_GENERATED_END:NODE:1700300 ==== */
+registerNodeClass(NodeType.STAGE, Stage);
+/* ==== DESTACK_GENERATED_END:NODE:1700000 ==== */

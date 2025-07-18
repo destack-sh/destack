@@ -1876,7 +1876,7 @@ export class Timer extends Entity implements IsSourceable {
   static metatype: NodeType = NodeType.TIMER;
 
   /**
-   * Entity.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
   get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;

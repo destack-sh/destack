@@ -2,7 +2,7 @@ from typing import TYPE_CHECKING, Self, Union
 
 from ..builtin import (
     Entity,
-    IsJoinable,
+    IsExtensible,
     IsSourceable,
     NodeType,
     StructType,
@@ -12,7 +12,7 @@ from ..builtin import (
 )
 
 if TYPE_CHECKING:
-    from destack.language import Folder, PermissionDeclaration
+    from destack.language import PermissionDeclaration
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -38,4 +38,4 @@ class Permission(
 ):
     """A Permission for something."""
 
-    parent: Union["IsJoinable", "Folder", None] = builtin_property_parent()
+    parent: Union["IsExtensible", None] = builtin_property_parent()
