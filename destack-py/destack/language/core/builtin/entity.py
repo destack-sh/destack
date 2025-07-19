@@ -54,7 +54,8 @@ class Materialization(Enum):
 
     """
 
-    PARTIAL = 1
+    VIRTUAL = 1
+    PARTIAL = 2
     FULL = 10
     ROOT = 11
 
@@ -72,8 +73,12 @@ class Entity(Node):
     Entities are always part of a Snapshot (in their Space).
     State transition can only be caused by Events (which are immutable).
 
-    The specific version of an Entity is identified by an (id, branch_id)@(snapshot_id|epoch) tuple,
+    An instance of an Entity is identified by an (id, branch_id, snapshot_id) tuple,
      where Snapshots are 'shortcuts' to certain epochs.
+
+    (id, definition_id) @ (branch_id, snapshot_id)
+
+    (id, instance_id) @ (branch_id, snapshot_id)
     """
 
     __store_domain__ = StoreDomain.ENTITY
@@ -126,7 +131,7 @@ The previous Entity this Entity is based on (from the base Branch, if any).
 This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
 """,
     )
-    instantiation_root: Optional["Entity"] = builtin_property(
+    instance: Optional["Entity"] = builtin_property(
         15,
         is_readonly=True,
         is_managed=True,
@@ -140,7 +145,7 @@ This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_b
         branch_ptr: NodeReference = UNSET
         snapshot_ptr: NodeReference = UNSET
         preceded_by_ptr: Optional[NodeReference] = None
-        instantiation_root_ptr: Optional[NodeReference] = None
+        instance_ptr: Optional[NodeReference] = None
 
     # 20-40: node tracking
     created_at: datetime = builtin_property(
