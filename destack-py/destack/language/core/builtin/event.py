@@ -1,7 +1,7 @@
 from collections.abc import Generator
 from contextlib import contextmanager
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, Optional, Union
 
 from destack.utils.uuid import UUID
 
@@ -58,28 +58,34 @@ class Event[N: Node = Node](Node):
     __store_domain__ = StoreDomain.EVENT
 
     # 10-20: event identity
+    definition: Union["CustomEvent", None] = builtin_property(
+        11,
+        is_managed=True,
+        is_readonly=True,
+        description="The definition this Event is an instance of.",
+    )
     branch: "Branch" = builtin_property(
-        10,
+        12,
         is_readonly=True,
         is_managed=True,
         default_factory=ValueFactory.BRANCH,
         description="The Branch this Event originated from.",
     )
     snapshot: "Snapshot" = builtin_property(
-        11,
+        13,
         is_readonly=True,
         is_managed=True,
         default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Event originated from.",
     )
     preceded_by: Optional["Event"] = builtin_property(
-        12,
+        14,
         is_readonly=True,
         is_managed=True,
         description="The previous Event that this Event follows.",
     )
     caused_by: Optional["Event"] = builtin_property(
-        13,
+        15,
         is_readonly=True,
         is_managed=True,
         description="The Event that caused this Event (if any).",

@@ -2,14 +2,15 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from ..builtin import (
     Entity,
-    Enum,
-    EnumType,
     IsCustomizable,
     IsScriptable,
     IsSourceable,
+    MethodCardinality,
+    MethodType,
     NodeType,
+    PlatformType,
+    RuntimeLanguage,
     StructType,
-    builtin_enum,
     builtin_node,
     builtin_property,
     builtin_property_parent,
@@ -18,26 +19,27 @@ from ..builtin import (
 from .definition import BuiltinDefinition
 
 if TYPE_CHECKING:
-    from destack.language import Icon, PropertyDefinition, Text
+    from destack.language import PropertyDefinition, Text
 
 # pyright: reportIncompatibleVariableOverride=false
-
-
-@builtin_enum(EnumType.METHOD_CARDINALITY)
-class MethodCardinality(Enum):
-    UNARY = 1, "Unary", "Single in, single out"
-    # UNARY_STREAM = 2, "Unary Stream", "Single in, stream out"
-
-    @property
-    def is_boundary(self) -> bool:
-        return self < 40
 
 
 @builtin_struct(StructType.METHOD_DEFINITION, frozen=True)
 class MethodDefinition(BuiltinDefinition):
     """Definition of a builtin Method."""
 
+    type: MethodType = builtin_property(100)
     properties: list["PropertyDefinition"] = builtin_property(104)
+    cardinality: MethodCardinality = builtin_property(110, default=MethodCardinality.UNARY)
+    # runtimes/languages/...?
+    platforms: list[PlatformType] = builtin_property(
+        120,
+        description="The platforms this Method is available on (all if empty).",
+    )
+    languages: list[RuntimeLanguage] = builtin_property(
+        121,
+        description="The languages this Method is available in (all if empty).",
+    )
 
 
 @builtin_node(NodeType.METHOD)
@@ -52,7 +54,15 @@ class Method(
 
     parent: Union["IsScriptable", None] = builtin_property_parent()
 
-    icon: "Icon | None" = builtin_property(102)
+    type: MethodType = builtin_property(100)
     text: Optional["Text"] = builtin_property(104)
-
     cardinality: MethodCardinality = builtin_property(110, default=MethodCardinality.UNARY)
+
+    platforms: list[PlatformType] = builtin_property(
+        120,
+        description="The platforms this Method is available on (all if empty).",
+    )
+    languages: list[RuntimeLanguage] = builtin_property(
+        121,
+        description="The languages this Method is available in (all if empty).",
+    )

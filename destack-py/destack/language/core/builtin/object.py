@@ -919,7 +919,7 @@ def path(self) -> str:
         path_parts.append(node._path_key)
         last_node = node
         node = node.parent
-    if not last_node.is_root:
+    if last_node.metatype != NodeType.SPACE:
         path_parts.append("<detached>")
     return "/".join(reversed(path_parts))
 """

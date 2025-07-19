@@ -19,6 +19,7 @@ from destack.utils.uuid import UUID
 
 from .common import Cson, NodeType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
+from .meta import builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls
 from .property import (
     _PROPERTY_SPECIFIERS,
@@ -196,11 +197,11 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __is_abstract__: ClassVar[bool] = False
     """The base type this Node extends (directly)."""
     __base_type__: ClassVar[NodeType | None] = None
-    """Nodes that extend this Node type (directly)."""
+    """Nodes that extend this Node (directly)."""
     __extended_by__: ClassVar[tuple[NodeType, ...]] = ()
     """Nodes that this Node extends (directly and indirectly)."""
     __inherits__: ClassVar[tuple[NodeType, ...]] = ()
-    """Nodes that extend this Node type (directly and indirectly)."""
+    """Nodes that extend this Node (directly and indirectly)."""
     __inherited_by__: ClassVar[tuple[NodeType, ...]] = ()
     """Traits directly inherited by this Node (directly)."""
     __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
@@ -211,42 +212,42 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The domain of this Node (Entity or Event)."""
     __store_domain__: ClassVar[StoreDomain | None] = None
 
-    """The parent type of this Node type (directly)."""
+    """The parent type of this Node (directly)."""
     __parent_property__: ClassVar[PropertyDeclaration | None] = None
-    """The parent classes of this Node type (directly)."""
+    """The parent classes of this Node (directly)."""
     __parent_classes__: ClassVar[tuple[type["Node"], ...]] = ()
-    """The parent types of this Node type (directly)."""
+    """The parent types of this Node (directly)."""
     __parent_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The child types of this Node type (directly)."""
+    """The child types of this Node (directly)."""
     __child_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The ancestor types of this Node type (directly and indirectly)."""
+    """The ancestor types of this Node (directly and indirectly)."""
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The descendant types of this Node type (directly and indirectly)."""
+    """The descendant types of this Node (directly and indirectly)."""
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    """The expected parent types of this Node type (any of)."""
+    """The expected parent types of this Node (any of)."""
     __expected_parent_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected child types of this Node type (any of)."""
+    """The expected child types of this Node (any of)."""
     __expected_child_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected ancestor types of this Node type (any of)."""
+    """The expected ancestor types of this Node (any of)."""
     __expected_ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The expected descendant types of this Node type (any of)."""
+    """The expected descendant types of this Node (any of)."""
     __expected_descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    """The base event types of this Node type (directly)."""
+    """The base event types of this Node (directly)."""
     __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The event types of this Node type (directly and indirectly)."""
+    """The event types of this Node (directly and indirectly)."""
     __event_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    """The indexes for this Node type."""
+    """The indexes for this Node."""
     __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
-    """The constraints for this Node type."""
+    """The constraints for this Node."""
     __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
-    """The permissions for this Node type."""
+    """The permissions for this Node."""
     __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
-    """The methods for this Node type."""
+    """The methods for this Node."""
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
-    """The actions for this Node type."""
+    """The actions for this Node."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
 
     # 1-20: node identity
@@ -302,17 +303,16 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return self.id.int
 
     @property
-    def is_root(self) -> bool:
-        return self.metatype == NodeType.SPACE
-
-    @property
+    @builtin_method(1)
     def path(self) -> str:
+        """The human readable path of this Node."""
         raise NotImplementedError  # generated
 
     def __to_ref__(self) -> "NodeReference":
         """Gets a reference to this Node."""
         raise NotImplementedError  # generated
 
+    @builtin_method(2)
     def to_ref(self) -> "NodeReference":
         """Gets a reference to this Node."""
         if self._ref is None:
@@ -340,6 +340,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return cast(Self, node)
 
     @classmethod
+    @builtin_method(60)
     def get(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -349,7 +350,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         include_deleted: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        """Make a get Query for this Node/Trait type."""
+        """Make a get Query for this Node."""
         from ..common.query import Join, Query, QueryType, to_subqueries
 
         assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
@@ -366,6 +367,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
+    @builtin_method(61)
     def search(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -380,7 +382,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         include_deleted: bool = False,
         **subqueries: "Query",
     ) -> "Query[Self]":  # type: ignore
-        """Make a search Query for this Node/Trait type."""
+        """Make a search Query for this Node."""
         from ..common.query import Expression, Join, Query, QueryType, to_subqueries
 
         assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
@@ -402,6 +404,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
+    @builtin_method(62)
     def exists(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -410,7 +413,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         join: Optional["JoinIn"] = None,
         include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
-        """Make a count Query for this Node/Trait type."""
+        """Make a count Query for this Node."""
         from ..common.query import (
             Aggregation,
             AggregationType,
@@ -433,6 +436,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
+    @builtin_method(63)
     def count(
         cls: type["Self"],
         where: Optional["Condition"] = None,
@@ -444,7 +448,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         having: Optional["Condition"] = None,
         include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
-        """Make a min Query for this Node/Trait type."""
+        """Make a min Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
@@ -464,6 +468,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
+    @builtin_method(64)
     def min(
         cls: type["Self"],
         expression: "ExpressionIn",
@@ -495,6 +500,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
+    @builtin_method(65)
     def max(
         cls: type["Self"],
         expression: "ExpressionIn",
@@ -507,7 +513,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         sort: Optional[list["Sort"]] = None,
         include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
-        """Make an average Query for this Node/Trait type."""
+        """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"
@@ -527,6 +533,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         return query  # type: ignore
 
     @classmethod
+    @builtin_method(66)
     def sum(
         cls: type["Self"],
         expression: "ExpressionIn",
@@ -539,7 +546,7 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
         sort: Optional[list["Sort"]] = None,
         include_deleted: bool = False,
     ) -> "Query[Self]":  # type: ignore
-        """Make an average Query for this Node/Trait type."""
+        """Make an average Query for this Node."""
         from ..common.query import Aggregation, AggregationType, Expression, Join, Query, QueryType
 
         assert cls.__store_domain__ is not None, f"no store domain for {cls.__name__}"

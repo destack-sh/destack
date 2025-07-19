@@ -4,6 +4,7 @@ from typing import TYPE_CHECKING
 from destack.language.core import (
     StructFrozen,
     StructType,
+    builtin_method,
     builtin_property,
     builtin_struct,
 )
@@ -14,90 +15,113 @@ if TYPE_CHECKING:
 
 @builtin_struct(StructType.VECTOR, frozen=True, is_abstract=True)
 class Vector(StructFrozen):
-    """A vector."""
+    """A Vector."""
 
     pass
 
 
 @builtin_struct(StructType.VECTORF, frozen=True, is_abstract=True)
 class Vectorf(Vector):
-    """A floating point vector."""
+    """A floating point Vector."""
 
     pass
 
 
 @builtin_struct(StructType.VECTORI, frozen=True, is_abstract=True)
 class Vectori(Vector):
-    """An integer vector."""
+    """An integer Vector."""
 
     pass
 
 
 @builtin_struct(StructType.VECTOR2F, frozen=True)
 class Vector2f(Vectorf):
-    """A 2D float vector."""
+    """A 2D floating point Vector."""
 
-    x: float = builtin_property(101, is_repr=True)
-    y: float = builtin_property(102, is_repr=True)
+    x: float = builtin_property(
+        101,
+        is_repr=True,
+        description="The x-coordinate of the Vector2f.",
+    )
+    y: float = builtin_property(
+        102,
+        is_repr=True,
+        description="The y-coordinate of the Vector2f.",
+    )
 
-    def __add__(self, other: "Vector2f | float") -> "Vector2f":
+    @builtin_method(101)
+    def add(self, other: "Vector2f | float") -> "Vector2f":
+        """Add a Vector2f or a scalar to a Vector2f."""
         if isinstance(other, Vector2f):
             return Vector2f(x=self.x + other.x, y=self.y + other.y)
         else:
             return Vector2f(x=self.x + other, y=self.y + other)
 
-    def __sub__(self, other: "Vector2f | float") -> "Vector2f":
+    @builtin_method(102)
+    def sub(self, other: "Vector2f | float") -> "Vector2f":
+        """Subtract a Vector2f or a scalar from a Vector2f."""
         if isinstance(other, Vector2f):
             return Vector2f(x=self.x - other.x, y=self.y - other.y)
         else:
             return Vector2f(x=self.x - other, y=self.y - other)
 
-    def __mul__(self, other: "Vector2f | float") -> "Vector2f":
+    @builtin_method(103)
+    def mul(self, other: "Vector2f | float") -> "Vector2f":
+        """Multiply a Vector2f or a scalar by a Vector2f."""
         if isinstance(other, Vector2f):
             return Vector2f(x=self.x * other.x, y=self.y * other.y)
         else:
             return Vector2f(x=self.x * other, y=self.y * other)
 
-    def __truediv__(self, other: "Vector2f | float") -> "Vector2f":
+    @builtin_method(104)
+    def truediv(self, other: "Vector2f | float") -> "Vector2f":
+        """Divide a Vector2f or a scalar by a Vector2f."""
         if isinstance(other, Vector2f):
             return Vector2f(x=self.x / other.x, y=self.y / other.y)
         else:
             return Vector2f(x=self.x / other, y=self.y / other)
 
-    def __rmul__(self, other: float) -> "Vector2f":
-        return Vector2f(x=other * self.x, y=other * self.y)
-
-    def __radd__(self, other: float) -> "Vector2f":
-        return Vector2f(x=other + self.x, y=other + self.y)
-
-    def __rsub__(self, other: float) -> "Vector2f":
-        return Vector2f(x=other - self.x, y=other - self.y)
-
-    def __rtruediv__(self, other: float) -> "Vector2f":
-        return Vector2f(x=other / self.x, y=other / self.y)
-
-    def __neg__(self) -> "Vector2f":
-        return Vector2f(x=-self.x, y=-self.y)
-
-    def __abs__(self) -> "Vector2f":
+    @builtin_method(109)
+    def abs(self) -> "Vector2f":
+        """Get the absolute value of a Vector2f."""
         return Vector2f(x=abs(self.x), y=abs(self.y))
 
+    @builtin_method(110)
     def neg(self) -> "Vector2f":
         """Negate a vector."""
         return Vector2f(x=-self.x, y=-self.y)
 
+    __add__ = add
+    __sub__ = sub
+    __mul__ = mul
+    __truediv__ = truediv
+    __radd__ = add
+    __rsub__ = sub
+    __rtruediv__ = truediv
+    __neg__ = neg
+    __abs__ = abs
+
+    @builtin_method(111)
     def perp(self) -> "Vector2f":
         """Get the perpendicular vector (rotated 90 degrees counterclockwise)."""
         return Vector2f(x=self.y, y=-self.x)
 
+    @builtin_method(112)
     def dot(self, other: "Vector2f") -> float:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y
 
+    @builtin_method(113)
     def magnitude(self) -> float:
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2) ** 0.5
 
+    @builtin_method(114)
+    def magnitude2(self) -> float:
+        """Calculate the squared magnitude of the vector."""
+        return self.x**2 + self.y**2
+
+    @builtin_method(115)
     def normalize(self) -> "Vector2f":
         """Return a normalized (unit) vector."""
         mag = self.magnitude()
@@ -105,25 +129,30 @@ class Vector2f(Vectorf):
             return Vector2f(x=0.0, y=0.0)
         return Vector2f(x=self.x / mag, y=self.y / mag)
 
+    @builtin_method(116)
     def distance(self, other: "Vector2f") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
+    @builtin_method(117)
     def distance2(self, other: "Vector2f") -> float:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2
 
+    @builtin_method(118)
     def angle(self, other: "Vector2f") -> float:
         """Calculate the angle to another vector in radians."""
         import math
 
         return math.atan2(other.y - self.y, other.x - self.x)
 
+    @builtin_method(119)
     def lerp(self, other: "Vector2f", t: float) -> "Vector2f":
         """Linear interpolation between this vector and another."""
         return Vector2f(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
 
+    @builtin_method(120)
     def rot_with(self, center: "Vector2f", angle: float) -> "Vector2f":
         """Rotate this vector around another point by the given angle."""
         import math
@@ -152,66 +181,93 @@ class Vector2f(Vectorf):
 
 @builtin_struct(StructType.VECTOR3F, frozen=True)
 class Vector3f(Vectorf):
-    """A 3D float vector."""
+    """A 3D floating point vector."""
 
-    x: float = builtin_property(101, is_repr=True)
-    y: float = builtin_property(102, is_repr=True)
-    z: float = builtin_property(103, is_repr=True)
+    x: float = builtin_property(
+        101,
+        is_repr=True,
+        description="The x-coordinate of the Vector3f.",
+    )
+    y: float = builtin_property(
+        102,
+        is_repr=True,
+        description="The y-coordinate of the Vector3f.",
+    )
+    z: float = builtin_property(
+        103,
+        is_repr=True,
+        description="The z-coordinate of the Vector3f.",
+    )
 
-    def __add__(self, other: "Vector3f | float") -> "Vector3f":
+    @builtin_method(101)
+    def add(self, other: "Vector3f | float") -> "Vector3f":
+        """Add a Vector3f or a scalar to a Vector3f."""
         if isinstance(other, Vector3f):
             return Vector3f(x=self.x + other.x, y=self.y + other.y, z=self.z + other.z)
         else:
             return Vector3f(x=self.x + other, y=self.y + other, z=self.z + other)
 
-    def __sub__(self, other: "Vector3f | float") -> "Vector3f":
+    @builtin_method(102)
+    def sub(self, other: "Vector3f | float") -> "Vector3f":
+        """Subtract a Vector3f or a scalar from a Vector3f."""
         if isinstance(other, Vector3f):
             return Vector3f(x=self.x - other.x, y=self.y - other.y, z=self.z - other.z)
         else:
             return Vector3f(x=self.x - other, y=self.y - other, z=self.z - other)
 
-    def __mul__(self, other: "Vector3f | float") -> "Vector3f":
+    @builtin_method(103)
+    def mul(self, other: "Vector3f | float") -> "Vector3f":
+        """Multiply a Vector3f or a scalar by a Vector3f."""
         if isinstance(other, Vector3f):
             return Vector3f(x=self.x * other.x, y=self.y * other.y, z=self.z * other.z)
         else:
             return Vector3f(x=self.x * other, y=self.y * other, z=self.z * other)
 
-    def __truediv__(self, other: "Vector3f | float") -> "Vector3f":
+    @builtin_method(104)
+    def truediv(self, other: "Vector3f | float") -> "Vector3f":
+        """Divide a Vector3f or a scalar by a Vector3f."""
         if isinstance(other, Vector3f):
             return Vector3f(x=self.x / other.x, y=self.y / other.y, z=self.z / other.z)
         else:
             return Vector3f(x=self.x / other, y=self.y / other, z=self.z / other)
 
-    def __rmul__(self, other: float) -> "Vector3f":
-        return Vector3f(x=other * self.x, y=other * self.y, z=other * self.z)
-
-    def __radd__(self, other: float) -> "Vector3f":
-        return Vector3f(x=other + self.x, y=other + self.y, z=other + self.z)
-
-    def __rsub__(self, other: float) -> "Vector3f":
-        return Vector3f(x=other - self.x, y=other - self.y, z=other - self.z)
-
-    def __rtruediv__(self, other: float) -> "Vector3f":
-        return Vector3f(x=other / self.x, y=other / self.y, z=other / self.z)
-
-    def __neg__(self) -> "Vector3f":
+    @builtin_method(109)
+    def neg(self) -> "Vector3f":
+        """Negate a vector."""
         return Vector3f(x=-self.x, y=-self.y, z=-self.z)
 
-    def __abs__(self) -> "Vector3f":
+    @builtin_method(110)
+    def abs(self) -> "Vector3f":
+        """Get the absolute value of a Vector3f."""
         return Vector3f(x=abs(self.x), y=abs(self.y), z=abs(self.z))
 
+    __add__ = add
+    __sub__ = sub
+    __mul__ = mul
+    __truediv__ = truediv
+    __rmul__ = mul
+    __radd__ = add
+    __rsub__ = sub
+    __rtruediv__ = truediv
+    __neg__ = neg
+    __abs__ = abs
+
+    @builtin_method(111)
     def dot(self, other: "Vector3f") -> float:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y + self.z * other.z
 
+    @builtin_method(112)
     def magnitude(self) -> float:
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2 + self.z**2) ** 0.5
 
+    @builtin_method(113)
     def magnitude2(self) -> float:
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2
 
+    @builtin_method(114)
     def normalize(self) -> "Vector3f":
         """Return a normalized (unit) vector."""
         mag = self.magnitude()
@@ -219,15 +275,18 @@ class Vector3f(Vectorf):
             return Vector3f(x=0.0, y=0.0, z=0.0)
         return Vector3f(x=self.x / mag, y=self.y / mag, z=self.z / mag)
 
+    @builtin_method(115)
     def distance(self, other: "Vector3f") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
+    @builtin_method(116)
     def distance2(self, other: "Vector3f") -> float:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2 + diff.z**2
 
+    @builtin_method(117)
     def angle(self, other: "Vector3f") -> float:
         """Calculate the angle to another vector in radians."""
         import math
@@ -238,6 +297,7 @@ class Vector3f(Vectorf):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
+    @builtin_method(118)
     def lerp(self, other: "Vector3f", t: float) -> "Vector3f":
         """Linear interpolation between this vector and another."""
         return Vector3f(
@@ -246,6 +306,7 @@ class Vector3f(Vectorf):
             z=self.z + (other.z - self.z) * t,
         )
 
+    @builtin_method(119)
     def cross(self, other: "Vector3f") -> "Vector3f":
         """Calculate the cross product with another vector."""
         return Vector3f(
@@ -275,14 +336,32 @@ class Vector3f(Vectorf):
 
 @builtin_struct(StructType.VECTOR4F, frozen=True)
 class Vector4f(Vectorf):
-    """A 4D float vector."""
+    """A 4D floating point vector."""
 
-    x: float = builtin_property(101, is_repr=True)
-    y: float = builtin_property(102, is_repr=True)
-    z: float = builtin_property(103, is_repr=True)
-    w: float = builtin_property(104, is_repr=True)
+    x: float = builtin_property(
+        101,
+        is_repr=True,
+        description="The x-coordinate of the Vector4f.",
+    )
+    y: float = builtin_property(
+        102,
+        is_repr=True,
+        description="The y-coordinate of the Vector4f.",
+    )
+    z: float = builtin_property(
+        103,
+        is_repr=True,
+        description="The z-coordinate of the Vector4f.",
+    )
+    w: float = builtin_property(
+        104,
+        is_repr=True,
+        description="The w-coordinate of the Vector4f.",
+    )
 
-    def __add__(self, other: "Vector4f | float") -> "Vector4f":
+    @builtin_method(101)
+    def add(self, other: "Vector4f | float") -> "Vector4f":
+        """Add a Vector4f or a scalar to a Vector4f."""
         if isinstance(other, Vector4f):
             return Vector4f(
                 x=self.x + other.x, y=self.y + other.y, z=self.z + other.z, w=self.w + other.w
@@ -290,7 +369,9 @@ class Vector4f(Vectorf):
         else:
             return Vector4f(x=self.x + other, y=self.y + other, z=self.z + other, w=self.w + other)
 
-    def __sub__(self, other: "Vector4f | float") -> "Vector4f":
+    @builtin_method(102)
+    def sub(self, other: "Vector4f | float") -> "Vector4f":
+        """Subtract a Vector4f or a scalar from a Vector4f."""
         if isinstance(other, Vector4f):
             return Vector4f(
                 x=self.x - other.x, y=self.y - other.y, z=self.z - other.z, w=self.w - other.w
@@ -298,7 +379,9 @@ class Vector4f(Vectorf):
         else:
             return Vector4f(x=self.x - other, y=self.y - other, z=self.z - other, w=self.w - other)
 
-    def __mul__(self, other: "Vector4f | float") -> "Vector4f":
+    @builtin_method(103)
+    def mul(self, other: "Vector4f | float") -> "Vector4f":
+        """Multiply a Vector4f or a scalar by a Vector4f."""
         if isinstance(other, Vector4f):
             return Vector4f(
                 x=self.x * other.x, y=self.y * other.y, z=self.z * other.z, w=self.w * other.w
@@ -306,7 +389,9 @@ class Vector4f(Vectorf):
         else:
             return Vector4f(x=self.x * other, y=self.y * other, z=self.z * other, w=self.w * other)
 
-    def __truediv__(self, other: "Vector4f | float") -> "Vector4f":
+    @builtin_method(104)
+    def truediv(self, other: "Vector4f | float") -> "Vector4f":
+        """Divide a Vector4f or a scalar by a Vector4f."""
         if isinstance(other, Vector4f):
             return Vector4f(
                 x=self.x / other.x, y=self.y / other.y, z=self.z / other.z, w=self.w / other.w
@@ -314,36 +399,43 @@ class Vector4f(Vectorf):
         else:
             return Vector4f(x=self.x / other, y=self.y / other, z=self.z / other, w=self.w / other)
 
-    def __rmul__(self, other: float) -> "Vector4f":
-        return Vector4f(x=other * self.x, y=other * self.y, z=other * self.z, w=other * self.w)
-
-    def __radd__(self, other: float) -> "Vector4f":
-        return Vector4f(x=other + self.x, y=other + self.y, z=other + self.z, w=other + self.w)
-
-    def __rsub__(self, other: float) -> "Vector4f":
-        return Vector4f(x=other - self.x, y=other - self.y, z=other - self.z, w=other - self.w)
-
-    def __rtruediv__(self, other: float) -> "Vector4f":
-        return Vector4f(x=other / self.x, y=other / self.y, z=other / self.z, w=other / self.w)
-
-    def __neg__(self) -> "Vector4f":
+    @builtin_method(109)
+    def neg(self) -> "Vector4f":
+        """Negate a vector."""
         return Vector4f(x=-self.x, y=-self.y, z=-self.z, w=-self.w)
 
-    def __abs__(self) -> "Vector4f":
+    @builtin_method(110)
+    def abs(self) -> "Vector4f":
+        """Get the absolute value of a Vector4f."""
         return Vector4f(x=abs(self.x), y=abs(self.y), z=abs(self.z), w=abs(self.w))
 
+    __add__ = add
+    __sub__ = sub
+    __mul__ = mul
+    __truediv__ = truediv
+    __rmul__ = mul
+    __radd__ = add
+    __rsub__ = sub
+    __rtruediv__ = truediv
+    __neg__ = neg
+    __abs__ = abs
+
+    @builtin_method(111)
     def dot(self, other: "Vector4f") -> float:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
 
+    @builtin_method(112)
     def magnitude(self) -> float:
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2 + self.z**2 + self.w**2) ** 0.5
 
+    @builtin_method(113)
     def magnitude2(self) -> float:
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2 + self.w**2
 
+    @builtin_method(114)
     def normalize(self) -> "Vector4f":
         """Return a normalized (unit) vector."""
         mag = self.magnitude()
@@ -351,15 +443,18 @@ class Vector4f(Vectorf):
             return Vector4f(x=0.0, y=0.0, z=0.0, w=0.0)
         return Vector4f(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
 
+    @builtin_method(115)
     def distance(self, other: "Vector4f") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
+    @builtin_method(116)
     def distance2(self, other: "Vector4f") -> float:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2 + diff.z**2 + diff.w**2
 
+    @builtin_method(117)
     def angle(self, other: "Vector4f") -> float:
         """Calculate the angle to another vector in radians."""
         import math
@@ -370,6 +465,7 @@ class Vector4f(Vectorf):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
+    @builtin_method(118)
     def lerp(self, other: "Vector4f", t: float) -> "Vector4f":
         """Linear interpolation between this vector and another."""
         return Vector4f(
@@ -405,91 +501,119 @@ class Vector4f(Vectorf):
 class Vector2i(Vectori):
     """A 2D integer vector."""
 
-    x: int = builtin_property(101, is_repr=True)
-    y: int = builtin_property(102, is_repr=True)
+    x: int = builtin_property(
+        101,
+        is_repr=True,
+        description="The x-coordinate of the Vector2i.",
+    )
+    y: int = builtin_property(
+        102,
+        is_repr=True,
+        description="The y-coordinate of the Vector2i.",
+    )
 
-    def __add__(self, other: "Vector2i | int") -> "Vector2i":
+    @builtin_method(101)
+    def add(self, other: "Vector2i | int") -> "Vector2i":
+        """Add a Vector2i or a scalar to a Vector2i."""
         if isinstance(other, Vector2i):
             return Vector2i(x=self.x + other.x, y=self.y + other.y)
         else:
             return Vector2i(x=self.x + other, y=self.y + other)
 
-    def __sub__(self, other: "Vector2i | int") -> "Vector2i":
+    @builtin_method(102)
+    def sub(self, other: "Vector2i | int") -> "Vector2i":
+        """Subtract a Vector2i or a scalar from a Vector2i."""
         if isinstance(other, Vector2i):
             return Vector2i(x=self.x - other.x, y=self.y - other.y)
         else:
             return Vector2i(x=self.x - other, y=self.y - other)
 
-    def __mul__(self, other: "Vector2i | int") -> "Vector2i":
+    @builtin_method(103)
+    def mul(self, other: "Vector2i | int") -> "Vector2i":
+        """Multiply a Vector2i or a scalar by a Vector2i."""
         if isinstance(other, Vector2i):
             return Vector2i(x=self.x * other.x, y=self.y * other.y)
         else:
             return Vector2i(x=self.x * other, y=self.y * other)
 
-    def __truediv__(self, other: "Vector2i | int") -> "Vector2i":
+    @builtin_method(104)
+    def truediv(self, other: "Vector2i | int") -> "Vector2i":
+        """Divide a Vector2i or a scalar by a Vector2i."""
         if isinstance(other, Vector2i):
             return Vector2i(x=self.x // other.x, y=self.y // other.y)
         else:
             return Vector2i(x=self.x // other, y=self.y // other)
 
-    def __rmul__(self, other: int) -> "Vector2i":
-        return Vector2i(x=other * self.x, y=other * self.y)
-
-    def __radd__(self, other: int) -> "Vector2i":
-        return Vector2i(x=other + self.x, y=other + self.y)
-
-    def __rsub__(self, other: int) -> "Vector2i":
-        return Vector2i(x=other - self.x, y=other - self.y)
-
-    def __rtruediv__(self, other: int) -> "Vector2i":
-        return Vector2i(x=other // self.x, y=other // self.y)
-
-    def __neg__(self) -> "Vector2i":
+    @builtin_method(109)
+    def neg(self) -> "Vector2i":
+        """Negate a vector."""
         return Vector2i(x=-self.x, y=-self.y)
 
-    def __abs__(self) -> "Vector2i":
+    @builtin_method(110)
+    def abs(self) -> "Vector2i":
+        """Get the absolute value of a Vector2i."""
         return Vector2i(x=abs(self.x), y=abs(self.y))
 
+    __add__ = add
+    __sub__ = sub
+    __mul__ = mul
+    __truediv__ = truediv
+    __rmul__ = mul
+    __radd__ = add
+    __rsub__ = sub
+    __rtruediv__ = truediv
+    __neg__ = neg
+    __abs__ = abs
+
+    @builtin_method(111)
     def dot(self, other: "Vector2i") -> int:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y
 
+    @builtin_method(112)
     def magnitude(self) -> float:
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2) ** 0.5
 
+    @builtin_method(113)
     def magnitude2(self) -> int:
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2
 
+    @builtin_method(114)
     def normalize(self) -> "Vector2f":
-        """Return a normalized (unit) vector as float vector."""
+        """Return a normalized (unit) vector as floating point vector."""
         mag = self.magnitude()
         if mag == 0:
             return Vector2f(x=0.0, y=0.0)
         return Vector2f(x=self.x / mag, y=self.y / mag)
 
+    @builtin_method(115)
     def distance(self, other: "Vector2i") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
+    @builtin_method(116)
     def distance2(self, other: "Vector2i") -> int:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2
 
+    @builtin_method(117)
     def angle(self, other: "Vector2i") -> float:
         """Calculate the angle to another vector in radians."""
         import math
 
         return math.atan2(other.y - self.y, other.x - self.x)
 
+    @builtin_method(118)
     def lerp(self, other: "Vector2i", t: float) -> "Vector2f":
-        """Linear interpolation between this vector and another as float vector."""
+        """Linear interpolation between this vector and another as floating point vector."""
         return Vector2f(x=self.x + (other.x - self.x) * t, y=self.y + (other.y - self.y) * t)
 
+    @builtin_method(119)
     def rot_with(self, center: "Vector2i", angle: float) -> "Vector2f":
-        """Rotate this vector around another point by the given angle as float vector."""
+        """Rotate this vector around another point by the given angle as floating point vector."""
         import math
 
         x = self.x - center.x
@@ -518,80 +642,110 @@ class Vector2i(Vectori):
 class Vector3i(Vectori):
     """A 3D integer vector."""
 
-    x: int = builtin_property(101, is_repr=True)
-    y: int = builtin_property(102, is_repr=True)
-    z: int = builtin_property(103, is_repr=True)
+    x: int = builtin_property(
+        101,
+        is_repr=True,
+        description="The x-coordinate of the Vector3i.",
+    )
+    y: int = builtin_property(
+        102,
+        is_repr=True,
+        description="The y-coordinate of the Vector3i.",
+    )
+    z: int = builtin_property(
+        103,
+        is_repr=True,
+        description="The z-coordinate of the Vector3i.",
+    )
 
-    def __add__(self, other: "Vector3i | int") -> "Vector3i":
+    @builtin_method(101)
+    def add(self, other: "Vector3i | int") -> "Vector3i":
+        """Add a Vector3i or a scalar to a Vector3i."""
         if isinstance(other, Vector3i):
             return Vector3i(x=self.x + other.x, y=self.y + other.y, z=self.z + other.z)
         else:
             return Vector3i(x=self.x + other, y=self.y + other, z=self.z + other)
 
-    def __sub__(self, other: "Vector3i | int") -> "Vector3i":
+    @builtin_method(102)
+    def sub(self, other: "Vector3i | int") -> "Vector3i":
+        """Subtract a Vector3i or a scalar from a Vector3i."""
         if isinstance(other, Vector3i):
             return Vector3i(x=self.x - other.x, y=self.y - other.y, z=self.z - other.z)
         else:
             return Vector3i(x=self.x - other, y=self.y - other, z=self.z - other)
 
-    def __mul__(self, other: "Vector3i | int") -> "Vector3i":
+    @builtin_method(103)
+    def mul(self, other: "Vector3i | int") -> "Vector3i":
+        """Multiply a Vector3i or a scalar by a Vector3i."""
         if isinstance(other, Vector3i):
             return Vector3i(x=self.x * other.x, y=self.y * other.y, z=self.z * other.z)
         else:
             return Vector3i(x=self.x * other, y=self.y * other, z=self.z * other)
 
-    def __truediv__(self, other: "Vector3i") -> "Vector3i":
+    @builtin_method(104)
+    def truediv(self, other: "Vector3i | int") -> "Vector3i":
+        """Divide a Vector3i or a scalar by a Vector3i."""
         if isinstance(other, Vector3i):
             return Vector3i(x=self.x // other.x, y=self.y // other.y, z=self.z // other.z)
         else:
             return Vector3i(x=self.x // other, y=self.y // other, z=self.z // other)
 
-    def __rmul__(self, other: int) -> "Vector3i":
-        return Vector3i(x=other * self.x, y=other * self.y, z=other * self.z)
-
-    def __radd__(self, other: int) -> "Vector3i":
-        return Vector3i(x=other + self.x, y=other + self.y, z=other + self.z)
-
-    def __rsub__(self, other: int) -> "Vector3i":
-        return Vector3i(x=other - self.x, y=other - self.y, z=other - self.z)
-
-    def __rtruediv__(self, other: int) -> "Vector3i":
-        return Vector3i(x=other // self.x, y=other // self.y, z=other // self.z)
-
-    def __neg__(self) -> "Vector3i":
+    @builtin_method(109)
+    def neg(self) -> "Vector3i":
+        """Negate a vector."""
         return Vector3i(x=-self.x, y=-self.y, z=-self.z)
 
-    def __abs__(self) -> "Vector3i":
+    @builtin_method(110)
+    def abs(self) -> "Vector3i":
+        """Get the absolute value of a Vector3i."""
         return Vector3i(x=abs(self.x), y=abs(self.y), z=abs(self.z))
 
+    __add__ = add
+    __sub__ = sub
+    __mul__ = mul
+    __truediv__ = truediv
+    __rmul__ = mul
+    __radd__ = add
+    __rsub__ = sub
+    __rtruediv__ = truediv
+    __neg__ = neg
+    __abs__ = abs
+
+    @builtin_method(111)
     def dot(self, other: "Vector3i") -> int:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y + self.z * other.z
 
+    @builtin_method(112)
     def magnitude(self) -> float:
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2 + self.z**2) ** 0.5
 
+    @builtin_method(113)
     def magnitude2(self) -> int:
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2
 
+    @builtin_method(114)
     def normalize(self) -> "Vector3f":
-        """Return a normalized (unit) vector as float vector."""
+        """Return a normalized (unit) vector as floating point vector."""
         mag = self.magnitude()
         if mag == 0:
             return Vector3f(x=0.0, y=0.0, z=0.0)
         return Vector3f(x=self.x / mag, y=self.y / mag, z=self.z / mag)
 
+    @builtin_method(115)
     def distance(self, other: "Vector3i") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
+    @builtin_method(116)
     def distance2(self, other: "Vector3i") -> int:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2 + diff.z**2
 
+    @builtin_method(117)
     def angle(self, other: "Vector3i") -> float:
         """Calculate the angle to another vector in radians."""
         import math
@@ -602,14 +756,16 @@ class Vector3i(Vectori):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
+    @builtin_method(118)
     def lerp(self, other: "Vector3i", t: float) -> "Vector3f":
-        """Linear interpolation between this vector and another as float vector."""
+        """Linear interpolation between this vector and another as floating point vector."""
         return Vector3f(
             x=self.x + (other.x - self.x) * t,
             y=self.y + (other.y - self.y) * t,
             z=self.z + (other.z - self.z) * t,
         )
 
+    @builtin_method(119)
     def cross(self, other: "Vector3i") -> "Vector3i":
         """Calculate the cross product with another vector."""
         return Vector3i(
@@ -641,12 +797,30 @@ class Vector3i(Vectori):
 class Vector4i(Vectori):
     """A 4D integer vector."""
 
-    x: int = builtin_property(101, is_repr=True)
-    y: int = builtin_property(102, is_repr=True)
-    z: int = builtin_property(103, is_repr=True)
-    w: int = builtin_property(104, is_repr=True)
+    x: int = builtin_property(
+        101,
+        is_repr=True,
+        description="The x-coordinate of the Vector4i.",
+    )
+    y: int = builtin_property(
+        102,
+        is_repr=True,
+        description="The y-coordinate of the Vector4i.",
+    )
+    z: int = builtin_property(
+        103,
+        is_repr=True,
+        description="The z-coordinate of the Vector4i.",
+    )
+    w: int = builtin_property(
+        104,
+        is_repr=True,
+        description="The w-coordinate of the Vector4i.",
+    )
 
-    def __add__(self, other: "Vector4i | int") -> "Vector4i":
+    @builtin_method(101)
+    def add(self, other: "Vector4i | int") -> "Vector4i":
+        """Add a Vector4i or a scalar to a Vector4i."""
         if isinstance(other, Vector4i):
             return Vector4i(
                 x=self.x + other.x, y=self.y + other.y, z=self.z + other.z, w=self.w + other.w
@@ -654,7 +828,9 @@ class Vector4i(Vectori):
         else:
             return Vector4i(x=self.x + other, y=self.y + other, z=self.z + other, w=self.w + other)
 
-    def __sub__(self, other: "Vector4i | int") -> "Vector4i":
+    @builtin_method(102)
+    def sub(self, other: "Vector4i | int") -> "Vector4i":
+        """Subtract a Vector4i or a scalar from a Vector4i."""
         if isinstance(other, Vector4i):
             return Vector4i(
                 x=self.x - other.x, y=self.y - other.y, z=self.z - other.z, w=self.w - other.w
@@ -662,7 +838,9 @@ class Vector4i(Vectori):
         else:
             return Vector4i(x=self.x - other, y=self.y - other, z=self.z - other, w=self.w - other)
 
-    def __mul__(self, other: "Vector4i | int") -> "Vector4i":
+    @builtin_method(103)
+    def mul(self, other: "Vector4i | int") -> "Vector4i":
+        """Multiply a Vector4i or a scalar by a Vector4i."""
         if isinstance(other, Vector4i):
             return Vector4i(
                 x=self.x * other.x, y=self.y * other.y, z=self.z * other.z, w=self.w * other.w
@@ -670,7 +848,9 @@ class Vector4i(Vectori):
         else:
             return Vector4i(x=self.x * other, y=self.y * other, z=self.z * other, w=self.w * other)
 
-    def __truediv__(self, other: "Vector4i | int") -> "Vector4i":
+    @builtin_method(104)
+    def truediv(self, other: "Vector4i | int") -> "Vector4i":
+        """Divide a Vector4i or a scalar by a Vector4i."""
         if isinstance(other, Vector4i):
             return Vector4i(
                 x=self.x // other.x, y=self.y // other.y, z=self.z // other.z, w=self.w // other.w
@@ -680,52 +860,62 @@ class Vector4i(Vectori):
                 x=self.x // other, y=self.y // other, z=self.z // other, w=self.w // other
             )
 
-    def __rmul__(self, other: int) -> "Vector4i":
-        return Vector4i(x=other * self.x, y=other * self.y, z=other * self.z, w=other * self.w)
-
-    def __radd__(self, other: int) -> "Vector4i":
-        return Vector4i(x=other + self.x, y=other + self.y, z=other + self.z, w=other + self.w)
-
-    def __rsub__(self, other: int) -> "Vector4i":
-        return Vector4i(x=other - self.x, y=other - self.y, z=other - self.z, w=other - self.w)
-
-    def __rtruediv__(self, other: int) -> "Vector4i":
-        return Vector4i(x=other // self.x, y=other // self.y, z=other // self.z, w=other // self.w)
-
-    def __neg__(self) -> "Vector4i":
+    @builtin_method(109)
+    def neg(self) -> "Vector4i":
+        """Negate a vector."""
         return Vector4i(x=-self.x, y=-self.y, z=-self.z, w=-self.w)
 
-    def __abs__(self) -> "Vector4i":
+    @builtin_method(110)
+    def abs(self) -> "Vector4i":
+        """Get the absolute value of a Vector4i."""
         return Vector4i(x=abs(self.x), y=abs(self.y), z=abs(self.z), w=abs(self.w))
 
+    __add__ = add
+    __sub__ = sub
+    __mul__ = mul
+    __truediv__ = truediv
+    __rmul__ = mul
+    __radd__ = add
+    __rsub__ = sub
+    __rtruediv__ = truediv
+    __neg__ = neg
+    __abs__ = abs
+
+    @builtin_method(111)
     def dot(self, other: "Vector4i") -> int:
         """Calculate the dot product with another vector."""
         return self.x * other.x + self.y * other.y + self.z * other.z + self.w * other.w
 
+    @builtin_method(112)
     def magnitude(self) -> float:
         """Calculate the magnitude (length) of the vector."""
         return (self.x**2 + self.y**2 + self.z**2 + self.w**2) ** 0.5
 
+    @builtin_method(113)
     def magnitude2(self) -> int:
         """Calculate the squared magnitude of the vector."""
         return self.x**2 + self.y**2 + self.z**2 + self.w**2
 
+    @builtin_method(114)
     def normalize(self) -> "Vector4f":
-        """Return a normalized (unit) vector as float vector."""
+        """Return a normalized (unit) vector as floating point vector."""
         mag = self.magnitude()
         if mag == 0:
             return Vector4f(x=0.0, y=0.0, z=0.0, w=0.0)
         return Vector4f(x=self.x / mag, y=self.y / mag, z=self.z / mag, w=self.w / mag)
 
+    @builtin_method(115)
     def distance(self, other: "Vector4i") -> float:
         """Calculate the distance to another vector."""
         return (self - other).magnitude()
 
+    @builtin_method(116)
     def distance2(self, other: "Vector4i") -> int:
         """Calculate the squared distance to another vector."""
         diff = self - other
         return diff.x**2 + diff.y**2 + diff.z**2 + diff.w**2
 
+    @builtin_method(117)
     def angle(self, other: "Vector4i") -> float:
         """Calculate the angle to another vector in radians."""
         import math
@@ -736,8 +926,9 @@ class Vector4i(Vectori):
             return 0.0
         return math.acos(max(-1.0, min(1.0, dot_product / mag_product)))
 
+    @builtin_method(118)
     def lerp(self, other: "Vector4i", t: float) -> "Vector4f":
-        """Linear interpolation between this vector and another as float vector."""
+        """Linear interpolation between this vector and another as floating point vector."""
         return Vector4f(
             x=self.x + (other.x - self.x) * t,
             y=self.y + (other.y - self.y) * t,

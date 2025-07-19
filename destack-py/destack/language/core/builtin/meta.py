@@ -1,7 +1,10 @@
-from typing import NamedTuple
+from typing import TYPE_CHECKING, Callable, NamedTuple
 
 from .common import EnumType
 from .enum import Enum, builtin_enum
+
+if TYPE_CHECKING:
+    from .property import PropertyDeclaration
 
 
 @builtin_enum(EnumType.CONSTRAINT_TYPE)
@@ -44,3 +47,57 @@ class PermissionDeclaration(NamedTuple):
 
     id: int
     name: str
+
+
+@builtin_enum(EnumType.METHOD_TYPE)
+class MethodType(Enum):
+    PROPERTY = 1, "Property", "Computed property"
+    INSTANCE = 2, "Instance", "Instance method"
+    STATIC = 3, "Static", "Static method"
+
+
+@builtin_enum(EnumType.METHOD_CARDINALITY)
+class MethodCardinality(Enum):
+    UNARY = 1, "Unary", "Single in, single out"
+    # UNARY_STREAM = 2, "Unary Stream", "Single in, stream out"
+
+    @property
+    def is_boundary(self) -> bool:
+        return self < 40
+
+
+class MethodDeclaration(NamedTuple):
+    """Declaration of a MethodDefinition (internal use only)."""
+
+    id: int
+    name: str
+    properties: tuple["PropertyDeclaration", ...]
+    func: Callable
+    type: MethodType
+    is_async: bool
+    is_abstract: bool
+
+
+def builtin_method(id: int, *, name: str | None = None):
+    """Declare a builtin Method."""
+
+    def decorate(func):
+        # TODO: register the method on the BuiltinObject
+        return func
+
+    return decorate
+
+
+class ActionDeclaration(MethodDeclaration):
+    """Declaration of an ActionDefinition (internal use only)."""
+
+    pass
+
+
+def builtin_action(id: int, *, name: str | None = None):
+    """Declare a builtin Action."""
+
+    def decorate(func):
+        return func
+
+    return decorate

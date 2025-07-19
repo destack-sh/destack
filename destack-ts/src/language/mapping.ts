@@ -100,7 +100,12 @@ import type {
   Variant,
 } from "@destack/language/core/builtin/entity";
 import type { CustomEvent, Event, EventStatus, Signal } from "@destack/language/core/builtin/event";
-import type { ConstraintType, IndexType } from "@destack/language/core/builtin/meta";
+import type {
+  ConstraintType,
+  IndexType,
+  MethodCardinality,
+  MethodType,
+} from "@destack/language/core/builtin/meta";
 import type {
   NodeDefinitionReference,
   NodeDefinitionType,
@@ -148,11 +153,7 @@ import type {
   Index,
   IndexDefinition,
 } from "@destack/language/core/common/integrity";
-import type {
-  Method,
-  MethodCardinality,
-  MethodDefinition,
-} from "@destack/language/core/common/method";
+import type { Method, MethodDefinition } from "@destack/language/core/common/method";
 import type {
   Migration,
   MigrationDefinition,
@@ -308,6 +309,8 @@ import type {
   TimerCancelledEvent,
   TimerCompletedEvent,
   TimerEvent,
+  TimerPausedEvent,
+  TimerResumedEvent,
   TimerStartedEvent,
   TimerType,
 } from "@destack/language/logic/timer";
@@ -577,6 +580,8 @@ export type NodeTypeMapping = {
   [NodeType.SERVICE]: Service;
   [NodeType.TIMER_EVENT]: TimerEvent;
   [NodeType.TIMER_STARTED_EVENT]: TimerStartedEvent;
+  [NodeType.TIMER_PAUSED_EVENT]: TimerPausedEvent;
+  [NodeType.TIMER_RESUMED_EVENT]: TimerResumedEvent;
   [NodeType.TIMER_COMPLETED_EVENT]: TimerCompletedEvent;
   [NodeType.TIMER_CANCELLED_EVENT]: TimerCancelledEvent;
   [NodeType.TIMER]: Timer;
@@ -754,6 +759,10 @@ export type EnumTypeMapping = {
   [EnumType.RESOURCE_STATUS]: ResourceStatus;
   [EnumType.CLIENT_TYPE]: ClientType;
   [EnumType.TENANCY]: Tenancy;
+  [EnumType.CONSTRAINT_TYPE]: ConstraintType;
+  [EnumType.INDEX_TYPE]: IndexType;
+  [EnumType.METHOD_TYPE]: MethodType;
+  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.MATERIALIZATION]: Materialization;
   [EnumType.NODE_DEFINITION_TYPE]: NodeDefinitionType;
   [EnumType.OBJECT_DEFINITION_TYPE]: ObjectDefinitionType;
@@ -762,9 +771,6 @@ export type EnumTypeMapping = {
   [EnumType.EVENT_STATUS]: EventStatus;
   [EnumType.EDIT_TYPE]: EditType;
   [EnumType.EDIT_OPERATION]: EditOperation;
-  [EnumType.CONSTRAINT_TYPE]: ConstraintType;
-  [EnumType.INDEX_TYPE]: IndexType;
-  [EnumType.METHOD_CARDINALITY]: MethodCardinality;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;
   [EnumType.ICON_TYPE]: IconType;

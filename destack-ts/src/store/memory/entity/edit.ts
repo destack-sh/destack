@@ -1,5 +1,4 @@
 import {
-  CASCADING_EDIT_TYPES,
   EdgeDirection,
   EditEvent,
   EditOperation,
@@ -103,7 +102,7 @@ function optimizeEdits(options: { context: MemoryContext; edits: EditEvent[] }):
   }
 
   for (const edit of edits) {
-    if (CASCADING_EDIT_TYPES.includes(edit.type)) {
+    if (edit.type === EditType.DELETE || edit.type === EditType.RESTORE) {
       flush(); // close current segment
       optimizedEdits.push(edit); // keep position
     } else {

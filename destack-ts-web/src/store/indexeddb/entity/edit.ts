@@ -7,7 +7,6 @@ import { walkNode } from "@destack-web/store/indexeddb/entity/query";
 import { packEntityRow } from "@destack-web/store/indexeddb/entity/wiring";
 import { getEntityKey } from "@destack-web/store/indexeddb/map";
 import {
-  CASCADING_EDIT_TYPES,
   EdgeDirection,
   EditEvent,
   EditOperation,
@@ -114,7 +113,7 @@ function optimizeEdits(options: { context: IndexedDBContext; edits: EditEvent[] 
   }
 
   for (const edit of edits) {
-    if (CASCADING_EDIT_TYPES.includes(edit.type)) {
+    if (edit.type === EditType.DELETE || edit.type === EditType.RESTORE) {
       flush(); // close current segment
       optimizedEdits.push(edit); // keep position
     } else {

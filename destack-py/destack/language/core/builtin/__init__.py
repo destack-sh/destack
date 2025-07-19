@@ -72,7 +72,6 @@ from .const import (
 )
 from .constant import CONSTANT_DECLARATIONS, ConstantDeclaration, register_constant
 from .edit import (
-    CASCADING_EDIT_TYPES,
     EditEvent,
     EditOperation,
     EditType,
@@ -88,11 +87,17 @@ from .entity import (
 from .enum import Enum, builtin_enum
 from .event import CustomEvent, Event, EventStatus
 from .meta import (
+    ActionDeclaration,
     ConstraintDeclaration,
     ConstraintType,
     IndexDeclaration,
     IndexType,
+    MethodCardinality,
+    MethodDeclaration,
+    MethodType,
     PermissionDeclaration,
+    builtin_action,
+    builtin_method,
 )
 from .node import Node, builtin_node
 from .object import BuiltinObject, _is_finalized
@@ -144,7 +149,6 @@ __all__ = [
     "ACTIVE_SNAPSHOT",
     "ACTIVE_SPACE",
     "BEGINNING_OF_TIME",
-    "CASCADING_EDIT_TYPES",
     "CLOUD",
     "CONSTANT_DECLARATIONS",
     "EMPTY_DICT",
@@ -164,6 +168,7 @@ __all__ = [
     "TRAIT_TYPES",
     "UNSET",
     "VERSION",
+    "ActionDeclaration",
     "BuiltinObject",
     "CascadeAction",
     "ClientType",
@@ -206,6 +211,9 @@ __all__ = [
     "IsViewable",
     "Json",
     "Materialization",
+    "MethodCardinality",
+    "MethodDeclaration",
+    "MethodType",
     "ModeType",
     "Node",
     "NodeDefinitionReference",
@@ -256,7 +264,9 @@ __all__ = [
     "active_snapshot",
     "active_space",
     "active_space_ptr",
+    "builtin_action",
     "builtin_enum",
+    "builtin_method",
     "builtin_node",
     "builtin_property",
     "builtin_property_parent",

@@ -28,3 +28,33 @@ export enum IndexType {
 }
 registerEnumClass(EnumType.INDEX_TYPE, IndexType);
 /* ==== DESTACK_GENERATED_END:ENUM:30100 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:701000 ==== */
+/**
+ * MethodType
+ */
+export enum MethodType {
+  PROPERTY = 1,
+  INSTANCE = 2,
+  STATIC = 3,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.METHOD_TYPE, MethodType);
+/* ==== DESTACK_GENERATED_END:ENUM:701000 ==== */
+
+/* ==== DESTACK_GENERATED_START:ENUM:701001 ==== */
+/**
+ * MethodCardinality
+ */
+export enum MethodCardinality {
+  UNARY = 1,
+
+  /* ==== DESTACK_CUSTOM_START ==== */
+  // ...
+  /* ==== DESTACK_CUSTOM_END ==== */
+}
+registerEnumClass(EnumType.METHOD_CARDINALITY, MethodCardinality);
+/* ==== DESTACK_GENERATED_END:ENUM:701001 ==== */

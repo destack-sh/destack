@@ -48,6 +48,12 @@ export abstract class Event extends Node {
   declare readonly spacePtr: NodeReference;
 
   /**
+   * The definition this Event is an instance of.
+   */
+  abstract get definition(): CustomEvent | null;
+  declare readonly definitionPtr: NodeReference | null;
+
+  /**
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;

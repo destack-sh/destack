@@ -16,6 +16,7 @@ from destack.utils.fractional import get_order_key
 from .common import EnumType, ResourceStatus, StoreDomain, TraitType, ValueFactory
 from .const import UNSET
 from .enum import Enum, builtin_enum
+from .meta import builtin_method
 from .node import Node, NodeType, builtin_node
 from .property import (
     PropertyDeclaration,
@@ -223,16 +224,19 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
     if not TYPE_CHECKING:
         __setattr__ = _do_set
 
+    @builtin_method(10)
     @property
     def is_custom(self) -> bool:
         """Whether this Node is a custom Node."""
         return self.definition is not None
 
+    @builtin_method(11)
     def delete(self):
         """Delete this Entity."""
         assert not self.deleted_at, f"{self!r} is already deleted"
         self._session.delete(self)
 
+    @builtin_method(12)
     def restore(self):
         """Restore this deleted Entity from the trash."""
         assert self.deleted_at, f"{self!r} is not deleted"
@@ -275,6 +279,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             order_key = get_order_key(after_order_key, before_order_key)
             child._do_set("order_key", order_key)
 
+    @builtin_method(13)
     def detach(self):
         """
         Detach this Entity from its parent. Error if it has no parent.
@@ -284,6 +289,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             raise ValueError(f"{self!r} has no parent to detach from")
         self.move_to(parent=None)
 
+    @builtin_method(14)
     def move_to(
         self,
         parent: "Entity | None",
@@ -351,6 +357,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
                 node._ref = None  # invalidate cached ref
                 session.create(node)
 
+    @builtin_method(15)
     def add_sibling(
         self,
         sibling: "Entity",
@@ -367,6 +374,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         sibling.move_to(self.parent, after=after, before=before)
         return self
 
+    @builtin_method(16)
     def add_siblings(
         self,
         *siblings: "Entity",
@@ -378,6 +386,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             sibling.move_to(self.parent, after=after, before=before)
         return self
 
+    @builtin_method(17)
     def add_child(
         self,
         child: "Entity",
@@ -394,6 +403,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         child.move_to(self, after=after, before=before)
         return self
 
+    @builtin_method(18)
     def add_children(
         self,
         *children: "Entity",
@@ -407,6 +417,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             child.move_to(self, after=after, before=before)
         return self
 
+    @builtin_method(19)
     def remove_child(self, child: "Entity") -> Self:
         """
         Remove a child Entity from this Entity.
@@ -415,26 +426,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         child.detach()
         return self
 
-    def add_tag(self, tag: "Tag") -> "Tagging":
-        """Add or get a Tagging for a Tag on this Entity."""
-        for tagging in self.get_children(Tagging):
-            if tagging.tag.id == tag.id:
-                return tagging
-        else:
-            # create new Tagging
-            tagging = Tagging(tag=tag)
-            self.add_child(tagging)
-            return tagging
-
-    def remove_tag(self, tag: "Tag") -> "Tagging | None":
-        """Remove a Tag from this Entity."""
-        for tagging in self.get_children(Tagging):
-            if tagging.tag_ptr.id == tag.id:
-                self.remove_child(tagging)
-                return tagging
-        else:
-            return None
-
+    @builtin_method(20)
     def get_children[N: Entity = Entity](
         self,
         type: NodeType | TraitType | type[N] | None = None,
@@ -443,6 +435,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets the children of this Entity."""
         return self._graph.get_children(self, type=type)
 
+    @builtin_method(21)
     def get_child[N: Entity = Entity](
         self,
         type: NodeType | type[N] | TraitType,
@@ -457,6 +450,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
                 return cast(N, child)
         return None
 
+    @builtin_method(22)
     def child[N: Entity = Entity](
         self,
         type: NodeType | type[N] | TraitType,
@@ -469,6 +463,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
             raise LookupError(f"no child {name} of {self!r}")
         return cast(N, child)
 
+    @builtin_method(23)
     def get_ancestors[N: Entity = Entity](
         self,
         type: NodeType | TraitType | type[N] | None = None,
@@ -477,6 +472,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets the ancestors of this Node."""
         return self._graph.get_ancestors(self, type=type)
 
+    @builtin_method(24)
     def get_descendants[N: Entity = Entity](
         self,
         type: NodeType | TraitType | type[N] | None = None,
@@ -485,6 +481,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets the descendants of this Node."""
         return self._graph.get_descendants(self, type=type)
 
+    @builtin_method(25)
     def get_roots[N: Entity = Entity](
         self,
         type: NodeType | TraitType | type[N] | None = None,
@@ -493,6 +490,7 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets the roots of this Node."""
         return self._graph.get_roots(node_type=type)
 
+    @builtin_method(26)
     def get_leaves[N: Entity = Entity](
         self,
         type: NodeType | TraitType | type[N] | None = None,
@@ -501,12 +499,36 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets the leaves of this Node."""
         return self._graph.get_leaves(node_type=type, node=self)
 
+    @builtin_method(30)
+    def add_tag(self, tag: "Tag") -> "Tagging":
+        """Add or get a Tagging for a Tag on this Entity."""
+        for tagging in self.get_children(Tagging):
+            if tagging.tag.id == tag.id:
+                return tagging
+        else:
+            # create new Tagging
+            tagging = Tagging(tag=tag)
+            self.add_child(tagging)
+            return tagging
+
+    @builtin_method(31)
+    def remove_tag(self, tag: "Tag") -> "Tagging | None":
+        """Remove a Tag from this Entity."""
+        for tagging in self.get_children(Tagging):
+            if tagging.tag_ptr.id == tag.id:
+                self.remove_child(tagging)
+                return tagging
+        else:
+            return None
+
+    @builtin_method(40)
     def into(self, branch: "Branch") -> "Self":
         """
         Turn this Entity into its corresponding Entity in the given Branch.
         """
         raise NotImplementedError
 
+    @builtin_method(41)
     def instantiate(self) -> "Self":
         """Instantiate this Entity into a new Entity."""
         raise NotImplementedError
@@ -547,7 +569,6 @@ class Variant(
 ):
     """A Variant is an alternative version of an Entity."""
 
-    parent: Optional["IsExtensible"] = builtin_property_parent()
     icon: "Icon | None" = builtin_property(102)
 
 

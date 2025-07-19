@@ -3,6 +3,7 @@ import type {
   Action,
   Branch,
   Condition,
+  CustomEvent,
   EventStatus,
   Graph,
   Icon,
@@ -69,6 +70,12 @@ export abstract class TriggerEvent extends Event {
    */
   abstract get space(): Space | null;
   declare readonly spacePtr: NodeReference;
+
+  /**
+   * The definition this Event is an instance of.
+   */
+  abstract get definition(): CustomEvent | null;
+  declare readonly definitionPtr: NodeReference | null;
 
   /**
    * The Branch this Event originated from.
