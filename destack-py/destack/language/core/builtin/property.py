@@ -387,7 +387,10 @@ class PropertyDeclaration(TypeDeclaration):
     def __repr__(self):
         return f"<{self.__class__.__name__} {self!s} ({self.id or '<unset>'})>"
 
-    # see IntoQuery.__eq__ for Property==Property equality
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, PropertyDeclaration):
+            return False
+        return self.component == other.component and self.id == other.id
 
     def hash(self):
         """Hash the Property identity."""

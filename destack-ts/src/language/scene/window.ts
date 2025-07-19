@@ -126,7 +126,8 @@ export class Window extends Entity implements IsOwnable, IsOrdered, IsScriptable
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Window | null {
     const nodePtr: NodeReference | null = this.precededByPtr;

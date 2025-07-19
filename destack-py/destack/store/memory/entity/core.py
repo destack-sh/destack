@@ -14,6 +14,7 @@ if TYPE_CHECKING:
 
 class VersionedNodeKey(NamedTuple):
     id: UUID
+    # branch_id...
     snapshot_id: UUID | None
 
 

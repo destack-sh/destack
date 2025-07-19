@@ -104,7 +104,8 @@ export class Theme extends Entity implements IsExtensible, IsOrdered {
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Theme | null {
     const nodePtr: NodeReference | null = this.precededByPtr;

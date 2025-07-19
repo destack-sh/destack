@@ -76,13 +76,13 @@ export abstract class MouseEvent extends PointerEvent {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -97,12 +97,12 @@ export abstract class MouseEvent extends PointerEvent {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 
@@ -219,13 +219,13 @@ export abstract class ClickEvent extends MouseEvent {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -240,12 +240,12 @@ export abstract class ClickEvent extends MouseEvent {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 
@@ -374,7 +374,7 @@ export class SingleClickEvent extends ClickEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -386,7 +386,7 @@ export class SingleClickEvent extends ClickEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -413,12 +413,12 @@ export class SingleClickEvent extends ClickEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -538,8 +538,8 @@ export class SingleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -603,10 +603,16 @@ export class SingleClickEvent extends ClickEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`SingleClickEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`SingleClickEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -756,10 +762,10 @@ export class SingleClickEvent extends ClickEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -819,12 +825,8 @@ export class SingleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -918,12 +920,8 @@ export class SingleClickEvent extends ClickEvent {
     objectValue["1"] = 2000202;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -987,16 +985,6 @@ export class SingleClickEvent extends ClickEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -1046,8 +1034,20 @@ export class SingleClickEvent extends ClickEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1092,12 +1092,8 @@ export class SingleClickEvent extends ClickEvent {
     const objectProto: Partial<SingleClickEventProto> = { metatype: 2000202 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -1187,26 +1183,20 @@ export class SingleClickEvent extends ClickEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1336,7 +1326,7 @@ export class DoubleClickEvent extends ClickEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1348,7 +1338,7 @@ export class DoubleClickEvent extends ClickEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -1375,12 +1365,12 @@ export class DoubleClickEvent extends ClickEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -1500,8 +1490,8 @@ export class DoubleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1565,10 +1555,16 @@ export class DoubleClickEvent extends ClickEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`DoubleClickEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`DoubleClickEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1718,10 +1714,10 @@ export class DoubleClickEvent extends ClickEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1781,12 +1777,8 @@ export class DoubleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -1880,12 +1872,8 @@ export class DoubleClickEvent extends ClickEvent {
     objectValue["1"] = 2000203;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -1949,16 +1937,6 @@ export class DoubleClickEvent extends ClickEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2008,8 +1986,20 @@ export class DoubleClickEvent extends ClickEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -2054,12 +2044,8 @@ export class DoubleClickEvent extends ClickEvent {
     const objectProto: Partial<DoubleClickEventProto> = { metatype: 2000203 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -2149,26 +2135,20 @@ export class DoubleClickEvent extends ClickEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2298,7 +2278,7 @@ export class TripleClickEvent extends ClickEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2310,7 +2290,7 @@ export class TripleClickEvent extends ClickEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -2337,12 +2317,12 @@ export class TripleClickEvent extends ClickEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -2462,8 +2442,8 @@ export class TripleClickEvent extends ClickEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -2527,10 +2507,16 @@ export class TripleClickEvent extends ClickEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`TripleClickEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`TripleClickEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -2680,10 +2666,10 @@ export class TripleClickEvent extends ClickEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -2743,12 +2729,8 @@ export class TripleClickEvent extends ClickEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -2842,12 +2824,8 @@ export class TripleClickEvent extends ClickEvent {
     objectValue["1"] = 2000204;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2911,16 +2889,6 @@ export class TripleClickEvent extends ClickEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2970,8 +2938,20 @@ export class TripleClickEvent extends ClickEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3016,12 +2996,8 @@ export class TripleClickEvent extends ClickEvent {
     const objectProto: Partial<TripleClickEventProto> = { metatype: 2000204 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -3111,26 +3087,20 @@ export class TripleClickEvent extends ClickEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3260,7 +3230,7 @@ export class WheelEvent extends MouseEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3272,7 +3242,7 @@ export class WheelEvent extends MouseEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -3299,12 +3269,12 @@ export class WheelEvent extends MouseEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -3429,8 +3399,8 @@ export class WheelEvent extends MouseEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -3495,10 +3465,16 @@ export class WheelEvent extends MouseEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`WheelEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`WheelEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -3656,10 +3632,10 @@ export class WheelEvent extends MouseEvent {
     if (!(this.isExtensible === other.isExtensible)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -3720,12 +3696,8 @@ export class WheelEvent extends MouseEvent {
       h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     }
     h = (h * 31 + hashBool(this.isExtensible)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -3819,12 +3791,8 @@ export class WheelEvent extends MouseEvent {
     objectValue["1"] = 2000210;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -3889,16 +3857,6 @@ export class WheelEvent extends MouseEvent {
       nodePtrValue != undefined
         ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -3949,8 +3907,20 @@ export class WheelEvent extends MouseEvent {
       metaKey: objectValue["123"],
       node: unpackedNodePtr,
       isExtensible: objectValue["90"],
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3989,12 +3959,8 @@ export class WheelEvent extends MouseEvent {
     const objectProto: Partial<WheelEventProto> = { metatype: 2000210 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -4086,26 +4052,20 @@ export class WheelEvent extends MouseEvent {
             )
           : null,
       isExtensible: objectProto.isExtensible,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

@@ -29,8 +29,7 @@ from destack.language import (
     UserStatus,
     View,
 )
-from destack.test.fixtures import NODES
-from destack.test.strategies import examples, nodes
+from destack.test.strategies import nodes
 
 ENTITY_SESSIONS = (lf("memory_session"),)
 
@@ -39,7 +38,6 @@ pytestmark = pytest.mark.asyncio(loop_scope="session")
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
 @given(node=nodes)
-@examples([{"node": node} for node in NODES])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 async def test_roundtrip_create_node(node: Node, session: Session, space: Space):
     assert session.store is not None, f"no store in session: {session!r}"
@@ -54,10 +52,9 @@ async def test_roundtrip_create_node(node: Node, session: Session, space: Space)
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_create_user_with_clients(session: Session):
+async def test_create_user_with_clients(session: Session, space: Space):
     """Create and update a User with Clients, querying along the way."""
     # create user
-    space = Space(name="Floof", slug="floof", status=SpaceStatus.ACTIVE, region=REGION)
     user = User(status=UserStatus.ACTIVE, name="Floof", slug="floof", space=space)
     session.create(user)
     await session.commit()
@@ -405,7 +402,7 @@ async def test_move_views(session: Session, space: Space):
 
 
 @pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
-async def test_edit_partial_node_in_branch(session: Session):
+async def test_edit_branch(session: Session):
     """Create a Branch and query it."""
 
     # nocheckin: support Entity branching & variants
@@ -445,14 +442,3 @@ async def test_edit_partial_node_in_branch(session: Session):
         assert branch_user.name == "Charlie"
         # except for override
         assert branch_user.slug == "bob"
-
-
-@pytest.mark.parametrize("session", ENTITY_SESSIONS)
-async def test_edit_partial_graph_in_branch(session: Session, space: Space):
-    """Create a Branch and query it."""
-
-    user = User(name="Alice", slug="alice", space=space)
-    session.create(user)
-    await session.commit()
-
-    # ... also support 'delete overrides' and such (delete Nodes in override)

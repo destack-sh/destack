@@ -32,13 +32,13 @@ export abstract class InputEvent extends Event implements IsExtensible {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -53,12 +53,12 @@ export abstract class InputEvent extends Event implements IsExtensible {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 

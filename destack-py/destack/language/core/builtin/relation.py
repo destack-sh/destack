@@ -357,19 +357,19 @@ class NodeReference(StructFrozen[NodeReferenceProto]):
     definition_id: Optional[UUID] = builtin_property(
         102,
         is_repr=True,
-        description="The unique id of the custom Node definition.",
+        description="The id of the Node definition.",
     )
     branch_id: Optional[UUID] = builtin_property(
         103,
         is_repr=True,
-        description="The id of the Branch the Node belonged to.",
+        description="The id of the Branch the Node belonged to (when it was referenced).",
     )
     snapshot_id: Optional[UUID] = builtin_property(
         104,
         is_repr=True,
-        description="The id of the Snapshot the Node belonged to.",
+        description="The id of the Snapshot the Node belonged to (when it was referenced).",
     )
-    # epoch/...?
+    # epoch? (but then we would have to re-create NodeReferences every time the Node is updated)
 
     # location
     space_id: Optional[UUID] = builtin_property(

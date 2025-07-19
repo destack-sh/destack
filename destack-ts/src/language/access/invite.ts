@@ -62,13 +62,13 @@ export abstract class InviteEvent extends Event {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -83,12 +83,12 @@ export abstract class InviteEvent extends Event {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 
@@ -178,7 +178,7 @@ export class InviteSentEvent extends InviteEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -190,7 +190,7 @@ export class InviteSentEvent extends InviteEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -217,12 +217,12 @@ export class InviteSentEvent extends InviteEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -326,8 +326,8 @@ export class InviteSentEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -385,10 +385,16 @@ export class InviteSentEvent extends InviteEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`InviteSentEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`InviteSentEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -504,10 +510,10 @@ export class InviteSentEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -545,12 +551,8 @@ export class InviteSentEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -629,12 +631,8 @@ export class InviteSentEvent extends InviteEvent {
     objectValue["1"] = 360102;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -671,16 +669,6 @@ export class InviteSentEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteSentEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -733,8 +721,20 @@ export class InviteSentEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -771,12 +771,8 @@ export class InviteSentEvent extends InviteEvent {
     const objectProto: Partial<InviteSentEventProto> = { metatype: 360102 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -843,26 +839,20 @@ export class InviteSentEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -975,7 +965,7 @@ export class InviteRescindedEvent extends InviteEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -987,7 +977,7 @@ export class InviteRescindedEvent extends InviteEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -1014,12 +1004,12 @@ export class InviteRescindedEvent extends InviteEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -1106,8 +1096,8 @@ export class InviteRescindedEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1163,10 +1153,16 @@ export class InviteRescindedEvent extends InviteEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`InviteRescindedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`InviteRescindedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1263,10 +1259,10 @@ export class InviteRescindedEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1302,12 +1298,8 @@ export class InviteRescindedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -1386,12 +1378,8 @@ export class InviteRescindedEvent extends InviteEvent {
     objectValue["1"] = 360103;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -1426,16 +1414,6 @@ export class InviteRescindedEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteRescindedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -1480,8 +1458,20 @@ export class InviteRescindedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1524,12 +1514,8 @@ export class InviteRescindedEvent extends InviteEvent {
     const objectProto: Partial<InviteRescindedEventProto> = { metatype: 360103 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -1586,26 +1572,20 @@ export class InviteRescindedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1724,7 +1704,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1736,7 +1716,7 @@ export class InviteAcceptedEvent extends InviteEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -1763,12 +1743,12 @@ export class InviteAcceptedEvent extends InviteEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -1872,8 +1852,8 @@ export class InviteAcceptedEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1931,10 +1911,16 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`InviteAcceptedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`InviteAcceptedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -2050,10 +2036,10 @@ export class InviteAcceptedEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -2091,12 +2077,8 @@ export class InviteAcceptedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -2175,12 +2157,8 @@ export class InviteAcceptedEvent extends InviteEvent {
     objectValue["1"] = 360104;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2217,16 +2195,6 @@ export class InviteAcceptedEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteAcceptedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2279,8 +2247,20 @@ export class InviteAcceptedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -2323,12 +2303,8 @@ export class InviteAcceptedEvent extends InviteEvent {
     const objectProto: Partial<InviteAcceptedEventProto> = { metatype: 360104 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -2395,26 +2371,20 @@ export class InviteAcceptedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2533,7 +2503,7 @@ export class InviteRejectedEvent extends InviteEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2545,7 +2515,7 @@ export class InviteRejectedEvent extends InviteEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -2572,12 +2542,12 @@ export class InviteRejectedEvent extends InviteEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -2664,8 +2634,8 @@ export class InviteRejectedEvent extends InviteEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -2721,10 +2691,16 @@ export class InviteRejectedEvent extends InviteEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`InviteRejectedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`InviteRejectedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -2821,10 +2797,10 @@ export class InviteRejectedEvent extends InviteEvent {
     if (!(this.memberPtr.id === other.memberPtr.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -2860,12 +2836,8 @@ export class InviteRejectedEvent extends InviteEvent {
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.joinablePtr.id)) & 0xffffffff;
     h = (h * 31 + hashString(this.memberPtr.id)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -2944,12 +2916,8 @@ export class InviteRejectedEvent extends InviteEvent {
     objectValue["1"] = 360105;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2984,16 +2952,6 @@ export class InviteRejectedEvent extends InviteEvent {
     _connection?: any | null,
   ): InviteRejectedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -3038,8 +2996,20 @@ export class InviteRejectedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3082,12 +3052,8 @@ export class InviteRejectedEvent extends InviteEvent {
     const objectProto: Partial<InviteRejectedEventProto> = { metatype: 360105 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -3144,26 +3110,20 @@ export class InviteRejectedEvent extends InviteEvent {
         _graph,
         _connection,
       ),
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3326,7 +3286,8 @@ export class Invite extends Entity implements IsOwnable, IsExtensible {
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Invite | null {
     const nodePtr: NodeReference | null = this.precededByPtr;

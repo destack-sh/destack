@@ -5,7 +5,7 @@ import {
   StructType,
   TypeCardinality,
 } from "@destack/language/core/builtin/common";
-import { activeSession } from "@destack/language/core/builtin/const";
+import { ACTIVE_SNAPSHOT, activeSession } from "@destack/language/core/builtin/const";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node, isNode } from "@destack/language/core/builtin/node";
 import type {
@@ -16,7 +16,7 @@ import type {
 import { Struct, StructFrozen, isStruct } from "@destack/language/core/builtin/struct";
 import type { PropertyDefinition } from "@destack/language/core/common/definition";
 import type { CustomProperty } from "@destack/language/core/common/property";
-import type { Snapshot } from "@destack/language/core/common/time";
+import type { Branch, Snapshot } from "@destack/language/core/common/time";
 import { Type } from "@destack/language/core/common/type";
 import type { Value } from "@destack/language/core/common/value";
 import { toValue } from "@destack/language/core/common/value";
@@ -2338,6 +2338,21 @@ export class Query<T extends Node = Node> extends StructFrozen {
   readonly offset: number | null;
 
   /**
+   * The Branch this Query is for.
+   */
+  get branch(): Branch | null {
+    const nodePtr: NodeReference | null = this.branchPtr;
+    if (nodePtr != null) {
+      if (this._supergraph === null) {
+        return null;
+      }
+      return this._supergraph.get(nodePtr.id) as Branch;
+    }
+    return null;
+  }
+  readonly branchPtr: NodeReference;
+
+  /**
    * The Snapshot this Query is for.
    */
   get snapshot(): Snapshot | null {
@@ -2346,17 +2361,11 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this._supergraph === null) {
         return null;
       }
-      return this._supergraph.get(nodePtr.id) as Snapshot | null;
+      return this._supergraph.get(nodePtr.id) as Snapshot;
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
-
-  /**
-   * The path of Snapshots from the given Snapshot to to a full Snapshot (inclusive).
-   * If Query.snapshot is set, this must contain at least one element.
-   */
-  readonly snapshotPath: readonly string[];
+  readonly snapshotPtr: NodeReference;
 
   constructor(options: {
     id?: string;
@@ -2375,8 +2384,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
     includeDeleted?: boolean;
     limit?: number | null;
     offset?: number | null;
-    snapshot?: Snapshot | NodeReference | null;
-    snapshotPath?: readonly string[];
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -2457,16 +2466,36 @@ export class Query<T extends Node = Node> extends StructFrozen {
     this.limit = _limit;
     let _offset = options.offset ?? null;
     this.offset = _offset;
+    let _branch = options.branch ?? null;
+    if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
+      _branch = (_branch as Node).toRef();
+    }
+    if (_branch === null) {
+      _branch = ACTIVE_BRANCH.get();
+      if (_branch === null) {
+        throw new Error(`no active Branch for Query`);
+      }
+      _branch = _branch.toRef();
+    }
+    if (_branch === null) {
+      throw new Error(`Query.branch is required`);
+    }
+    this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
     }
-    this.snapshotPtr = _snapshot;
-    let _snapshotPath = options.snapshotPath ?? null;
-    if (_snapshotPath === null) {
-      _snapshotPath = [];
+    if (_snapshot === null) {
+      _snapshot = ACTIVE_SNAPSHOT.get();
+      if (_snapshot === null) {
+        throw new Error(`no active Snapshot for Query`);
+      }
+      _snapshot = _snapshot.toRef();
     }
-    this.snapshotPath = _snapshotPath;
+    if (_snapshot === null) {
+      throw new Error(`Query.snapshot is required`);
+    }
+    this.snapshotPtr = _snapshot;
 
     // identity
     // @ts-expect-error(readonly)
@@ -2561,16 +2590,11 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (!(this.offset === other.offset)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (this.snapshotPath.length != other.snapshotPath.length) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
-    }
-    for (let i = 0; i < this.snapshotPath.length; i++) {
-      if (!(this.snapshotPath[i] === other.snapshotPath[i])) {
-        return false;
-      }
     }
     return true;
   }
@@ -2613,12 +2637,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
       if (this.offset != null) {
         propertyReprs.push(`offset=${this.offset}`);
       }
-      if (this.snapshot != null) {
-        propertyReprs.push(`snapshot=${this.snapshot?.repr()}`);
-      }
-      if (this.snapshotPath.length > 0) {
-        propertyReprs.push(`snapshotPath=${this.snapshotPath.map((_item) => _item).join(", ")}`);
-      }
+      propertyReprs.push(`branch=${this.branch?.repr()}`);
+      propertyReprs.push(`snapshot=${this.snapshot?.repr()}`);
       // @ts-expect-error(readonly)
       this._repr = `<Query ${propertyReprs.join(" ")}>`;
     }
@@ -2674,14 +2694,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (this.offset != null) {
       h = (h * 31 + hashInt(this.offset)) & 0xffffffff;
     }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPath && this.snapshotPath.length > 0) {
-      for (const _item of this.snapshotPath) {
-        h = (h * 31 + hashString(_item.toString())) & 0xffffffff;
-      }
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
 
     // @ts-expect-error(readonly)
     this._hash = h;
@@ -2751,16 +2765,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (object.offset != null) {
       objectValue["121"] = object.offset;
     }
-    if (object.snapshotPtr != null) {
-      objectValue["130"] = object.snapshotPtr.toValue();
-    }
-    if (object.snapshotPath.length > 0) {
-      const packedSnapshotPath: any[] = [];
-      for (const item of object.snapshotPath) {
-        packedSnapshotPath.push(String(item));
-      }
-      objectValue["131"] = packedSnapshotPath;
-    }
+    objectValue["130"] = object.branchPtr.toValue();
+    objectValue["131"] = object.snapshotPtr.toValue();
     return objectValue;
   }
 
@@ -2831,17 +2837,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     const unpackedLimit = limitValue != undefined ? Number(limitValue) : null;
     const offsetValue = objectValue["121"];
     const unpackedOffset = offsetValue != undefined ? Number(offsetValue) : null;
-    const snapshotPtrValue = objectValue["130"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const unpackedSnapshotPath: any[] = [];
-    if (objectValue["131"] != undefined) {
-      for (const item of objectValue["131"]) {
-        unpackedSnapshotPath.push(String(item));
-      }
-    }
     return new Query({
       id: String(objectValue["2"]),
       type: Number(objectValue["100"]),
@@ -2865,8 +2860,20 @@ export class Query<T extends Node = Node> extends StructFrozen {
       includeDeleted: objectValue["119"],
       limit: unpackedLimit,
       offset: unpackedOffset,
-      snapshot: unpackedSnapshotPtr,
-      snapshotPath: unpackedSnapshotPath,
+      branch: _NodeReference.fromValue(
+        objectValue["130"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["131"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _value: objectValue,
       _supergraph,
     });
@@ -2940,16 +2947,8 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (object.offset != null) {
       objectProto.offset = object.offset;
     }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
-    if (object.snapshotPath) {
-      const packedSnapshotPath: any[] = [];
-      for (const item of object.snapshotPath) {
-        packedSnapshotPath.push(String(item));
-      }
-      objectProto.snapshotPath = packedSnapshotPath;
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     return objectProto as QueryProto;
   }
 
@@ -2991,12 +2990,6 @@ export class Query<T extends Node = Node> extends StructFrozen {
     if (objectProto.sort) {
       for (const item of objectProto.sort) {
         unpackedSort.push(_Sort.fromProto(item!, _session, _supergraph, _graph, _connection));
-      }
-    }
-    const unpackedSnapshotPath: any[] = [];
-    if (objectProto.snapshotPath) {
-      for (const item of objectProto.snapshotPath) {
-        unpackedSnapshotPath.push(String(item));
       }
     }
     return new Query({
@@ -3043,17 +3036,20 @@ export class Query<T extends Node = Node> extends StructFrozen {
       includeDeleted: objectProto.includeDeleted,
       limit: objectProto.limit != undefined ? Number(objectProto.limit) : null,
       offset: objectProto.offset != undefined ? Number(objectProto.offset) : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshotPath: unpackedSnapshotPath,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       _proto: objectProto,
       _supergraph,
     });

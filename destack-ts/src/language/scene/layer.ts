@@ -131,7 +131,8 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Layer | null {
     const nodePtr: NodeReference | null = this.precededByPtr;

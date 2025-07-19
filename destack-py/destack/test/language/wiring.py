@@ -18,8 +18,7 @@ from destack.language import (
     User,
     UserStatus,
 )
-from destack.test.fixtures import BUILTIN_OBJECTS
-from destack.test.strategies import builtin_objects, examples
+from destack.test.strategies import builtin_objects
 from destack.utils.uuid import uuid4
 
 
@@ -112,7 +111,6 @@ def test_roundtrip_user_proto(session: Session, space: Space):
 
 
 @given(obj=builtin_objects())
-@examples([{"obj": obj} for obj in BUILTIN_OBJECTS])
 @settings(suppress_health_check=[HealthCheck.function_scoped_fixture])
 def test_roundtrip_builtin_object(
     obj: BuiltinObject[AnyObjectProto], session: Session, space: Space

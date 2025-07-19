@@ -51,13 +51,13 @@ export abstract class Event extends Node {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -72,12 +72,12 @@ export abstract class Event extends Node {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 
@@ -222,7 +222,8 @@ export class CustomEvent extends Entity implements IsSourceable, IsCustomizable 
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): CustomEvent | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1278,13 +1279,13 @@ export abstract class Signal extends Event implements IsExtensible {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -1299,12 +1300,12 @@ export abstract class Signal extends Event implements IsExtensible {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 
