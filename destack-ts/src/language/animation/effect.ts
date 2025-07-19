@@ -31,7 +31,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -158,7 +158,7 @@ export class Effect extends StructFrozen {
   /**
    * Effect.offset
    */
-  readonly offset: Vector2f | null;
+  readonly offset: Vector2 | null;
 
   /**
    * Effect.scale
@@ -173,7 +173,7 @@ export class Effect extends StructFrozen {
   /**
    * Effect.skew
    */
-  readonly skew: Vector2f | null;
+  readonly skew: Vector2 | null;
 
   /**
    * Effect.perspective
@@ -224,10 +224,10 @@ export class Effect extends StructFrozen {
     type: EffectType;
     style?: EffectStyle | NodeReference | null;
     opacity?: number | null;
-    offset?: Vector2f | null;
+    offset?: Vector2 | null;
     scale?: number | null;
     rotate?: Axis3 | null;
-    skew?: Vector2f | null;
+    skew?: Vector2 | null;
     perspective?: number | null;
     delay?: Temporal.Duration | null;
     duration?: number | null;
@@ -580,7 +580,7 @@ export class Effect extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
@@ -591,7 +591,7 @@ export class Effect extends StructFrozen {
     const offsetValue = objectCson["103"];
     const unpackedOffset =
       offsetValue != undefined
-        ? _Vector2f.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectCson["104"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -603,7 +603,7 @@ export class Effect extends StructFrozen {
     const skewValue = objectCson["106"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const perspectiveValue = objectCson["107"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
@@ -727,7 +727,7 @@ export class Effect extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new Effect({
       type: Number(objectProto.type) as EffectType,
       style:
@@ -743,7 +743,7 @@ export class Effect extends StructFrozen {
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       offset:
         objectProto.offset != undefined
-          ? _Vector2f.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       rotate:
@@ -752,7 +752,7 @@ export class Effect extends StructFrozen {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
       delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,
@@ -1061,15 +1061,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.offset
    */
-  get offset(): Vector2f | null {
+  get offset(): Vector2 | null {
     return this._offset;
   }
-  set offset(value: Vector2f | null) {
+  set offset(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["offset"];
     this._session.updateSetProperty(this, prop, value);
     this._offset = value;
   }
-  _offset: Vector2f | null;
+  _offset: Vector2 | null;
 
   /**
    * EffectStyle.scale
@@ -1109,15 +1109,15 @@ export class EffectStyle extends Style {
   /**
    * EffectStyle.skew
    */
-  get skew(): Vector2f | null {
+  get skew(): Vector2 | null {
     return this._skew;
   }
-  set skew(value: Vector2f | null) {
+  set skew(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["skew"];
     this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
-  _skew: Vector2f | null;
+  _skew: Vector2 | null;
 
   /**
    * EffectStyle.perspective
@@ -1287,10 +1287,10 @@ export class EffectStyle extends Style {
     isExtensible?: boolean;
     type: EffectType;
     opacity?: number | null;
-    offset?: Vector2f | null;
+    offset?: Vector2 | null;
     scale?: number | null;
     rotate?: Axis3 | null;
-    skew?: Vector2f | null;
+    skew?: Vector2 | null;
     perspective?: number | null;
     delay?: Temporal.Duration | null;
     duration?: number | null;
@@ -1900,13 +1900,13 @@ export class EffectStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const opacityValue = objectCson["200"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
     const offsetValue = objectCson["201"];
     const unpackedOffset =
       offsetValue != undefined
-        ? _Vector2f.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectCson["202"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -1918,7 +1918,7 @@ export class EffectStyle extends Style {
     const skewValue = objectCson["204"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const perspectiveValue = objectCson["205"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
@@ -2157,7 +2157,7 @@ export class EffectStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2172,7 +2172,7 @@ export class EffectStyle extends Style {
       opacity: objectProto.opacity != undefined ? objectProto.opacity : null,
       offset:
         objectProto.offset != undefined
-          ? _Vector2f.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.offset!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       rotate:
@@ -2181,7 +2181,7 @@ export class EffectStyle extends Style {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       perspective: objectProto.perspective != undefined ? objectProto.perspective : null,
       delay: objectProto.delay != undefined ? unpackProtoDuration(objectProto.delay!) : null,

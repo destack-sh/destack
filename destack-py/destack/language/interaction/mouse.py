@@ -12,7 +12,7 @@ from destack.language.core import (
 from .pointer import PointerEvent
 
 if TYPE_CHECKING:
-    from destack.language import Vector2f
+    from destack.language import Vector2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -65,4 +65,4 @@ class TripleClickEvent(ClickEvent):
 class WheelEvent(MouseEvent):
     """A WheelEvent is a MouseEvent when a wheel is scrolled."""
 
-    delta: "Vector2f" = builtin_property(140)
+    delta: "Vector2" = builtin_property(140)

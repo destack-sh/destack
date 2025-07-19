@@ -19,7 +19,7 @@ if TYPE_CHECKING:
         Axis3,
         Fill,
         Icon,
-        Vector2f,
+        Vector2,
     )
 
 # pyright: reportIncompatibleVariableOverride=false
@@ -56,6 +56,6 @@ class Layer(
     opacity: Optional[float] = builtin_property(141)
     fill: Optional["Fill"] = builtin_property(142)
     rotation: Optional["Axis3"] = builtin_property(143)
-    skew: Optional["Vector2f"] = builtin_property(144)
+    skew: Optional["Vector2"] = builtin_property(144)
     scale: Optional[float] = builtin_property(145)
     # parallax?

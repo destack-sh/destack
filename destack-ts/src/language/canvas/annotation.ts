@@ -25,7 +25,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow, Stroke } from "@destack/language/style";
@@ -642,15 +642,15 @@ export class AnnotationShape extends Shape {
   /**
    * ContainerView.skew
    */
-  get skew(): Vector2f | null {
+  get skew(): Vector2 | null {
     return this._skew;
   }
-  set skew(value: Vector2f | null) {
+  set skew(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["skew"];
     this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
-  _skew: Vector2f | null;
+  _skew: Vector2 | null;
 
   /**
    * ContainerView.scale
@@ -793,7 +793,7 @@ export class AnnotationShape extends Shape {
     opacity?: number | null;
     fill?: Fill | null;
     rotation?: Axis3 | null;
-    skew?: Vector2f | null;
+    skew?: Vector2 | null;
     scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
@@ -1574,7 +1574,7 @@ export class AnnotationShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const textValue = objectCson["250"];
     const unpackedText =
       textValue != undefined
@@ -1634,7 +1634,7 @@ export class AnnotationShape extends Shape {
     const skewValue = objectCson["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectCson["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -1984,7 +1984,7 @@ export class AnnotationShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2039,7 +2039,7 @@ export class AnnotationShape extends Shape {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:

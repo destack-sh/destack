@@ -9,7 +9,7 @@ from destack.language.core import (
 from .input import InputEvent
 
 if TYPE_CHECKING:
-    from destack.language import Vector2f
+    from destack.language import Vector2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class DragEvent(InputEvent):
     """A DragEvent is an InputEvent that corresponds to some direct user input with a drag."""
 
-    position: "Vector2f" = builtin_property(110, is_repr=True)
+    position: "Vector2" = builtin_property(110, is_repr=True)
 
 
 @builtin_node(NodeType.DRAG_START_EVENT, frozen=True)

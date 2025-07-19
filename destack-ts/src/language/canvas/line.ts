@@ -25,7 +25,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -73,11 +73,11 @@ export class Line extends StructFrozen {
   /**
    * Line.points
    */
-  readonly points: readonly Vector2f[];
+  readonly points: readonly Vector2[];
 
   constructor(options: {
     stroke?: Stroke | null;
-    points?: readonly Vector2f[];
+    points?: readonly Vector2[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -207,7 +207,7 @@ export class Line extends StructFrozen {
     _connection?: any | null,
   ): Line {
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const strokeValue = objectCson["200"];
     const unpackedStroke =
       strokeValue != undefined
@@ -216,7 +216,7 @@ export class Line extends StructFrozen {
     const unpackedPoints: any[] = [];
     if (objectCson["210"] != undefined) {
       for (const item of objectCson["210"]) {
-        unpackedPoints.push(_Vector2f.fromCson(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(_Vector2.fromCson(item, _session, _supergraph, _graph, _connection));
       }
     }
     return new Line({
@@ -268,11 +268,11 @@ export class Line extends StructFrozen {
     _connection?: any | null,
   ): Line {
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(_Vector2f.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(_Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     return new Line({
@@ -899,15 +899,15 @@ export class LineShape extends Shape {
   /**
    * ContainerView.skew
    */
-  get skew(): Vector2f | null {
+  get skew(): Vector2 | null {
     return this._skew;
   }
-  set skew(value: Vector2f | null) {
+  set skew(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["skew"];
     this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
-  _skew: Vector2f | null;
+  _skew: Vector2 | null;
 
   /**
    * ContainerView.scale
@@ -995,15 +995,15 @@ export class LineShape extends Shape {
   /**
    * LineShape.points
    */
-  get points(): readonly Vector2f[] {
+  get points(): readonly Vector2[] {
     return this._points;
   }
-  set points(value: readonly Vector2f[]) {
+  set points(value: readonly Vector2[]) {
     const prop = (this.constructor as NodeClass).__properties__["points"];
     this._session.updateSetProperty(this, prop, value);
     this._points = value;
   }
-  _points: readonly Vector2f[];
+  _points: readonly Vector2[];
 
   constructor(options: {
     id?: string;
@@ -1050,13 +1050,13 @@ export class LineShape extends Shape {
     opacity?: number | null;
     fill?: Fill | null;
     rotation?: Axis3 | null;
-    skew?: Vector2f | null;
+    skew?: Vector2 | null;
     scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
     stroke?: Stroke | null;
-    points?: readonly Vector2f[];
+    points?: readonly Vector2[];
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1841,11 +1841,11 @@ export class LineShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedPoints: any[] = [];
     if (objectCson["200"] != undefined) {
       for (const item of objectCson["200"]) {
-        unpackedPoints.push(_Vector2f.fromCson(item, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(_Vector2.fromCson(item, _session, _supergraph, _graph, _connection));
       }
     }
     const strokeValue = objectCson["180"];
@@ -1902,7 +1902,7 @@ export class LineShape extends Shape {
     const skewValue = objectCson["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectCson["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -2255,11 +2255,11 @@ export class LineShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedPoints: any[] = [];
     if (objectProto.points) {
       for (const item of objectProto.points) {
-        unpackedPoints.push(_Vector2f.fromProto(item!, _session, _supergraph, _graph, _connection));
+        unpackedPoints.push(_Vector2.fromProto(item!, _session, _supergraph, _graph, _connection));
       }
     }
     const unpackedCustomValues = {} as any;
@@ -2313,7 +2313,7 @@ export class LineShape extends Shape {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:

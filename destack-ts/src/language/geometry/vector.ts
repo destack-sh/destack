@@ -2,11 +2,11 @@ import type { Session, Supergraph } from "@destack/language/core";
 import { StructFrozen, StructType } from "@destack/language/core";
 import { registerStructClass } from "@destack/language/registry";
 import {
-  Vector2fProto,
+  Vector2Proto,
   Vector2iProto,
-  Vector3fProto,
+  Vector3Proto,
   Vector3iProto,
-  Vector4fProto,
+  Vector4Proto,
   Vector4iProto,
 } from "@destack/proto";
 import { base64Decode } from "@destack/utils";
@@ -61,17 +61,17 @@ registerStructClass(StructType.VECTORI, Vectori);
 /**
  * A 2D floating point Vector.
  */
-export class Vector2f extends Vectorf {
-  static metatype: StructType = StructType.VECTOR2F;
+export class Vector2 extends Vectorf {
+  static metatype: StructType = StructType.VECTOR2;
   static __isFrozen__: boolean = true;
 
   /**
-   * The x-coordinate of the Vector2f.
+   * The x-coordinate of the Vector2.
    */
   readonly x: number;
 
   /**
-   * The y-coordinate of the Vector2f.
+   * The y-coordinate of the Vector2.
    */
   readonly y: number;
 
@@ -95,12 +95,12 @@ export class Vector2f extends Vectorf {
     // properties
     let _x = options.x;
     if (_x === null) {
-      throw new Error(`Vector2f.x is required`);
+      throw new Error(`Vector2.x is required`);
     }
     this.x = _x;
     let _y = options.y;
     if (_y === null) {
-      throw new Error(`Vector2f.y is required`);
+      throw new Error(`Vector2.y is required`);
     }
     this.y = _y;
 
@@ -134,7 +134,7 @@ export class Vector2f extends Vectorf {
       propertyReprs.push(`x=${this.x}`);
       propertyReprs.push(`y=${this.y}`);
       // @ts-expect-error(readonly)
-      this._repr = `<Vector2f ${propertyReprs.join(" ")}>`;
+      this._repr = `<Vector2 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -161,12 +161,12 @@ export class Vector2f extends Vectorf {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Vector2f.__packCson__(this);
+      this._cson = Vector2.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Vector2f): { [key: string]: any } {
+  static __packCson__(object: Vector2): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
     objectCson["1"] = 2400011;
     objectCson["101"] = object.x;
@@ -180,8 +180,8 @@ export class Vector2f extends Vectorf {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2f {
-    return new Vector2f({
+  ): Vector2 {
+    return new Vector2({
       x: objectCson["101"],
       y: objectCson["102"],
       _cson: objectCson,
@@ -195,33 +195,33 @@ export class Vector2f extends Vectorf {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2f {
-    return Vector2f.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Vector2 {
+    return Vector2.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): Vector2fProto {
+  toProto(): Vector2Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Vector2f.__packProto__(this);
+      this._proto = Vector2.__packProto__(this);
     }
-    return this._proto as Vector2fProto;
+    return this._proto as Vector2Proto;
   }
 
-  static __packProto__(object: Vector2f): Vector2fProto {
-    const objectProto: Partial<Vector2fProto> = { metatype: 2400011 };
+  static __packProto__(object: Vector2): Vector2Proto {
+    const objectProto: Partial<Vector2Proto> = { metatype: 2400011 };
     objectProto.x = object.x;
     objectProto.y = object.y;
-    return objectProto as Vector2fProto;
+    return objectProto as Vector2Proto;
   }
 
   static __unpackProto__(
-    objectProto: Vector2fProto,
+    objectProto: Vector2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2f {
-    return new Vector2f({
+  ): Vector2 {
+    return new Vector2({
       x: objectProto.x,
       y: objectProto.y,
       _proto: objectProto,
@@ -230,32 +230,32 @@ export class Vector2f extends Vectorf {
   }
 
   static fromProto(
-    objectProto: Vector2fProto,
+    objectProto: Vector2Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector2f {
-    return Vector2f.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Vector2 {
+    return Vector2.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Vector2f {
+  static fromProtoString(packedProtoString: string): Vector2 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector2fProto.fromBinary(packedProtoBytes);
+    const packedProto = Vector2Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
-  add(other: Vector2f | number): Vector2f {
+  add(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
-      return new Vector2f({
+      return new Vector2({
         x: this.x + other,
         y: this.y + other,
       });
     } else {
-      return new Vector2f({
+      return new Vector2({
         x: this.x + other.x,
         y: this.y + other.y,
       });
@@ -263,14 +263,14 @@ export class Vector2f extends Vectorf {
   }
 
   /** Subtract two vectors or a vector and a scalar. */
-  sub(other: Vector2f | number): Vector2f {
+  sub(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
-      return new Vector2f({
+      return new Vector2({
         x: this.x - other,
         y: this.y - other,
       });
     } else {
-      return new Vector2f({
+      return new Vector2({
         x: this.x - other.x,
         y: this.y - other.y,
       });
@@ -278,14 +278,14 @@ export class Vector2f extends Vectorf {
   }
 
   /** Multiply two vectors or a vector and a scalar. */
-  mul(other: Vector2f | number): Vector2f {
+  mul(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
-      return new Vector2f({
+      return new Vector2({
         x: this.x * other,
         y: this.y * other,
       });
     } else {
-      return new Vector2f({
+      return new Vector2({
         x: this.x * other.x,
         y: this.y * other.y,
       });
@@ -293,14 +293,14 @@ export class Vector2f extends Vectorf {
   }
 
   /** Divide two vectors or a vector and a scalar. */
-  div(other: Vector2f | number): Vector2f {
+  div(other: Vector2 | number): Vector2 {
     if (typeof other === "number") {
-      return new Vector2f({
+      return new Vector2({
         x: this.x / other,
         y: this.y / other,
       });
     } else {
-      return new Vector2f({
+      return new Vector2({
         x: this.x / other.x,
         y: this.y / other.y,
       });
@@ -308,8 +308,8 @@ export class Vector2f extends Vectorf {
   }
 
   /** Negate a vector. */
-  neg(): Vector2f {
-    return new Vector2f({
+  neg(): Vector2 {
+    return new Vector2({
       x: -this.x,
       y: -this.y,
     });
@@ -318,19 +318,19 @@ export class Vector2f extends Vectorf {
   /**
    * Get the perpendicular vector (rotated 90 degrees counterclockwise).
    */
-  per(): Vector2f {
-    return new Vector2f({
+  per(): Vector2 {
+    return new Vector2({
       x: this.y,
       y: -this.x,
     });
   }
 
   /** Get the absolute value of a vector. */
-  abs(): Vector2f {
+  abs(): Vector2 {
     if (this.x >= 0 && this.y >= 0) {
       return this;
     } else {
-      return new Vector2f({
+      return new Vector2({
         x: Math.abs(this.x),
         y: Math.abs(this.y),
       });
@@ -340,15 +340,15 @@ export class Vector2f extends Vectorf {
   /**
    * Calculate the dot product with another vector.
    */
-  dot(other: Vector2f): number {
+  dot(other: Vector2): number {
     return this.x * other.x + this.y * other.y;
   }
 
   /**
    * Calculate the linear interpolation between two vectors.
    */
-  lerp(other: Vector2f, t: number): Vector2f {
-    return new Vector2f({
+  lerp(other: Vector2, t: number): Vector2 {
+    return new Vector2({
       x: this.x + (other.x - this.x) * t,
       y: this.y + (other.y - this.y) * t,
     });
@@ -364,12 +364,12 @@ export class Vector2f extends Vectorf {
   /**
    * Return a normalized (unit) vector.
    */
-  normalize(): Vector2f {
+  normalize(): Vector2 {
     const mag = this.magnitude();
     if (mag === 0) {
-      return new Vector2f({ x: 0.0, y: 0.0 });
+      return new Vector2({ x: 0.0, y: 0.0 });
     }
-    return new Vector2f({
+    return new Vector2({
       x: this.x / mag,
       y: this.y / mag,
     });
@@ -378,7 +378,7 @@ export class Vector2f extends Vectorf {
   /**
    * Calculate the squared distance to another vector.
    */
-  distance2(other: Vector2f): number {
+  distance2(other: Vector2): number {
     const dx = this.x - other.x;
     const dy = this.y - other.y;
     return dx * dx + dy * dy;
@@ -387,19 +387,19 @@ export class Vector2f extends Vectorf {
   /**
    * Calculate the distance to another vector.
    */
-  distance(other: Vector2f): number {
+  distance(other: Vector2): number {
     return Math.sqrt(this.distance2(other));
   }
 
   /**
    * Rotate this vector around another point by the given angle.
    */
-  rotWith(center: Vector2f, angle: number): Vector2f {
+  rotWith(center: Vector2, angle: number): Vector2 {
     const x = this.x - center.x;
     const y = this.y - center.y;
     const s = Math.sin(angle);
     const c = Math.cos(angle);
-    return new Vector2f({
+    return new Vector2({
       x: center.x + (x * c - y * s),
       y: center.y + (x * s + y * c),
     });
@@ -407,29 +407,29 @@ export class Vector2f extends Vectorf {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.VECTOR2F, Vector2f);
+registerStructClass(StructType.VECTOR2, Vector2);
 /* ==== DESTACK_GENERATED_END:STRUCT:2400011 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400012 ==== */
 /**
  * A 3D floating point vector.
  */
-export class Vector3f extends Vectorf {
-  static metatype: StructType = StructType.VECTOR3F;
+export class Vector3 extends Vectorf {
+  static metatype: StructType = StructType.VECTOR3;
   static __isFrozen__: boolean = true;
 
   /**
-   * The x-coordinate of the Vector3f.
+   * The x-coordinate of the Vector3.
    */
   readonly x: number;
 
   /**
-   * The y-coordinate of the Vector3f.
+   * The y-coordinate of the Vector3.
    */
   readonly y: number;
 
   /**
-   * The z-coordinate of the Vector3f.
+   * The z-coordinate of the Vector3.
    */
   readonly z: number;
 
@@ -454,17 +454,17 @@ export class Vector3f extends Vectorf {
     // properties
     let _x = options.x;
     if (_x === null) {
-      throw new Error(`Vector3f.x is required`);
+      throw new Error(`Vector3.x is required`);
     }
     this.x = _x;
     let _y = options.y;
     if (_y === null) {
-      throw new Error(`Vector3f.y is required`);
+      throw new Error(`Vector3.y is required`);
     }
     this.y = _y;
     let _z = options.z;
     if (_z === null) {
-      throw new Error(`Vector3f.z is required`);
+      throw new Error(`Vector3.z is required`);
     }
     this.z = _z;
 
@@ -502,7 +502,7 @@ export class Vector3f extends Vectorf {
       propertyReprs.push(`y=${this.y}`);
       propertyReprs.push(`z=${this.z}`);
       // @ts-expect-error(readonly)
-      this._repr = `<Vector3f ${propertyReprs.join(" ")}>`;
+      this._repr = `<Vector3 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -530,12 +530,12 @@ export class Vector3f extends Vectorf {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Vector3f.__packCson__(this);
+      this._cson = Vector3.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Vector3f): { [key: string]: any } {
+  static __packCson__(object: Vector3): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
     objectCson["1"] = 2400012;
     objectCson["101"] = object.x;
@@ -550,8 +550,8 @@ export class Vector3f extends Vectorf {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3f {
-    return new Vector3f({
+  ): Vector3 {
+    return new Vector3({
       x: objectCson["101"],
       y: objectCson["102"],
       z: objectCson["103"],
@@ -566,34 +566,34 @@ export class Vector3f extends Vectorf {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3f {
-    return Vector3f.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Vector3 {
+    return Vector3.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): Vector3fProto {
+  toProto(): Vector3Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Vector3f.__packProto__(this);
+      this._proto = Vector3.__packProto__(this);
     }
-    return this._proto as Vector3fProto;
+    return this._proto as Vector3Proto;
   }
 
-  static __packProto__(object: Vector3f): Vector3fProto {
-    const objectProto: Partial<Vector3fProto> = { metatype: 2400012 };
+  static __packProto__(object: Vector3): Vector3Proto {
+    const objectProto: Partial<Vector3Proto> = { metatype: 2400012 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
-    return objectProto as Vector3fProto;
+    return objectProto as Vector3Proto;
   }
 
   static __unpackProto__(
-    objectProto: Vector3fProto,
+    objectProto: Vector3Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3f {
-    return new Vector3f({
+  ): Vector3 {
+    return new Vector3({
       x: objectProto.x,
       y: objectProto.y,
       z: objectProto.z,
@@ -603,33 +603,33 @@ export class Vector3f extends Vectorf {
   }
 
   static fromProto(
-    objectProto: Vector3fProto,
+    objectProto: Vector3Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector3f {
-    return Vector3f.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Vector3 {
+    return Vector3.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Vector3f {
+  static fromProtoString(packedProtoString: string): Vector3 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector3fProto.fromBinary(packedProtoBytes);
+    const packedProto = Vector3Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
-  add(other: Vector3f | number): Vector3f {
+  add(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
-      return new Vector3f({
+      return new Vector3({
         x: this.x + other,
         y: this.y + other,
         z: this.z + other,
       });
     } else {
-      return new Vector3f({
+      return new Vector3({
         x: this.x + other.x,
         y: this.y + other.y,
         z: this.z + other.z,
@@ -638,15 +638,15 @@ export class Vector3f extends Vectorf {
   }
 
   /** Subtract two vectors or a vector and a scalar. */
-  sub(other: Vector3f | number): Vector3f {
+  sub(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
-      return new Vector3f({
+      return new Vector3({
         x: this.x - other,
         y: this.y - other,
         z: this.z - other,
       });
     } else {
-      return new Vector3f({
+      return new Vector3({
         x: this.x - other.x,
         y: this.y - other.y,
         z: this.z - other.z,
@@ -655,15 +655,15 @@ export class Vector3f extends Vectorf {
   }
 
   /** Multiply two vectors or a vector and a scalar. */
-  mul(other: Vector3f | number): Vector3f {
+  mul(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
-      return new Vector3f({
+      return new Vector3({
         x: this.x * other,
         y: this.y * other,
         z: this.z * other,
       });
     } else {
-      return new Vector3f({
+      return new Vector3({
         x: this.x * other.x,
         y: this.y * other.y,
         z: this.z * other.z,
@@ -672,15 +672,15 @@ export class Vector3f extends Vectorf {
   }
 
   /** Divide two vectors or a vector and a scalar. */
-  div(other: Vector3f | number): Vector3f {
+  div(other: Vector3 | number): Vector3 {
     if (typeof other === "number") {
-      return new Vector3f({
+      return new Vector3({
         x: this.x / other,
         y: this.y / other,
         z: this.z / other,
       });
     } else {
-      return new Vector3f({
+      return new Vector3({
         x: this.x / other.x,
         y: this.y / other.y,
         z: this.z / other.z,
@@ -689,8 +689,8 @@ export class Vector3f extends Vectorf {
   }
 
   /** Negate a vector. */
-  neg(): Vector3f {
-    return new Vector3f({
+  neg(): Vector3 {
+    return new Vector3({
       x: -this.x,
       y: -this.y,
       z: -this.z,
@@ -700,8 +700,8 @@ export class Vector3f extends Vectorf {
   /**
    * Get the perpendicular vector (rotated 90 degrees counterclockwise).
    */
-  per(): Vector3f {
-    return new Vector3f({
+  per(): Vector3 {
+    return new Vector3({
       x: this.y,
       y: -this.x,
       z: 0,
@@ -709,11 +709,11 @@ export class Vector3f extends Vectorf {
   }
 
   /** Get the absolute value of a vector. */
-  abs(): Vector3f {
+  abs(): Vector3 {
     if (this.x >= 0 && this.y >= 0 && this.z >= 0) {
       return this;
     } else {
-      return new Vector3f({
+      return new Vector3({
         x: Math.abs(this.x),
         y: Math.abs(this.y),
         z: Math.abs(this.z),
@@ -724,15 +724,15 @@ export class Vector3f extends Vectorf {
   /**
    * Calculate the dot product with another vector.
    */
-  dot(other: Vector3f): number {
+  dot(other: Vector3): number {
     return this.x * other.x + this.y * other.y + this.z * other.z;
   }
 
   /**
    * Calculate the cross product with another vector.
    */
-  cross(other: Vector3f): Vector3f {
-    return new Vector3f({
+  cross(other: Vector3): Vector3 {
+    return new Vector3({
       x: this.y * other.z - this.z * other.y,
       y: this.z * other.x - this.x * other.z,
       z: this.x * other.y - this.y * other.x,
@@ -742,8 +742,8 @@ export class Vector3f extends Vectorf {
   /**
    * Calculate the linear interpolation between two vectors.
    */
-  lerp(other: Vector3f, t: number): Vector3f {
-    return new Vector3f({
+  lerp(other: Vector3, t: number): Vector3 {
+    return new Vector3({
       x: this.x + (other.x - this.x) * t,
       y: this.y + (other.y - this.y) * t,
       z: this.z + (other.z - this.z) * t,
@@ -760,12 +760,12 @@ export class Vector3f extends Vectorf {
   /**
    * Return a normalized (unit) vector.
    */
-  normalize(): Vector3f {
+  normalize(): Vector3 {
     const mag = this.magnitude();
     if (mag === 0) {
-      return new Vector3f({ x: 0.0, y: 0.0, z: 0.0 });
+      return new Vector3({ x: 0.0, y: 0.0, z: 0.0 });
     }
-    return new Vector3f({
+    return new Vector3({
       x: this.x / mag,
       y: this.y / mag,
       z: this.z / mag,
@@ -775,7 +775,7 @@ export class Vector3f extends Vectorf {
   /**
    * Calculate the squared distance to another vector.
    */
-  distance2(other: Vector3f): number {
+  distance2(other: Vector3): number {
     const dx = this.x - other.x;
     const dy = this.y - other.y;
     const dz = this.z - other.z;
@@ -785,19 +785,19 @@ export class Vector3f extends Vectorf {
   /**
    * Calculate the distance to another vector.
    */
-  distance(other: Vector3f): number {
+  distance(other: Vector3): number {
     return Math.sqrt(this.distance2(other));
   }
 
   /**
    * Rotate this vector around another point by the given angle.
    */
-  rotWith(center: Vector3f, angle: number): Vector3f {
+  rotWith(center: Vector3, angle: number): Vector3 {
     const x = this.x - center.x;
     const y = this.y - center.y;
     const s = Math.sin(angle);
     const c = Math.cos(angle);
-    return new Vector3f({
+    return new Vector3({
       x: center.x + (x * c - y * s),
       y: center.y + (x * s + y * c),
       z: this.z,
@@ -806,34 +806,34 @@ export class Vector3f extends Vectorf {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.VECTOR3F, Vector3f);
+registerStructClass(StructType.VECTOR3, Vector3);
 /* ==== DESTACK_GENERATED_END:STRUCT:2400012 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400013 ==== */
 /**
  * A 4D floating point vector.
  */
-export class Vector4f extends Vectorf {
-  static metatype: StructType = StructType.VECTOR4F;
+export class Vector4 extends Vectorf {
+  static metatype: StructType = StructType.VECTOR4;
   static __isFrozen__: boolean = true;
 
   /**
-   * The x-coordinate of the Vector4f.
+   * The x-coordinate of the Vector4.
    */
   readonly x: number;
 
   /**
-   * The y-coordinate of the Vector4f.
+   * The y-coordinate of the Vector4.
    */
   readonly y: number;
 
   /**
-   * The z-coordinate of the Vector4f.
+   * The z-coordinate of the Vector4.
    */
   readonly z: number;
 
   /**
-   * The w-coordinate of the Vector4f.
+   * The w-coordinate of the Vector4.
    */
   readonly w: number;
 
@@ -859,22 +859,22 @@ export class Vector4f extends Vectorf {
     // properties
     let _x = options.x;
     if (_x === null) {
-      throw new Error(`Vector4f.x is required`);
+      throw new Error(`Vector4.x is required`);
     }
     this.x = _x;
     let _y = options.y;
     if (_y === null) {
-      throw new Error(`Vector4f.y is required`);
+      throw new Error(`Vector4.y is required`);
     }
     this.y = _y;
     let _z = options.z;
     if (_z === null) {
-      throw new Error(`Vector4f.z is required`);
+      throw new Error(`Vector4.z is required`);
     }
     this.z = _z;
     let _w = options.w;
     if (_w === null) {
-      throw new Error(`Vector4f.w is required`);
+      throw new Error(`Vector4.w is required`);
     }
     this.w = _w;
 
@@ -916,7 +916,7 @@ export class Vector4f extends Vectorf {
       propertyReprs.push(`z=${this.z}`);
       propertyReprs.push(`w=${this.w}`);
       // @ts-expect-error(readonly)
-      this._repr = `<Vector4f ${propertyReprs.join(" ")}>`;
+      this._repr = `<Vector4 ${propertyReprs.join(" ")}>`;
     }
     return this._repr;
   }
@@ -945,12 +945,12 @@ export class Vector4f extends Vectorf {
   toCson(): { [key: string]: any } {
     if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._cson = Vector4f.__packCson__(this);
+      this._cson = Vector4.__packCson__(this);
     }
     return this._cson;
   }
 
-  static __packCson__(object: Vector4f): { [key: string]: any } {
+  static __packCson__(object: Vector4): { [key: string]: any } {
     const objectCson: { [key: string]: any } = {};
     objectCson["1"] = 2400013;
     objectCson["101"] = object.x;
@@ -966,8 +966,8 @@ export class Vector4f extends Vectorf {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4f {
-    return new Vector4f({
+  ): Vector4 {
+    return new Vector4({
       x: objectCson["101"],
       y: objectCson["102"],
       z: objectCson["103"],
@@ -983,35 +983,35 @@ export class Vector4f extends Vectorf {
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4f {
-    return Vector4f.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
+  ): Vector4 {
+    return Vector4.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
-  toProto(): Vector4fProto {
+  toProto(): Vector4Proto {
     if (this._proto === null) {
       // @ts-expect-error(readonly)
-      this._proto = Vector4f.__packProto__(this);
+      this._proto = Vector4.__packProto__(this);
     }
-    return this._proto as Vector4fProto;
+    return this._proto as Vector4Proto;
   }
 
-  static __packProto__(object: Vector4f): Vector4fProto {
-    const objectProto: Partial<Vector4fProto> = { metatype: 2400013 };
+  static __packProto__(object: Vector4): Vector4Proto {
+    const objectProto: Partial<Vector4Proto> = { metatype: 2400013 };
     objectProto.x = object.x;
     objectProto.y = object.y;
     objectProto.z = object.z;
     objectProto.w = object.w;
-    return objectProto as Vector4fProto;
+    return objectProto as Vector4Proto;
   }
 
   static __unpackProto__(
-    objectProto: Vector4fProto,
+    objectProto: Vector4Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4f {
-    return new Vector4f({
+  ): Vector4 {
+    return new Vector4({
       x: objectProto.x,
       y: objectProto.y,
       z: objectProto.z,
@@ -1022,34 +1022,34 @@ export class Vector4f extends Vectorf {
   }
 
   static fromProto(
-    objectProto: Vector4fProto,
+    objectProto: Vector4Proto,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
-  ): Vector4f {
-    return Vector4f.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
+  ): Vector4 {
+    return Vector4.__unpackProto__(objectProto, _session, _supergraph, _graph, _connection);
   }
 
-  static fromProtoString(packedProtoString: string): Vector4f {
+  static fromProtoString(packedProtoString: string): Vector4 {
     const packedProtoBytes = base64Decode(packedProtoString);
-    const packedProto = Vector4fProto.fromBinary(packedProtoBytes);
+    const packedProto = Vector4Proto.fromBinary(packedProtoBytes);
     return this.fromProto(packedProto);
   }
 
   /* ==== DESTACK_CUSTOM_START ==== */
 
   /** Add two vectors or a vector and a scalar. */
-  add(other: Vector4f | number): Vector4f {
+  add(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
-      return new Vector4f({
+      return new Vector4({
         x: this.x + other,
         y: this.y + other,
         z: this.z + other,
         w: this.w + other,
       });
     } else {
-      return new Vector4f({
+      return new Vector4({
         x: this.x + other.x,
         y: this.y + other.y,
         z: this.z + other.z,
@@ -1059,16 +1059,16 @@ export class Vector4f extends Vectorf {
   }
 
   /** Subtract two vectors or a vector and a scalar. */
-  sub(other: Vector4f | number): Vector4f {
+  sub(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
-      return new Vector4f({
+      return new Vector4({
         x: this.x - other,
         y: this.y - other,
         z: this.z - other,
         w: this.w - other,
       });
     } else {
-      return new Vector4f({
+      return new Vector4({
         x: this.x - other.x,
         y: this.y - other.y,
         z: this.z - other.z,
@@ -1078,16 +1078,16 @@ export class Vector4f extends Vectorf {
   }
 
   /** Multiply two vectors or a vector and a scalar. */
-  mul(other: Vector4f | number): Vector4f {
+  mul(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
-      return new Vector4f({
+      return new Vector4({
         x: this.x * other,
         y: this.y * other,
         z: this.z * other,
         w: this.w * other,
       });
     } else {
-      return new Vector4f({
+      return new Vector4({
         x: this.x * other.x,
         y: this.y * other.y,
         z: this.z * other.z,
@@ -1097,16 +1097,16 @@ export class Vector4f extends Vectorf {
   }
 
   /** Divide two vectors or a vector and a scalar. */
-  div(other: Vector4f | number): Vector4f {
+  div(other: Vector4 | number): Vector4 {
     if (typeof other === "number") {
-      return new Vector4f({
+      return new Vector4({
         x: this.x / other,
         y: this.y / other,
         z: this.z / other,
         w: this.w / other,
       });
     } else {
-      return new Vector4f({
+      return new Vector4({
         x: this.x / other.x,
         y: this.y / other.y,
         z: this.z / other.z,
@@ -1116,8 +1116,8 @@ export class Vector4f extends Vectorf {
   }
 
   /** Negate a vector. */
-  neg(): Vector4f {
-    return new Vector4f({
+  neg(): Vector4 {
+    return new Vector4({
       x: -this.x,
       y: -this.y,
       z: -this.z,
@@ -1128,8 +1128,8 @@ export class Vector4f extends Vectorf {
   /**
    * Get the perpendicular vector (rotated 90 degrees counterclockwise).
    */
-  per(): Vector4f {
-    return new Vector4f({
+  per(): Vector4 {
+    return new Vector4({
       x: this.y,
       y: -this.x,
       z: 0,
@@ -1138,11 +1138,11 @@ export class Vector4f extends Vectorf {
   }
 
   /** Get the absolute value of a vector. */
-  abs(): Vector4f {
+  abs(): Vector4 {
     if (this.x >= 0 && this.y >= 0 && this.z >= 0 && this.w >= 0) {
       return this;
     } else {
-      return new Vector4f({
+      return new Vector4({
         x: Math.abs(this.x),
         y: Math.abs(this.y),
         z: Math.abs(this.z),
@@ -1154,15 +1154,15 @@ export class Vector4f extends Vectorf {
   /**
    * Calculate the dot product with another vector.
    */
-  dot(other: Vector4f): number {
+  dot(other: Vector4): number {
     return this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w;
   }
 
   /**
    * Calculate the cross product with another vector.
    */
-  cross(other: Vector4f): Vector4f {
-    return new Vector4f({
+  cross(other: Vector4): Vector4 {
+    return new Vector4({
       x: this.y * other.z - this.z * other.y,
       y: this.z * other.x - this.x * other.z,
       z: this.x * other.y - this.y * other.x,
@@ -1173,8 +1173,8 @@ export class Vector4f extends Vectorf {
   /**
    * Calculate the linear interpolation between two vectors.
    */
-  lerp(other: Vector4f, t: number): Vector4f {
-    return new Vector4f({
+  lerp(other: Vector4, t: number): Vector4 {
+    return new Vector4({
       x: this.x + (other.x - this.x) * t,
       y: this.y + (other.y - this.y) * t,
       z: this.z + (other.z - this.z) * t,
@@ -1192,12 +1192,12 @@ export class Vector4f extends Vectorf {
   /**
    * Return a normalized (unit) vector.
    */
-  normalize(): Vector4f {
+  normalize(): Vector4 {
     const mag = this.magnitude();
     if (mag === 0) {
-      return new Vector4f({ x: 0.0, y: 0.0, z: 0.0, w: 0.0 });
+      return new Vector4({ x: 0.0, y: 0.0, z: 0.0, w: 0.0 });
     }
-    return new Vector4f({
+    return new Vector4({
       x: this.x / mag,
       y: this.y / mag,
       z: this.z / mag,
@@ -1208,7 +1208,7 @@ export class Vector4f extends Vectorf {
   /**
    * Calculate the squared distance to another vector.
    */
-  distance2(other: Vector4f): number {
+  distance2(other: Vector4): number {
     const dx = this.x - other.x;
     const dy = this.y - other.y;
     const dz = this.z - other.z;
@@ -1219,19 +1219,19 @@ export class Vector4f extends Vectorf {
   /**
    * Calculate the distance to another vector.
    */
-  distance(other: Vector4f): number {
+  distance(other: Vector4): number {
     return Math.sqrt(this.distance2(other));
   }
 
   /**
    * Rotate this vector around another point by the given angle.
    */
-  rotWith(center: Vector4f, angle: number): Vector4f {
+  rotWith(center: Vector4, angle: number): Vector4 {
     const x = this.x - center.x;
     const y = this.y - center.y;
     const s = Math.sin(angle);
     const c = Math.cos(angle);
-    return new Vector4f({
+    return new Vector4({
       x: center.x + (x * c - y * s),
       y: center.y + (x * s + y * c),
       z: this.z,
@@ -1241,7 +1241,7 @@ export class Vector4f extends Vectorf {
 
   /* ==== DESTACK_CUSTOM_END ==== */
 }
-registerStructClass(StructType.VECTOR4F, Vector4f);
+registerStructClass(StructType.VECTOR4, Vector4);
 /* ==== DESTACK_GENERATED_END:STRUCT:2400013 ==== */
 
 /* ==== DESTACK_GENERATED_START:STRUCT:2400021 ==== */

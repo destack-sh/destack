@@ -2,7 +2,7 @@
 
 from typing import TYPE_CHECKING, Union
 
-VERSION = "2025.07.19.1"
+VERSION = "2025.07.19.2"
 
 # import from all generated files
 from .health_pb2 import *
@@ -275,9 +275,9 @@ AnyStructProto = Union[
     VectorProto,
     VectorfProto,
     VectoriProto,
-    Vector2fProto,
-    Vector3fProto,
-    Vector4fProto,
+    Vector2Proto,
+    Vector3Proto,
+    Vector4Proto,
     Vector2iProto,
     Vector3iProto,
     Vector4iProto,

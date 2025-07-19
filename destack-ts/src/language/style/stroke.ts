@@ -26,7 +26,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -658,12 +658,12 @@ export class StrokePoint extends StructFrozen {
   /**
    * The adjusted point position.
    */
-  readonly point: Vector2f;
+  readonly point: Vector2;
 
   /**
    * The original input point.
    */
-  readonly originalPoint: Vector2f;
+  readonly originalPoint: Vector2;
 
   /**
    * The pressure value at this point (0-1).
@@ -673,7 +673,7 @@ export class StrokePoint extends StructFrozen {
   /**
    * The normalized direction vector from previous point.
    */
-  readonly direction: Vector2f;
+  readonly direction: Vector2;
 
   /**
    * Distance from the previous point.
@@ -691,10 +691,10 @@ export class StrokePoint extends StructFrozen {
   readonly radius: number;
 
   constructor(options: {
-    point: Vector2f;
-    originalPoint: Vector2f;
+    point: Vector2;
+    originalPoint: Vector2;
     pressure: number;
-    direction: Vector2f;
+    direction: Vector2;
     distance: number;
     runningLength: number;
     radius: number;
@@ -856,10 +856,10 @@ export class StrokePoint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePoint {
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new StrokePoint({
-      point: _Vector2f.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
-      originalPoint: _Vector2f.fromCson(
+      point: _Vector2.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      originalPoint: _Vector2.fromCson(
         objectCson["102"],
         _session,
         _supergraph,
@@ -867,7 +867,7 @@ export class StrokePoint extends StructFrozen {
         _connection,
       ),
       pressure: objectCson["103"],
-      direction: _Vector2f.fromCson(objectCson["104"], _session, _supergraph, _graph, _connection),
+      direction: _Vector2.fromCson(objectCson["104"], _session, _supergraph, _graph, _connection),
       distance: objectCson["105"],
       runningLength: objectCson["106"],
       radius: objectCson["107"],
@@ -913,10 +913,10 @@ export class StrokePoint extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePoint {
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new StrokePoint({
-      point: _Vector2f.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
-      originalPoint: _Vector2f.fromProto(
+      point: _Vector2.fromProto(objectProto.point!, _session, _supergraph, _graph, _connection),
+      originalPoint: _Vector2.fromProto(
         objectProto.originalPoint!,
         _session,
         _supergraph,
@@ -924,7 +924,7 @@ export class StrokePoint extends StructFrozen {
         _connection,
       ),
       pressure: objectProto.pressure,
-      direction: _Vector2f.fromProto(
+      direction: _Vector2.fromProto(
         objectProto.direction!,
         _session,
         _supergraph,

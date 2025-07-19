@@ -8,7 +8,7 @@ import {
   PointerMoveEvent,
   Stroke,
   StrokeType,
-  Vector2f,
+  Vector2,
 } from "destack";
 import React, { useRef, useState } from "react";
 
@@ -29,17 +29,17 @@ export const LayerView: React.FC<{ layerPtr: NodeReference }> = ({ layerPtr }) =
 
   const [currentLine, setCurrentLine] = useState<LineShape | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
-  const [lastMousePosition, setLastMousePosition] = useState<Vector2f | null>(null);
+  const [lastMousePosition, setLastMousePosition] = useState<Vector2 | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2f => {
+  const getMousePosition = (event: React.MouseEvent<SVGSVGElement>): Vector2 => {
     if (!svgRef.current) {
       throw new Error("SVG element not found");
     }
     const rect = svgRef.current.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
-    return new Vector2f({ x, y });
+    return new Vector2({ x, y });
   };
 
   // begin drawing on mouse down

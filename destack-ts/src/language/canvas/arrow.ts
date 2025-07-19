@@ -26,7 +26,7 @@ import {
   StructFrozen,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import {
   STRUCT_CLASS_BY_TYPE,
@@ -92,7 +92,7 @@ export class Arrow extends StructFrozen {
   /**
    * Arrow.start
    */
-  readonly start: Vector2f;
+  readonly start: Vector2;
 
   /**
    * Arrow.endType
@@ -102,13 +102,13 @@ export class Arrow extends StructFrozen {
   /**
    * Arrow.end
    */
-  readonly end: Vector2f;
+  readonly end: Vector2;
 
   constructor(options: {
     startType: ArrowHeadType;
-    start: Vector2f;
+    start: Vector2;
     endType: ArrowHeadType;
-    end: Vector2f;
+    end: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _hash?: number | null;
@@ -225,12 +225,12 @@ export class Arrow extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Arrow {
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new Arrow({
       startType: Number(objectCson["200"]),
-      start: _Vector2f.fromCson(objectCson["201"], _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromCson(objectCson["201"], _session, _supergraph, _graph, _connection),
       endType: Number(objectCson["210"]),
-      end: _Vector2f.fromCson(objectCson["211"], _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromCson(objectCson["211"], _session, _supergraph, _graph, _connection),
       _cson: objectCson,
       _supergraph,
     });
@@ -270,12 +270,12 @@ export class Arrow extends StructFrozen {
     _graph?: any | null,
     _connection?: any | null,
   ): Arrow {
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     return new Arrow({
       startType: Number(objectProto.startType) as ArrowHeadType,
-      start: _Vector2f.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
       endType: Number(objectProto.endType) as ArrowHeadType,
-      end: _Vector2f.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
       _proto: objectProto,
       _supergraph,
     });
@@ -894,15 +894,15 @@ export class ArrowShape extends Shape {
   /**
    * ContainerView.skew
    */
-  get skew(): Vector2f | null {
+  get skew(): Vector2 | null {
     return this._skew;
   }
-  set skew(value: Vector2f | null) {
+  set skew(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["skew"];
     this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
-  _skew: Vector2f | null;
+  _skew: Vector2 | null;
 
   /**
    * ContainerView.scale
@@ -1006,15 +1006,15 @@ export class ArrowShape extends Shape {
   /**
    * ArrowShape.start
    */
-  get start(): Vector2f {
+  get start(): Vector2 {
     return this._start;
   }
-  set start(value: Vector2f) {
+  set start(value: Vector2) {
     const prop = (this.constructor as NodeClass).__properties__["start"];
     this._session.updateSetProperty(this, prop, value);
     this._start = value;
   }
-  _start: Vector2f;
+  _start: Vector2;
 
   /**
    * ArrowShape.endType
@@ -1038,15 +1038,15 @@ export class ArrowShape extends Shape {
   /**
    * ArrowShape.end
    */
-  get end(): Vector2f {
+  get end(): Vector2 {
     return this._end;
   }
-  set end(value: Vector2f) {
+  set end(value: Vector2) {
     const prop = (this.constructor as NodeClass).__properties__["end"];
     this._session.updateSetProperty(this, prop, value);
     this._end = value;
   }
-  _end: Vector2f;
+  _end: Vector2;
 
   constructor(options: {
     id?: string;
@@ -1093,16 +1093,16 @@ export class ArrowShape extends Shape {
     opacity?: number | null;
     fill?: Fill | null;
     rotation?: Axis3 | null;
-    skew?: Vector2f | null;
+    skew?: Vector2 | null;
     scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
     radius?: Corners | null;
     stroke?: Stroke | null;
     startType: ArrowHeadType;
-    start: Vector2f;
+    start: Vector2;
     endType: ArrowHeadType;
-    end: Vector2f;
+    end: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1902,7 +1902,7 @@ export class ArrowShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const strokeValue = objectCson["180"];
     const unpackedStroke =
       strokeValue != undefined
@@ -1957,7 +1957,7 @@ export class ArrowShape extends Shape {
     const skewValue = objectCson["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectCson["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -2072,9 +2072,9 @@ export class ArrowShape extends Shape {
     }
     return new ArrowShape({
       startType: Number(objectCson["200"]),
-      start: _Vector2f.fromCson(objectCson["201"], _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromCson(objectCson["201"], _session, _supergraph, _graph, _connection),
       endType: Number(objectCson["210"]),
-      end: _Vector2f.fromCson(objectCson["211"], _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromCson(objectCson["211"], _session, _supergraph, _graph, _connection),
       stroke: unpackedStroke,
       layout: unpackedLayout,
       direction: unpackedDirection,
@@ -2310,7 +2310,7 @@ export class ArrowShape extends Shape {
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
     const _Stroke = STRUCT_CLASS_BY_TYPE[StructType.STROKE] as typeof Stroke;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2322,9 +2322,9 @@ export class ArrowShape extends Shape {
     }
     return new ArrowShape({
       startType: Number(objectProto.startType) as ArrowHeadType,
-      start: _Vector2f.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
+      start: _Vector2.fromProto(objectProto.start!, _session, _supergraph, _graph, _connection),
       endType: Number(objectProto.endType) as ArrowHeadType,
-      end: _Vector2f.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
+      end: _Vector2.fromProto(objectProto.end!, _session, _supergraph, _graph, _connection),
       stroke:
         objectProto.stroke != undefined
           ? _Stroke.fromProto(objectProto.stroke!, _session, _supergraph, _graph, _connection)
@@ -2365,7 +2365,7 @@ export class ArrowShape extends Shape {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:

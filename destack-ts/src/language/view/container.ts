@@ -8,7 +8,7 @@ import type {
   Value,
 } from "@destack/language/core";
 import { Entity, NodeType } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
@@ -373,8 +373,8 @@ export abstract class ContainerView extends View {
   /**
    * ContainerView.skew
    */
-  abstract get skew(): Vector2f | null;
-  abstract set skew(value: Vector2f | null);
+  abstract get skew(): Vector2 | null;
+  abstract set skew(value: Vector2 | null);
 
   /**
    * ContainerView.scale

@@ -231,11 +231,11 @@ import type {
 import type { SpanEvent } from "@destack/language/deployment/span";
 import type {
   Vector,
-  Vector2f,
+  Vector2,
   Vector2i,
-  Vector3f,
+  Vector3,
   Vector3i,
-  Vector4f,
+  Vector4,
   Vector4i,
   Vectorf,
   Vectori,
@@ -717,9 +717,9 @@ export type StructTypeMapping = {
   [StructType.VECTOR]: Vector;
   [StructType.VECTORF]: Vectorf;
   [StructType.VECTORI]: Vectori;
-  [StructType.VECTOR2F]: Vector2f;
-  [StructType.VECTOR3F]: Vector3f;
-  [StructType.VECTOR4F]: Vector4f;
+  [StructType.VECTOR2]: Vector2;
+  [StructType.VECTOR3]: Vector3;
+  [StructType.VECTOR4]: Vector4;
   [StructType.VECTOR2I]: Vector2i;
   [StructType.VECTOR3I]: Vector3i;
   [StructType.VECTOR4I]: Vector4i;
