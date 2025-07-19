@@ -14,7 +14,7 @@ export function uuid4(): string {
  * Generate a UUIDv7.
  * See https://www.rfc-editor.org/rfc/rfc9562.html#name-uuid-version-7.
  */
-export function uuid7(): string {
+function _generateUuid7(): string {
   // 48-bit ms timestamp
   const t = Date.now();
   const hi = (t / 0x1_0000_0000) | 0;
@@ -73,6 +73,14 @@ export function uuid7(): string {
     _byteToHex[b[15]]
   );
 }
+
+let _uuid7: () => string;
+if (typeof Bun !== "undefined") {
+  _uuid7 = Bun.randomUUIDv7;
+} else {
+  _uuid7 = _generateUuid7;
+}
+export const uuid7 = _uuid7;
 
 export const NANO_ID_LENGTH = 5;
 export const NANO_ID_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";

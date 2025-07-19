@@ -401,11 +401,23 @@ async def test_move_views(session: Session, space: Space):
     assert len(layer_children) == 1 + 4 * (4 + 1)
 
 
-@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
-async def test_edit_branch(session: Session):
-    """Create a Branch and query it."""
+@pytest.mark.parametrize("session", ENTITY_SESSIONS)
+async def test_instantiation(session: Session, space: Space):
+    """Test instantiation of Entity."""
 
-    # nocheckin: support Entity branching & variants
+    frame_view = FrameView(name="FrameView")
+    text_view = TextView(name="TextView")
+    session.create(frame_view)
+    frame_view.add_child(text_view)
+    await session.commit()
+
+    frame_view_instance = frame_view.instantiate()
+    # nocheckin: support Entity materialization (branching, instantiation, ...)
+
+
+@pytest.mark.parametrize("session", ENTITY_SESSIONS, indirect=True)
+async def test_branching(session: Session):
+    """Create a Branch and query it."""
 
     space = Space(name="Test", slug="test", status=SpaceStatus.ACTIVE, region=REGION)
     user = User(name="Alice", slug="alice", space=space)
