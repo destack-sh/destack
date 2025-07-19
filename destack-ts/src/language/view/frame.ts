@@ -23,7 +23,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
 import type { Border, Fill, Shadow } from "@destack/language/style";
@@ -641,15 +641,15 @@ export class FrameView extends ContainerView {
   /**
    * ContainerView.skew
    */
-  get skew(): Vector2f | null {
+  get skew(): Vector2 | null {
     return this._skew;
   }
-  set skew(value: Vector2f | null) {
+  set skew(value: Vector2 | null) {
     const prop = (this.constructor as NodeClass).__properties__["skew"];
     this._session.updateSetProperty(this, prop, value);
     this._skew = value;
   }
-  _skew: Vector2f | null;
+  _skew: Vector2 | null;
 
   /**
    * ContainerView.scale
@@ -760,7 +760,7 @@ export class FrameView extends ContainerView {
     opacity?: number | null;
     fill?: Fill | null;
     rotation?: Axis3 | null;
-    skew?: Vector2f | null;
+    skew?: Vector2 | null;
     scale?: number | null;
     shadow?: Shadow | null;
     border?: Border | null;
@@ -1506,7 +1506,7 @@ export class FrameView extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const layoutValue = objectCson["120"];
     const unpackedLayout = layoutValue != undefined ? Number(layoutValue) : null;
     const directionValue = objectCson["121"];
@@ -1556,7 +1556,7 @@ export class FrameView extends ContainerView {
     const skewValue = objectCson["144"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
     const scaleValue = objectCson["145"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
@@ -1896,7 +1896,7 @@ export class FrameView extends ContainerView {
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Border = STRUCT_CLASS_BY_TYPE[StructType.BORDER] as typeof Border;
     const _Shadow = STRUCT_CLASS_BY_TYPE[StructType.SHADOW] as typeof Shadow;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1943,7 +1943,7 @@ export class FrameView extends ContainerView {
           : null,
       skew:
         objectProto.skew != undefined
-          ? _Vector2f.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
+          ? _Vector2.fromProto(objectProto.skew!, _session, _supergraph, _graph, _connection)
           : null,
       scale: objectProto.scale != undefined ? objectProto.scale : null,
       shadow:

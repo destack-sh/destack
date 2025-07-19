@@ -383,9 +383,9 @@ export interface AnnotationShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -424,17 +424,17 @@ export interface ArrowProto {
      */
     startType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto start = 201
+     * @generated from protobuf field: symbol.destack.Vector2Proto start = 201
      */
-    start?: Vector2fProto;
+    start?: Vector2Proto;
     /**
      * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto end_type = 210
      */
     endType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto end = 211
+     * @generated from protobuf field: symbol.destack.Vector2Proto end = 211
      */
-    end?: Vector2fProto;
+    end?: Vector2Proto;
 }
 /**
  * An ArrowShape is a shape that represents an arrow.
@@ -625,9 +625,9 @@ export interface ArrowShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -653,17 +653,17 @@ export interface ArrowShapeProto {
      */
     startType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto start = 201
+     * @generated from protobuf field: symbol.destack.Vector2Proto start = 201
      */
-    start?: Vector2fProto;
+    start?: Vector2Proto;
     /**
      * @generated from protobuf field: symbol.destack.ArrowHeadTypeProto end_type = 210
      */
     endType: ArrowHeadTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto end = 211
+     * @generated from protobuf field: symbol.destack.Vector2Proto end = 211
      */
-    end?: Vector2fProto;
+    end?: Vector2Proto;
 }
 /**
  * @generated from protobuf message symbol.destack.Axis2Proto
@@ -1050,9 +1050,9 @@ export interface ClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -1845,9 +1845,9 @@ export interface ContainerViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -3391,9 +3391,9 @@ export interface DoubleClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -3508,9 +3508,9 @@ export interface DragEndEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A DragEnterEvent is a DragEvent when a drag enters an element.
@@ -3601,9 +3601,9 @@ export interface DragEnterEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A DragEvent is an InputEvent that corresponds to some direct user input with a drag.
@@ -3694,9 +3694,9 @@ export interface DragEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A DragLeaveEvent is a DragEvent when a drag leaves an element.
@@ -3787,9 +3787,9 @@ export interface DragLeaveEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A DragOverEvent is a DragEvent when a drag is over an element.
@@ -3880,9 +3880,9 @@ export interface DragOverEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A DragStartEvent is a DragEvent when a drag starts.
@@ -3973,9 +3973,9 @@ export interface DragStartEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A DropEvent is a DragEvent when a drag is dropped on an element.
@@ -4066,9 +4066,9 @@ export interface DropEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
 }
 /**
  * A recorded Edit of an Entity.
@@ -4198,9 +4198,9 @@ export interface EffectProto {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto offset = 103
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto offset = 103
      */
-    offset?: Vector2fProto;
+    offset?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 104
      */
@@ -4210,9 +4210,9 @@ export interface EffectProto {
      */
     rotate?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 106
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 106
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double perspective = 107
      */
@@ -4355,9 +4355,9 @@ export interface EffectStyleProto {
      */
     opacity?: number;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto offset = 201
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto offset = 201
      */
-    offset?: Vector2fProto;
+    offset?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 202
      */
@@ -4367,9 +4367,9 @@ export interface EffectStyleProto {
      */
     rotate?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 204
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 204
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double perspective = 205
      */
@@ -6681,9 +6681,9 @@ export interface FrameViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -9166,9 +9166,9 @@ export interface LabelViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -9307,9 +9307,9 @@ export interface LayerProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -9345,9 +9345,9 @@ export interface LineProto {
      */
     stroke?: StrokeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector2fProto points = 210
+     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 210
      */
-    points: Vector2fProto[];
+    points: Vector2Proto[];
 }
 /**
  * A LineShape is a shape that represents a line.
@@ -9538,9 +9538,9 @@ export interface LineShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -9562,9 +9562,9 @@ export interface LineShapeProto {
      */
     stroke?: StrokeProto;
     /**
-     * @generated from protobuf field: repeated symbol.destack.Vector2fProto points = 200
+     * @generated from protobuf field: repeated symbol.destack.Vector2Proto points = 200
      */
-    points: Vector2fProto[];
+    points: Vector2Proto[];
 }
 /**
  * A Log message.
@@ -10812,9 +10812,9 @@ export interface MouseEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -12375,9 +12375,9 @@ export interface PointerDownEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -12488,9 +12488,9 @@ export interface PointerEnterEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -12601,9 +12601,9 @@ export interface PointerEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -12714,9 +12714,9 @@ export interface PointerLeaveEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -12827,9 +12827,9 @@ export interface PointerLongPressEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -12940,9 +12940,9 @@ export interface PointerMoveEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -13053,9 +13053,9 @@ export interface PointerOverEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -13166,9 +13166,9 @@ export interface PointerUpEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -16746,9 +16746,9 @@ export interface ShapeProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -16948,9 +16948,9 @@ export interface SingleClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -17638,9 +17638,9 @@ export interface SplitViewProto {
      */
     rotation?: Axis3Proto;
     /**
-     * @generated from protobuf field: optional symbol.destack.Vector2fProto skew = 144
+     * @generated from protobuf field: optional symbol.destack.Vector2Proto skew = 144
      */
-    skew?: Vector2fProto;
+    skew?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double scale = 145
      */
@@ -18170,21 +18170,21 @@ export interface StrokePointProto {
      */
     metatype: StructTypeProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto point = 101
+     * @generated from protobuf field: symbol.destack.Vector2Proto point = 101
      */
-    point?: Vector2fProto;
+    point?: Vector2Proto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto original_point = 102
+     * @generated from protobuf field: symbol.destack.Vector2Proto original_point = 102
      */
-    originalPoint?: Vector2fProto;
+    originalPoint?: Vector2Proto;
     /**
      * @generated from protobuf field: double pressure = 103
      */
     pressure: number;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto direction = 104
+     * @generated from protobuf field: symbol.destack.Vector2Proto direction = 104
      */
-    direction?: Vector2fProto;
+    direction?: Vector2Proto;
     /**
      * @generated from protobuf field: double distance = 105
      */
@@ -20237,9 +20237,9 @@ export interface TripleClickEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -20595,9 +20595,9 @@ export interface VectorProto {
     metatype: StructTypeProto;
 }
 /**
- * @generated from protobuf message symbol.destack.Vector2fProto
+ * @generated from protobuf message symbol.destack.Vector2Proto
  */
-export interface Vector2fProto {
+export interface Vector2Proto {
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
@@ -20629,9 +20629,9 @@ export interface Vector2iProto {
     y: number;
 }
 /**
- * @generated from protobuf message symbol.destack.Vector3fProto
+ * @generated from protobuf message symbol.destack.Vector3Proto
  */
-export interface Vector3fProto {
+export interface Vector3Proto {
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
@@ -20671,9 +20671,9 @@ export interface Vector3iProto {
     z: number;
 }
 /**
- * @generated from protobuf message symbol.destack.Vector4fProto
+ * @generated from protobuf message symbol.destack.Vector4Proto
  */
-export interface Vector4fProto {
+export interface Vector4Proto {
     /**
      * @generated from protobuf field: symbol.destack.StructTypeProto metatype = 1
      */
@@ -21035,9 +21035,9 @@ export interface WheelEventProto {
      */
     nodePtr?: NodeReferenceProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto position = 110
+     * @generated from protobuf field: symbol.destack.Vector2Proto position = 110
      */
-    position?: Vector2fProto;
+    position?: Vector2Proto;
     /**
      * @generated from protobuf field: optional double pressure = 111
      */
@@ -21063,9 +21063,9 @@ export interface WheelEventProto {
      */
     button: MouseButtonProto;
     /**
-     * @generated from protobuf field: symbol.destack.Vector2fProto delta = 140
+     * @generated from protobuf field: symbol.destack.Vector2Proto delta = 140
      */
-    delta?: Vector2fProto;
+    delta?: Vector2Proto;
 }
 /**
  * A Window for someone to interact with a Space.
@@ -27743,17 +27743,17 @@ export enum StructTypeProto {
      */
     STRUCT_TYPE_VECTORF = 2400010,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2F = 2400011;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR2 = 2400011;
      */
-    STRUCT_TYPE_VECTOR2F = 2400011,
+    STRUCT_TYPE_VECTOR2 = 2400011,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3F = 2400012;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR3 = 2400012;
      */
-    STRUCT_TYPE_VECTOR3F = 2400012,
+    STRUCT_TYPE_VECTOR3 = 2400012,
     /**
-     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4F = 2400013;
+     * @generated from protobuf enum value: STRUCT_TYPE_VECTOR4 = 2400013;
      */
-    STRUCT_TYPE_VECTOR4F = 2400013,
+    STRUCT_TYPE_VECTOR4 = 2400013,
     /**
      * @generated from protobuf enum value: STRUCT_TYPE_VECTORI = 2400020;
      */
@@ -28819,7 +28819,7 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -28983,8 +28983,8 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -29171,9 +29171,9 @@ class AnnotationShapeProto$Type extends MessageType<AnnotationShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -29208,9 +29208,9 @@ class ArrowProto$Type extends MessageType<ArrowProto> {
         super("symbol.destack.ArrowProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 200, name: "start_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 201, name: "start", kind: "message", T: () => Vector2fProto },
+            { no: 201, name: "start", kind: "message", T: () => Vector2Proto },
             { no: 210, name: "end_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 211, name: "end", kind: "message", T: () => Vector2fProto }
+            { no: 211, name: "end", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<ArrowProto>): ArrowProto {
@@ -29233,14 +29233,14 @@ class ArrowProto$Type extends MessageType<ArrowProto> {
                 case /* symbol.destack.ArrowHeadTypeProto start_type */ 200:
                     message.startType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2fProto start */ 201:
-                    message.start = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.start);
+                case /* symbol.destack.Vector2Proto start */ 201:
+                    message.start = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.start);
                     break;
                 case /* symbol.destack.ArrowHeadTypeProto end_type */ 210:
                     message.endType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2fProto end */ 211:
-                    message.end = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                case /* symbol.destack.Vector2Proto end */ 211:
+                    message.end = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29260,15 +29260,15 @@ class ArrowProto$Type extends MessageType<ArrowProto> {
         /* symbol.destack.ArrowHeadTypeProto start_type = 200; */
         if (message.startType !== 0)
             writer.tag(200, WireType.Varint).int32(message.startType);
-        /* symbol.destack.Vector2fProto start = 201; */
+        /* symbol.destack.Vector2Proto start = 201; */
         if (message.start)
-            Vector2fProto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ArrowHeadTypeProto end_type = 210; */
         if (message.endType !== 0)
             writer.tag(210, WireType.Varint).int32(message.endType);
-        /* symbol.destack.Vector2fProto end = 211; */
+        /* symbol.destack.Vector2Proto end = 211; */
         if (message.end)
-            Vector2fProto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -29328,16 +29328,16 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
             { no: 148, name: "radius", kind: "message", T: () => CornersProto },
             { no: 180, name: "stroke", kind: "message", T: () => StrokeProto },
             { no: 200, name: "start_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 201, name: "start", kind: "message", T: () => Vector2fProto },
+            { no: 201, name: "start", kind: "message", T: () => Vector2Proto },
             { no: 210, name: "end_type", kind: "enum", T: () => ["symbol.destack.ArrowHeadTypeProto", ArrowHeadTypeProto] },
-            { no: 211, name: "end", kind: "message", T: () => Vector2fProto }
+            { no: 211, name: "end", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<ArrowShapeProto>): ArrowShapeProto {
@@ -29497,8 +29497,8 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -29518,14 +29518,14 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
                 case /* symbol.destack.ArrowHeadTypeProto start_type */ 200:
                     message.startType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2fProto start */ 201:
-                    message.start = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.start);
+                case /* symbol.destack.Vector2Proto start */ 201:
+                    message.start = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.start);
                     break;
                 case /* symbol.destack.ArrowHeadTypeProto end_type */ 210:
                     message.endType = reader.int32();
                     break;
-                case /* symbol.destack.Vector2fProto end */ 211:
-                    message.end = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.end);
+                case /* symbol.destack.Vector2Proto end */ 211:
+                    message.end = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.end);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -29694,9 +29694,9 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -29715,15 +29715,15 @@ class ArrowShapeProto$Type extends MessageType<ArrowShapeProto> {
         /* symbol.destack.ArrowHeadTypeProto start_type = 200; */
         if (message.startType !== 0)
             writer.tag(200, WireType.Varint).int32(message.startType);
-        /* symbol.destack.Vector2fProto start = 201; */
+        /* symbol.destack.Vector2Proto start = 201; */
         if (message.start)
-            Vector2fProto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.start, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         /* symbol.destack.ArrowHeadTypeProto end_type = 210; */
         if (message.endType !== 0)
             writer.tag(210, WireType.Varint).int32(message.endType);
-        /* symbol.destack.Vector2fProto end = 211; */
+        /* symbol.destack.Vector2Proto end = 211; */
         if (message.end)
-            Vector2fProto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.end, writer.tag(211, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -30491,7 +30491,7 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -30583,8 +30583,8 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -30696,9 +30696,9 @@ class ClickEventProto$Type extends MessageType<ClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -32122,7 +32122,7 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -32284,8 +32284,8 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -32466,9 +32466,9 @@ class ContainerViewProto$Type extends MessageType<ContainerViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -35767,7 +35767,7 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -35859,8 +35859,8 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -35972,9 +35972,9 @@ class DoubleClickEventProto$Type extends MessageType<DoubleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -36027,7 +36027,7 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DragEndEventProto>): DragEndEventProto {
@@ -36108,8 +36108,8 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -36203,9 +36203,9 @@ class DragEndEventProto$Type extends MessageType<DragEndEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36240,7 +36240,7 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DragEnterEventProto>): DragEnterEventProto {
@@ -36321,8 +36321,8 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -36416,9 +36416,9 @@ class DragEnterEventProto$Type extends MessageType<DragEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36453,7 +36453,7 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DragEventProto>): DragEventProto {
@@ -36534,8 +36534,8 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -36629,9 +36629,9 @@ class DragEventProto$Type extends MessageType<DragEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36666,7 +36666,7 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DragLeaveEventProto>): DragLeaveEventProto {
@@ -36747,8 +36747,8 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -36842,9 +36842,9 @@ class DragLeaveEventProto$Type extends MessageType<DragLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -36879,7 +36879,7 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DragOverEventProto>): DragOverEventProto {
@@ -36960,8 +36960,8 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -37055,9 +37055,9 @@ class DragOverEventProto$Type extends MessageType<DragOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -37092,7 +37092,7 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DragStartEventProto>): DragStartEventProto {
@@ -37173,8 +37173,8 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -37268,9 +37268,9 @@ class DragStartEventProto$Type extends MessageType<DragStartEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -37305,7 +37305,7 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto }
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<DropEventProto>): DropEventProto {
@@ -37386,8 +37386,8 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -37481,9 +37481,9 @@ class DropEventProto$Type extends MessageType<DropEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -37722,10 +37722,10 @@ class EffectProto$Type extends MessageType<EffectProto> {
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EffectTypeProto", EffectTypeProto] },
             { no: 101, name: "style_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 102, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 103, name: "offset", kind: "message", T: () => Vector2fProto },
+            { no: 103, name: "offset", kind: "message", T: () => Vector2Proto },
             { no: 104, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 105, name: "rotate", kind: "message", T: () => Axis3Proto },
-            { no: 106, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 106, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 107, name: "perspective", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 108, name: "delay", kind: "message", T: () => Duration },
             { no: 109, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -37762,8 +37762,8 @@ class EffectProto$Type extends MessageType<EffectProto> {
                 case /* optional double opacity */ 102:
                     message.opacity = reader.double();
                     break;
-                case /* optional symbol.destack.Vector2fProto offset */ 103:
-                    message.offset = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional symbol.destack.Vector2Proto offset */ 103:
+                    message.offset = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
                 case /* optional double scale */ 104:
                     message.scale = reader.double();
@@ -37771,8 +37771,8 @@ class EffectProto$Type extends MessageType<EffectProto> {
                 case /* optional symbol.destack.Axis3Proto rotate */ 105:
                     message.rotate = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 106:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 106:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double perspective */ 107:
                     message.perspective = reader.double();
@@ -37825,18 +37825,18 @@ class EffectProto$Type extends MessageType<EffectProto> {
         /* optional double opacity = 102; */
         if (message.opacity !== undefined)
             writer.tag(102, WireType.Bit64).double(message.opacity);
-        /* optional symbol.destack.Vector2fProto offset = 103; */
+        /* optional symbol.destack.Vector2Proto offset = 103; */
         if (message.offset)
-            Vector2fProto.internalBinaryWrite(message.offset, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.offset, writer.tag(103, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 104; */
         if (message.scale !== undefined)
             writer.tag(104, WireType.Bit64).double(message.scale);
         /* optional symbol.destack.Axis3Proto rotate = 105; */
         if (message.rotate)
             Axis3Proto.internalBinaryWrite(message.rotate, writer.tag(105, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 106; */
+        /* optional symbol.destack.Vector2Proto skew = 106; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(106, WireType.LengthDelimited).fork(), options).join();
         /* optional double perspective = 107; */
         if (message.perspective !== undefined)
             writer.tag(107, WireType.Bit64).double(message.perspective);
@@ -37902,10 +37902,10 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 100, name: "type", kind: "enum", T: () => ["symbol.destack.EffectTypeProto", EffectTypeProto] },
             { no: 200, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 201, name: "offset", kind: "message", T: () => Vector2fProto },
+            { no: 201, name: "offset", kind: "message", T: () => Vector2Proto },
             { no: 202, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 203, name: "rotate", kind: "message", T: () => Axis3Proto },
-            { no: 204, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 204, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 205, name: "perspective", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 206, name: "delay", kind: "message", T: () => Duration },
             { no: 207, name: "duration", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
@@ -38010,8 +38010,8 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
                 case /* optional double opacity */ 200:
                     message.opacity = reader.double();
                     break;
-                case /* optional symbol.destack.Vector2fProto offset */ 201:
-                    message.offset = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
+                case /* optional symbol.destack.Vector2Proto offset */ 201:
+                    message.offset = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.offset);
                     break;
                 case /* optional double scale */ 202:
                     message.scale = reader.double();
@@ -38019,8 +38019,8 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
                 case /* optional symbol.destack.Axis3Proto rotate */ 203:
                     message.rotate = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotate);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 204:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 204:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double perspective */ 205:
                     message.perspective = reader.double();
@@ -38153,18 +38153,18 @@ class EffectStyleProto$Type extends MessageType<EffectStyleProto> {
         /* optional double opacity = 200; */
         if (message.opacity !== undefined)
             writer.tag(200, WireType.Bit64).double(message.opacity);
-        /* optional symbol.destack.Vector2fProto offset = 201; */
+        /* optional symbol.destack.Vector2Proto offset = 201; */
         if (message.offset)
-            Vector2fProto.internalBinaryWrite(message.offset, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.offset, writer.tag(201, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 202; */
         if (message.scale !== undefined)
             writer.tag(202, WireType.Bit64).double(message.scale);
         /* optional symbol.destack.Axis3Proto rotate = 203; */
         if (message.rotate)
             Axis3Proto.internalBinaryWrite(message.rotate, writer.tag(203, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 204; */
+        /* optional symbol.destack.Vector2Proto skew = 204; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(204, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(204, WireType.LengthDelimited).fork(), options).join();
         /* optional double perspective = 205; */
         if (message.perspective !== undefined)
             writer.tag(205, WireType.Bit64).double(message.perspective);
@@ -42855,7 +42855,7 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -43017,8 +43017,8 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -43199,9 +43199,9 @@ class FrameViewProto$Type extends MessageType<FrameViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -48448,7 +48448,7 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -48610,8 +48610,8 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -48792,9 +48792,9 @@ class LabelViewProto$Type extends MessageType<LabelViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -48849,7 +48849,7 @@ class LayerProto$Type extends MessageType<LayerProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
@@ -48957,8 +48957,8 @@ class LayerProto$Type extends MessageType<LayerProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -49079,9 +49079,9 @@ class LayerProto$Type extends MessageType<LayerProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -49164,7 +49164,7 @@ class LineProto$Type extends MessageType<LineProto> {
         super("symbol.destack.LineProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 200, name: "stroke", kind: "message", T: () => StrokeProto },
-            { no: 210, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2fProto }
+            { no: 210, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<LineProto>): LineProto {
@@ -49186,8 +49186,8 @@ class LineProto$Type extends MessageType<LineProto> {
                 case /* optional symbol.destack.StrokeProto stroke */ 200:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
-                case /* repeated symbol.destack.Vector2fProto points */ 210:
-                    message.points.push(Vector2fProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2Proto points */ 210:
+                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -49207,9 +49207,9 @@ class LineProto$Type extends MessageType<LineProto> {
         /* optional symbol.destack.StrokeProto stroke = 200; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(200, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.Vector2fProto points = 210; */
+        /* repeated symbol.destack.Vector2Proto points = 210; */
         for (let i = 0; i < message.points.length; i++)
-            Vector2fProto.internalBinaryWrite(message.points[i], writer.tag(210, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(210, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -49269,13 +49269,13 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
             { no: 148, name: "radius", kind: "message", T: () => CornersProto },
             { no: 180, name: "stroke", kind: "message", T: () => StrokeProto },
-            { no: 200, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2fProto }
+            { no: 200, name: "points", kind: "message", repeat: 2 /*RepeatType.UNPACKED*/, T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<LineShapeProto>): LineShapeProto {
@@ -49434,8 +49434,8 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -49452,8 +49452,8 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
                 case /* optional symbol.destack.StrokeProto stroke */ 180:
                     message.stroke = StrokeProto.internalBinaryRead(reader, reader.uint32(), options, message.stroke);
                     break;
-                case /* repeated symbol.destack.Vector2fProto points */ 200:
-                    message.points.push(Vector2fProto.internalBinaryRead(reader, reader.uint32(), options));
+                case /* repeated symbol.destack.Vector2Proto points */ 200:
+                    message.points.push(Vector2Proto.internalBinaryRead(reader, reader.uint32(), options));
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -49622,9 +49622,9 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -49640,9 +49640,9 @@ class LineShapeProto$Type extends MessageType<LineShapeProto> {
         /* optional symbol.destack.StrokeProto stroke = 180; */
         if (message.stroke)
             StrokeProto.internalBinaryWrite(message.stroke, writer.tag(180, WireType.LengthDelimited).fork(), options).join();
-        /* repeated symbol.destack.Vector2fProto points = 200; */
+        /* repeated symbol.destack.Vector2Proto points = 200; */
         for (let i = 0; i < message.points.length; i++)
-            Vector2fProto.internalBinaryWrite(message.points[i], writer.tag(200, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.points[i], writer.tag(200, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -52283,7 +52283,7 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -52375,8 +52375,8 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -52488,9 +52488,9 @@ class MouseEventProto$Type extends MessageType<MouseEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -56037,7 +56037,7 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -56127,8 +56127,8 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -56237,9 +56237,9 @@ class PointerDownEventProto$Type extends MessageType<PointerDownEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -56289,7 +56289,7 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -56379,8 +56379,8 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -56489,9 +56489,9 @@ class PointerEnterEventProto$Type extends MessageType<PointerEnterEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -56541,7 +56541,7 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -56631,8 +56631,8 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -56741,9 +56741,9 @@ class PointerEventProto$Type extends MessageType<PointerEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -56793,7 +56793,7 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -56883,8 +56883,8 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -56993,9 +56993,9 @@ class PointerLeaveEventProto$Type extends MessageType<PointerLeaveEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -57045,7 +57045,7 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -57135,8 +57135,8 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -57245,9 +57245,9 @@ class PointerLongPressEventProto$Type extends MessageType<PointerLongPressEventP
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -57297,7 +57297,7 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -57387,8 +57387,8 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -57497,9 +57497,9 @@ class PointerMoveEventProto$Type extends MessageType<PointerMoveEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -57549,7 +57549,7 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -57639,8 +57639,8 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -57749,9 +57749,9 @@ class PointerOverEventProto$Type extends MessageType<PointerOverEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -57801,7 +57801,7 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -57891,8 +57891,8 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -58001,9 +58001,9 @@ class PointerUpEventProto$Type extends MessageType<PointerUpEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -65660,7 +65660,7 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -65823,8 +65823,8 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -66008,9 +66008,9 @@ class ShapeProto$Type extends MessageType<ShapeProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -66266,7 +66266,7 @@ class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -66358,8 +66358,8 @@ class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -66471,9 +66471,9 @@ class SingleClickEventProto$Type extends MessageType<SingleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -67576,7 +67576,7 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
             { no: 141, name: "opacity", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 142, name: "fill", kind: "message", T: () => FillProto },
             { no: 143, name: "rotation", kind: "message", T: () => Axis3Proto },
-            { no: 144, name: "skew", kind: "message", T: () => Vector2fProto },
+            { no: 144, name: "skew", kind: "message", T: () => Vector2Proto },
             { no: 145, name: "scale", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 146, name: "shadow", kind: "message", T: () => ShadowProto },
             { no: 147, name: "border", kind: "message", T: () => BorderProto },
@@ -67738,8 +67738,8 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
                 case /* optional symbol.destack.Axis3Proto rotation */ 143:
                     message.rotation = Axis3Proto.internalBinaryRead(reader, reader.uint32(), options, message.rotation);
                     break;
-                case /* optional symbol.destack.Vector2fProto skew */ 144:
-                    message.skew = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
+                case /* optional symbol.destack.Vector2Proto skew */ 144:
+                    message.skew = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.skew);
                     break;
                 case /* optional double scale */ 145:
                     message.scale = reader.double();
@@ -67920,9 +67920,9 @@ class SplitViewProto$Type extends MessageType<SplitViewProto> {
         /* optional symbol.destack.Axis3Proto rotation = 143; */
         if (message.rotation)
             Axis3Proto.internalBinaryWrite(message.rotation, writer.tag(143, WireType.LengthDelimited).fork(), options).join();
-        /* optional symbol.destack.Vector2fProto skew = 144; */
+        /* optional symbol.destack.Vector2Proto skew = 144; */
         if (message.skew)
-            Vector2fProto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.skew, writer.tag(144, WireType.LengthDelimited).fork(), options).join();
         /* optional double scale = 145; */
         if (message.scale !== undefined)
             writer.tag(145, WireType.Bit64).double(message.scale);
@@ -69155,10 +69155,10 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
     constructor() {
         super("symbol.destack.StrokePointProto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
-            { no: 101, name: "point", kind: "message", T: () => Vector2fProto },
-            { no: 102, name: "original_point", kind: "message", T: () => Vector2fProto },
+            { no: 101, name: "point", kind: "message", T: () => Vector2Proto },
+            { no: 102, name: "original_point", kind: "message", T: () => Vector2Proto },
             { no: 103, name: "pressure", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
-            { no: 104, name: "direction", kind: "message", T: () => Vector2fProto },
+            { no: 104, name: "direction", kind: "message", T: () => Vector2Proto },
             { no: 105, name: "distance", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 106, name: "running_length", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 107, name: "radius", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
@@ -69183,17 +69183,17 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
                 case /* symbol.destack.StructTypeProto metatype */ 1:
                     message.metatype = reader.int32();
                     break;
-                case /* symbol.destack.Vector2fProto point */ 101:
-                    message.point = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.point);
+                case /* symbol.destack.Vector2Proto point */ 101:
+                    message.point = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.point);
                     break;
-                case /* symbol.destack.Vector2fProto original_point */ 102:
-                    message.originalPoint = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
+                case /* symbol.destack.Vector2Proto original_point */ 102:
+                    message.originalPoint = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.originalPoint);
                     break;
                 case /* double pressure */ 103:
                     message.pressure = reader.double();
                     break;
-                case /* symbol.destack.Vector2fProto direction */ 104:
-                    message.direction = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.direction);
+                case /* symbol.destack.Vector2Proto direction */ 104:
+                    message.direction = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.direction);
                     break;
                 case /* double distance */ 105:
                     message.distance = reader.double();
@@ -69219,18 +69219,18 @@ class StrokePointProto$Type extends MessageType<StrokePointProto> {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
-        /* symbol.destack.Vector2fProto point = 101; */
+        /* symbol.destack.Vector2Proto point = 101; */
         if (message.point)
-            Vector2fProto.internalBinaryWrite(message.point, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto original_point = 102; */
+            Vector2Proto.internalBinaryWrite(message.point, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
+        /* symbol.destack.Vector2Proto original_point = 102; */
         if (message.originalPoint)
-            Vector2fProto.internalBinaryWrite(message.originalPoint, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.originalPoint, writer.tag(102, WireType.LengthDelimited).fork(), options).join();
         /* double pressure = 103; */
         if (message.pressure !== 0)
             writer.tag(103, WireType.Bit64).double(message.pressure);
-        /* symbol.destack.Vector2fProto direction = 104; */
+        /* symbol.destack.Vector2Proto direction = 104; */
         if (message.direction)
-            Vector2fProto.internalBinaryWrite(message.direction, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.direction, writer.tag(104, WireType.LengthDelimited).fork(), options).join();
         /* double distance = 105; */
         if (message.distance !== 0)
             writer.tag(105, WireType.Bit64).double(message.distance);
@@ -73758,7 +73758,7 @@ class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
@@ -73850,8 +73850,8 @@ class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -73963,9 +73963,9 @@ class TripleClickEventProto$Type extends MessageType<TripleClickEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -74771,24 +74771,24 @@ class VectorProto$Type extends MessageType<VectorProto> {
  */
 export const VectorProto = new VectorProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector2fProto$Type extends MessageType<Vector2fProto> {
+class Vector2Proto$Type extends MessageType<Vector2Proto> {
     constructor() {
-        super("symbol.destack.Vector2fProto", [
+        super("symbol.destack.Vector2Proto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 101, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 102, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
-    create(value?: PartialMessage<Vector2fProto>): Vector2fProto {
+    create(value?: PartialMessage<Vector2Proto>): Vector2Proto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.x = 0;
         message.y = 0;
         if (value !== undefined)
-            reflectionMergePartial<Vector2fProto>(this, message, value);
+            reflectionMergePartial<Vector2Proto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2fProto): Vector2fProto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector2Proto): Vector2Proto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -74813,7 +74813,7 @@ class Vector2fProto$Type extends MessageType<Vector2fProto> {
         }
         return message;
     }
-    internalBinaryWrite(message: Vector2fProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: Vector2Proto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -74830,9 +74830,9 @@ class Vector2fProto$Type extends MessageType<Vector2fProto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.Vector2fProto
+ * @generated MessageType for protobuf message symbol.destack.Vector2Proto
  */
-export const Vector2fProto = new Vector2fProto$Type();
+export const Vector2Proto = new Vector2Proto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Vector2iProto$Type extends MessageType<Vector2iProto> {
     constructor() {
@@ -74897,26 +74897,26 @@ class Vector2iProto$Type extends MessageType<Vector2iProto> {
  */
 export const Vector2iProto = new Vector2iProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector3fProto$Type extends MessageType<Vector3fProto> {
+class Vector3Proto$Type extends MessageType<Vector3Proto> {
     constructor() {
-        super("symbol.destack.Vector3fProto", [
+        super("symbol.destack.Vector3Proto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 101, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 102, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 103, name: "z", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
-    create(value?: PartialMessage<Vector3fProto>): Vector3fProto {
+    create(value?: PartialMessage<Vector3Proto>): Vector3Proto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.x = 0;
         message.y = 0;
         message.z = 0;
         if (value !== undefined)
-            reflectionMergePartial<Vector3fProto>(this, message, value);
+            reflectionMergePartial<Vector3Proto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3fProto): Vector3fProto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector3Proto): Vector3Proto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -74944,7 +74944,7 @@ class Vector3fProto$Type extends MessageType<Vector3fProto> {
         }
         return message;
     }
-    internalBinaryWrite(message: Vector3fProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: Vector3Proto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -74964,9 +74964,9 @@ class Vector3fProto$Type extends MessageType<Vector3fProto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.Vector3fProto
+ * @generated MessageType for protobuf message symbol.destack.Vector3Proto
  */
-export const Vector3fProto = new Vector3fProto$Type();
+export const Vector3Proto = new Vector3Proto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Vector3iProto$Type extends MessageType<Vector3iProto> {
     constructor() {
@@ -75039,9 +75039,9 @@ class Vector3iProto$Type extends MessageType<Vector3iProto> {
  */
 export const Vector3iProto = new Vector3iProto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
-class Vector4fProto$Type extends MessageType<Vector4fProto> {
+class Vector4Proto$Type extends MessageType<Vector4Proto> {
     constructor() {
-        super("symbol.destack.Vector4fProto", [
+        super("symbol.destack.Vector4Proto", [
             { no: 1, name: "metatype", kind: "enum", T: () => ["symbol.destack.StructTypeProto", StructTypeProto] },
             { no: 101, name: "x", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
             { no: 102, name: "y", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ },
@@ -75049,7 +75049,7 @@ class Vector4fProto$Type extends MessageType<Vector4fProto> {
             { no: 104, name: "w", kind: "scalar", T: 1 /*ScalarType.DOUBLE*/ }
         ]);
     }
-    create(value?: PartialMessage<Vector4fProto>): Vector4fProto {
+    create(value?: PartialMessage<Vector4Proto>): Vector4Proto {
         const message = globalThis.Object.create((this.messagePrototype!));
         message.metatype = 0;
         message.x = 0;
@@ -75057,10 +75057,10 @@ class Vector4fProto$Type extends MessageType<Vector4fProto> {
         message.z = 0;
         message.w = 0;
         if (value !== undefined)
-            reflectionMergePartial<Vector4fProto>(this, message, value);
+            reflectionMergePartial<Vector4Proto>(this, message, value);
         return message;
     }
-    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4fProto): Vector4fProto {
+    internalBinaryRead(reader: IBinaryReader, length: number, options: BinaryReadOptions, target?: Vector4Proto): Vector4Proto {
         let message = target ?? this.create(), end = reader.pos + length;
         while (reader.pos < end) {
             let [fieldNo, wireType] = reader.tag();
@@ -75091,7 +75091,7 @@ class Vector4fProto$Type extends MessageType<Vector4fProto> {
         }
         return message;
     }
-    internalBinaryWrite(message: Vector4fProto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
+    internalBinaryWrite(message: Vector4Proto, writer: IBinaryWriter, options: BinaryWriteOptions): IBinaryWriter {
         /* symbol.destack.StructTypeProto metatype = 1; */
         if (message.metatype !== 0)
             writer.tag(1, WireType.Varint).int32(message.metatype);
@@ -75114,9 +75114,9 @@ class Vector4fProto$Type extends MessageType<Vector4fProto> {
     }
 }
 /**
- * @generated MessageType for protobuf message symbol.destack.Vector4fProto
+ * @generated MessageType for protobuf message symbol.destack.Vector4Proto
  */
-export const Vector4fProto = new Vector4fProto$Type();
+export const Vector4Proto = new Vector4Proto$Type();
 // @generated message type with reflection information, may provide speed optimized methods
 class Vector4iProto$Type extends MessageType<Vector4iProto> {
     constructor() {
@@ -75762,14 +75762,14 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
             { no: 80, name: "script_ptr", kind: "message", T: () => NodeReferenceProto },
             { no: 90, name: "is_extensible", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 101, name: "node_ptr", kind: "message", T: () => NodeReferenceProto },
-            { no: 110, name: "position", kind: "message", T: () => Vector2fProto },
+            { no: 110, name: "position", kind: "message", T: () => Vector2Proto },
             { no: 111, name: "pressure", kind: "scalar", opt: true, T: 1 /*ScalarType.DOUBLE*/ },
             { no: 120, name: "shift_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 121, name: "alt_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 122, name: "ctrl_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 123, name: "meta_key", kind: "scalar", T: 8 /*ScalarType.BOOL*/ },
             { no: 130, name: "button", kind: "enum", T: () => ["symbol.destack.MouseButtonProto", MouseButtonProto] },
-            { no: 140, name: "delta", kind: "message", T: () => Vector2fProto }
+            { no: 140, name: "delta", kind: "message", T: () => Vector2Proto }
         ]);
     }
     create(value?: PartialMessage<WheelEventProto>): WheelEventProto {
@@ -75855,8 +75855,8 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* optional symbol.destack.NodeReferenceProto node_ptr */ 101:
                     message.nodePtr = NodeReferenceProto.internalBinaryRead(reader, reader.uint32(), options, message.nodePtr);
                     break;
-                case /* symbol.destack.Vector2fProto position */ 110:
-                    message.position = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.position);
+                case /* symbol.destack.Vector2Proto position */ 110:
+                    message.position = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.position);
                     break;
                 case /* optional double pressure */ 111:
                     message.pressure = reader.double();
@@ -75876,8 +75876,8 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
                 case /* symbol.destack.MouseButtonProto button */ 130:
                     message.button = reader.int32();
                     break;
-                case /* symbol.destack.Vector2fProto delta */ 140:
-                    message.delta = Vector2fProto.internalBinaryRead(reader, reader.uint32(), options, message.delta);
+                case /* symbol.destack.Vector2Proto delta */ 140:
+                    message.delta = Vector2Proto.internalBinaryRead(reader, reader.uint32(), options, message.delta);
                     break;
                 default:
                     let u = options.readUnknownField;
@@ -75971,9 +75971,9 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* optional symbol.destack.NodeReferenceProto node_ptr = 101; */
         if (message.nodePtr)
             NodeReferenceProto.internalBinaryWrite(message.nodePtr, writer.tag(101, WireType.LengthDelimited).fork(), options).join();
-        /* symbol.destack.Vector2fProto position = 110; */
+        /* symbol.destack.Vector2Proto position = 110; */
         if (message.position)
-            Vector2fProto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.position, writer.tag(110, WireType.LengthDelimited).fork(), options).join();
         /* optional double pressure = 111; */
         if (message.pressure !== undefined)
             writer.tag(111, WireType.Bit64).double(message.pressure);
@@ -75992,9 +75992,9 @@ class WheelEventProto$Type extends MessageType<WheelEventProto> {
         /* symbol.destack.MouseButtonProto button = 130; */
         if (message.button !== 0)
             writer.tag(130, WireType.Varint).int32(message.button);
-        /* symbol.destack.Vector2fProto delta = 140; */
+        /* symbol.destack.Vector2Proto delta = 140; */
         if (message.delta)
-            Vector2fProto.internalBinaryWrite(message.delta, writer.tag(140, WireType.LengthDelimited).fork(), options).join();
+            Vector2Proto.internalBinaryWrite(message.delta, writer.tag(140, WireType.LengthDelimited).fork(), options).join();
         let u = options.writeUnknownFields;
         if (u !== false)
             (u == true ? UnknownFieldHandler.onWrite : u)(this.typeName, message, writer);
@@ -79238,5 +79238,5 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
     export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerPausedEventProto | TimerResumedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
-    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | IndexDefinitionProto | ConstraintDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto
+    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | IndexDefinitionProto | ConstraintDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2Proto | Vector3Proto | Vector4Proto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto
         

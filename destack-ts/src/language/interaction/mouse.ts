@@ -24,7 +24,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import { PointerEvent } from "@destack/language/interaction/pointer";
 import type { Script } from "@destack/language/logic";
 import {
@@ -172,7 +172,7 @@ export abstract class MouseEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  declare readonly position: Vector2f;
+  declare readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -321,7 +321,7 @@ export abstract class ClickEvent extends MouseEvent {
   /**
    * PointerEvent.position
    */
-  declare readonly position: Vector2f;
+  declare readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -530,7 +530,7 @@ export class SingleClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -582,7 +582,7 @@ export class SingleClickEvent extends ClickEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -1033,7 +1033,7 @@ export class SingleClickEvent extends ClickEvent {
   ): SingleClickEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -1087,7 +1087,7 @@ export class SingleClickEvent extends ClickEvent {
     }
     return new SingleClickEvent({
       button: Number(objectCson["130"]),
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -1201,7 +1201,7 @@ export class SingleClickEvent extends ClickEvent {
   ): SingleClickEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1213,7 +1213,7 @@ export class SingleClickEvent extends ClickEvent {
     }
     return new SingleClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -1530,7 +1530,7 @@ export class DoubleClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -1582,7 +1582,7 @@ export class DoubleClickEvent extends ClickEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -2033,7 +2033,7 @@ export class DoubleClickEvent extends ClickEvent {
   ): DoubleClickEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -2087,7 +2087,7 @@ export class DoubleClickEvent extends ClickEvent {
     }
     return new DoubleClickEvent({
       button: Number(objectCson["130"]),
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -2201,7 +2201,7 @@ export class DoubleClickEvent extends ClickEvent {
   ): DoubleClickEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2213,7 +2213,7 @@ export class DoubleClickEvent extends ClickEvent {
     }
     return new DoubleClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -2530,7 +2530,7 @@ export class TripleClickEvent extends ClickEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -2582,7 +2582,7 @@ export class TripleClickEvent extends ClickEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -3033,7 +3033,7 @@ export class TripleClickEvent extends ClickEvent {
   ): TripleClickEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -3087,7 +3087,7 @@ export class TripleClickEvent extends ClickEvent {
     }
     return new TripleClickEvent({
       button: Number(objectCson["130"]),
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -3201,7 +3201,7 @@ export class TripleClickEvent extends ClickEvent {
   ): TripleClickEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -3213,7 +3213,7 @@ export class TripleClickEvent extends ClickEvent {
     }
     return new TripleClickEvent({
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -3530,7 +3530,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -3565,7 +3565,7 @@ export class WheelEvent extends MouseEvent {
   /**
    * WheelEvent.delta
    */
-  readonly delta: Vector2f;
+  readonly delta: Vector2;
 
   constructor(options: {
     id?: string;
@@ -3587,14 +3587,14 @@ export class WheelEvent extends MouseEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
     ctrlKey: boolean;
     metaKey: boolean;
     button: MouseButton;
-    delta: Vector2f;
+    delta: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -4049,7 +4049,7 @@ export class WheelEvent extends MouseEvent {
   ): WheelEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -4102,9 +4102,9 @@ export class WheelEvent extends MouseEvent {
       }
     }
     return new WheelEvent({
-      delta: _Vector2f.fromCson(objectCson["140"], _session, _supergraph, _graph, _connection),
+      delta: _Vector2.fromCson(objectCson["140"], _session, _supergraph, _graph, _connection),
       button: Number(objectCson["130"]),
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -4219,7 +4219,7 @@ export class WheelEvent extends MouseEvent {
   ): WheelEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -4230,9 +4230,9 @@ export class WheelEvent extends MouseEvent {
       }
     }
     return new WheelEvent({
-      delta: _Vector2f.fromProto(objectProto.delta!, _session, _supergraph, _graph, _connection),
+      delta: _Vector2.fromProto(objectProto.delta!, _session, _supergraph, _graph, _connection),
       button: Number(objectProto.button) as MouseButton,
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,

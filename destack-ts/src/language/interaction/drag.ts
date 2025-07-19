@@ -23,7 +23,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
@@ -152,7 +152,7 @@ export abstract class DragEvent extends InputEvent {
   /**
    * DragEvent.position
    */
-  declare readonly position: Vector2f;
+  declare readonly position: Vector2;
 
   /* ==== DESTACK_CUSTOM_START ==== */
   // ...
@@ -331,7 +331,7 @@ export class DragStartEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   constructor(options: {
     id?: string;
@@ -353,7 +353,7 @@ export class DragStartEvent extends DragEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -729,7 +729,7 @@ export class DragStartEvent extends DragEvent {
   ): DragStartEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -780,7 +780,7 @@ export class DragStartEvent extends DragEvent {
       }
     }
     return new DragStartEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
@@ -881,7 +881,7 @@ export class DragStartEvent extends DragEvent {
   ): DragStartEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -892,7 +892,7 @@ export class DragStartEvent extends DragEvent {
       }
     }
     return new DragStartEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -1198,7 +1198,7 @@ export class DragEndEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   constructor(options: {
     id?: string;
@@ -1220,7 +1220,7 @@ export class DragEndEvent extends DragEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -1596,7 +1596,7 @@ export class DragEndEvent extends DragEvent {
   ): DragEndEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -1647,7 +1647,7 @@ export class DragEndEvent extends DragEvent {
       }
     }
     return new DragEndEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
@@ -1748,7 +1748,7 @@ export class DragEndEvent extends DragEvent {
   ): DragEndEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1759,7 +1759,7 @@ export class DragEndEvent extends DragEvent {
       }
     }
     return new DragEndEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -2065,7 +2065,7 @@ export class DragOverEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   constructor(options: {
     id?: string;
@@ -2087,7 +2087,7 @@ export class DragOverEvent extends DragEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -2463,7 +2463,7 @@ export class DragOverEvent extends DragEvent {
   ): DragOverEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -2514,7 +2514,7 @@ export class DragOverEvent extends DragEvent {
       }
     }
     return new DragOverEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
@@ -2615,7 +2615,7 @@ export class DragOverEvent extends DragEvent {
   ): DragOverEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2626,7 +2626,7 @@ export class DragOverEvent extends DragEvent {
       }
     }
     return new DragOverEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -2932,7 +2932,7 @@ export class DragEnterEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   constructor(options: {
     id?: string;
@@ -2954,7 +2954,7 @@ export class DragEnterEvent extends DragEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -3330,7 +3330,7 @@ export class DragEnterEvent extends DragEvent {
   ): DragEnterEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -3381,7 +3381,7 @@ export class DragEnterEvent extends DragEvent {
       }
     }
     return new DragEnterEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
@@ -3482,7 +3482,7 @@ export class DragEnterEvent extends DragEvent {
   ): DragEnterEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -3493,7 +3493,7 @@ export class DragEnterEvent extends DragEvent {
       }
     }
     return new DragEnterEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -3799,7 +3799,7 @@ export class DragLeaveEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   constructor(options: {
     id?: string;
@@ -3821,7 +3821,7 @@ export class DragLeaveEvent extends DragEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -4197,7 +4197,7 @@ export class DragLeaveEvent extends DragEvent {
   ): DragLeaveEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -4248,7 +4248,7 @@ export class DragLeaveEvent extends DragEvent {
       }
     }
     return new DragLeaveEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
@@ -4349,7 +4349,7 @@ export class DragLeaveEvent extends DragEvent {
   ): DragLeaveEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -4360,7 +4360,7 @@ export class DragLeaveEvent extends DragEvent {
       }
     }
     return new DragLeaveEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -4666,7 +4666,7 @@ export class DropEvent extends DragEvent {
   /**
    * DragEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   constructor(options: {
     id?: string;
@@ -4688,7 +4688,7 @@ export class DropEvent extends DragEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     _session?: Session | null;
     _supergraph?: Supergraph | null;
     _graph?: Graph | null;
@@ -5064,7 +5064,7 @@ export class DropEvent extends DragEvent {
   ): DropEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
@@ -5115,7 +5115,7 @@ export class DropEvent extends DragEvent {
       }
     }
     return new DropEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       node: unpackedNodePtr,
       isExtensible: objectCson["90"],
       definition: unpackedDefinitionPtr,
@@ -5216,7 +5216,7 @@ export class DropEvent extends DragEvent {
   ): DropEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -5227,7 +5227,7 @@ export class DropEvent extends DragEvent {
       }
     }
     return new DropEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,

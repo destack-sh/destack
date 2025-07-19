@@ -9,7 +9,7 @@ from destack.language.core import (
 from .input import InputEvent
 
 if TYPE_CHECKING:
-    from destack.language import Vector2f
+    from destack.language import Vector2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class PointerEvent(InputEvent):
     """A PointerEvent is an InputEvent that corresponds to some direct user input with a pointer."""
 
-    position: "Vector2f" = builtin_property(110, is_repr=True)
+    position: "Vector2" = builtin_property(110, is_repr=True)
     pressure: float | None = builtin_property(111, is_repr=True)
 
     shift_key: bool = builtin_property(120)

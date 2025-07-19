@@ -23,7 +23,7 @@ import {
   NodeType,
   StructType,
 } from "@destack/language/core";
-import type { Vector2f } from "@destack/language/geometry";
+import type { Vector2 } from "@destack/language/geometry";
 import { InputEvent } from "@destack/language/interaction/input";
 import type { Script } from "@destack/language/logic";
 import { STRUCT_CLASS_BY_TYPE, registerNodeClass } from "@destack/language/registry";
@@ -153,7 +153,7 @@ export abstract class PointerEvent extends InputEvent {
   /**
    * PointerEvent.position
    */
-  declare readonly position: Vector2f;
+  declare readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -357,7 +357,7 @@ export class PointerDownEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -404,7 +404,7 @@ export class PointerDownEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -843,7 +843,7 @@ export class PointerDownEvent extends PointerEvent {
   ): PointerDownEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -896,7 +896,7 @@ export class PointerDownEvent extends PointerEvent {
       }
     }
     return new PointerDownEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -1009,7 +1009,7 @@ export class PointerDownEvent extends PointerEvent {
   ): PointerDownEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -1020,7 +1020,7 @@ export class PointerDownEvent extends PointerEvent {
       }
     }
     return new PointerDownEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -1337,7 +1337,7 @@ export class PointerUpEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -1384,7 +1384,7 @@ export class PointerUpEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -1823,7 +1823,7 @@ export class PointerUpEvent extends PointerEvent {
   ): PointerUpEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -1876,7 +1876,7 @@ export class PointerUpEvent extends PointerEvent {
       }
     }
     return new PointerUpEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -1989,7 +1989,7 @@ export class PointerUpEvent extends PointerEvent {
   ): PointerUpEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2000,7 +2000,7 @@ export class PointerUpEvent extends PointerEvent {
       }
     }
     return new PointerUpEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -2311,7 +2311,7 @@ export class PointerMoveEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -2358,7 +2358,7 @@ export class PointerMoveEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -2797,7 +2797,7 @@ export class PointerMoveEvent extends PointerEvent {
   ): PointerMoveEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -2850,7 +2850,7 @@ export class PointerMoveEvent extends PointerEvent {
       }
     }
     return new PointerMoveEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -2963,7 +2963,7 @@ export class PointerMoveEvent extends PointerEvent {
   ): PointerMoveEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -2974,7 +2974,7 @@ export class PointerMoveEvent extends PointerEvent {
       }
     }
     return new PointerMoveEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -3291,7 +3291,7 @@ export class PointerEnterEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -3338,7 +3338,7 @@ export class PointerEnterEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -3777,7 +3777,7 @@ export class PointerEnterEvent extends PointerEvent {
   ): PointerEnterEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -3830,7 +3830,7 @@ export class PointerEnterEvent extends PointerEvent {
       }
     }
     return new PointerEnterEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -3943,7 +3943,7 @@ export class PointerEnterEvent extends PointerEvent {
   ): PointerEnterEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -3954,7 +3954,7 @@ export class PointerEnterEvent extends PointerEvent {
       }
     }
     return new PointerEnterEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -4271,7 +4271,7 @@ export class PointerOverEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -4318,7 +4318,7 @@ export class PointerOverEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -4757,7 +4757,7 @@ export class PointerOverEvent extends PointerEvent {
   ): PointerOverEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -4810,7 +4810,7 @@ export class PointerOverEvent extends PointerEvent {
       }
     }
     return new PointerOverEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -4923,7 +4923,7 @@ export class PointerOverEvent extends PointerEvent {
   ): PointerOverEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -4934,7 +4934,7 @@ export class PointerOverEvent extends PointerEvent {
       }
     }
     return new PointerOverEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -5251,7 +5251,7 @@ export class PointerLeaveEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -5298,7 +5298,7 @@ export class PointerLeaveEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -5737,7 +5737,7 @@ export class PointerLeaveEvent extends PointerEvent {
   ): PointerLeaveEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -5790,7 +5790,7 @@ export class PointerLeaveEvent extends PointerEvent {
       }
     }
     return new PointerLeaveEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -5903,7 +5903,7 @@ export class PointerLeaveEvent extends PointerEvent {
   ): PointerLeaveEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -5914,7 +5914,7 @@ export class PointerLeaveEvent extends PointerEvent {
       }
     }
     return new PointerLeaveEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,
@@ -6231,7 +6231,7 @@ export class PointerLongPressEvent extends PointerEvent {
   /**
    * PointerEvent.position
    */
-  readonly position: Vector2f;
+  readonly position: Vector2;
 
   /**
    * PointerEvent.pressure
@@ -6278,7 +6278,7 @@ export class PointerLongPressEvent extends PointerEvent {
     script?: Script | NodeReference | null;
     isExtensible?: boolean;
     node?: View | NodeReference | null;
-    position: Vector2f;
+    position: Vector2;
     pressure?: number | null;
     shiftKey: boolean;
     altKey: boolean;
@@ -6717,7 +6717,7 @@ export class PointerLongPressEvent extends PointerEvent {
   ): PointerLongPressEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const pressureValue = objectCson["111"];
     const unpackedPressure = pressureValue != undefined ? pressureValue : null;
     const nodePtrValue = objectCson["101"];
@@ -6770,7 +6770,7 @@ export class PointerLongPressEvent extends PointerEvent {
       }
     }
     return new PointerLongPressEvent({
-      position: _Vector2f.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      position: _Vector2.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
       pressure: unpackedPressure,
       shiftKey: objectCson["120"],
       altKey: objectCson["121"],
@@ -6889,7 +6889,7 @@ export class PointerLongPressEvent extends PointerEvent {
   ): PointerLongPressEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
+    const _Vector2 = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2] as typeof Vector2;
     const unpackedCustomValues = {} as any;
     if (objectProto.customValues) {
       for (const [key, value] of Object.entries(objectProto.customValues)) {
@@ -6900,7 +6900,7 @@ export class PointerLongPressEvent extends PointerEvent {
       }
     }
     return new PointerLongPressEvent({
-      position: _Vector2f.fromProto(
+      position: _Vector2.fromProto(
         objectProto.position!,
         _session,
         _supergraph,

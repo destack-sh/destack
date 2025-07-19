@@ -1,10 +1,10 @@
 from .vector import (
     Vector,
-    Vector2f,
+    Vector2,
     Vector2i,
-    Vector3f,
+    Vector3,
     Vector3i,
-    Vector4f,
+    Vector4,
     Vector4i,
     Vectorf,
     Vectori,
@@ -12,11 +12,11 @@ from .vector import (
 
 __all__ = [
     "Vector",
-    "Vector2f",
+    "Vector2",
     "Vector2i",
-    "Vector3f",
+    "Vector3",
     "Vector3i",
-    "Vector4f",
+    "Vector4",
     "Vector4i",
     "Vectorf",
     "Vectori",

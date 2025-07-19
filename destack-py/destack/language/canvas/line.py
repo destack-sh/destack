@@ -13,7 +13,7 @@ from destack.proto import LineProto
 from .shape import Shape
 
 if TYPE_CHECKING:
-    from destack.language import Stroke, Vector2f
+    from destack.language import Stroke, Vector2
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -26,11 +26,11 @@ class Line(StructFrozen[LineProto]):
     """A Line is a list of points."""
 
     stroke: Optional["Stroke"] = builtin_property(200, is_repr=True)
-    points: list["Vector2f"] = builtin_property(210)
+    points: list["Vector2"] = builtin_property(210)
 
 
 @builtin_node(NodeType.LINE_SHAPE)
 class LineShape(Shape):
     """A LineShape is a shape that represents a line."""
 
-    points: list["Vector2f"] = builtin_property(200)
+    points: list["Vector2"] = builtin_property(200)

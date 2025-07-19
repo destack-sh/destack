@@ -1418,9 +1418,9 @@ enum StructTypeProto {
   STRUCT_TYPE_EFFECT = 2200100;
   STRUCT_TYPE_VECTOR = 2400000;
   STRUCT_TYPE_VECTORF = 2400010;
-  STRUCT_TYPE_VECTOR2F = 2400011;
-  STRUCT_TYPE_VECTOR3F = 2400012;
-  STRUCT_TYPE_VECTOR4F = 2400013;
+  STRUCT_TYPE_VECTOR2 = 2400011;
+  STRUCT_TYPE_VECTOR3 = 2400012;
+  STRUCT_TYPE_VECTOR4 = 2400013;
   STRUCT_TYPE_VECTORI = 2400020;
   STRUCT_TYPE_VECTOR2I = 2400021;
   STRUCT_TYPE_VECTOR3I = 2400022;
@@ -1687,7 +1687,7 @@ message AnnotationShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -1699,9 +1699,9 @@ message AnnotationShapeProto {
 message ArrowProto {
   StructTypeProto metatype = 1;
   ArrowHeadTypeProto start_type = 200;
-  Vector2fProto start = 201;
+  Vector2Proto start = 201;
   ArrowHeadTypeProto end_type = 210;
-  Vector2fProto end = 211;
+  Vector2Proto end = 211;
 }
 
 // An ArrowShape is a shape that represents an arrow.
@@ -1751,16 +1751,16 @@ message ArrowShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
   optional CornersProto radius = 148;
   optional StrokeProto stroke = 180;
   ArrowHeadTypeProto start_type = 200;
-  Vector2fProto start = 201;
+  Vector2Proto start = 201;
   ArrowHeadTypeProto end_type = 210;
-  Vector2fProto end = 211;
+  Vector2Proto end = 211;
 }
 
 message Axis2Proto {
@@ -1870,7 +1870,7 @@ message ClickEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -2088,7 +2088,7 @@ message ContainerViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -2507,7 +2507,7 @@ message DoubleClickEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -2538,7 +2538,7 @@ message DragEndEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A DragEnterEvent is a DragEvent when a drag enters an element.
@@ -2563,7 +2563,7 @@ message DragEnterEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A DragEvent is an InputEvent that corresponds to some direct user input with a drag.
@@ -2588,7 +2588,7 @@ message DragEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A DragLeaveEvent is a DragEvent when a drag leaves an element.
@@ -2613,7 +2613,7 @@ message DragLeaveEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A DragOverEvent is a DragEvent when a drag is over an element.
@@ -2638,7 +2638,7 @@ message DragOverEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A DragStartEvent is a DragEvent when a drag starts.
@@ -2663,7 +2663,7 @@ message DragStartEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A DropEvent is a DragEvent when a drag is dropped on an element.
@@ -2688,7 +2688,7 @@ message DropEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
 }
 
 // A recorded Edit of an Entity.
@@ -2725,10 +2725,10 @@ message EffectProto {
   EffectTypeProto type = 100;
   optional NodeReferenceProto style_ptr = 101;
   optional double opacity = 102;
-  optional Vector2fProto offset = 103;
+  optional Vector2Proto offset = 103;
   optional double scale = 104;
   optional Axis3Proto rotate = 105;
-  optional Vector2fProto skew = 106;
+  optional Vector2Proto skew = 106;
   optional double perspective = 107;
   optional google.protobuf.Duration delay = 108;
   optional double duration = 109;
@@ -2766,10 +2766,10 @@ message EffectStyleProto {
   bool is_extensible = 90;
   EffectTypeProto type = 100;
   optional double opacity = 200;
-  optional Vector2fProto offset = 201;
+  optional Vector2Proto offset = 201;
   optional double scale = 202;
   optional Axis3Proto rotate = 203;
-  optional Vector2fProto skew = 204;
+  optional Vector2Proto skew = 204;
   optional double perspective = 205;
   optional google.protobuf.Duration delay = 206;
   optional double duration = 207;
@@ -3405,7 +3405,7 @@ message FrameViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -4086,7 +4086,7 @@ message LabelViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -4123,7 +4123,7 @@ message LayerProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
 }
 
@@ -4136,7 +4136,7 @@ message LengthProto {
 message LineProto {
   StructTypeProto metatype = 1;
   optional StrokeProto stroke = 200;
-  repeated Vector2fProto points = 210;
+  repeated Vector2Proto points = 210;
 }
 
 // A LineShape is a shape that represents a line.
@@ -4186,13 +4186,13 @@ message LineShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
   optional CornersProto radius = 148;
   optional StrokeProto stroke = 180;
-  repeated Vector2fProto points = 200;
+  repeated Vector2Proto points = 200;
 }
 
 // A Log message.
@@ -4535,7 +4535,7 @@ message MouseEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4969,7 +4969,7 @@ message PointerDownEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -4999,7 +4999,7 @@ message PointerEnterEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -5029,7 +5029,7 @@ message PointerEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -5059,7 +5059,7 @@ message PointerLeaveEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -5089,7 +5089,7 @@ message PointerLongPressEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -5119,7 +5119,7 @@ message PointerMoveEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -5149,7 +5149,7 @@ message PointerOverEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -5179,7 +5179,7 @@ message PointerUpEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -6161,7 +6161,7 @@ message ShapeProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -6215,7 +6215,7 @@ message SingleClickEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -6402,7 +6402,7 @@ message SplitViewProto {
   optional double opacity = 141;
   optional FillProto fill = 142;
   optional Axis3Proto rotation = 143;
-  optional Vector2fProto skew = 144;
+  optional Vector2Proto skew = 144;
   optional double scale = 145;
   optional ShadowProto shadow = 146;
   optional BorderProto border = 147;
@@ -6553,10 +6553,10 @@ message StrokePathProto {
 
 message StrokePointProto {
   StructTypeProto metatype = 1;
-  Vector2fProto point = 101;
-  Vector2fProto original_point = 102;
+  Vector2Proto point = 101;
+  Vector2Proto original_point = 102;
   double pressure = 103;
-  Vector2fProto direction = 104;
+  Vector2Proto direction = 104;
   double distance = 105;
   double running_length = 106;
   double radius = 107;
@@ -7118,7 +7118,7 @@ message TripleClickEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
@@ -7218,7 +7218,7 @@ message VectorProto {
   StructTypeProto metatype = 1;
 }
 
-message Vector2fProto {
+message Vector2Proto {
   StructTypeProto metatype = 1;
   double x = 101;
   double y = 102;
@@ -7230,7 +7230,7 @@ message Vector2iProto {
   int64 y = 102 [jstype = JS_NUMBER];
 }
 
-message Vector3fProto {
+message Vector3Proto {
   StructTypeProto metatype = 1;
   double x = 101;
   double y = 102;
@@ -7244,7 +7244,7 @@ message Vector3iProto {
   int64 z = 103 [jstype = JS_NUMBER];
 }
 
-message Vector4fProto {
+message Vector4Proto {
   StructTypeProto metatype = 1;
   double x = 101;
   double y = 102;
@@ -7346,14 +7346,14 @@ message WheelEventProto {
   optional NodeReferenceProto script_ptr = 80;
   bool is_extensible = 90;
   optional NodeReferenceProto node_ptr = 101;
-  Vector2fProto position = 110;
+  Vector2Proto position = 110;
   optional double pressure = 111;
   bool shift_key = 120;
   bool alt_key = 121;
   bool ctrl_key = 122;
   bool meta_key = 123;
   MouseButtonProto button = 130;
-  Vector2fProto delta = 140;
+  Vector2Proto delta = 140;
 }
 
 // A Window for someone to interact with a Space.

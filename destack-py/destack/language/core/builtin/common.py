@@ -358,9 +358,9 @@ class StructType(Enum):
     # geometry [2_400_000-2_500_000]
     VECTOR = 2_400_000, None, None, "fas fa-vector-square"
     VECTORF = 2_400_010
-    VECTOR2F = 2_400_011, None, None, "fas fa-vector-square"
-    VECTOR3F = 2_400_012, None, None, "fas fa-vector-square"
-    VECTOR4F = 2_400_013, None, None, "fas fa-vector-square"
+    VECTOR2 = 2_400_011, None, None, "fas fa-vector-square"
+    VECTOR3 = 2_400_012, None, None, "fas fa-vector-square"
+    VECTOR4 = 2_400_013, None, None, "fas fa-vector-square"
     VECTORI = 2_400_020
     VECTOR2I = 2_400_021, None, None, "fas fa-vector-square"
     VECTOR3I = 2_400_022, None, None, "fas fa-vector-square"
@@ -486,7 +486,8 @@ class NodeType(Enum):
     ENTITY = 2, "Entity", "Versioned, stateful Node", "fas fa-dot"
     EVENT = 3, "Event", "Immutable datum of something happening", "fas fa-dot"
     # space
-    SPACE = 10_000, "Space", "Universal Space", "https://heydestack.com/favicon.ico"
+    # UNIVERSE
+    SPACE = 10_100, "Space", "Universal Space", "fas fa-galaxy"
     # time
     BRANCH = 11_000, "Branch", None, "fas fa-code-branch"
     SNAPSHOT = 11_100, "Snapshot", "Point in Space-time", "fas fa-save"
@@ -817,6 +818,7 @@ class NodeType(Enum):
 
     # animation [2_200_000-2_300_000]
     # ANIMATION, ANIMATION_TRACK, ANIMATION_KEYFRAME, ...
+    # KEYFRAME_VARIANT, ...
     # RIG, ...
     # PARTICLE, EMITTER, ...
 
@@ -825,7 +827,9 @@ class NodeType(Enum):
 
     # geometry [2_400_000-2_500_000]
     # SKELETON, ...
-    # VECTOR/POINT/PATH/NETWORK, ...
+    # VECTOR_NETWORK, VECTOR_POINT, VECTOR_SEGMENT, VECTOR_REGION, ...
+    # SHAPE2D, ...
+    # AREA2D, ...
 
     # physics [2_500_000-2_600_000]
     # MESH, COLLISION, ...
