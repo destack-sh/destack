@@ -73,7 +73,8 @@ export abstract class ContainerView extends View {
   declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): ContainerView | null;
   declare readonly precededByPtr: NodeReference | null;

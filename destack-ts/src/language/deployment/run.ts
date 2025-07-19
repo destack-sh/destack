@@ -84,13 +84,13 @@ export abstract class RunEvent extends Event {
    * The Branch this Event originated from.
    */
   abstract get branch(): Branch | null;
-  declare readonly branchPtr: NodeReference | null;
+  declare readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
    */
   abstract get snapshot(): Snapshot | null;
-  declare readonly snapshotPtr: NodeReference | null;
+  declare readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -105,12 +105,12 @@ export abstract class RunEvent extends Event {
   declare readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   declare readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   declare readonly createdEpoch: number;
 
@@ -194,7 +194,7 @@ export class RunStartedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -206,7 +206,7 @@ export class RunStartedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -233,12 +233,12 @@ export class RunStartedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -313,8 +313,8 @@ export class RunStartedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -369,10 +369,16 @@ export class RunStartedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunStartedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunStartedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -455,10 +461,10 @@ export class RunStartedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -495,12 +501,8 @@ export class RunStartedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -579,12 +581,8 @@ export class RunStartedEvent extends RunEvent {
     objectValue["1"] = 1110002;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -625,16 +623,6 @@ export class RunStartedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -666,8 +654,20 @@ export class RunStartedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -704,12 +704,8 @@ export class RunStartedEvent extends RunEvent {
     const objectProto: Partial<RunStartedEventProto> = { metatype: 1110002 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -763,26 +759,20 @@ export class RunStartedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -895,7 +885,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -907,7 +897,7 @@ export class RunPauseRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -934,12 +924,12 @@ export class RunPauseRequestedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -1014,8 +1004,8 @@ export class RunPauseRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1070,10 +1060,16 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunPauseRequestedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunPauseRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1156,10 +1152,10 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1196,12 +1192,8 @@ export class RunPauseRequestedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -1280,12 +1272,8 @@ export class RunPauseRequestedEvent extends RunEvent {
     objectValue["1"] = 1110003;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -1326,16 +1314,6 @@ export class RunPauseRequestedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -1367,8 +1345,20 @@ export class RunPauseRequestedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1411,12 +1401,8 @@ export class RunPauseRequestedEvent extends RunEvent {
     const objectProto: Partial<RunPauseRequestedEventProto> = { metatype: 1110003 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -1470,26 +1456,20 @@ export class RunPauseRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1608,7 +1588,7 @@ export class RunPausedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -1620,7 +1600,7 @@ export class RunPausedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -1647,12 +1627,12 @@ export class RunPausedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -1727,8 +1707,8 @@ export class RunPausedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -1783,10 +1763,16 @@ export class RunPausedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunPausedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunPausedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -1869,10 +1855,10 @@ export class RunPausedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -1909,12 +1895,8 @@ export class RunPausedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -1993,12 +1975,8 @@ export class RunPausedEvent extends RunEvent {
     objectValue["1"] = 1110004;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2039,16 +2017,6 @@ export class RunPausedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2080,8 +2048,20 @@ export class RunPausedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -2118,12 +2098,8 @@ export class RunPausedEvent extends RunEvent {
     const objectProto: Partial<RunPausedEventProto> = { metatype: 1110004 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -2177,26 +2153,20 @@ export class RunPausedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -2309,7 +2279,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -2321,7 +2291,7 @@ export class RunResumeRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -2348,12 +2318,12 @@ export class RunResumeRequestedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -2428,8 +2398,8 @@ export class RunResumeRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -2484,10 +2454,16 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunResumeRequestedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunResumeRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -2570,10 +2546,10 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -2610,12 +2586,8 @@ export class RunResumeRequestedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -2694,12 +2666,8 @@ export class RunResumeRequestedEvent extends RunEvent {
     objectValue["1"] = 1110005;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -2740,16 +2708,6 @@ export class RunResumeRequestedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -2781,8 +2739,20 @@ export class RunResumeRequestedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -2825,12 +2795,8 @@ export class RunResumeRequestedEvent extends RunEvent {
     const objectProto: Partial<RunResumeRequestedEventProto> = { metatype: 1110005 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -2884,26 +2850,20 @@ export class RunResumeRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3022,7 +2982,7 @@ export class RunResumedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3034,7 +2994,7 @@ export class RunResumedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -3061,12 +3021,12 @@ export class RunResumedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -3141,8 +3101,8 @@ export class RunResumedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -3197,10 +3157,16 @@ export class RunResumedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunResumedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunResumedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -3283,10 +3249,10 @@ export class RunResumedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -3323,12 +3289,8 @@ export class RunResumedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -3407,12 +3369,8 @@ export class RunResumedEvent extends RunEvent {
     objectValue["1"] = 1110006;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -3453,16 +3411,6 @@ export class RunResumedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -3494,8 +3442,20 @@ export class RunResumedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -3532,12 +3492,8 @@ export class RunResumedEvent extends RunEvent {
     const objectProto: Partial<RunResumedEventProto> = { metatype: 1110006 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -3591,26 +3547,20 @@ export class RunResumedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -3723,7 +3673,7 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -3735,7 +3685,7 @@ export class RunStopRequestedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -3762,12 +3712,12 @@ export class RunStopRequestedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -3842,8 +3792,8 @@ export class RunStopRequestedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -3898,10 +3848,16 @@ export class RunStopRequestedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunStopRequestedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunStopRequestedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -3984,10 +3940,10 @@ export class RunStopRequestedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -4024,12 +3980,8 @@ export class RunStopRequestedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -4108,12 +4060,8 @@ export class RunStopRequestedEvent extends RunEvent {
     objectValue["1"] = 1110007;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -4154,16 +4102,6 @@ export class RunStopRequestedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -4195,8 +4133,20 @@ export class RunStopRequestedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -4239,12 +4189,8 @@ export class RunStopRequestedEvent extends RunEvent {
     const objectProto: Partial<RunStopRequestedEventProto> = { metatype: 1110007 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -4298,26 +4244,20 @@ export class RunStopRequestedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -4436,7 +4376,7 @@ export class RunFailedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -4448,7 +4388,7 @@ export class RunFailedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -4475,12 +4415,12 @@ export class RunFailedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -4555,8 +4495,8 @@ export class RunFailedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -4611,10 +4551,16 @@ export class RunFailedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunFailedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunFailedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -4697,10 +4643,10 @@ export class RunFailedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -4737,12 +4683,8 @@ export class RunFailedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -4821,12 +4763,8 @@ export class RunFailedEvent extends RunEvent {
     objectValue["1"] = 1110008;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -4867,16 +4805,6 @@ export class RunFailedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -4908,8 +4836,20 @@ export class RunFailedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -4946,12 +4886,8 @@ export class RunFailedEvent extends RunEvent {
     const objectProto: Partial<RunFailedEventProto> = { metatype: 1110008 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -5005,26 +4941,20 @@ export class RunFailedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -5137,7 +5067,7 @@ export class RunCompletedEvent extends RunEvent {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -5149,7 +5079,7 @@ export class RunCompletedEvent extends RunEvent {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -5176,12 +5106,12 @@ export class RunCompletedEvent extends RunEvent {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -5256,8 +5186,8 @@ export class RunCompletedEvent extends RunEvent {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -5312,10 +5242,16 @@ export class RunCompletedEvent extends RunEvent {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`RunCompletedEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`RunCompletedEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -5398,10 +5334,10 @@ export class RunCompletedEvent extends RunEvent {
     if (!(this.targetPtr?.id === other.targetPtr?.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -5438,12 +5374,8 @@ export class RunCompletedEvent extends RunEvent {
     if (this.targetPtr != null) {
       h = (h * 31 + hashString(this.targetPtr.id)) & 0xffffffff;
     }
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -5522,12 +5454,8 @@ export class RunCompletedEvent extends RunEvent {
     objectValue["1"] = 1110009;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -5568,16 +5496,6 @@ export class RunCompletedEvent extends RunEvent {
       targetPtrValue != undefined
         ? _NodeReference.fromValue(targetPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -5609,8 +5527,20 @@ export class RunCompletedEvent extends RunEvent {
         _connection,
       ),
       target: unpackedTargetPtr,
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -5653,12 +5583,8 @@ export class RunCompletedEvent extends RunEvent {
     const objectProto: Partial<RunCompletedEventProto> = { metatype: 1110009 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -5712,26 +5638,20 @@ export class RunCompletedEvent extends RunEvent {
               _connection,
             )
           : null,
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(
@@ -5864,7 +5784,8 @@ export abstract class Run extends Entity implements IsCustomizable, IsIrreversib
   declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): Run | null;
   declare readonly precededByPtr: NodeReference | null;

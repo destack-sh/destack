@@ -62,11 +62,11 @@ def _filter_rows(
     definition: NodeDefinitionReference,
     where: Condition | None,
     include_deleted: bool,
-    snapshot_path: Sequence[UUID],
+    branch_id: UUID,
+    snapshot_id: UUID,
     ignore_multi: bool = False,
 ) -> Sequence[MemoryEntityRow]:
     """Filter rows based on definition and where condition."""
-    snapshot_id = snapshot_path[-1] if snapshot_path else None
 
     if definition.is_multi and not ignore_multi:
         definitions = context.resolve(definition)
@@ -119,7 +119,8 @@ def _query_node(
     include_deleted: bool,
     limit: int | None,
     offset: int | None,
-    snapshot_path: Sequence[UUID],
+    branch_id: UUID,
+    snapshot_id: UUID,
     _ignore_multi: bool = False,
 ) -> tuple[list[Value], list[NodeReference]]:
     """Execute a node Query."""
@@ -140,7 +141,8 @@ def _query_node(
                 include_deleted=include_deleted,
                 limit=limit,
                 offset=offset,
-                snapshot_path=snapshot_path,
+                branch_id=branch_id,
+                snapshot_id=snapshot_id,
                 _ignore_multi=True,
             )
             all_values.extend(values)
@@ -153,7 +155,8 @@ def _query_node(
         definition=definition,
         where=where,
         include_deleted=include_deleted,
-        snapshot_path=snapshot_path,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
         ignore_multi=True,
     )
 
@@ -187,7 +190,8 @@ def _query_scalar(
     aggregation: Aggregation,
     where: Condition | None,
     include_deleted: bool,
-    snapshot_path: Sequence[UUID],
+    branch_id: UUID,
+    snapshot_id: UUID,
 ) -> Value:
     """Execute a scalar Query."""
     # filter
@@ -196,7 +200,8 @@ def _query_scalar(
         definition=definition,
         where=where,
         include_deleted=include_deleted,
-        snapshot_path=snapshot_path,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
     )
 
     # execute
@@ -223,7 +228,8 @@ def _query_grouped_node(
     include_deleted: bool,
     limit: int | None,
     offset: int | None,
-    snapshot_path: Sequence[UUID],
+    branch_id: UUID,
+    snapshot_id: UUID,
 ) -> list[tuple[Value, list[Value], list[NodeReference]]]:
     """Execute a grouped node Query."""
     if definition.is_multi:
@@ -235,7 +241,8 @@ def _query_grouped_node(
         definition=definition,
         where=where,
         include_deleted=include_deleted,
-        snapshot_path=snapshot_path,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
     )
 
     # group rows by group_by expressions
@@ -291,7 +298,8 @@ def _query_grouped_scalar(
     having: Condition | None,
     group_by: Sequence[Expression],
     include_deleted: bool,
-    snapshot_path: Sequence[UUID],
+    branch_id: UUID,
+    snapshot_id: UUID,
 ) -> list[tuple[Value, Value]]:
     """Execute a grouped scalar Query."""
     if definition.is_multi:
@@ -303,7 +311,8 @@ def _query_grouped_scalar(
         definition=definition,
         where=where,
         include_deleted=include_deleted,
-        snapshot_path=snapshot_path,
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
     )
 
     # group rows by group_by expressions
@@ -342,12 +351,12 @@ def _walk_node(
     direction: EdgeDirection,
     depth: int,
     include_deleted: bool | Collection[str],
-    snapshot_path: Sequence[UUID],
+    branch_id: UUID,
+    snapshot_id: UUID,
 ) -> tuple[list[NodeReference], dict[UUID, UUID]]:
     """Get the cascaded Nodes for a query."""
 
     definitions = context.resolve(definition)
-    snapshot_id = snapshot_path[-1] if snapshot_path else None
     nodes_by_id: dict[UUID, NodeReference] = {}
     source_id_by_node_id: dict[UUID, UUID] = {}
 
@@ -459,7 +468,8 @@ def _query_clause(
             include_deleted=query.include_deleted,
             limit=query.limit,
             offset=query.offset,
-            snapshot_path=query.snapshot_path,
+            branch_id=query.branch_ptr.id,
+            snapshot_id=query.snapshot_ptr.id,
         )
         result = QueryResult(id=query.id, type=query.type, nodes=nodes)
 
@@ -472,7 +482,8 @@ def _query_clause(
             aggregation=query.aggregation,
             where=combined_where,
             include_deleted=query.include_deleted,
-            snapshot_path=query.snapshot_path,
+            branch_id=query.branch_ptr.id,
+            snapshot_id=query.snapshot_ptr.id,
         )
         nodes_ptr = []
         result = QueryResult(id=query.id, type=query.type, scalar=scalar_result)
@@ -495,7 +506,8 @@ def _query_clause(
             include_deleted=query.include_deleted,
             limit=query.limit,
             offset=query.offset,
-            snapshot_path=query.snapshot_path,
+            branch_id=query.branch_ptr.id,
+            snapshot_id=query.snapshot_ptr.id,
         )
         nodes_ptr = []
         groups: list[QueryResultGroup] = []
@@ -521,7 +533,8 @@ def _query_clause(
             having=query.having,
             group_by=query.group_by,
             include_deleted=query.include_deleted,
-            snapshot_path=query.snapshot_path,
+            branch_id=query.branch_ptr.id,
+            snapshot_id=query.snapshot_ptr.id,
         )
         nodes_ptr = []
         groups: list[QueryResultGroup] = []
@@ -583,7 +596,8 @@ def _execute_subquery(
                 direction=EdgeDirection.PARENT,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 include_deleted=subquery.include_deleted,
-                snapshot_path=subquery.snapshot_path,
+                branch_id=subquery.branch_ptr.id,
+                snapshot_id=subquery.snapshot_ptr.id,
             )
             subquery_where = subquery.definition.resolve_property("id").in_(
                 *(n.id for n in expanded_nodes_ptr)
@@ -608,7 +622,8 @@ def _execute_subquery(
                 direction=EdgeDirection.CHILD,
                 depth=subquery.join.depth or MAX_RECURSION_DEPTH,
                 include_deleted=subquery.include_deleted,
-                snapshot_path=subquery.snapshot_path,
+                branch_id=subquery.branch_ptr.id,
+                snapshot_id=subquery.snapshot_ptr.id,
             )
             subquery_where = Condition(
                 type=ConditionalType.IN,

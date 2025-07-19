@@ -125,6 +125,8 @@ class Session:
             node=node,
             value=to_value(node, node_as_value=True),
             space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -137,6 +139,8 @@ class Session:
             node=node,
             value=to_value(node, node_as_value=True),
             space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
         node._is_new = False
@@ -165,6 +169,8 @@ class Session:
             reverse_operation=undo_operation,
             reverse_value=old_value,
             space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
 
@@ -183,6 +189,8 @@ class Session:
             value=to_value(parent),
             reverse_value=to_value(old_parent),
             space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
 
@@ -195,6 +203,8 @@ class Session:
             node=node,
             reverse_value=reverse_value,
             space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
 
@@ -205,6 +215,8 @@ class Session:
             type=EditType.RESTORE,
             node=node,
             space_ptr=node.space_ptr,
+            branch_ptr=node.branch_ptr,
+            snapshot_ptr=node.snapshot_ptr,
         )
         self.pending_events.append(edit)
 

@@ -56,7 +56,7 @@ export class SpanEvent extends Event {
     }
     return null;
   }
-  readonly branchPtr: NodeReference | null;
+  readonly branchPtr: NodeReference;
 
   /**
    * The Snapshot this Event originated from.
@@ -68,7 +68,7 @@ export class SpanEvent extends Event {
     }
     return null;
   }
-  readonly snapshotPtr: NodeReference | null;
+  readonly snapshotPtr: NodeReference;
 
   /**
    * The previous Event that this Event follows.
@@ -95,12 +95,12 @@ export class SpanEvent extends Event {
   readonly causedByPtr: NodeReference | null;
 
   /**
-   * The time this Event was created (set by the system).
+   * The time this Event was created (system time).
    */
   readonly createdAt: Temporal.ZonedDateTime;
 
   /**
-   * The logical time this Event was created (set by the system).
+   * The logical time this Event was created (system time).
    */
   readonly createdEpoch: number;
 
@@ -163,8 +163,8 @@ export class SpanEvent extends Event {
   constructor(options: {
     id?: string;
     space?: Space | NodeReference;
-    branch?: Branch | NodeReference | null;
-    snapshot?: Snapshot | NodeReference | null;
+    branch?: Branch | NodeReference;
+    snapshot?: Snapshot | NodeReference;
     precededBy?: Event | NodeReference | null;
     causedBy?: Event | NodeReference | null;
     createdAt?: Temporal.ZonedDateTime;
@@ -218,10 +218,16 @@ export class SpanEvent extends Event {
     if (_branch != null && _branch.metatype != StructType.NODE_REFERENCE) {
       _branch = (_branch as Node).toRef();
     }
+    if (_branch === null) {
+      throw new Error(`SpanEvent.branch is required`);
+    }
     this.branchPtr = _branch;
     let _snapshot = options.snapshot ?? null;
     if (_snapshot != null && _snapshot.metatype != StructType.NODE_REFERENCE) {
       _snapshot = (_snapshot as Node).toRef();
+    }
+    if (_snapshot === null) {
+      throw new Error(`SpanEvent.snapshot is required`);
     }
     this.snapshotPtr = _snapshot;
     let _precededBy = options.precededBy ?? null;
@@ -296,10 +302,10 @@ export class SpanEvent extends Event {
     if (!(this.nodePtr.id === other.nodePtr.id)) {
       return false;
     }
-    if (!(this.branchPtr?.id === other.branchPtr?.id)) {
+    if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
-    if (!(this.snapshotPtr?.id === other.snapshotPtr?.id)) {
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
       return false;
     }
     if (!(this.precededByPtr?.id === other.precededByPtr?.id)) {
@@ -333,12 +339,8 @@ export class SpanEvent extends Event {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
     h = (h * 31 + hashString(this.nodePtr.id)) & 0xffffffff;
-    if (this.branchPtr != null) {
-      h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
-    }
-    if (this.snapshotPtr != null) {
-      h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
-    }
+    h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this.precededByPtr != null) {
       h = (h * 31 + hashString(this.precededByPtr.id)) & 0xffffffff;
     }
@@ -417,12 +419,8 @@ export class SpanEvent extends Event {
     objectValue["1"] = 1110010;
     objectValue["2"] = String(object.id);
     objectValue["5"] = object.spacePtr.toValue();
-    if (object.branchPtr != null) {
-      objectValue["10"] = object.branchPtr.toValue();
-    }
-    if (object.snapshotPtr != null) {
-      objectValue["11"] = object.snapshotPtr.toValue();
-    }
+    objectValue["10"] = object.branchPtr.toValue();
+    objectValue["11"] = object.snapshotPtr.toValue();
     if (object.precededByPtr != null) {
       objectValue["12"] = object.precededByPtr.toValue();
     }
@@ -455,16 +453,6 @@ export class SpanEvent extends Event {
     _connection?: any | null,
   ): SpanEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const branchPtrValue = objectValue["10"];
-    const unpackedBranchPtr =
-      branchPtrValue != undefined
-        ? _NodeReference.fromValue(branchPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
-    const snapshotPtrValue = objectValue["11"];
-    const unpackedSnapshotPtr =
-      snapshotPtrValue != undefined
-        ? _NodeReference.fromValue(snapshotPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const precededByPtrValue = objectValue["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
@@ -495,8 +483,20 @@ export class SpanEvent extends Event {
         _graph,
         _connection,
       ),
-      branch: unpackedBranchPtr,
-      snapshot: unpackedSnapshotPtr,
+      branch: _NodeReference.fromValue(
+        objectValue["10"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromValue(
+        objectValue["11"],
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -533,12 +533,8 @@ export class SpanEvent extends Event {
     const objectProto: Partial<SpanEventProto> = { metatype: 1110010 };
     objectProto.id = String(object.id);
     objectProto.spacePtr = object.spacePtr.toProto();
-    if (object.branchPtr != null) {
-      objectProto.branchPtr = object.branchPtr.toProto();
-    }
-    if (object.snapshotPtr != null) {
-      objectProto.snapshotPtr = object.snapshotPtr.toProto();
-    }
+    objectProto.branchPtr = object.branchPtr.toProto();
+    objectProto.snapshotPtr = object.snapshotPtr.toProto();
     if (object.precededByPtr != null) {
       objectProto.precededByPtr = object.precededByPtr.toProto();
     }
@@ -579,26 +575,20 @@ export class SpanEvent extends Event {
         _graph,
         _connection,
       ),
-      branch:
-        objectProto.branchPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.branchPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
-      snapshot:
-        objectProto.snapshotPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.snapshotPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
+      branch: _NodeReference.fromProto(
+        objectProto.branchPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

@@ -121,7 +121,10 @@ class Entity(Node):
         is_managed=True,
         is_eq=False,
         is_hash=False,
-        description="The previous Entity this Entity is based on (from the base Snapshot).",
+        description="""\
+The previous Entity this Entity is based on (from the base Branch, if any).
+This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
+""",
     )
     instantiation_root: Optional["Entity"] = builtin_property(
         15,
@@ -134,10 +137,10 @@ class Entity(Node):
     # set_properties: 16
     if TYPE_CHECKING:
         definition_ptr: Optional["NodeReference"] = None
-        branch_ptr: Optional["NodeReference"] = None
-        snapshot_ptr: Optional["NodeReference"] = None
-        preceded_by_ptr: Optional["NodeReference"] = None
-        instantiation_root_ptr: Optional["NodeReference"] = None
+        branch_ptr: NodeReference = UNSET
+        snapshot_ptr: NodeReference = UNSET
+        preceded_by_ptr: Optional[NodeReference] = None
+        instantiation_root_ptr: Optional[NodeReference] = None
 
     # 20-40: node tracking
     created_at: datetime = builtin_property(
@@ -493,9 +496,9 @@ Deleting and restoring an Entity counts as an update, and thus updates updated_a
         """Gets the leaves of this Node."""
         return self._graph.get_leaves(node_type=type, node=self)
 
-    def into(self, snapshot: "Snapshot") -> "Self":
+    def into(self, branch: "Branch") -> "Self":
         """
-        Turn this Entity into its corresponding Entity in the given Snapshot.
+        Turn this Entity into its corresponding Entity in the given Branch.
         """
         raise NotImplementedError
 

@@ -6,11 +6,11 @@ from typing import TYPE_CHECKING, Optional
 from destack.utils.uuid import UUID
 
 from .common import EnumType, StoreDomain
-from .const import ACTIVE_EVENT
+from .const import ACTIVE_EVENT, UNSET
 from .entity import Entity
 from .enum import Enum, builtin_enum
 from .node import Node, NodeType, builtin_node
-from .property import builtin_property
+from .property import ValueFactory, builtin_property
 from .trait import IsCustomizable, IsExtensible, IsSourceable
 
 if TYPE_CHECKING:
@@ -58,16 +58,18 @@ class Event[N: Node = Node](Node):
     __store_domain__ = StoreDomain.EVENT
 
     # 10-20: event identity
-    branch: Optional["Branch"] = builtin_property(
+    branch: "Branch" = builtin_property(
         10,
         is_readonly=True,
         is_managed=True,
+        default_factory=ValueFactory.BRANCH,
         description="The Branch this Event originated from.",
     )
-    snapshot: Optional["Snapshot"] = builtin_property(
+    snapshot: "Snapshot" = builtin_property(
         11,
         is_readonly=True,
         is_managed=True,
+        default_factory=ValueFactory.SNAPSHOT,
         description="The Snapshot this Event originated from.",
     )
     preceded_by: Optional["Event"] = builtin_property(
@@ -88,7 +90,7 @@ class Event[N: Node = Node](Node):
         is_managed=True,
         is_eq=False,
         is_readonly=True,
-        description="The time this Event was created (set by the system).",
+        description="The time this Event was created (system time).",
     )
     created_epoch: int = builtin_property(
         21,
@@ -97,7 +99,7 @@ class Event[N: Node = Node](Node):
         is_hash=False,
         is_repr=True,
         is_readonly=True,
-        description="The logical time this Event was created (set by the system).",
+        description="The logical time this Event was created (system time).",
     )
     created_by: Optional["IsActor"] = builtin_property(
         22,
@@ -139,7 +141,8 @@ class Event[N: Node = Node](Node):
     )
     # caused_by/cascaded_from? (other Events that caused this event, like InputEvent or for cascading edits)
     if TYPE_CHECKING:
-        snapshot_ptr: Optional[NodeReference] = None
+        branch_ptr: NodeReference = UNSET
+        snapshot_ptr: NodeReference = UNSET
         preceded_by_ptr: Optional[NodeReference] = None
         created_by_ptr: Optional[NodeReference] = None
         client_ptr: Optional[NodeReference] = None

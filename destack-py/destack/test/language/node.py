@@ -1,5 +1,4 @@
 from destack.language import (
-    REGION,
     Cursor,
     EventCursor,
     Folder,
@@ -7,7 +6,6 @@ from destack.language import (
     NodeType,
     Session,
     Space,
-    SpaceStatus,
     Tag,
 )
 
@@ -26,15 +24,8 @@ def test_node_inheritance(session: Session):
     assert len(Node.__inherited_by__) == len(NodeType) - 1
 
 
-def test_node_space_ptr(session: Session):
+def test_node_space_ptr(session: Session, space: Space):
     """Add Nodes that are Spatial and check that they have the same space_ptr."""
-    space = Space(
-        name="MySpace",
-        slug="my-space",
-        status=SpaceStatus.ACTIVE,
-        region=REGION,
-    )
-    session.create(space)
     with space.active():
         folder = Folder(name="MyFolder")
         space.add_child(folder)

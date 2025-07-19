@@ -1,6 +1,6 @@
 import { packProtoTimestamp, unpackProtoTimestamp } from "@destack/grpc";
 import { EnumType, NodeType, StructType } from "@destack/language/core/builtin/common";
-import { ACTIVE_SNAPSHOT, ACTIVE_SPACE } from "@destack/language/core/builtin/const";
+import { ACTIVE_SPACE } from "@destack/language/core/builtin/const";
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import { Event } from "@destack/language/core/builtin/event";
 import type { NodeClass } from "@destack/language/core/builtin/node";
@@ -105,7 +105,8 @@ export class Snapshot extends Entity implements IsOwnable {
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Snapshot | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -944,7 +945,7 @@ export class Branch extends Entity implements IsOwnable {
   readonly branchPtr: NodeReference;
 
   /**
-   * The Snapshot this Entity is part of.
+   * The latest Snapshot this Branch is based on (the head of the Branch).
    */
   get snapshot(): Snapshot | null {
     const nodePtr: NodeReference | null = this.snapshotPtr;
@@ -956,7 +957,8 @@ export class Branch extends Entity implements IsOwnable {
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Branch | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1188,11 +1190,7 @@ export class Branch extends Entity implements IsOwnable {
       _snapshot = (_snapshot as Node).toRef();
     }
     if (_snapshot === null) {
-      _snapshot = ACTIVE_SNAPSHOT.get();
-      if (_snapshot === null) {
-        throw new Error(`no active Snapshot for Branch`);
-      }
-      _snapshot = _snapshot.toRef();
+      _snapshot = this.toRef();
     }
     if (_snapshot === null) {
       throw new Error(`Branch.snapshot is required`);
@@ -1277,6 +1275,9 @@ export class Branch extends Entity implements IsOwnable {
     if (!(this.branchPtr.id === other.branchPtr.id)) {
       return false;
     }
+    if (!(this.snapshotPtr.id === other.snapshotPtr.id)) {
+      return false;
+    }
     if (!(this._ownedByPtr?.id === other._ownedByPtr?.id)) {
       return false;
     }
@@ -1300,6 +1301,7 @@ export class Branch extends Entity implements IsOwnable {
     }
     h = (h * 31 + this._type) & 0xffffffff;
     h = (h * 31 + hashString(this.branchPtr.id)) & 0xffffffff;
+    h = (h * 31 + hashString(this.snapshotPtr.id)) & 0xffffffff;
     if (this._ownedByPtr != null) {
       h = (h * 31 + hashString(this._ownedByPtr.id)) & 0xffffffff;
     }
@@ -1477,9 +1479,6 @@ export class Branch extends Entity implements IsOwnable {
         _graph,
         _connection,
       ),
-      ownedBy: unpackedOwnedByPtr,
-      materialization: Number(objectValue["10"]),
-      definition: unpackedDefinitionPtr,
       snapshot: _NodeReference.fromValue(
         objectValue["13"],
         _session,
@@ -1487,6 +1486,9 @@ export class Branch extends Entity implements IsOwnable {
         _graph,
         _connection,
       ),
+      ownedBy: unpackedOwnedByPtr,
+      materialization: Number(objectValue["10"]),
+      definition: unpackedDefinitionPtr,
       precededBy: unpackedPrecededByPtr,
       instantiationRoot: unpackedInstantiationRootPtr,
       createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
@@ -1586,6 +1588,13 @@ export class Branch extends Entity implements IsOwnable {
         _graph,
         _connection,
       ),
+      snapshot: _NodeReference.fromProto(
+        objectProto.snapshotPtr!,
+        _session,
+        _supergraph,
+        _graph,
+        _connection,
+      ),
       ownedBy:
         objectProto.ownedByPtr != undefined
           ? _NodeReference.fromProto(
@@ -1607,13 +1616,6 @@ export class Branch extends Entity implements IsOwnable {
               _connection,
             )
           : null,
-      snapshot: _NodeReference.fromProto(
-        objectProto.snapshotPtr!,
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
       precededBy:
         objectProto.precededByPtr != undefined
           ? _NodeReference.fromProto(

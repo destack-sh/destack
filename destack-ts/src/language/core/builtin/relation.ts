@@ -881,17 +881,17 @@ export class NodeReference extends StructFrozen {
   readonly id: string;
 
   /**
-   * The unique id of the custom Node definition.
+   * The id of the Node definition.
    */
   readonly definitionId: string | null;
 
   /**
-   * The id of the Branch the Node belonged to.
+   * The id of the Branch the Node belonged to (when it was referenced).
    */
   readonly branchId: string | null;
 
   /**
-   * The id of the Snapshot the Node belonged to.
+   * The id of the Snapshot the Node belonged to (when it was referenced).
    */
   readonly snapshotId: string | null;
 

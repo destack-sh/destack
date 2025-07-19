@@ -84,7 +84,8 @@ export abstract class Entity extends Node {
   declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): Entity | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -458,7 +459,8 @@ export abstract class Record extends Entity implements IsExtensible, IsOwnable {
   declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): Record | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -604,7 +606,8 @@ export abstract class Resource extends Entity implements IsExtensible, IsOwnable
   declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): Resource | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -758,7 +761,8 @@ export abstract class Variant extends Entity implements IsExtensible, IsOwnable 
   declare readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   abstract get precededBy(): Variant | null;
   declare readonly precededByPtr: NodeReference | null;
@@ -942,7 +946,8 @@ export class Tag extends Entity implements IsSourceable, IsExtensible {
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Tag | null {
     const nodePtr: NodeReference | null = this.precededByPtr;
@@ -1971,7 +1976,8 @@ export class Tagging extends Entity implements IsOrdered {
   readonly snapshotPtr: NodeReference;
 
   /**
-   * The previous Entity this Entity is based on (from the base Snapshot).
+   * The previous Entity this Entity is based on (from the base Branch, if any).
+   * This invariant must hold: `Entity.preceded_by.branch == Entity.branch.preceded_by`.
    */
   get precededBy(): Tagging | null {
     const nodePtr: NodeReference | null = this.precededByPtr;

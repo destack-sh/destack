@@ -3,7 +3,6 @@ from contextlib import contextmanager
 from typing import (
     TYPE_CHECKING,
     Optional,
-    Self,
     Union,
 )
 
@@ -55,6 +54,13 @@ class Branch(
         is_managed=True,
         default_factory=ValueFactory.SELF,
         description="The Branch itself. Cannot be any other Branch than this Branch",
+    )
+    snapshot: "Snapshot" = builtin_property(
+        13,
+        is_readonly=True,
+        is_managed=True,
+        default_factory=ValueFactory.SELF,
+        description="The latest Snapshot this Branch is based on (the head of the Branch).",
     )
 
     @contextmanager
@@ -111,12 +117,6 @@ class Snapshot(
 
     type: SnapshotType = builtin_property(100)
     status: SnapshotStatus = builtin_property(110, default=SnapshotStatus.ACTIVE)
-
-    def into(self, snapshot: "Snapshot") -> "Self":
-        if snapshot.id == self.id:
-            return self
-        else:
-            raise RuntimeError(f"cannot turn {self!r} into another Snapshot ({snapshot!r})")
 
     @contextmanager
     def active(self) -> Generator[None, None, None]:

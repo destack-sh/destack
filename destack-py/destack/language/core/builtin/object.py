@@ -105,14 +105,13 @@ def _generate_init[ObjectT: BuiltinObject](
 
     extra_glbls: dict[str, Any] = {}
 
-    # header
+    # header properties
     header_properties = dict(properties)
     if is_node:
         header_properties.pop("_ref")
         header_properties.pop("_is_new")
     properties_in_order = list(header_properties.values())
     properties_in_order.sort(key=lambda p: (p.id is None, p.id, p.name))
-    method_header_lines = ["def __init__(self, *"]
     required_properties = [
         p
         for p in properties_in_order
@@ -124,6 +123,9 @@ def _generate_init[ObjectT: BuiltinObject](
         and p.scalar_type
         != ScalarType.NODE_REFERENCE  # passed either as node or node_ptr, defer check
     ]
+
+    # header
+    method_header_lines = ["def __init__(self, *"]
     # first add properties without defaults that are not managed
     for prop in required_properties:
         method_header_lines.append(prop.name)
@@ -150,7 +152,8 @@ def _generate_init[ObjectT: BuiltinObject](
     method_header = ", ".join(method_header_lines)
 
     # body
-    # NOTE: Structs can use direct assignment, Nodes shouldn't (because of custom __setattr__)
+    # NOTE: frozen objects can use direct assignment, mutable objects can't
+    #  (because of the custom __setattr__, that would add overhead for every set)
     extra_glbls["ACTIVE_SESSION"] = ACTIVE_SESSION
     extra_glbls["ACTIVE_SPACE"] = ACTIVE_SPACE
     extra_glbls["ACTIVE_BRANCH"] = ACTIVE_BRANCH
@@ -180,6 +183,7 @@ def _generate_init[ObjectT: BuiltinObject](
             body_properties.pop("created_at")
             body_properties.pop("created_epoch")
             body_properties.pop("updated_at")
+            body_properties.pop("updated_epoch")
         elif NodeType.EVENT in inherits:
             body_properties.pop("created_at")
             body_properties.pop("created_epoch")

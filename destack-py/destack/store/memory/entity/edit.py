@@ -119,6 +119,8 @@ def _execute_cascade(
     definition: NodeDefinitionReference,
     node_ptrs: Sequence[NodeReference],
     include_deleted: bool | Collection[str],
+    branch_id: UUID,
+    snapshot_id: UUID,
 ) -> tuple[Sequence[NodeReference], dict[UUID, UUID]]:
     """Get the cascaded Nodes for an Edit."""
     from .query import _walk_node
@@ -130,7 +132,8 @@ def _execute_cascade(
         direction=EdgeDirection.CHILD,
         depth=MAX_RECURSION_DEPTH,
         include_deleted=include_deleted,
-        snapshot_path=(),
+        branch_id=branch_id,
+        snapshot_id=snapshot_id,
     )
     return child_ptrs, source_id_by_node_id
 
@@ -256,9 +259,18 @@ def _execute_edit(
             definition=definition,
             node_ptrs=nodes_ptr,
             include_deleted=include_deleted,
+            branch_id=edits[0].branch_ptr.id,
+            snapshot_id=edits[0].snapshot_ptr.id,
         )
         cascaded_edits = tuple(
-            EditEvent(type=edit_type, node_ptr=node_ptr) for node_ptr in cascaded_node_ptrs
+            EditEvent(
+                type=edit_type,
+                node_ptr=node_ptr,
+                space_ptr=edits[0].space_ptr,
+                branch_ptr=edits[0].branch_ptr,
+                snapshot_ptr=edits[0].snapshot_ptr,
+            )
+            for node_ptr in cascaded_node_ptrs
         )
 
         # update timestamps

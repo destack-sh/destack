@@ -1,5 +1,4 @@
-import warnings
-from collections.abc import AsyncGenerator, Mapping
+from collections.abc import AsyncGenerator
 from contextlib import contextmanager
 
 import grpclib
@@ -16,21 +15,22 @@ _setup_test_env()
 
 
 from destack.language import (
-    ACTIVE_SESSION,
-    NODE_TYPES,
     REGION,
-    STRUCT_TYPES,
     WORLD_ORACLE,
-    BuiltinObject,
+    Branch,
+    BranchType,
+    NodeReference,
     NodeType,
     Session,
+    Snapshot,
+    SnapshotType,
     Space,
     SpaceStatus,
     StoreKey,
-    StructType,
 )
 from destack.store import MemoryStore
 from destack.test.conftest import _setup_test_env
+from destack.utils.uuid import uuid4
 
 logger = structlog.get_logger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -53,16 +53,73 @@ async def session():
     await session.close()
 
 
-@pytest.fixture
-def space(session: Session):
+def create_space(session: Session) -> tuple[Space, Branch, Snapshot]:
+    space_id = uuid4()
+    epoch = session.epoch
+    now = session.oracle.utc()
+    space_ptr = NodeReference(
+        type=NodeType.SPACE,
+        id=space_id,
+        space_id=space_id,
+    )
+    snapshot_id = uuid4()
+    snapshot_ptr = NodeReference(
+        type=NodeType.SNAPSHOT,
+        id=snapshot_id,
+        space_id=space_id,
+        snapshot_id=snapshot_id,
+    )
+    branch_id = uuid4()
+    branch_ptr = NodeReference(
+        type=NodeType.BRANCH,
+        id=branch_id,
+        space_id=space_id,
+    )
+    snapshot = Snapshot(
+        id=snapshot_id,
+        name="Root",
+        space_ptr=space_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        type=SnapshotType.FULL,
+        branch_ptr=branch_ptr,
+    )
+    branch = Branch(
+        id=branch_id,
+        name="Main",
+        space_ptr=space_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        type=BranchType.ROOT,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
+    )
     space = Space(
+        id=space_id,
         name="Test",
         slug="test",
         status=SpaceStatus.ACTIVE,
         region=REGION,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
     )
     session.create(space)
-    with space.active():
+    session.create(snapshot)
+    return space, branch, snapshot
+
+
+@pytest.fixture
+def space(session: Session):
+    space, branch, snapshot = create_space(session)
+    with space.active(), branch.active(), snapshot.active():
         yield space
 
 
@@ -75,19 +132,3 @@ def raises_grpc_error(*statuses: grpclib.const.Status):
 
 
 SHARED_SESSION = Session(oracle=WORLD_ORACLE)
-
-
-# init shared builtin objects (in shared session)
-with warnings.catch_warnings(action="ignore"):
-    ACTIVE_SESSION.set(SHARED_SESSION)
-    BUILTIN_OBJECTS = [
-        # draw_direct(from_object_type(object_type, reject_invalid=False))
-        # for object_type in OBJECT_TYPES
-    ]
-    ACTIVE_SESSION.set(None)
-
-BUILTIN_OBJECTS_BY_TYPE: Mapping[StructType | NodeType, BuiltinObject] = {
-    obj.metatype: obj for obj in BUILTIN_OBJECTS
-}
-STRUCTS = [BUILTIN_OBJECTS_BY_TYPE[t] for t in STRUCT_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]
-NODES = [BUILTIN_OBJECTS_BY_TYPE[t] for t in NODE_TYPES if t in BUILTIN_OBJECTS_BY_TYPE]

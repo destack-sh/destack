@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Any, Optional, Union, assert_never, cast
 from destack.utils.uuid import UUID
 
 from ..builtin import (
+    UNSET,
     Enum,
     EnumType,
     Node,
@@ -25,7 +26,13 @@ from ..builtin import (
 from .value import Value
 
 if TYPE_CHECKING:
-    from destack.language import CustomProperty, PropertyDefinition, QueryConnection, Snapshot
+    from destack.language import (
+        Branch,
+        CustomProperty,
+        PropertyDefinition,
+        QueryConnection,
+        Snapshot,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -417,21 +424,21 @@ class Query[RootT: "Trait | Node"](StructFrozen):
     # count?
 
     # materialization
-    snapshot: Optional["Snapshot"] = builtin_property(
+    branch: "Branch" = builtin_property(
         130,
         is_repr=True,
-        description="The Snapshot this Query is for.",
+        description="The Branch this Query is for.",
+        default_factory=ValueFactory.BRANCH,
     )
-    snapshot_path: list[UUID] = builtin_property(
+    snapshot: "Snapshot" = builtin_property(
         131,
         is_repr=True,
-        description="""\
-The path of Snapshots from the given Snapshot to to a full Snapshot (inclusive).
-If Query.snapshot is set, this must contain at least one element.
-""",
+        description="The Snapshot this Query is for.",
+        default_factory=ValueFactory.SNAPSHOT,
     )
     if TYPE_CHECKING:
-        snapshot_ptr: Optional[NodeReference] = None
+        branch_ptr: NodeReference = UNSET
+        snapshot_ptr: NodeReference = UNSET
 
     # realtime
     # is_live?
