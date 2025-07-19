@@ -34,8 +34,6 @@ import { base64Decode, getOrderKey } from "@destack/utils";
 import { hashBool, hashString } from "@destack/utils/hash";
 import { Temporal } from "temporal-polyfill";
 
-console.log("Entity.ts")
-
 /* ==== DESTACK_GENERATED_START:NODE:2 ==== */
 /**
  * An Entity is a named, versioned, mutable Node.

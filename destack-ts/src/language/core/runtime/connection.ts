@@ -1,5 +1,6 @@
-import { Entity, Node } from "@destack/language/core/builtin";
-import { unpackCson } from "@destack/language/core/common";
+import type { Entity } from "@destack/language/core/builtin/entity";
+import { Node } from "@destack/language/core/builtin/node";
+import { unpackCson } from "@destack/language/core/common/cson";
 import {
   Query,
   QueryResult,
@@ -7,9 +8,9 @@ import {
   QueryType,
   QueryUpdate,
 } from "@destack/language/core/common/query";
-import { Value } from "@destack/language/core/common/value";
-import { Graph } from "@destack/language/core/runtime/graph";
-import { Session } from "@destack/language/core/runtime/session";
+import type { Value } from "@destack/language/core/common/value";
+import type { Graph } from "@destack/language/core/runtime/graph";
+import type { Session } from "@destack/language/core/runtime/session";
 import { Store } from "@destack/language/core/runtime/store";
 
 /** A container for some (part of a) QueryResult. */
