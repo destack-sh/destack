@@ -36,7 +36,6 @@ import {
   registerEnumClass,
   registerNodeClass,
 } from "@destack/language/registry";
-import type { Scene } from "@destack/language/scene/scene";
 import type { Fill } from "@destack/language/style";
 import type { Axis3 } from "@destack/language/view";
 import { LayerProto, LayerTypeProto, MaterializationProto } from "@destack/proto";
@@ -61,18 +60,18 @@ registerEnumClass(EnumType.LAYER_TYPE, LayerType);
 
 /* ==== DESTACK_GENERATED_START:NODE:1700300 ==== */
 /**
- * A Layer is a named container for Views.
+ * A Layer is a container for Views.
  */
 export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, IsScriptable {
   static metatype: NodeType = NodeType.LAYER;
 
   /**
-   * Layer.parent
+   * The parent of this Entity. Most Entities can be attached to any other Entity.
    */
-  get parent(): Scene | null {
+  get parent(): Entity | null {
     const nodePtr: NodeReference | null = this.parentPtr;
     if (nodePtr != null) {
-      return this._supergraph.get(nodePtr.id) as Scene | null;
+      return this._supergraph.get(nodePtr.id) as Entity | null;
     }
     return null;
   }
@@ -434,7 +433,7 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
 
   constructor(options: {
     id?: string;
-    parent?: Scene | NodeReference | null;
+    parent?: Entity | NodeReference | null;
     space?: Space | NodeReference;
     materialization?: Materialization;
     definition?: Entity | NodeReference | null;
@@ -736,9 +735,6 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
   hash(): number {
     let h = 1;
     h = (h * 31 + this.metatype) & 0xffffffff;
-    if (this.parentPtr != null) {
-      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
-    }
     h = (h * 31 + this._type) & 0xffffffff;
     if (this._icon != null) {
       h = (h * 31 + this._icon.hash()) & 0xffffffff;
@@ -767,6 +763,9 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     h = (h * 31 + hashString(this.orderKey)) & 0xffffffff;
     if (this._scriptPtr != null) {
       h = (h * 31 + hashString(this._scriptPtr.id)) & 0xffffffff;
+    }
+    if (this.parentPtr != null) {
+      h = (h * 31 + hashString(this.parentPtr.id)) & 0xffffffff;
     }
     if (this.definitionPtr != null) {
       h = (h * 31 + hashString(this.definitionPtr.id)) & 0xffffffff;
@@ -930,11 +929,6 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const parentPtrValue = objectCson["3"];
-    const unpackedParentPtr =
-      parentPtrValue != undefined
-        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
-        : null;
     const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
@@ -970,6 +964,11 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
     const unpackedScriptPtr =
       scriptPtrValue != undefined
         ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        : null;
+    const parentPtrValue = objectCson["3"];
+    const unpackedParentPtr =
+      parentPtrValue != undefined
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
@@ -1014,7 +1013,6 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       }
     }
     return new Layer({
-      parent: unpackedParentPtr,
       type: Number(objectCson["100"]),
       icon: unpackedIcon,
       isVisible: unpackedIsVisible,
@@ -1026,6 +1024,7 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       ownedBy: unpackedOwnedByPtr,
       orderKey: objectCson["31"],
       script: unpackedScriptPtr,
+      parent: unpackedParentPtr,
       materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
       branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
@@ -1163,16 +1162,6 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
       }
     }
     return new Layer({
-      parent:
-        objectProto.parentPtr != undefined
-          ? _NodeReference.fromProto(
-              objectProto.parentPtr!,
-              _session,
-              _supergraph,
-              _graph,
-              _connection,
-            )
-          : null,
       type: Number(objectProto.type) as LayerType,
       icon:
         objectProto.icon != undefined
@@ -1208,6 +1197,16 @@ export class Layer extends Entity implements IsViewable, IsOwnable, IsOrdered, I
         objectProto.scriptPtr != undefined
           ? _NodeReference.fromProto(
               objectProto.scriptPtr!,
+              _session,
+              _supergraph,
+              _graph,
+              _connection,
+            )
+          : null,
+      parent:
+        objectProto.parentPtr != undefined
+          ? _NodeReference.fromProto(
+              objectProto.parentPtr!,
               _session,
               _supergraph,
               _graph,

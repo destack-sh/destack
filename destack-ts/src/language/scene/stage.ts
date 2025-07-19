@@ -3,6 +3,7 @@ import type {
   Branch,
   Graph,
   IsActor,
+  IsJoinable,
   IsOrdered,
   IsOwnable,
   IsScriptable,
@@ -37,7 +38,7 @@ import { Temporal } from "temporal-polyfill";
 /**
  * A Stage for someone to interact with a Space.
  */
-export class Stage extends Entity implements IsOwnable, IsOrdered, IsScriptable {
+export class Stage extends Entity implements IsOwnable, IsOrdered, IsScriptable, IsJoinable {
   static metatype: NodeType = NodeType.STAGE;
 
   /**

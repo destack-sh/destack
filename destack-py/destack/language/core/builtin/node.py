@@ -17,7 +17,7 @@ from destack.proto import AnyNodeProto
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import Cson, NodeType, StoreDomain, StoreKey, TraitType
+from .common import Cson, EnumType, NodeType, StoreDomain, StoreKey, TraitType
 from .const import UNSET
 from .meta import builtin_method
 from .object import BuiltinObject, ValueFactory, _process_object_cls
@@ -67,6 +67,7 @@ def builtin_node(
     frozen: bool = False,
     is_abstract: bool = False,
     event_types: tuple[NodeType, ...] = (),
+    enum_types: tuple[EnumType, ...] = (),
     expected_parent_types: tuple[NodeType, ...] = (),
     expected_child_types: tuple[NodeType, ...] = (),
     expected_ancestor_types: tuple[NodeType, ...] = (),
@@ -183,18 +184,20 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
 
     """The specific metatype of this Node."""
     metatype: ClassVar[NodeType]
-    """Whether this class is an actual Node (not a Trait)."""
-    __is_node__: ClassVar[bool] = True
-    """Whether this class is a Trait (not a Node)."""
-    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
-
     """The definition this Node is an instance of."""
     __definition__: ClassVar["NodeDefinition"]
     """The reference to the definition this Node is an instance of."""
     __definition_reference__: ClassVar["NodeDefinitionReference"]
 
+    # flags
+    """Whether this class is an actual Node (not a Trait)."""
+    __is_node__: ClassVar[bool] = True
+    """Whether this class is a Trait (not a Node)."""
+    __is_trait__: ClassVar[bool] = False  # override Trait.__is_trait__ in subclasses
     """Whether this class is abstract (not concrete)."""
     __is_abstract__: ClassVar[bool] = False
+
+    # inheritance
     """The base type this Node extends (directly)."""
     __base_type__: ClassVar[NodeType | None] = None
     """Nodes that extend this Node (directly)."""
@@ -207,11 +210,32 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __base_traits__: ClassVar[tuple[TraitType, ...]] = ()
     """Traits directly and indirectly inherited by this Node (directly and indirectly)."""
     __traits__: ClassVar[tuple[TraitType, ...]] = ()
-    """The main Stores this Node is primarily stored in."""
-    __primary_store_keys__: ClassVar[tuple[StoreKey, ...]] = ()
-    """The domain of this Node (Entity or Event)."""
-    __store_domain__: ClassVar[StoreDomain | None] = None
 
+    # content
+    """The indexes for this Node."""
+    __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
+    """The constraints for this Node."""
+    __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
+    """The permissions for this Node."""
+    __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
+    """The methods for this Node."""
+    __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
+    """The actions for this Node."""
+    __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+
+    # event
+    """The base event types of this Node (directly)."""
+    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The event types of this Node (directly and indirectly)."""
+    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    # enum
+    """The base enum types of this Node (directly)."""
+    __base_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    """The enum types of this Node (directly and indirectly)."""
+    __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+
+    # tree
     """The parent type of this Node (directly)."""
     __parent_property__: ClassVar[PropertyDeclaration | None] = None
     """The parent classes of this Node (directly)."""
@@ -224,8 +248,9 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     __ancestor_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The descendant types of this Node (directly and indirectly)."""
     __descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
-
     """The expected parent types of this Node (any of)."""
+
+    # expected tree
     __expected_parent_types__: ClassVar[tuple[NodeType, ...]] = ()
     """The expected child types of this Node (any of)."""
     __expected_child_types__: ClassVar[tuple[NodeType, ...]] = ()
@@ -234,21 +259,11 @@ class Node[NodeProtoT: AnyNodeProto](BuiltinObject[NodeProtoT]):
     """The expected descendant types of this Node (any of)."""
     __expected_descendant_types__: ClassVar[tuple[NodeType, ...]] = ()
 
-    """The base event types of this Node (directly)."""
-    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The event types of this Node (directly and indirectly)."""
-    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
-
-    """The indexes for this Node."""
-    __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
-    """The constraints for this Node."""
-    __constraints__: ClassVar[tuple["ConstraintDefinition", ...]] = ()
-    """The permissions for this Node."""
-    __permissions__: ClassVar[tuple["PermissionDefinition", ...]] = ()
-    """The methods for this Node."""
-    __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
-    """The actions for this Node."""
-    __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+    # store
+    """The main Stores this Node is primarily stored in."""
+    __primary_store_keys__: ClassVar[tuple[StoreKey, ...]] = ()
+    """The domain of this Node (Entity or Event)."""
+    __store_domain__: ClassVar[StoreDomain | None] = None
 
     # 1-20: node identity
     # Node.metatype: 1

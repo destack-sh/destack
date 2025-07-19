@@ -2,6 +2,7 @@ from typing import TYPE_CHECKING
 
 from destack.language.core import (
     Entity,
+    IsJoinable,
     IsOrdered,
     IsOwnable,
     IsScriptable,
@@ -20,6 +21,7 @@ class Stage(
     IsOwnable,
     IsOrdered,
     IsScriptable,
+    IsJoinable,
     Entity,
 ):
     """

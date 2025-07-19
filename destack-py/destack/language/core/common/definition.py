@@ -36,12 +36,14 @@ from ..builtin.struct import Struct, StructFrozen, builtin_struct
 
 if TYPE_CHECKING:
     from destack.language import (
+        ActionDefinition,
         CollectionConstraint,
         Condition,
         ConditionalType,
         ConstraintDefinition,
         Icon,
         IndexDefinition,
+        MethodDefinition,
         Node,
         NodeConstraint,
         NumberConstraint,
@@ -73,8 +75,10 @@ class BuiltinDefinition(StructFrozen):
 class NodeDefinition(BuiltinDefinition):
     """Definition of a builtin Node."""
 
+    # meta
     type: NodeType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
+
+    # flags
     is_abstract: bool = builtin_property(
         110,
         is_repr=True,
@@ -90,90 +94,122 @@ class NodeDefinition(BuiltinDefinition):
         is_repr=True,
         description="Whether this Node cannot be modified.",
     )
+    # is_singleton? is_static?
+
+    # content
+    properties: list["PropertyDefinition"] = builtin_property(
+        120,
+        description="All properties of this Node.",
+    )
+    indexes: list["IndexDefinition"] = builtin_property(
+        121,
+        description="All indexes of this Node.",
+    )
+    constraints: list["ConstraintDefinition"] = builtin_property(
+        122,
+        description="All constraints of this Node.",
+    )
+    permissions: list["PermissionDefinition"] = builtin_property(
+        123,
+        description="All permissions of this Node.",
+    )
+    methods: list["MethodDefinition"] = builtin_property(
+        125,
+        description="All methods of this Node (excluding actions).",
+    )
+    actions: list["ActionDefinition"] = builtin_property(
+        126,
+        description="All actions of this Node.",
+    )
 
     # inheritance
     base_type: NodeType | None = builtin_property(
-        120,
+        130,
         is_repr=True,
         description="The base type this Node extends (directly).",
     )
     extended_by: list[NodeType] = builtin_property(
-        121,
+        131,
         description="Nodes that extend this Node type (directly).",
     )
     inherits: list[NodeType] = builtin_property(
-        122,
+        132,
         description="Nodes that this Node inherits (directly and indirectly).",
     )
     inherited_by: list[NodeType] = builtin_property(
-        123,
+        133,
         description="Nodes that inherit this Node type (directly and indirectly).",
     )
     base_traits: list[TraitType] = builtin_property(
-        124,
+        134,
         description="Traits directly inherited by this Node (directly).",
     )
     traits: list[TraitType] = builtin_property(
-        125,
+        135,
         description="Traits directly and indirectly inherited by this Node (directly and indirectly).",
+    )
+
+    # event
+    event_types: list[NodeType] = builtin_property(
+        140,
+        description="The event types related to this Node (directly and indirectly).",
+    )
+    base_event_types: list[NodeType] = builtin_property(
+        141,
+        description="The base event types related to this Node (directly).",
+    )
+
+    # enum
+    enum_types: list[EnumType] = builtin_property(
+        150,
+        description="The enum types related to this Node (directly and indirectly).",
+    )
+    base_enum_types: list[EnumType] = builtin_property(
+        151,
+        description="The base enum types related to this Node (directly).",
     )
 
     # tree
     parent_types: list[NodeType] = builtin_property(
-        130,
+        160,
         is_repr=True,
         description="The parent types of this Node type (directly).",
     )
     child_types: list[NodeType] = builtin_property(
-        131,
+        161,
         is_repr=True,
         description="The child types of this Node type (directly).",
     )
     ancestor_types: list[NodeType] = builtin_property(
-        132,
+        162,
         description="The ancestor types of this Node type (directly and indirectly).",
     )
     descendant_types: list[NodeType] = builtin_property(
-        133,
+        163,
         description="The descendant types of this Node type (directly and indirectly).",
     )
 
     # expected tree
     expected_parent_types: list[NodeType] = builtin_property(
-        140,
+        170,
         description="The parent types expected for this Node type (any of).",
     )
     expected_child_types: list[NodeType] = builtin_property(
-        141,
+        171,
         description="The child types expected for this Node type (any of).",
     )
     expected_ancestor_types: list[NodeType] = builtin_property(
-        142,
+        172,
         description="The ancestor types expected for this Node type (any of).",
     )
     expected_descendant_types: list[NodeType] = builtin_property(
-        143,
+        173,
         description="The descendant types expected for this Node type (any of).",
     )
 
-    # event
-    event_types: list[NodeType] = builtin_property(
-        150,
-        description="The event types of this Node (directly and indirectly).",
-    )
-    base_event_types: list[NodeType] = builtin_property(
-        151,
-        description="The base event types of this Node (directly).",
-    )
-
     # store
-    primary_store_keys: list[StoreKey] = builtin_property(160)
-    store_domain: StoreDomain | None = builtin_property(161)
-
-    # index
-    indexes: list["IndexDefinition"] = builtin_property(170)
-    constraints: list["ConstraintDefinition"] = builtin_property(171)
-    permissions: list["PermissionDefinition"] = builtin_property(172)
+    primary_store_keys: list[StoreKey] = builtin_property(200)
+    store_domain: StoreDomain | None = builtin_property(201)
 
     @classmethod
     def from_node(cls, node_cls: _type["Node"]) -> "NodeDefinition":
@@ -186,12 +222,19 @@ class NodeDefinition(BuiltinDefinition):
             name=node_cls.__name__,
             icon=to_icon(node_cls.metatype.icon) if node_cls.metatype.icon else None,
             description=node_cls.__doc__,
-            properties=[
-                prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
-            ],
+            # flags
             is_abstract=node_cls.__is_abstract__,
             is_extensible=TraitType.EXTENSIBLE in node_cls.__traits__,
             is_frozen=node_cls.__is_frozen__,
+            # content
+            properties=[
+                prop.definition for prop in node_cls.__properties__.values() if prop.is_wired
+            ],
+            indexes=list(node_cls.__indexes__),
+            constraints=list(node_cls.__constraints__),
+            permissions=list(node_cls.__permissions__),
+            methods=list(node_cls.__methods__),
+            actions=list(node_cls.__actions__),
             # inheritance
             base_type=node_cls.__base_type__,
             extended_by=list(node_cls.__extended_by__),
@@ -199,6 +242,9 @@ class NodeDefinition(BuiltinDefinition):
             inherited_by=list(node_cls.__inherited_by__),
             traits=list(node_cls.__traits__),
             base_traits=list(node_cls.__base_traits__),
+            # event
+            event_types=list(node_cls.__event_types__),
+            base_event_types=list(node_cls.__base_event_types__),
             # tree
             parent_types=list(node_cls.__parent_types__),
             child_types=list(node_cls.__child_types__),
@@ -209,16 +255,9 @@ class NodeDefinition(BuiltinDefinition):
             expected_child_types=list(node_cls.__expected_child_types__),
             expected_ancestor_types=list(node_cls.__expected_ancestor_types__),
             expected_descendant_types=list(node_cls.__expected_descendant_types__),
-            # event
-            event_types=list(node_cls.__event_types__),
-            base_event_types=list(node_cls.__base_event_types__),
             # store
             primary_store_keys=list(node_cls.__primary_store_keys__),
             store_domain=node_cls.__store_domain__,
-            # index
-            indexes=list(node_cls.__indexes__),
-            constraints=list(node_cls.__constraints__),
-            permissions=list(node_cls.__permissions__),
         )
 
 
@@ -226,9 +265,10 @@ class NodeDefinition(BuiltinDefinition):
 class TraitDefinition(BuiltinDefinition):
     """Definition of a builtin Trait."""
 
+    # meta
     type: TraitType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
 
+    # flags
     alias: str = builtin_property(110, is_repr=True)
     is_extensible: bool = builtin_property(
         111,
@@ -236,23 +276,53 @@ class TraitDefinition(BuiltinDefinition):
         description="Whether this Trait can be extended by custom Nodes and custom Traits.",
     )
 
-    traits: list[TraitType] = builtin_property(
-        120, description="Traits directly and indirectly inherited by this trait."
+    # content
+    properties: list["PropertyDefinition"] = builtin_property(
+        120,
+        description="All properties of this Trait.",
     )
-    base_traits: list[TraitType] = builtin_property(
-        121, description="Traits directly inherited by this trait."
+    indexes: list["IndexDefinition"] = builtin_property(
+        121,
+        description="All indexes of this Trait.",
+    )
+    constraints: list["ConstraintDefinition"] = builtin_property(
+        122,
+        description="All constraints of this Trait.",
+    )
+    permissions: list["PermissionDefinition"] = builtin_property(
+        123,
+        description="All permissions of this Trait.",
     )
 
+    # inheritance
+    base_traits: list[TraitType] = builtin_property(
+        130,
+        description="Traits directly inherited by this Trait (directly).",
+    )
+    traits: list[TraitType] = builtin_property(
+        131,
+        description="Traits directly and indirectly inherited by this Trait (directly and indirectly).",
+    )
+
+    # event
     event_types: list[NodeType] = builtin_property(
-        140, description="The event types of this Trait (directly and indirectly)."
+        140,
+        description="The event types related to this Trait (directly and indirectly).",
     )
     base_event_types: list[NodeType] = builtin_property(
-        141, description="The base event types of this Trait (directly)."
+        141,
+        description="The base event types related to this Trait (directly).",
     )
 
-    indexes: list["IndexDefinition"] = builtin_property(160)
-    constraints: list["ConstraintDefinition"] = builtin_property(161)
-    permissions: list["PermissionDefinition"] = builtin_property(162)
+    # enum
+    enum_types: list[EnumType] = builtin_property(
+        150,
+        description="The enum types related to this Trait (directly and indirectly).",
+    )
+    base_enum_types: list[EnumType] = builtin_property(
+        151,
+        description="The base enum types related to this Trait (directly).",
+    )
 
     @classmethod
     def from_trait(cls, trait_cls: _type["Trait"]) -> "TraitDefinition":
@@ -262,22 +332,30 @@ class TraitDefinition(BuiltinDefinition):
         trait_type = TraitType(trait_cls.metatype)
         return cls(
             id=trait_cls.metatype.value,
+            # meta
             type=trait_type,
             name=trait_cls.metatype.camel_name,
-            alias=trait_cls.__name__,
             icon=to_icon(trait_cls.metatype.icon) if trait_cls.metatype.icon else None,
             description=trait_cls.__doc__,
+            # flags
+            alias=trait_cls.__name__,
+            is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
+            # content
             properties=[
                 prop.definition for prop in trait_cls.__properties__.values() if prop.is_wired
             ],
-            is_extensible=cast(type["Trait"], trait_cls).__is_extensible__,
-            traits=list(trait_cls.__traits__),
-            base_traits=list(trait_cls.__base_traits__),
-            event_types=list(trait_cls.__event_types__),
-            base_event_types=list(trait_cls.__base_event_types__),
             indexes=list(trait_cls.__indexes__),
             constraints=list(trait_cls.__constraints__),
             permissions=list(trait_cls.__permissions__),
+            # inheritance
+            base_traits=list(trait_cls.__base_traits__),
+            traits=list(trait_cls.__traits__),
+            # event
+            event_types=list(trait_cls.__event_types__),
+            base_event_types=list(trait_cls.__base_event_types__),
+            # enum
+            enum_types=list(trait_cls.__enum_types__),
+            base_enum_types=list(trait_cls.__base_enum_types__),
         )
 
 
@@ -285,29 +363,59 @@ class TraitDefinition(BuiltinDefinition):
 class StructDefinition(BuiltinDefinition):
     """Definition of a builtin Struct."""
 
+    # meta
     type: StructType = builtin_property(100, is_repr=True)
-    properties: list["PropertyDefinition"] = builtin_property(105)
 
-    is_frozen: bool = builtin_property(110, description="Whether this Struct cannot be modified.")
+    # flags
+    is_frozen: bool = builtin_property(
+        110,
+        description="Whether this Struct is read-only (cannot be modified).",
+    )
     is_abstract: bool = builtin_property(
-        111, description="Whether this Struct cannot be instantiated directly."
+        111,
+        description="Whether this Struct is abstract (cannot be instantiated directly).",
     )
     is_extensible: bool = builtin_property(
         112,
         description="Whether this Struct can be extended by custom Structs.",
     )
 
+    # content
+    properties: list["PropertyDefinition"] = builtin_property(
+        120,
+        description="All properties of this Struct.",
+    )
+    methods: list["MethodDefinition"] = builtin_property(
+        125,
+        description="All methods of this Struct (excluding actions).",
+    )
+    actions: list["ActionDefinition"] = builtin_property(
+        126,
+        description="All actions of this Struct.",
+    )
+
+    # inheritance
     base_type: StructType | None = builtin_property(
-        120, description="The base type this Struct extends (directly)."
+        130, description="The base type this Struct extends (directly)."
     )
     extended_by: list[StructType] = builtin_property(
-        121, description="Structs that extend this Struct type (directly)."
+        131, description="Structs that extend this Struct type (directly)."
     )
     inherits: list[StructType] = builtin_property(
-        122, description="Structs that this Struct inherits (directly and indirectly)."
+        132, description="Structs that this Struct inherits (directly and indirectly)."
     )
     inherited_by: list[StructType] = builtin_property(
-        123, description="Structs that inherit this Struct type (directly and indirectly)."
+        133, description="Structs that inherit this Struct type (directly and indirectly)."
+    )
+
+    # enum
+    enum_types: list[EnumType] = builtin_property(
+        150,
+        description="The enum types related to this Node (directly and indirectly).",
+    )
+    base_enum_types: list[EnumType] = builtin_property(
+        151,
+        description="The base enum types related to this Node (directly).",
     )
 
     @classmethod
@@ -321,16 +429,24 @@ class StructDefinition(BuiltinDefinition):
             name=struct_cls.__name__,
             icon=to_icon(struct_cls.metatype.icon) if struct_cls.metatype.icon else None,
             description=struct_cls.__doc__,
-            properties=[
-                prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
-            ],
+            # flags
             is_frozen=struct_cls.__is_frozen__,
             is_abstract=struct_cls.__is_abstract__,
             is_extensible=struct_cls.__is_extensible__,
+            # content
+            properties=[
+                prop.definition for prop in struct_cls.__properties__.values() if prop.is_wired
+            ],
+            methods=list(struct_cls.__methods__),
+            actions=list(struct_cls.__actions__),
+            # inheritance
             base_type=struct_cls.__base_type__,
             extended_by=list(struct_cls.__extended_by__),
             inherits=list(struct_cls.__inherits__),
             inherited_by=list(struct_cls.__inherited_by__),
+            # enum
+            enum_types=list(struct_cls.__enum_types__),
+            base_enum_types=list(struct_cls.__base_enum_types__),
         )
 
 

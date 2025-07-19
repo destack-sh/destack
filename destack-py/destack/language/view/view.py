@@ -40,7 +40,10 @@ class ViewEvent(Event["View"]):
         NodeType.CLIPBOARD_EVENT,
         NodeType.FOCUS_EVENT,
     ),
-    expected_ancestor_types=(NodeType.VIEW,),
+    expected_ancestor_types=(
+        NodeType.SCENE,
+        NodeType.VIEW,
+    ),
 )
 class View(
     IsViewable,

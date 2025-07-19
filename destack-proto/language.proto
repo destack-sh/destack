@@ -4093,7 +4093,7 @@ message LabelViewProto {
   optional CornersProto radius = 148;
 }
 
-// A Layer is a named container for Views.
+// A Layer is a container for Views.
 message LayerProto {
   NodeTypeProto metatype = 1;
   string id = 2;
@@ -4565,31 +4565,35 @@ message NodeDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 105;
   bool is_abstract = 110;
   bool is_extensible = 111;
   bool is_frozen = 112;
-  optional NodeTypeProto base_type = 120;
-  repeated NodeTypeProto extended_by = 121;
-  repeated NodeTypeProto inherits = 122;
-  repeated NodeTypeProto inherited_by = 123;
-  repeated TraitTypeProto base_traits = 124;
-  repeated TraitTypeProto traits = 125;
-  repeated NodeTypeProto parent_types = 130;
-  repeated NodeTypeProto child_types = 131;
-  repeated NodeTypeProto ancestor_types = 132;
-  repeated NodeTypeProto descendant_types = 133;
-  repeated NodeTypeProto expected_parent_types = 140;
-  repeated NodeTypeProto expected_child_types = 141;
-  repeated NodeTypeProto expected_ancestor_types = 142;
-  repeated NodeTypeProto expected_descendant_types = 143;
-  repeated NodeTypeProto event_types = 150;
-  repeated NodeTypeProto base_event_types = 151;
-  repeated StoreKeyProto primary_store_keys = 160;
-  optional StoreDomainProto store_domain = 161;
-  repeated IndexDefinitionProto indexes = 170;
-  repeated ConstraintDefinitionProto constraints = 171;
-  repeated PermissionDefinitionProto permissions = 172;
+  repeated PropertyDefinitionProto properties = 120;
+  repeated IndexDefinitionProto indexes = 121;
+  repeated ConstraintDefinitionProto constraints = 122;
+  repeated PermissionDefinitionProto permissions = 123;
+  repeated MethodDefinitionProto methods = 125;
+  repeated ActionDefinitionProto actions = 126;
+  optional NodeTypeProto base_type = 130;
+  repeated NodeTypeProto extended_by = 131;
+  repeated NodeTypeProto inherits = 132;
+  repeated NodeTypeProto inherited_by = 133;
+  repeated TraitTypeProto base_traits = 134;
+  repeated TraitTypeProto traits = 135;
+  repeated NodeTypeProto event_types = 140;
+  repeated NodeTypeProto base_event_types = 141;
+  repeated EnumTypeProto enum_types = 150;
+  repeated EnumTypeProto base_enum_types = 151;
+  repeated NodeTypeProto parent_types = 160;
+  repeated NodeTypeProto child_types = 161;
+  repeated NodeTypeProto ancestor_types = 162;
+  repeated NodeTypeProto descendant_types = 163;
+  repeated NodeTypeProto expected_parent_types = 170;
+  repeated NodeTypeProto expected_child_types = 171;
+  repeated NodeTypeProto expected_ancestor_types = 172;
+  repeated NodeTypeProto expected_descendant_types = 173;
+  repeated StoreKeyProto primary_store_keys = 200;
+  optional StoreDomainProto store_domain = 201;
 }
 
 message NodeDefinitionReferenceProto {
@@ -6603,14 +6607,18 @@ message StructDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 105;
   bool is_frozen = 110;
   bool is_abstract = 111;
   bool is_extensible = 112;
-  optional StructTypeProto base_type = 120;
-  repeated StructTypeProto extended_by = 121;
-  repeated StructTypeProto inherits = 122;
-  repeated StructTypeProto inherited_by = 123;
+  repeated PropertyDefinitionProto properties = 120;
+  repeated MethodDefinitionProto methods = 125;
+  repeated ActionDefinitionProto actions = 126;
+  optional StructTypeProto base_type = 130;
+  repeated StructTypeProto extended_by = 131;
+  repeated StructTypeProto inherits = 132;
+  repeated StructTypeProto inherited_by = 133;
+  repeated EnumTypeProto enum_types = 150;
+  repeated EnumTypeProto base_enum_types = 151;
 }
 
 message StructDefinitionReferenceProto {
@@ -6974,16 +6982,18 @@ message TraitDefinitionProto {
   string name = 101;
   optional IconProto icon = 102;
   optional string description = 103;
-  repeated PropertyDefinitionProto properties = 105;
   string alias = 110;
   bool is_extensible = 111;
-  repeated TraitTypeProto traits = 120;
-  repeated TraitTypeProto base_traits = 121;
+  repeated PropertyDefinitionProto properties = 120;
+  repeated IndexDefinitionProto indexes = 121;
+  repeated ConstraintDefinitionProto constraints = 122;
+  repeated PermissionDefinitionProto permissions = 123;
+  repeated TraitTypeProto base_traits = 130;
+  repeated TraitTypeProto traits = 131;
   repeated NodeTypeProto event_types = 140;
   repeated NodeTypeProto base_event_types = 141;
-  repeated IndexDefinitionProto indexes = 160;
-  repeated ConstraintDefinitionProto constraints = 161;
-  repeated PermissionDefinitionProto permissions = 162;
+  repeated EnumTypeProto enum_types = 150;
+  repeated EnumTypeProto base_enum_types = 151;
 }
 
 message TransitionProto {

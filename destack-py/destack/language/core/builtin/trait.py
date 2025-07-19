@@ -14,7 +14,7 @@ from destack.utils.fractional import INTEGER_ZERO
 from destack.utils.func import get_superclasses
 from destack.utils.uuid import UUID
 
-from .common import NodeType, TraitType
+from .common import EnumType, NodeType, TraitType
 from .const import UNSET
 from .object import BuiltinObject, _process_object_cls
 from .property import (
@@ -116,9 +116,14 @@ def builtin_trait(
 class Trait(Node if TYPE_CHECKING else BuiltinObject):
     """A Node trait."""
 
+    # meta
     metatype: ClassVar[TraitType]
+
+    # flags
     __is_node__: ClassVar[bool] = True
     __is_trait__: ClassVar[bool] = True
+    """Whether this trait can be extended by custom Traits."""
+    __is_extensible__: ClassVar[bool] = False
 
     # 1-20: node identity
     id: UUID = builtin_property(
@@ -129,14 +134,7 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
         description="The universally unique identifier of this Node.",
     )
 
-    """Whether this trait can be extended by custom Traits."""
-    __is_extensible__: ClassVar[bool] = False
-
-    """The base event types of this Trait (directly)."""
-    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
-    """The event types of this trait (directly and indirectly)."""
-    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
-
+    # content
     """The indexes for this Node type."""
     __indexes__: ClassVar[tuple["IndexDefinition", ...]] = ()
     """The constraints for this Node type."""
@@ -147,6 +145,18 @@ class Trait(Node if TYPE_CHECKING else BuiltinObject):
     __methods__: ClassVar[tuple["MethodDefinition", ...]] = ()
     """The actions for this Node type."""
     __actions__: ClassVar[tuple["ActionDefinition", ...]] = ()
+
+    # event
+    """The base event types of this Trait (directly)."""
+    __base_event_types__: ClassVar[tuple[NodeType, ...]] = ()
+    """The event types of this trait (directly and indirectly)."""
+    __event_types__: ClassVar[tuple[NodeType, ...]] = ()
+
+    # enum
+    """The base enum types of this trait (directly)."""
+    __base_enum_types__: ClassVar[tuple[EnumType, ...]] = ()
+    """The enum types of this trait (directly and indirectly)."""
+    __enum_types__: ClassVar[tuple[EnumType, ...]] = ()
 
 
 @builtin_trait(TraitType.ORDERED, is_extensible=True)
@@ -296,7 +306,8 @@ class IsExtensible(IsScriptable):
     )
     # traits?
     # is_trait? is_abstract?
-    # is_locked?
+    # is_locked/is_final?
+    # is_singleton?
 
 
 @builtin_trait(TraitType.IRREVERSIBLE, is_extensible=True)
