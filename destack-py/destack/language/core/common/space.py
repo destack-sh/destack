@@ -19,9 +19,19 @@ from destack.language.core import (
     builtin_node,
     builtin_property,
 )
+from destack.utils.uuid import UUID, uuid4
 
 if TYPE_CHECKING:
-    from destack.language import Database, Folder, Handle, NodeReference
+    from destack.language import (
+        Branch,
+        Database,
+        Folder,
+        Handle,
+        IsActor,
+        NodeReference,
+        Session,
+        Snapshot,
+    )
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -85,3 +95,82 @@ class Space(
             yield self
         finally:
             ACTIVE_SPACE.reset(token)
+
+
+def create_space(
+    session: "Session",
+    *,
+    id: UUID | None = None,
+    name: str,
+    slug: str,
+    owned_by: "IsActor | NodeReference | None" = None,
+) -> tuple[Space, "Branch", "Snapshot"]:
+    """Create a new Space with a root Branch and Snapshot."""
+
+    from destack.language import REGION, Branch, BranchType, IsActor, Snapshot, SnapshotType
+
+    if isinstance(owned_by, IsActor):
+        owned_by = owned_by.to_ref()
+
+    space_id = id or uuid4()
+    epoch = session.epoch
+    now = session.oracle.utc()
+    space_ptr = NodeReference(
+        type=NodeType.SPACE,
+        id=space_id,
+        space_id=space_id,
+    )
+    snapshot_id = uuid4()
+    snapshot_ptr = NodeReference(
+        type=NodeType.SNAPSHOT,
+        id=snapshot_id,
+        space_id=space_id,
+        snapshot_id=snapshot_id,
+    )
+    branch_id = uuid4()
+    branch_ptr = NodeReference(
+        type=NodeType.BRANCH,
+        id=branch_id,
+        space_id=space_id,
+    )
+    snapshot = Snapshot(
+        id=snapshot_id,
+        name="Root",
+        space_ptr=space_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        type=SnapshotType.FULL,
+        branch_ptr=branch_ptr,
+    )
+    branch = Branch(
+        id=branch_id,
+        name="Main",
+        space_ptr=space_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        type=BranchType.ROOT,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
+    )
+    space = Space(
+        id=space_id,
+        name=name,
+        slug=slug,
+        status=SpaceStatus.ACTIVE,
+        region=REGION,
+        branch_ptr=branch_ptr,
+        snapshot_ptr=snapshot_ptr,
+        created_epoch=epoch,
+        created_at=now,
+        updated_epoch=epoch,
+        updated_at=now,
+        owned_by_ptr=owned_by,
+    )
+    session.create(space)
+    session.create(snapshot)
+    session.create(branch)
+    return space, branch, snapshot
