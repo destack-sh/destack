@@ -62,6 +62,7 @@ import type {
   Cloud,
   EdgeDirection,
   EdgeType,
+  Encoding,
   EnumType,
   EnvironmentType,
   ModeType,
@@ -656,17 +657,17 @@ export type StructTypeMapping = {
   [StructType.CONSTANT_DEFINITION]: ConstantDefinition;
   [StructType.METHOD_DEFINITION]: MethodDefinition;
   [StructType.ACTION_DEFINITION]: ActionDefinition;
+  [StructType.STRING_CONSTRAINT]: StringConstraint;
+  [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
+  [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
+  [StructType.NODE_CONSTRAINT]: NodeConstraint;
+  [StructType.TYPE]: Type;
   [StructType.ICON]: Icon;
   [StructType.INDEX_DEFINITION]: IndexDefinition;
   [StructType.CONSTRAINT_DEFINITION]: ConstraintDefinition;
   [StructType.MIGRATION_DEFINITION]: MigrationDefinition;
   [StructType.MIGRATION_OPERATION_DEFINITION]: MigrationOperationDefinition;
   [StructType.PERMISSION_DEFINITION]: PermissionDefinition;
-  [StructType.STRING_CONSTRAINT]: StringConstraint;
-  [StructType.NUMBER_CONSTRAINT]: NumberConstraint;
-  [StructType.COLLECTION_CONSTRAINT]: CollectionConstraint;
-  [StructType.NODE_CONSTRAINT]: NodeConstraint;
-  [StructType.TYPE]: Type;
   [StructType.VALUE]: Value;
   [StructType.FUNCTION]: Function;
   [StructType.CONDITION]: Condition;
@@ -744,6 +745,7 @@ export type EnumTypeMapping = {
   [EnumType.EDGE_TYPE]: EdgeType;
   [EnumType.CASCADE_ACTION]: CascadeAction;
   [EnumType.EDGE_DIRECTION]: EdgeDirection;
+  [EnumType.ENCODING]: Encoding;
   [EnumType.PRIMITIVE_TYPE]: PrimitiveType;
   [EnumType.TYPE_CARDINALITY]: TypeCardinality;
   [EnumType.SCALAR_TYPE]: ScalarType;
@@ -763,10 +765,10 @@ export type EnumTypeMapping = {
   [EnumType.CONSTRAINT_TYPE]: ConstraintType;
   [EnumType.INDEX_TYPE]: IndexType;
   [EnumType.METHOD_CARDINALITY]: MethodCardinality;
-  [EnumType.ICON_TYPE]: IconType;
-  [EnumType.MIGRATION_TYPE]: MigrationType;
   [EnumType.STRING_FORMAT]: StringFormat;
   [EnumType.NUMBER_FORMAT]: NumberFormat;
+  [EnumType.ICON_TYPE]: IconType;
+  [EnumType.MIGRATION_TYPE]: MigrationType;
   [EnumType.FUNCTION_TYPE]: FunctionType;
   [EnumType.CONDITIONAL_TYPE]: ConditionalType;
   [EnumType.AGGREGATION_TYPE]: AggregationType;

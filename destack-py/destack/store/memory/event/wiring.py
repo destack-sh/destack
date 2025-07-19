@@ -27,31 +27,31 @@ NODE_REFERENCE_ID_KEY = str(NodeReference.property("id").id)
 
 def pack_event_row(value: Value) -> MemoryEventRow:
     """Pack a Value into a MemoryRow."""
-    value_packed = value.value
-    assert value_packed is not None, f"no value for {value!r}"
-    node_type = NodeType(value_packed[NODE_METATYPE_KEY])
-    id = UUID(value_packed[NODE_ID_KEY])
+    value_cson = value.value
+    assert value_cson is not None, f"no value for {value!r}"
+    node_type = NodeType(value_cson[NODE_METATYPE_KEY])
+    id = UUID(value_cson[NODE_ID_KEY])
     ptr = NodeReference(
         type=node_type,
-        id=UUID(value_packed[NODE_ID_KEY]),
-        space_id=UUID(value_packed[NODE_SPACE_PTR_KEY][NODE_REFERENCE_ID_KEY])
-        if NODE_SPACE_PTR_KEY in value_packed
+        id=UUID(value_cson[NODE_ID_KEY]),
+        space_id=UUID(value_cson[NODE_SPACE_PTR_KEY][NODE_REFERENCE_ID_KEY])
+        if NODE_SPACE_PTR_KEY in value_cson
         else None,
-        definition_id=UUID(value_packed[ENTITY_DEFINITION_PTR_KEY][NODE_REFERENCE_ID_KEY])
-        if ENTITY_DEFINITION_PTR_KEY in value_packed
+        definition_id=UUID(value_cson[ENTITY_DEFINITION_PTR_KEY][NODE_REFERENCE_ID_KEY])
+        if ENTITY_DEFINITION_PTR_KEY in value_cson
         else None,
     )
-    snapshot_ptr = value_packed.get(EVENT_SNAPSHOT_PTR_KEY)
+    snapshot_ptr = value_cson.get(EVENT_SNAPSHOT_PTR_KEY)
     if snapshot_ptr is not None:
-        snapshot_ptr = NodeReference.from_value(snapshot_ptr)
-    created_at = datetime.fromisoformat(value_packed[EVENT_CREATED_AT_KEY])
+        snapshot_ptr = NodeReference.from_cson(snapshot_ptr)
+    created_at = datetime.fromisoformat(value_cson[EVENT_CREATED_AT_KEY])
     row = MemoryEventRow(
         metatype=node_type,
         id=id,
         snapshot_id=snapshot_ptr.id if snapshot_ptr is not None else None,
         ptr=ptr,
         created_at=created_at,
-        value=value_packed,
+        value=value_cson,
     )
     return row
 

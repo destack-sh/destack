@@ -246,7 +246,7 @@ export class Font extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -309,7 +309,7 @@ export class Font extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -440,50 +440,50 @@ export class Font extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Font.__packValue__(this);
+      this._cson = Font.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Font): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100500;
-    objectValue["100"] = object.type;
+  static __packCson__(object: Font): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2100500;
+    objectCson["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["101"] = object.stylePtr.toValue();
+      objectCson["101"] = object.stylePtr.toCson();
     }
     if (object.weight != null) {
-      objectValue["102"] = object.weight;
+      objectCson["102"] = object.weight;
     }
     if (object.color != null) {
-      objectValue["103"] = object.color.toValue();
+      objectCson["103"] = object.color.toCson();
     }
     if (object.size != null) {
-      objectValue["104"] = object.size;
+      objectCson["104"] = object.size;
     }
     if (object.align != null) {
-      objectValue["105"] = object.align;
+      objectCson["105"] = object.align;
     }
     if (object.lineHeight != null) {
-      objectValue["106"] = object.lineHeight.toValue();
+      objectCson["106"] = object.lineHeight.toCson();
     }
     if (object.letterSpacing != null) {
-      objectValue["107"] = object.letterSpacing.toValue();
+      objectCson["107"] = object.letterSpacing.toCson();
     }
     if (object.decoration != null) {
-      objectValue["108"] = object.decoration;
+      objectCson["108"] = object.decoration;
     }
     if (object.transform != null) {
-      objectValue["109"] = object.transform;
+      objectCson["109"] = object.transform;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -492,38 +492,38 @@ export class Font extends StructFrozen {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const stylePtrValue = objectValue["101"];
+    const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const weightValue = objectValue["102"];
+    const weightValue = objectCson["102"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
-    const colorValue = objectValue["103"];
+    const colorValue = objectCson["103"];
     const unpackedColor =
       colorValue != undefined
-        ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Fill.fromCson(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sizeValue = objectValue["104"];
+    const sizeValue = objectCson["104"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const alignValue = objectValue["105"];
+    const alignValue = objectCson["105"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const lineHeightValue = objectValue["106"];
+    const lineHeightValue = objectCson["106"];
     const unpackedLineHeight =
       lineHeightValue != undefined
-        ? _Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(lineHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const letterSpacingValue = objectValue["107"];
+    const letterSpacingValue = objectCson["107"];
     const unpackedLetterSpacing =
       letterSpacingValue != undefined
-        ? _Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(letterSpacingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const decorationValue = objectValue["108"];
+    const decorationValue = objectCson["108"];
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
-    const transformValue = objectValue["109"];
+    const transformValue = objectCson["109"];
     const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
     return new Font({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       style: unpackedStylePtr,
       weight: unpackedWeight,
       color: unpackedColor,
@@ -533,19 +533,19 @@ export class Font extends StructFrozen {
       letterSpacing: unpackedLetterSpacing,
       decoration: unpackedDecoration,
       transform: unpackedTransform,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Font {
-    return Font.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Font.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): FontProto {
@@ -1479,86 +1479,86 @@ export class FontStyle extends Style {
     return `<FontStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return FontStyle.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return FontStyle.__packCson__(this);
   }
 
-  static __packValue__(object: FontStyle): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2100500;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: FontStyle): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2100500;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
-    objectValue["100"] = object._type;
+    objectCson["90"] = object.isExtensible;
+    objectCson["100"] = object._type;
     if (object._weight != null) {
-      objectValue["102"] = object._weight;
+      objectCson["102"] = object._weight;
     }
     if (object._color != null) {
-      objectValue["103"] = object._color.toValue();
+      objectCson["103"] = object._color.toCson();
     }
     if (object._size != null) {
-      objectValue["104"] = object._size;
+      objectCson["104"] = object._size;
     }
     if (object._align != null) {
-      objectValue["105"] = object._align;
+      objectCson["105"] = object._align;
     }
     if (object._lineHeight != null) {
-      objectValue["106"] = object._lineHeight.toValue();
+      objectCson["106"] = object._lineHeight.toCson();
     }
     if (object._letterSpacing != null) {
-      objectValue["107"] = object._letterSpacing.toValue();
+      objectCson["107"] = object._letterSpacing.toCson();
     }
     if (object._decoration != null) {
-      objectValue["108"] = object._decoration;
+      objectCson["108"] = object._decoration;
     }
     if (object._transform != null) {
-      objectValue["109"] = object._transform;
+      objectCson["109"] = object._transform;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1568,75 +1568,75 @@ export class FontStyle extends Style {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Length = STRUCT_CLASS_BY_TYPE[StructType.LENGTH] as typeof Length;
     const _Fill = STRUCT_CLASS_BY_TYPE[StructType.FILL] as typeof Fill;
-    const weightValue = objectValue["102"];
+    const weightValue = objectCson["102"];
     const unpackedWeight = weightValue != undefined ? Number(weightValue) : null;
-    const colorValue = objectValue["103"];
+    const colorValue = objectCson["103"];
     const unpackedColor =
       colorValue != undefined
-        ? _Fill.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Fill.fromCson(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sizeValue = objectValue["104"];
+    const sizeValue = objectCson["104"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const alignValue = objectValue["105"];
+    const alignValue = objectCson["105"];
     const unpackedAlign = alignValue != undefined ? Number(alignValue) : null;
-    const lineHeightValue = objectValue["106"];
+    const lineHeightValue = objectCson["106"];
     const unpackedLineHeight =
       lineHeightValue != undefined
-        ? _Length.fromValue(lineHeightValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(lineHeightValue, _session, _supergraph, _graph, _connection)
         : null;
-    const letterSpacingValue = objectValue["107"];
+    const letterSpacingValue = objectCson["107"];
     const unpackedLetterSpacing =
       letterSpacingValue != undefined
-        ? _Length.fromValue(letterSpacingValue, _session, _supergraph, _graph, _connection)
+        ? _Length.fromCson(letterSpacingValue, _session, _supergraph, _graph, _connection)
         : null;
-    const decorationValue = objectValue["108"];
+    const decorationValue = objectCson["108"];
     const unpackedDecoration = decorationValue != undefined ? Number(decorationValue) : null;
-    const transformValue = objectValue["109"];
+    const transformValue = objectCson["109"];
     const unpackedTransform = transformValue != undefined ? Number(transformValue) : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1646,7 +1646,7 @@ export class FontStyle extends Style {
       }
     }
     return new FontStyle({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       weight: unpackedWeight,
       color: unpackedColor,
       size: unpackedSize,
@@ -1656,17 +1656,11 @@ export class FontStyle extends Style {
       decoration: unpackedDecoration,
       transform: unpackedTransform,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1674,18 +1668,18 @@ export class FontStyle extends Style {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      isExtensible: objectValue["90"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      isExtensible: objectCson["90"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       script: unpackedScriptPtr,
       customValues: unpackedCustomValues,
       _session,
@@ -1694,14 +1688,14 @@ export class FontStyle extends Style {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): FontStyle {
-    return FontStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return FontStyle.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): FontStyleProto {

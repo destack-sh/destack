@@ -607,56 +607,56 @@ export class CopyEvent extends ClipboardEvent {
     return `<CopyEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return CopyEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return CopyEvent.__packCson__(this);
   }
 
-  static __packValue__(object: CopyEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000501;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: CopyEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2000501;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["40"] = object.status;
+    objectCson["40"] = object.status;
     if (object.scriptPtr != null) {
-      objectValue["80"] = object.scriptPtr.toValue();
+      objectCson["80"] = object.scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -664,42 +664,42 @@ export class CopyEvent extends ClipboardEvent {
   ): CopyEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -710,16 +710,10 @@ export class CopyEvent extends ClipboardEvent {
     }
     return new CopyEvent({
       node: unpackedNodePtr,
-      isExtensible: objectValue["90"],
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      isExtensible: objectCson["90"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -727,17 +721,17 @@ export class CopyEvent extends ClipboardEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -745,14 +739,14 @@ export class CopyEvent extends ClipboardEvent {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CopyEvent {
-    return CopyEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CopyEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): CopyEventProto {
@@ -1406,56 +1400,56 @@ export class CutEvent extends ClipboardEvent {
     return `<CutEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return CutEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return CutEvent.__packCson__(this);
   }
 
-  static __packValue__(object: CutEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000502;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: CutEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2000502;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["40"] = object.status;
+    objectCson["40"] = object.status;
     if (object.scriptPtr != null) {
-      objectValue["80"] = object.scriptPtr.toValue();
+      objectCson["80"] = object.scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1463,42 +1457,42 @@ export class CutEvent extends ClipboardEvent {
   ): CutEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1509,16 +1503,10 @@ export class CutEvent extends ClipboardEvent {
     }
     return new CutEvent({
       node: unpackedNodePtr,
-      isExtensible: objectValue["90"],
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      isExtensible: objectCson["90"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -1526,17 +1514,17 @@ export class CutEvent extends ClipboardEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1544,14 +1532,14 @@ export class CutEvent extends ClipboardEvent {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CutEvent {
-    return CutEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CutEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): CutEventProto {
@@ -2205,56 +2193,56 @@ export class PasteEvent extends ClipboardEvent {
     return `<PasteEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return PasteEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return PasteEvent.__packCson__(this);
   }
 
-  static __packValue__(object: PasteEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000503;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: PasteEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2000503;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["40"] = object.status;
+    objectCson["40"] = object.status;
     if (object.scriptPtr != null) {
-      objectValue["80"] = object.scriptPtr.toValue();
+      objectCson["80"] = object.scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2262,42 +2250,42 @@ export class PasteEvent extends ClipboardEvent {
   ): PasteEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -2308,16 +2296,10 @@ export class PasteEvent extends ClipboardEvent {
     }
     return new PasteEvent({
       node: unpackedNodePtr,
-      isExtensible: objectValue["90"],
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      isExtensible: objectCson["90"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -2325,17 +2307,17 @@ export class PasteEvent extends ClipboardEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -2343,14 +2325,14 @@ export class PasteEvent extends ClipboardEvent {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): PasteEvent {
-    return PasteEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return PasteEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): PasteEventProto {

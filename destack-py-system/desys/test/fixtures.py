@@ -50,7 +50,11 @@ async def session(memory_store: MemoryEntityStore):
 
 @pytest.fixture
 def space(session: Session):
-    space, branch, snapshot = create_space(session)
+    space, branch, snapshot = create_space(
+        session,
+        name="Test",
+        slug="test",
+    )
     with space.active(), branch.active(), snapshot.active():
         yield space
 

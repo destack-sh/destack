@@ -30,6 +30,7 @@ from destack.utils.string import Casing, to_casing
 from destack.utils.uuid import UUID, to_nano_id, uuid4, uuid7
 
 from .common import (
+    Cson,
     EdgeType,
     EnumType,
     NodeType,
@@ -712,7 +713,10 @@ if self.{prop_name} != other.{prop_name}:
 def _generate_scalar_cmp_impl(prop: PropertyDeclaration) -> tuple[str, bool]:
     """Generate the core scalar comparison logic. Returns a format string with {self_val} and {other_val} placeholders."""
     if prop.scalar_type == ScalarType.PRIMITIVE:
-        if prop.primitive_type and prop.primitive_type.is_float:
+        if prop.primitive_type and prop.primitive_type in (
+            PrimitiveType.FLOAT32,
+            PrimitiveType.FLOAT64,
+        ):
             return "{self_val} == {other_val} or abs({self_val} - {other_val}) < 1e-10", False
         else:
             return "{self_val} == {other_val}", True
@@ -817,7 +821,9 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hash_bool({value_expr})"
         elif prop.primitive_type == PrimitiveType.STRING:
             return f"hash_string({value_expr})"
-        elif prop.primitive_type == PrimitiveType.BYTES:
+        elif (
+            prop.primitive_type == PrimitiveType.BYTES or prop.primitive_type == PrimitiveType.PROTO
+        ):
             return f"hash_bytes({value_expr})"
         elif prop.primitive_type == PrimitiveType.UUID:
             return f"{value_expr}.int"
@@ -829,7 +835,7 @@ def _generate_scalar_hash_impl(prop: TypeDeclaration | PropertyDeclaration, valu
             return f"hash_string({value_expr}.isoformat())"
         elif prop.primitive_type == PrimitiveType.DURATION:
             return f"hash_float({value_expr}.total_seconds())"
-        elif prop.primitive_type == PrimitiveType.JSON:
+        elif prop.primitive_type == PrimitiveType.JSON or prop.primitive_type == PrimitiveType.CSON:
             return f"hash_string(json.dumps({value_expr}))"
         else:
             assert_never(prop.primitive_type)
@@ -1355,14 +1361,14 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         raise NotImplementedError  # generated
 
     @classmethod
-    def __pack_value__(cls, _object: Self) -> dict:
+    def __pack_cson__(cls, _object: Self) -> "Cson":
         """Convert to value format"""
         raise NotImplementedError  # generated
 
     @classmethod
-    def __unpack_value__(
+    def __unpack_cson__(
         cls,
-        _object_value: dict,
+        _object_cson: dict,
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,
@@ -1372,14 +1378,14 @@ class BuiltinObject[ObjectProtoT: AnyObjectProto]:
         raise NotImplementedError  # generated
 
     @final
-    def to_value(self) -> dict:
+    def to_cson(self) -> "Cson":
         """Convert to value format"""
-        raise NotImplementedError  # generated (usually = __pack_value__)
+        raise NotImplementedError  # generated (usually = __pack_cson__)
 
     @classmethod
-    def from_value(
+    def from_cson(
         cls,
-        _object_value: dict,
+        _object_cson: dict,
         _session: "Session | None" = None,
         _supergraph: "Supergraph | None" = None,
         _graph: "Graph | None" = None,

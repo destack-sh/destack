@@ -1,4 +1,5 @@
 import { Entity, Node } from "@destack/language/core/builtin";
+import { unpackCson } from "@destack/language/core/common";
 import {
   Query,
   QueryResult,
@@ -6,7 +7,7 @@ import {
   QueryType,
   QueryUpdate,
 } from "@destack/language/core/common/query";
-import { unpackValue, Value } from "@destack/language/core/common/value";
+import { Value } from "@destack/language/core/common/value";
 import { Graph } from "@destack/language/core/runtime/graph";
 import { Session } from "@destack/language/core/runtime/session";
 import { Store } from "@destack/language/core/runtime/store";
@@ -54,7 +55,7 @@ export class QueryContainer<T extends Node = Node> {
 
     // nodes
     for (const nodeValue of result.nodes) {
-      const node = unpackValue(nodeValue.value, nodeValue.type, {
+      const node = unpackCson(nodeValue.value, nodeValue.type, {
         _session: session,
         _graph: graph,
         _supergraph: supergraph,

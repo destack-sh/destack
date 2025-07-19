@@ -584,7 +584,7 @@ def _execute_subquery(
                 parent_id = UUID(parent_ptr_value[NODE_REFERENCE_ID_KEY])
                 if parent_id in parents_ptr:
                     continue
-                parent_ptr = NodeReference.from_value(parent_ptr_value)
+                parent_ptr = NodeReference.from_cson(parent_ptr_value)
                 parents_ptr[parent_ptr.id] = parent_ptr
         if not parents_ptr:
             return None  # nothing to query here

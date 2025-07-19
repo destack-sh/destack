@@ -10071,8 +10071,7 @@ export interface MembershipLeftEventProto {
     memberPtr?: NodeReferenceProto;
 }
 /**
- * An implementation of a unit of work, usually expressed with Code or some tool.
- * May defer to a builtin or some other service in a separate system.
+ * A Method is a small piece of logic.
  *
  * @generated from protobuf message symbol.destack.MethodProto
  */
@@ -23211,6 +23210,25 @@ export enum EffectTypeProto {
     EFFECT_TYPE_LOOP = 30
 }
 /**
+ * The encoding of a value.
+ *
+ * @generated from protobuf enum symbol.destack.EncodingProto
+ */
+export enum EncodingProto {
+    /**
+     * @generated from protobuf enum value: ENCODING_UNSPECIFIED = 0;
+     */
+    ENCODING_UNSPECIFIED = 0,
+    /**
+     * @generated from protobuf enum value: ENCODING_CSON = 1;
+     */
+    ENCODING_CSON = 1,
+    /**
+     * @generated from protobuf enum value: ENCODING_PROTO = 2;
+     */
+    ENCODING_PROTO = 2
+}
+/**
  * A Type of Entitlement.
  *
  * @generated from protobuf enum symbol.destack.EntitlementTypeProto
@@ -23345,6 +23363,10 @@ export enum EnumTypeProto {
      * @generated from protobuf enum value: ENUM_TYPE_CASCADE_ACTION = 109;
      */
     ENUM_TYPE_CASCADE_ACTION = 109,
+    /**
+     * @generated from protobuf enum value: ENUM_TYPE_ENCODING = 110;
+     */
+    ENUM_TYPE_ENCODING = 110,
     /**
      * @generated from protobuf enum value: ENUM_TYPE_EDIT_TYPE = 200;
      */
@@ -25954,29 +25976,37 @@ export enum PrimitiveTypeProto {
      */
     PRIMITIVE_TYPE_UUID = 21,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 22;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 30;
      */
-    PRIMITIVE_TYPE_JSON = 22,
+    PRIMITIVE_TYPE_BYTES = 30,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_BYTES = 25;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 40;
      */
-    PRIMITIVE_TYPE_BYTES = 25,
+    PRIMITIVE_TYPE_DATETIME = 40,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATETIME = 30;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 41;
      */
-    PRIMITIVE_TYPE_DATETIME = 30,
+    PRIMITIVE_TYPE_DATE = 41,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DATE = 31;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 42;
      */
-    PRIMITIVE_TYPE_DATE = 31,
+    PRIMITIVE_TYPE_TIME = 42,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_TIME = 32;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_DURATION = 43;
      */
-    PRIMITIVE_TYPE_TIME = 32,
+    PRIMITIVE_TYPE_DURATION = 43,
     /**
-     * @generated from protobuf enum value: PRIMITIVE_TYPE_DURATION = 33;
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_JSON = 50;
      */
-    PRIMITIVE_TYPE_DURATION = 33
+    PRIMITIVE_TYPE_JSON = 50,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_CSON = 60;
+     */
+    PRIMITIVE_TYPE_CSON = 60,
+    /**
+     * @generated from protobuf enum value: PRIMITIVE_TYPE_PROTO = 61;
+     */
+    PRIMITIVE_TYPE_PROTO = 61
 }
 /**
  * The type of a property reference.
@@ -77278,5 +77308,5 @@ export const SomeEventProto = new SomeEventProto$Type();
 
 
     export type AnyNodeProto = NodeProto | EntityProto | RecordProto | ResourceProto | VariantProto | TagProto | TaggingProto | EventProto | CustomEventProto | SignalProto | EditEventProto | MethodProto | ActionProto | CustomEnumProto | CustomOptionProto | IndexProto | ConstraintProto | MigrationProto | MigrationOperationProto | PermissionProto | CustomPropertyProto | SpaceProto | CustomStructProto | BranchProto | SnapshotProto | EntitlementEventProto | EntitlementRequestedEventProto | EntitlementGrantedEventProto | EntitlementRevokedEventProto | EntitlementExpiredEventProto | EntitlementProto | InviteEventProto | InviteSentEventProto | InviteRescindedEventProto | InviteAcceptedEventProto | InviteRejectedEventProto | InviteProto | MembershipEventProto | MembershipJoinedEventProto | MembershipLeftEventProto | MembershipProto | RoleEventProto | RoleAssignedEventProto | RoleUnassignedEventProto | RoleProto | SanctionEventProto | SanctionRequestedEventProto | SanctionGrantedEventProto | SanctionRevokedEventProto | SanctionExpiredEventProto | SanctionProto | StyleProto | ColorStyleProto | BorderStyleProto | GradientStyleProto | FillStyleProto | FontStyleProto | PaletteProto | ShadowStyleProto | StrokeStyleProto | ThemeProto | TransitionStyleProto | EffectStyleProto | ViewEventProto | ViewProto | ContainerViewProto | ContentViewProto | FrameViewProto | InputViewProto | InternalViewProto | LabelViewProto | NumberInputViewProto | SliderInputViewProto | SplitViewProto | TextViewProto | ShapeProto | AnnotationShapeProto | ArrowShapeProto | LineShapeProto | FileProto | EnvironmentProto | LogEventProto | RunEventProto | RunStartedEventProto | RunPauseRequestedEventProto | RunPausedEventProto | RunResumeRequestedEventProto | RunResumedEventProto | RunStopRequestedEventProto | RunFailedEventProto | RunCompletedEventProto | RunProto | SpanEventProto | DatabaseProto | MachineProto | InputEventProto | ClipboardEventProto | CopyEventProto | CutEventProto | PasteEventProto | DragEventProto | DragStartEventProto | DragEndEventProto | DragOverEventProto | DragEnterEventProto | DragLeaveEventProto | DropEventProto | FocusEventProto | FocusInEventProto | FocusOutEventProto | KeyEventProto | KeyDownEventProto | KeyUpEventProto | KeyPressEventProto | PointerEventProto | PointerDownEventProto | PointerUpEventProto | PointerMoveEventProto | PointerEnterEventProto | PointerOverEventProto | PointerLeaveEventProto | PointerLongPressEventProto | MouseEventProto | ClickEventProto | SingleClickEventProto | DoubleClickEventProto | TripleClickEventProto | WheelEventProto | CursorProto | EventCursorProto | ScreenCursorProto | RouteProto | ScriptProto | ServiceProto | TimerEventProto | TimerStartedEventProto | TimerCompletedEventProto | TimerCancelledEventProto | TimerProto | TriggerEventProto | TriggerProto | MetricProto | MeasurementEventProto | GaugeMetricProto | GaugeMeasurementEventProto | CounterMetricProto | CounterMeasurementEventProto | HistogramMetricProto | HistogramMeasurementEventProto | LayerProto | SceneEventProto | SceneProto | StageProto | WindowProto | FollowProto | FollowEventProto | FollowAddedEventProto | FollowRemovedEventProto | NotificationEventProto | NotificationSentEventProto | NotificationRescindedEventProto | NotificationReadEventProto | NotificationDismissedEventProto | NotificationExpiredEventProto | NotificationProto | ReactionProto | ReactionEventProto | ReactionAddedEventProto | ReactionRemovedEventProto | StarProto | StarEventProto | StarAddedEventProto | StarRemovedEventProto | FolderProto | ClientProto | HandleProto | OrganizationProto | TeamProto | UserProto
-    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | IconProto | IndexDefinitionProto | ConstraintDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto
+    export type AnyStructProto = StructProto | NodeDefinitionReferenceProto | ObjectDefinitionReferenceProto | StructDefinitionReferenceProto | PropertyReferenceProto | NodeReferenceProto | BuiltinDefinitionProto | NodeDefinitionProto | TraitDefinitionProto | StructDefinitionProto | EnumDefinitionProto | PropertyDefinitionProto | OptionDefinitionProto | ConstantDefinitionProto | MethodDefinitionProto | ActionDefinitionProto | StringConstraintProto | NumberConstraintProto | CollectionConstraintProto | NodeConstraintProto | TypeProto | IconProto | IndexDefinitionProto | ConstraintDefinitionProto | MigrationDefinitionProto | MigrationOperationDefinitionProto | PermissionDefinitionProto | ValueProto | FunctionProto | ConditionProto | AggregationProto | ExpressionProto | SortProto | SelectProto | JoinProto | QueryProto | HistogramProto | QueryResultProto | QueryResultGroupProto | QueryUpdateProto | DatumProto | DatumMutableProto | TextSpanProto | TextProto | ColorProto | BorderProto | GradientStopProto | GradientProto | FillProto | FontProto | ShadowProto | StrokeProto | StrokeCapProto | StrokePointProto | StrokePathProto | TransitionProto | EffectProto | LengthProto | PositionProto | DimensionProto | InsetsProto | CornersProto | Axis2Proto | Axis3Proto | GridProto | GridSpanProto | ArrowProto | LineProto | VectorProto | VectorfProto | VectoriProto | Vector2fProto | Vector3fProto | Vector4fProto | Vector2iProto | Vector3iProto | Vector4iProto | DatabaseInfoProto | ScheduleProto
         

@@ -93,35 +93,35 @@ export abstract class BuiltinObject {
   // value
 
   /** Convert an instance of this BuiltinObject to a value. */
-  static __packValue__(object: BuiltinObject): Record<string, any> {
-    throw new Error(`__packValue__ not implemented for ${this.constructor.name}`);
+  static __packCson__(object: BuiltinObject): Record<string, any> {
+    throw new Error(`__packCson__ not implemented for ${this.constructor.name}`);
   }
 
   /** Convert a value to an instance of this BuiltinObject. */
-  static __unpackValue__(
+  static __unpackCson__(
     value: Record<string, any>,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null,
   ): BuiltinObject {
-    throw new Error(`__unpackValue__ not implemented for ${this.constructor.name}`);
+    throw new Error(`__unpackCson__ not implemented for ${this.constructor.name}`);
   }
 
   /** Convert an instance of this BuiltinObject to a value. */
-  toValue(): Record<string, any> {
-    throw new Error(`toValue not implemented for ${this.constructor.name}`);
+  toCson(): Record<string, any> {
+    throw new Error(`toCson not implemented for ${this.constructor.name}`);
   }
 
   /** Convert a value to an instance of this BuiltinObject. */
-  static fromValue(
+  static fromCson(
     value: Record<string, any>,
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: Graph | null,
     _connection?: QueryConnection | null,
   ): BuiltinObject {
-    throw new Error(`fromValue not implemented for ${this.constructor.name}`);
+    throw new Error(`fromCson not implemented for ${this.constructor.name}`);
   }
 }
 
@@ -147,10 +147,10 @@ export type BuiltinObjectClass<
   ) => ObjectT;
 
   /** Convert an instance of this BuiltinObject to a value. */
-  __packValue__: (object: ObjectT) => Record<string, any>;
+  __packCson__: (object: ObjectT) => Record<string, any>;
 
   /** Convert a value to an instance of this BuiltinObject. */
-  __unpackValue__: (
+  __unpackCson__: (
     value: Record<string, any>,
     _session?: Session | null,
     _supergraph?: Supergraph | null,

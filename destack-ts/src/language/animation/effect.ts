@@ -242,7 +242,7 @@ export class Effect extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -299,7 +299,7 @@ export class Effect extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -510,68 +510,68 @@ export class Effect extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Effect.__packValue__(this);
+      this._cson = Effect.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Effect): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2200100;
-    objectValue["100"] = object.type;
+  static __packCson__(object: Effect): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2200100;
+    objectCson["100"] = object.type;
     if (object.stylePtr != null) {
-      objectValue["101"] = object.stylePtr.toValue();
+      objectCson["101"] = object.stylePtr.toCson();
     }
     if (object.opacity != null) {
-      objectValue["102"] = object.opacity;
+      objectCson["102"] = object.opacity;
     }
     if (object.offset != null) {
-      objectValue["103"] = object.offset.toValue();
+      objectCson["103"] = object.offset.toCson();
     }
     if (object.scale != null) {
-      objectValue["104"] = object.scale;
+      objectCson["104"] = object.scale;
     }
     if (object.rotate != null) {
-      objectValue["105"] = object.rotate.toValue();
+      objectCson["105"] = object.rotate.toCson();
     }
     if (object.skew != null) {
-      objectValue["106"] = object.skew.toValue();
+      objectCson["106"] = object.skew.toCson();
     }
     if (object.perspective != null) {
-      objectValue["107"] = object.perspective;
+      objectCson["107"] = object.perspective;
     }
     if (object.delay != null) {
-      objectValue["108"] = timedeltaToISOFormat(object.delay);
+      objectCson["108"] = timedeltaToISOFormat(object.delay);
     }
     if (object.duration != null) {
-      objectValue["109"] = object.duration;
+      objectCson["109"] = object.duration;
     }
     if (object.threshold != null) {
-      objectValue["110"] = object.threshold;
+      objectCson["110"] = object.threshold;
     }
     if (object.once != null) {
-      objectValue["111"] = object.once;
+      objectCson["111"] = object.once;
     }
     if (object.repeat != null) {
-      objectValue["112"] = object.repeat;
+      objectCson["112"] = object.repeat;
     }
     if (object.split != null) {
-      objectValue["113"] = object.split;
+      objectCson["113"] = object.split;
     }
     if (object.offscreen != null) {
-      objectValue["114"] = object.offscreen;
+      objectCson["114"] = object.offscreen;
     }
     if (object.transition != null) {
-      objectValue["115"] = object.transition.toValue();
+      objectCson["115"] = object.transition.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -581,53 +581,53 @@ export class Effect extends StructFrozen {
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const stylePtrValue = objectValue["101"];
+    const stylePtrValue = objectCson["101"];
     const unpackedStylePtr =
       stylePtrValue != undefined
-        ? _NodeReference.fromValue(stylePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(stylePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const opacityValue = objectValue["102"];
+    const opacityValue = objectCson["102"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const offsetValue = objectValue["103"];
+    const offsetValue = objectCson["103"];
     const unpackedOffset =
       offsetValue != undefined
-        ? _Vector2f.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["104"];
+    const scaleValue = objectCson["104"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotateValue = objectValue["105"];
+    const rotateValue = objectCson["105"];
     const unpackedRotate =
       rotateValue != undefined
-        ? _Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection)
+        ? _Axis3.fromCson(rotateValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["106"];
+    const skewValue = objectCson["106"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const perspectiveValue = objectValue["107"];
+    const perspectiveValue = objectCson["107"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
-    const delayValue = objectValue["108"];
+    const delayValue = objectCson["108"];
     const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
-    const durationValue = objectValue["109"];
+    const durationValue = objectCson["109"];
     const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const thresholdValue = objectValue["110"];
+    const thresholdValue = objectCson["110"];
     const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
-    const onceValue = objectValue["111"];
+    const onceValue = objectCson["111"];
     const unpackedOnce = onceValue != undefined ? onceValue : null;
-    const repeatValue = objectValue["112"];
+    const repeatValue = objectCson["112"];
     const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
-    const splitValue = objectValue["113"];
+    const splitValue = objectCson["113"];
     const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
-    const offscreenValue = objectValue["114"];
+    const offscreenValue = objectCson["114"];
     const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
-    const transitionValue = objectValue["115"];
+    const transitionValue = objectCson["115"];
     const unpackedTransition =
       transitionValue != undefined
-        ? _Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
+        ? _Transition.fromCson(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Effect({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       style: unpackedStylePtr,
       opacity: unpackedOpacity,
       offset: unpackedOffset,
@@ -643,19 +643,19 @@ export class Effect extends StructFrozen {
       split: unpackedSplit,
       offscreen: unpackedOffscreen,
       transition: unpackedTransition,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Effect {
-    return Effect.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Effect.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): EffectProto {
@@ -1793,104 +1793,104 @@ export class EffectStyle extends Style {
     return `<EffectStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return EffectStyle.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return EffectStyle.__packCson__(this);
   }
 
-  static __packValue__(object: EffectStyle): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101000;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: EffectStyle): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2101000;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
-    objectValue["100"] = object._type;
+    objectCson["90"] = object.isExtensible;
+    objectCson["100"] = object._type;
     if (object._opacity != null) {
-      objectValue["200"] = object._opacity;
+      objectCson["200"] = object._opacity;
     }
     if (object._offset != null) {
-      objectValue["201"] = object._offset.toValue();
+      objectCson["201"] = object._offset.toCson();
     }
     if (object._scale != null) {
-      objectValue["202"] = object._scale;
+      objectCson["202"] = object._scale;
     }
     if (object._rotate != null) {
-      objectValue["203"] = object._rotate.toValue();
+      objectCson["203"] = object._rotate.toCson();
     }
     if (object._skew != null) {
-      objectValue["204"] = object._skew.toValue();
+      objectCson["204"] = object._skew.toCson();
     }
     if (object._perspective != null) {
-      objectValue["205"] = object._perspective;
+      objectCson["205"] = object._perspective;
     }
     if (object._delay != null) {
-      objectValue["206"] = timedeltaToISOFormat(object._delay);
+      objectCson["206"] = timedeltaToISOFormat(object._delay);
     }
     if (object._duration != null) {
-      objectValue["207"] = object._duration;
+      objectCson["207"] = object._duration;
     }
     if (object._threshold != null) {
-      objectValue["208"] = object._threshold;
+      objectCson["208"] = object._threshold;
     }
     if (object._once != null) {
-      objectValue["209"] = object._once;
+      objectCson["209"] = object._once;
     }
     if (object._repeat != null) {
-      objectValue["210"] = object._repeat;
+      objectCson["210"] = object._repeat;
     }
     if (object._split != null) {
-      objectValue["211"] = object._split;
+      objectCson["211"] = object._split;
     }
     if (object._offscreen != null) {
-      objectValue["212"] = object._offscreen;
+      objectCson["212"] = object._offscreen;
     }
     if (object._transition != null) {
-      objectValue["213"] = object._transition.toValue();
+      objectCson["213"] = object._transition.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1901,90 +1901,90 @@ export class EffectStyle extends Style {
     const _Axis3 = STRUCT_CLASS_BY_TYPE[StructType.AXIS3] as typeof Axis3;
     const _Transition = STRUCT_CLASS_BY_TYPE[StructType.TRANSITION] as typeof Transition;
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
-    const opacityValue = objectValue["200"];
+    const opacityValue = objectCson["200"];
     const unpackedOpacity = opacityValue != undefined ? opacityValue : null;
-    const offsetValue = objectValue["201"];
+    const offsetValue = objectCson["201"];
     const unpackedOffset =
       offsetValue != undefined
-        ? _Vector2f.fromValue(offsetValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromCson(offsetValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scaleValue = objectValue["202"];
+    const scaleValue = objectCson["202"];
     const unpackedScale = scaleValue != undefined ? scaleValue : null;
-    const rotateValue = objectValue["203"];
+    const rotateValue = objectCson["203"];
     const unpackedRotate =
       rotateValue != undefined
-        ? _Axis3.fromValue(rotateValue, _session, _supergraph, _graph, _connection)
+        ? _Axis3.fromCson(rotateValue, _session, _supergraph, _graph, _connection)
         : null;
-    const skewValue = objectValue["204"];
+    const skewValue = objectCson["204"];
     const unpackedSkew =
       skewValue != undefined
-        ? _Vector2f.fromValue(skewValue, _session, _supergraph, _graph, _connection)
+        ? _Vector2f.fromCson(skewValue, _session, _supergraph, _graph, _connection)
         : null;
-    const perspectiveValue = objectValue["205"];
+    const perspectiveValue = objectCson["205"];
     const unpackedPerspective = perspectiveValue != undefined ? perspectiveValue : null;
-    const delayValue = objectValue["206"];
+    const delayValue = objectCson["206"];
     const unpackedDelay = delayValue != undefined ? timedeltaFromISOFormat(delayValue) : null;
-    const durationValue = objectValue["207"];
+    const durationValue = objectCson["207"];
     const unpackedDuration = durationValue != undefined ? durationValue : null;
-    const thresholdValue = objectValue["208"];
+    const thresholdValue = objectCson["208"];
     const unpackedThreshold = thresholdValue != undefined ? thresholdValue : null;
-    const onceValue = objectValue["209"];
+    const onceValue = objectCson["209"];
     const unpackedOnce = onceValue != undefined ? onceValue : null;
-    const repeatValue = objectValue["210"];
+    const repeatValue = objectCson["210"];
     const unpackedRepeat = repeatValue != undefined ? Number(repeatValue) : null;
-    const splitValue = objectValue["211"];
+    const splitValue = objectCson["211"];
     const unpackedSplit = splitValue != undefined ? Number(splitValue) : null;
-    const offscreenValue = objectValue["212"];
+    const offscreenValue = objectCson["212"];
     const unpackedOffscreen = offscreenValue != undefined ? Number(offscreenValue) : null;
-    const transitionValue = objectValue["213"];
+    const transitionValue = objectCson["213"];
     const unpackedTransition =
       transitionValue != undefined
-        ? _Transition.fromValue(transitionValue, _session, _supergraph, _graph, _connection)
+        ? _Transition.fromCson(transitionValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1994,7 +1994,7 @@ export class EffectStyle extends Style {
       }
     }
     return new EffectStyle({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       opacity: unpackedOpacity,
       offset: unpackedOffset,
       scale: unpackedScale,
@@ -2010,17 +2010,11 @@ export class EffectStyle extends Style {
       offscreen: unpackedOffscreen,
       transition: unpackedTransition,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2028,18 +2022,18 @@ export class EffectStyle extends Style {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      isExtensible: objectValue["90"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      isExtensible: objectCson["90"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       script: unpackedScriptPtr,
       customValues: unpackedCustomValues,
       _session,
@@ -2048,14 +2042,14 @@ export class EffectStyle extends Style {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): EffectStyle {
-    return EffectStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return EffectStyle.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): EffectStyleProto {

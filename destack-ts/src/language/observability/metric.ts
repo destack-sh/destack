@@ -789,59 +789,59 @@ export class GaugeMetric extends Metric {
     return `<GaugeMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return GaugeMetric.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return GaugeMetric.__packCson__(this);
   }
 
-  static __packValue__(object: GaugeMetric): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1200000;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: GaugeMetric): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1200000;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -849,49 +849,49 @@ export class GaugeMetric extends Metric {
   ): GaugeMetric {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -901,17 +901,11 @@ export class GaugeMetric extends Metric {
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -919,31 +913,31 @@ export class GaugeMetric extends Metric {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): GaugeMetric {
-    return GaugeMetric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return GaugeMetric.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): GaugeMetricProto {
@@ -1562,96 +1556,90 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
     return `<GaugeMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return GaugeMeasurementEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return GaugeMeasurementEvent.__packCson__(this);
   }
 
-  static __packValue__(object: GaugeMeasurementEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1200001;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: GaugeMeasurementEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1200001;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["6"] = object.definitionPtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): GaugeMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new GaugeMeasurementEvent({
-      definition: _NodeReference.fromValue(
-        objectValue["6"],
+      definition: _NodeReference.fromCson(
+        objectCson["6"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -1659,32 +1647,32 @@ export class GaugeMeasurementEvent extends MeasurementEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       node: unpackedNodePtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): GaugeMeasurementEvent {
-    return GaugeMeasurementEvent.__unpackValue__(
-      objectValue,
+    return GaugeMeasurementEvent.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -2368,59 +2356,59 @@ export class CounterMetric extends Metric {
     return `<CounterMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return CounterMetric.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return CounterMetric.__packCson__(this);
   }
 
-  static __packValue__(object: CounterMetric): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1200100;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: CounterMetric): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1200100;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2428,49 +2416,49 @@ export class CounterMetric extends Metric {
   ): CounterMetric {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -2480,17 +2468,11 @@ export class CounterMetric extends Metric {
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2498,31 +2480,31 @@ export class CounterMetric extends Metric {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CounterMetric {
-    return CounterMetric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CounterMetric.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): CounterMetricProto {
@@ -3141,96 +3123,90 @@ export class CounterMeasurementEvent extends MeasurementEvent {
     return `<CounterMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return CounterMeasurementEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return CounterMeasurementEvent.__packCson__(this);
   }
 
-  static __packValue__(object: CounterMeasurementEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1200101;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: CounterMeasurementEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1200101;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["6"] = object.definitionPtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CounterMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new CounterMeasurementEvent({
-      definition: _NodeReference.fromValue(
-        objectValue["6"],
+      definition: _NodeReference.fromCson(
+        objectCson["6"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -3238,32 +3214,32 @@ export class CounterMeasurementEvent extends MeasurementEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       node: unpackedNodePtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CounterMeasurementEvent {
-    return CounterMeasurementEvent.__unpackValue__(
-      objectValue,
+    return CounterMeasurementEvent.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -3947,59 +3923,59 @@ export class HistogramMetric extends Metric {
     return `<HistogramMetric "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return HistogramMetric.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return HistogramMetric.__packCson__(this);
   }
 
-  static __packValue__(object: HistogramMetric): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1200200;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: HistogramMetric): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1200200;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -4007,49 +3983,49 @@ export class HistogramMetric extends Metric {
   ): HistogramMetric {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
@@ -4059,17 +4035,11 @@ export class HistogramMetric extends Metric {
       source: unpackedSourcePtr,
       key: unpackedKey,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -4077,31 +4047,31 @@ export class HistogramMetric extends Metric {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): HistogramMetric {
-    return HistogramMetric.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return HistogramMetric.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): HistogramMetricProto {
@@ -4720,96 +4690,90 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
     return `<HistogramMeasurementEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return HistogramMeasurementEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return HistogramMeasurementEvent.__packCson__(this);
   }
 
-  static __packValue__(object: HistogramMeasurementEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 1200201;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["6"] = object.definitionPtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: HistogramMeasurementEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 1200201;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["6"] = object.definitionPtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): HistogramMeasurementEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
     return new HistogramMeasurementEvent({
-      definition: _NodeReference.fromValue(
-        objectValue["6"],
+      definition: _NodeReference.fromCson(
+        objectCson["6"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -4817,32 +4781,32 @@ export class HistogramMeasurementEvent extends MeasurementEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       node: unpackedNodePtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): HistogramMeasurementEvent {
-    return HistogramMeasurementEvent.__unpackValue__(
-      objectValue,
+    return HistogramMeasurementEvent.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,

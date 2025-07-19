@@ -775,64 +775,64 @@ export class KeyDownEvent extends KeyEvent {
     return `<KeyDownEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return KeyDownEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return KeyDownEvent.__packCson__(this);
   }
 
-  static __packValue__(object: KeyDownEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000301;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: KeyDownEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2000301;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["40"] = object.status;
+    objectCson["40"] = object.status;
     if (object.scriptPtr != null) {
-      objectValue["80"] = object.scriptPtr.toValue();
+      objectCson["80"] = object.scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    objectValue["110"] = object.key;
-    objectValue["111"] = object.code;
-    objectValue["112"] = object.isRepeat;
-    objectValue["113"] = object.isRedacted;
-    objectValue["120"] = object.shiftKey;
-    objectValue["121"] = object.altKey;
-    objectValue["122"] = object.ctrlKey;
-    objectValue["123"] = object.metaKey;
-    return objectValue;
+    objectCson["110"] = object.key;
+    objectCson["111"] = object.code;
+    objectCson["112"] = object.isRepeat;
+    objectCson["113"] = object.isRedacted;
+    objectCson["120"] = object.shiftKey;
+    objectCson["121"] = object.altKey;
+    objectCson["122"] = object.ctrlKey;
+    objectCson["123"] = object.metaKey;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -840,42 +840,42 @@ export class KeyDownEvent extends KeyEvent {
   ): KeyDownEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -885,25 +885,19 @@ export class KeyDownEvent extends KeyEvent {
       }
     }
     return new KeyDownEvent({
-      key: objectValue["110"],
-      code: objectValue["111"],
-      isRepeat: objectValue["112"],
-      isRedacted: objectValue["113"],
-      shiftKey: objectValue["120"],
-      altKey: objectValue["121"],
-      ctrlKey: objectValue["122"],
-      metaKey: objectValue["123"],
+      key: objectCson["110"],
+      code: objectCson["111"],
+      isRepeat: objectCson["112"],
+      isRedacted: objectCson["113"],
+      shiftKey: objectCson["120"],
+      altKey: objectCson["121"],
+      ctrlKey: objectCson["122"],
+      metaKey: objectCson["123"],
       node: unpackedNodePtr,
-      isExtensible: objectValue["90"],
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      isExtensible: objectCson["90"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -911,17 +905,17 @@ export class KeyDownEvent extends KeyEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -929,14 +923,14 @@ export class KeyDownEvent extends KeyEvent {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): KeyDownEvent {
-    return KeyDownEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return KeyDownEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): KeyDownEventProto {
@@ -1729,64 +1723,64 @@ export class KeyUpEvent extends KeyEvent {
     return `<KeyUpEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return KeyUpEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return KeyUpEvent.__packCson__(this);
   }
 
-  static __packValue__(object: KeyUpEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000302;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: KeyUpEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2000302;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["40"] = object.status;
+    objectCson["40"] = object.status;
     if (object.scriptPtr != null) {
-      objectValue["80"] = object.scriptPtr.toValue();
+      objectCson["80"] = object.scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    objectValue["110"] = object.key;
-    objectValue["111"] = object.code;
-    objectValue["112"] = object.isRepeat;
-    objectValue["113"] = object.isRedacted;
-    objectValue["120"] = object.shiftKey;
-    objectValue["121"] = object.altKey;
-    objectValue["122"] = object.ctrlKey;
-    objectValue["123"] = object.metaKey;
-    return objectValue;
+    objectCson["110"] = object.key;
+    objectCson["111"] = object.code;
+    objectCson["112"] = object.isRepeat;
+    objectCson["113"] = object.isRedacted;
+    objectCson["120"] = object.shiftKey;
+    objectCson["121"] = object.altKey;
+    objectCson["122"] = object.ctrlKey;
+    objectCson["123"] = object.metaKey;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1794,42 +1788,42 @@ export class KeyUpEvent extends KeyEvent {
   ): KeyUpEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1839,25 +1833,19 @@ export class KeyUpEvent extends KeyEvent {
       }
     }
     return new KeyUpEvent({
-      key: objectValue["110"],
-      code: objectValue["111"],
-      isRepeat: objectValue["112"],
-      isRedacted: objectValue["113"],
-      shiftKey: objectValue["120"],
-      altKey: objectValue["121"],
-      ctrlKey: objectValue["122"],
-      metaKey: objectValue["123"],
+      key: objectCson["110"],
+      code: objectCson["111"],
+      isRepeat: objectCson["112"],
+      isRedacted: objectCson["113"],
+      shiftKey: objectCson["120"],
+      altKey: objectCson["121"],
+      ctrlKey: objectCson["122"],
+      metaKey: objectCson["123"],
       node: unpackedNodePtr,
-      isExtensible: objectValue["90"],
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      isExtensible: objectCson["90"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -1865,17 +1853,17 @@ export class KeyUpEvent extends KeyEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1883,14 +1871,14 @@ export class KeyUpEvent extends KeyEvent {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): KeyUpEvent {
-    return KeyUpEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return KeyUpEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): KeyUpEventProto {
@@ -2683,64 +2671,64 @@ export class KeyPressEvent extends KeyEvent {
     return `<KeyPressEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return KeyPressEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return KeyPressEvent.__packCson__(this);
   }
 
-  static __packValue__(object: KeyPressEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2000303;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: KeyPressEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2000303;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["40"] = object.status;
+    objectCson["40"] = object.status;
     if (object.scriptPtr != null) {
-      objectValue["80"] = object.scriptPtr.toValue();
+      objectCson["80"] = object.scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
+    objectCson["90"] = object.isExtensible;
     if (object.nodePtr != null) {
-      objectValue["101"] = object.nodePtr.toValue();
+      objectCson["101"] = object.nodePtr.toCson();
     }
-    objectValue["110"] = object.key;
-    objectValue["111"] = object.code;
-    objectValue["112"] = object.isRepeat;
-    objectValue["113"] = object.isRedacted;
-    objectValue["120"] = object.shiftKey;
-    objectValue["121"] = object.altKey;
-    objectValue["122"] = object.ctrlKey;
-    objectValue["123"] = object.metaKey;
-    return objectValue;
+    objectCson["110"] = object.key;
+    objectCson["111"] = object.code;
+    objectCson["112"] = object.isRepeat;
+    objectCson["113"] = object.isRedacted;
+    objectCson["120"] = object.shiftKey;
+    objectCson["121"] = object.altKey;
+    objectCson["122"] = object.ctrlKey;
+    objectCson["123"] = object.metaKey;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2748,42 +2736,42 @@ export class KeyPressEvent extends KeyEvent {
   ): KeyPressEvent {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nodePtrValue = objectValue["101"];
+    const nodePtrValue = objectCson["101"];
     const unpackedNodePtr =
       nodePtrValue != undefined
-        ? _NodeReference.fromValue(nodePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(nodePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -2793,25 +2781,19 @@ export class KeyPressEvent extends KeyEvent {
       }
     }
     return new KeyPressEvent({
-      key: objectValue["110"],
-      code: objectValue["111"],
-      isRepeat: objectValue["112"],
-      isRedacted: objectValue["113"],
-      shiftKey: objectValue["120"],
-      altKey: objectValue["121"],
-      ctrlKey: objectValue["122"],
-      metaKey: objectValue["123"],
+      key: objectCson["110"],
+      code: objectCson["111"],
+      isRepeat: objectCson["112"],
+      isRedacted: objectCson["113"],
+      shiftKey: objectCson["120"],
+      altKey: objectCson["121"],
+      ctrlKey: objectCson["122"],
+      metaKey: objectCson["123"],
       node: unpackedNodePtr,
-      isExtensible: objectValue["90"],
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      isExtensible: objectCson["90"],
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -2819,17 +2801,17 @@ export class KeyPressEvent extends KeyEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -2837,14 +2819,14 @@ export class KeyPressEvent extends KeyEvent {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): KeyPressEvent {
-    return KeyPressEvent.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return KeyPressEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): KeyPressEventProto {

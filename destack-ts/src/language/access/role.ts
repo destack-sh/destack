@@ -564,96 +564,78 @@ export class RoleAssignedEvent extends RoleEvent {
     return `<RoleAssignedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return RoleAssignedEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return RoleAssignedEvent.__packCson__(this);
   }
 
-  static __packValue__(object: RoleAssignedEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 360202;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: RoleAssignedEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 360202;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
-    objectValue["101"] = object.nodePtr.toValue();
-    objectValue["110"] = object.actorPtr.toValue();
-    return objectValue;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
+    objectCson["101"] = object.nodePtr.toCson();
+    objectCson["110"] = object.actorPtr.toCson();
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): RoleAssignedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RoleAssignedEvent({
-      node: _NodeReference.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      actor: _NodeReference.fromValue(
-        objectValue["110"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      actor: _NodeReference.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -661,36 +643,30 @@ export class RoleAssignedEvent extends RoleEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): RoleAssignedEvent {
-    return RoleAssignedEvent.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return RoleAssignedEvent.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): RoleAssignedEventProto {
@@ -1276,96 +1252,78 @@ export class RoleUnassignedEvent extends RoleEvent {
     return `<RoleUnassignedEvent "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return RoleUnassignedEvent.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return RoleUnassignedEvent.__packCson__(this);
   }
 
-  static __packValue__(object: RoleUnassignedEvent): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 360203;
-    objectValue["2"] = String(object.id);
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.branchPtr.toValue();
-    objectValue["11"] = object.snapshotPtr.toValue();
+  static __packCson__(object: RoleUnassignedEvent): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 360203;
+    objectCson["2"] = String(object.id);
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.branchPtr.toCson();
+    objectCson["11"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["12"] = object.precededByPtr.toValue();
+      objectCson["12"] = object.precededByPtr.toCson();
     }
     if (object.causedByPtr != null) {
-      objectValue["13"] = object.causedByPtr.toValue();
+      objectCson["13"] = object.causedByPtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
     if (object.clientPtr != null) {
-      objectValue["23"] = object.clientPtr.toValue();
+      objectCson["23"] = object.clientPtr.toCson();
     }
     if (object.clientNonce != null) {
-      objectValue["24"] = String(object.clientNonce);
+      objectCson["24"] = String(object.clientNonce);
     }
-    objectValue["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
-    objectValue["26"] = object.clientEpoch;
-    objectValue["40"] = object.status;
-    objectValue["101"] = object.nodePtr.toValue();
-    objectValue["110"] = object.actorPtr.toValue();
-    return objectValue;
+    objectCson["25"] = object.clientCreatedAt.toString({ timeZoneName: "never" });
+    objectCson["26"] = object.clientEpoch;
+    objectCson["40"] = object.status;
+    objectCson["101"] = object.nodePtr.toCson();
+    objectCson["110"] = object.actorPtr.toCson();
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): RoleUnassignedEvent {
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const precededByPtrValue = objectValue["12"];
+    const precededByPtrValue = objectCson["12"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const causedByPtrValue = objectValue["13"];
+    const causedByPtrValue = objectCson["13"];
     const unpackedCausedByPtr =
       causedByPtrValue != undefined
-        ? _NodeReference.fromValue(causedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(causedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientPtrValue = objectValue["23"];
+    const clientPtrValue = objectCson["23"];
     const unpackedClientPtr =
       clientPtrValue != undefined
-        ? _NodeReference.fromValue(clientPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(clientPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const clientNonceValue = objectValue["24"];
+    const clientNonceValue = objectCson["24"];
     const unpackedClientNonce = clientNonceValue != undefined ? String(clientNonceValue) : null;
     return new RoleUnassignedEvent({
-      node: _NodeReference.fromValue(
-        objectValue["101"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      actor: _NodeReference.fromValue(
-        objectValue["110"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      branch: _NodeReference.fromValue(
-        objectValue["10"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["11"],
+      node: _NodeReference.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      actor: _NodeReference.fromCson(objectCson["110"], _session, _supergraph, _graph, _connection),
+      branch: _NodeReference.fromCson(objectCson["10"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["11"],
         _session,
         _supergraph,
         _graph,
@@ -1373,31 +1331,31 @@ export class RoleUnassignedEvent extends RoleEvent {
       ),
       precededBy: unpackedPrecededByPtr,
       causedBy: unpackedCausedByPtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
       client: unpackedClientPtr,
       clientNonce: unpackedClientNonce,
-      clientCreatedAt: Temporal.Instant.from(objectValue["25"]).toZonedDateTimeISO("UTC"),
-      clientEpoch: Number(objectValue["26"]),
-      status: Number(objectValue["40"]),
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      clientCreatedAt: Temporal.Instant.from(objectCson["25"]).toZonedDateTimeISO("UTC"),
+      clientEpoch: Number(objectCson["26"]),
+      status: Number(objectCson["40"]),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): RoleUnassignedEvent {
-    return RoleUnassignedEvent.__unpackValue__(
-      objectValue,
+    return RoleUnassignedEvent.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -2152,65 +2110,65 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
     return `<Role "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Role.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Role.__packCson__(this);
   }
 
-  static __packValue__(object: Role): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 360200;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: Role): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 360200;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
-    objectValue["100"] = object._type;
+    objectCson["90"] = object.isExtensible;
+    objectCson["100"] = object._type;
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2219,55 +2177,55 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -2278,21 +2236,15 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
     }
     return new Role({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       icon: unpackedIcon,
-      orderKey: objectValue["31"],
-      isExtensible: objectValue["90"],
-      materialization: Number(objectValue["10"]),
+      orderKey: objectCson["31"],
+      isExtensible: objectCson["90"],
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2300,17 +2252,17 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
+      name: objectCson["50"],
+      id: String(objectCson["2"]),
       script: unpackedScriptPtr,
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -2318,14 +2270,14 @@ export class Role extends Entity implements IsActor, IsOrdered, IsExtensible {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Role {
-    return Role.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Role.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): RoleProto {

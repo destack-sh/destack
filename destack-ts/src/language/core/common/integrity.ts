@@ -89,7 +89,7 @@ export class IndexDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -137,7 +137,7 @@ export class IndexDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -232,45 +232,45 @@ export class IndexDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = IndexDefinition.__packValue__(this);
+      this._cson = IndexDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: IndexDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30100;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: IndexDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 30100;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
     if (object.cover.length > 0) {
       const packedCover: any[] = [];
       for (const item of object.cover) {
-        packedCover.push(item.toValue());
+        packedCover.push(item.toCson());
       }
-      objectValue["106"] = packedCover;
+      objectCson["106"] = packedCover;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -281,49 +281,49 @@ export class IndexDefinition extends BuiltinDefinition {
     ] as typeof PropertyReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     const unpackedCover: any[] = [];
-    if (objectValue["106"] != undefined) {
-      for (const item of objectValue["106"]) {
+    if (objectCson["106"] != undefined) {
+      for (const item of objectCson["106"]) {
         unpackedCover.push(
-          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new IndexDefinition({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
       cover: unpackedCover,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): IndexDefinition {
-    return IndexDefinition.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return IndexDefinition.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): IndexDefinitionProto {
@@ -478,7 +478,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -521,7 +521,7 @@ export class ConstraintDefinition extends BuiltinDefinition {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -603,38 +603,38 @@ export class ConstraintDefinition extends BuiltinDefinition {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = ConstraintDefinition.__packValue__(this);
+      this._cson = ConstraintDefinition.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: ConstraintDefinition): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30200;
-    objectValue["2"] = object.id;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.name;
+  static __packCson__(object: ConstraintDefinition): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 30200;
+    objectCson["2"] = object.id;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.name;
     if (object.icon != null) {
-      objectValue["102"] = object.icon.toValue();
+      objectCson["102"] = object.icon.toCson();
     }
     if (object.description != null) {
-      objectValue["103"] = object.description;
+      objectCson["103"] = object.description;
     }
     if (object.properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object.properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -645,41 +645,41 @@ export class ConstraintDefinition extends BuiltinDefinition {
     ] as typeof PropertyReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const descriptionValue = objectValue["103"];
+    const descriptionValue = objectCson["103"];
     const unpackedDescription = descriptionValue != undefined ? descriptionValue : null;
     return new ConstraintDefinition({
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
-      id: Number(objectValue["2"]),
-      name: objectValue["101"],
+      id: Number(objectCson["2"]),
+      name: objectCson["101"],
       icon: unpackedIcon,
       description: unpackedDescription,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): ConstraintDefinition {
-    return ConstraintDefinition.__unpackValue__(
-      objectValue,
+    return ConstraintDefinition.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -1257,57 +1257,57 @@ export class Index extends Entity {
     return `<Index "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Index.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Index.__packCson__(this);
   }
 
-  static __packValue__(object: Index): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30100;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: Index): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 30100;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["50"] = object._name;
-    objectValue["100"] = object._type;
+    objectCson["50"] = object._name;
+    objectCson["100"] = object._type;
     if (object._properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object._properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1317,64 +1317,58 @@ export class Index extends Entity {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
     ] as typeof PropertyReference;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Index({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1382,30 +1376,30 @@ export class Index extends Entity {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Index {
-    return Index.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Index.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): IndexProto {
@@ -2077,57 +2071,57 @@ export class Constraint extends Entity {
     return `<Constraint "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Constraint.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Constraint.__packCson__(this);
   }
 
-  static __packValue__(object: Constraint): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 30200;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: Constraint): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 30200;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
-    objectValue["50"] = object._name;
-    objectValue["100"] = object._type;
+    objectCson["50"] = object._name;
+    objectCson["100"] = object._type;
     if (object._properties.length > 0) {
       const packedProperties: any[] = [];
       for (const item of object._properties) {
-        packedProperties.push(item.toValue());
+        packedProperties.push(item.toCson());
       }
-      objectValue["105"] = packedProperties;
+      objectCson["105"] = packedProperties;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2137,64 +2131,58 @@ export class Constraint extends Entity {
     const _PropertyReference = STRUCT_CLASS_BY_TYPE[
       StructType.PROPERTY_REFERENCE
     ] as typeof PropertyReference;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedProperties: any[] = [];
-    if (objectValue["105"] != undefined) {
-      for (const item of objectValue["105"]) {
+    if (objectCson["105"] != undefined) {
+      for (const item of objectCson["105"]) {
         unpackedProperties.push(
-          _PropertyReference.fromValue(item, _session, _supergraph, _graph, _connection),
+          _PropertyReference.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new Constraint({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
+      type: Number(objectCson["100"]),
       properties: unpackedProperties,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2202,30 +2190,30 @@ export class Constraint extends Entity {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Constraint {
-    return Constraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Constraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): ConstraintProto {

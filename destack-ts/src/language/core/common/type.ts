@@ -206,7 +206,7 @@ export class StringConstraint extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -233,7 +233,7 @@ export class StringConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -288,71 +288,65 @@ export class StringConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = StringConstraint.__packValue__(this);
+      this._cson = StringConstraint.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: StringConstraint): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 111;
+  static __packCson__(object: StringConstraint): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 111;
     if (object.format != null) {
-      objectValue["40"] = object.format;
+      objectCson["40"] = object.format;
     }
     if (object.regex != null) {
-      objectValue["41"] = object.regex;
+      objectCson["41"] = object.regex;
     }
     if (object.startsWith != null) {
-      objectValue["42"] = object.startsWith;
+      objectCson["42"] = object.startsWith;
     }
     if (object.endsWith != null) {
-      objectValue["43"] = object.endsWith;
+      objectCson["43"] = object.endsWith;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StringConstraint {
-    const formatValue = objectValue["40"];
+    const formatValue = objectCson["40"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
-    const regexValue = objectValue["41"];
+    const regexValue = objectCson["41"];
     const unpackedRegex = regexValue != undefined ? regexValue : null;
-    const startsWithValue = objectValue["42"];
+    const startsWithValue = objectCson["42"];
     const unpackedStartsWith = startsWithValue != undefined ? startsWithValue : null;
-    const endsWithValue = objectValue["43"];
+    const endsWithValue = objectCson["43"];
     const unpackedEndsWith = endsWithValue != undefined ? endsWithValue : null;
     return new StringConstraint({
       format: unpackedFormat,
       regex: unpackedRegex,
       startsWith: unpackedStartsWith,
       endsWith: unpackedEndsWith,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StringConstraint {
-    return StringConstraint.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return StringConstraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StringConstraintProto {
@@ -476,7 +470,7 @@ export class NumberConstraint extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -507,7 +501,7 @@ export class NumberConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -586,56 +580,56 @@ export class NumberConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = NumberConstraint.__packValue__(this);
+      this._cson = NumberConstraint.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: NumberConstraint): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 110;
+  static __packCson__(object: NumberConstraint): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 110;
     if (object.format != null) {
-      objectValue["40"] = object.format;
+      objectCson["40"] = object.format;
     }
     if (object.minValue != null) {
-      objectValue["41"] = object.minValue;
+      objectCson["41"] = object.minValue;
     }
     if (object.maxValue != null) {
-      objectValue["42"] = object.maxValue;
+      objectCson["42"] = object.maxValue;
     }
     if (object.stepValue != null) {
-      objectValue["43"] = object.stepValue;
+      objectCson["43"] = object.stepValue;
     }
     if (object.precision != null) {
-      objectValue["44"] = object.precision;
+      objectCson["44"] = object.precision;
     }
     if (object.scale != null) {
-      objectValue["45"] = object.scale;
+      objectCson["45"] = object.scale;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NumberConstraint {
-    const formatValue = objectValue["40"];
+    const formatValue = objectCson["40"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
-    const minValueValue = objectValue["41"];
+    const minValueValue = objectCson["41"];
     const unpackedMinValue = minValueValue != undefined ? minValueValue : null;
-    const maxValueValue = objectValue["42"];
+    const maxValueValue = objectCson["42"];
     const unpackedMaxValue = maxValueValue != undefined ? maxValueValue : null;
-    const stepValueValue = objectValue["43"];
+    const stepValueValue = objectCson["43"];
     const unpackedStepValue = stepValueValue != undefined ? stepValueValue : null;
-    const precisionValue = objectValue["44"];
+    const precisionValue = objectCson["44"];
     const unpackedPrecision = precisionValue != undefined ? Number(precisionValue) : null;
-    const scaleValue = objectValue["45"];
+    const scaleValue = objectCson["45"];
     const unpackedScale = scaleValue != undefined ? Number(scaleValue) : null;
     return new NumberConstraint({
       format: unpackedFormat,
@@ -644,25 +638,19 @@ export class NumberConstraint extends StructFrozen {
       stepValue: unpackedStepValue,
       precision: unpackedPrecision,
       scale: unpackedScale,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NumberConstraint {
-    return NumberConstraint.__unpackValue__(
-      objectValue,
-      _session,
-      _supergraph,
-      _graph,
-      _connection,
-    );
+    return NumberConstraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): NumberConstraintProto {
@@ -770,7 +758,7 @@ export class CollectionConstraint extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -793,7 +781,7 @@ export class CollectionConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -836,54 +824,54 @@ export class CollectionConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = CollectionConstraint.__packValue__(this);
+      this._cson = CollectionConstraint.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: CollectionConstraint): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 112;
+  static __packCson__(object: CollectionConstraint): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 112;
     if (object.minLength != null) {
-      objectValue["41"] = object.minLength;
+      objectCson["41"] = object.minLength;
     }
     if (object.maxLength != null) {
-      objectValue["42"] = object.maxLength;
+      objectCson["42"] = object.maxLength;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CollectionConstraint {
-    const minLengthValue = objectValue["41"];
+    const minLengthValue = objectCson["41"];
     const unpackedMinLength = minLengthValue != undefined ? Number(minLengthValue) : null;
-    const maxLengthValue = objectValue["42"];
+    const maxLengthValue = objectCson["42"];
     const unpackedMaxLength = maxLengthValue != undefined ? Number(maxLengthValue) : null;
     return new CollectionConstraint({
       minLength: unpackedMinLength,
       maxLength: unpackedMaxLength,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CollectionConstraint {
-    return CollectionConstraint.__unpackValue__(
-      objectValue,
+    return CollectionConstraint.__unpackCson__(
+      objectCson,
       _session,
       _supergraph,
       _graph,
@@ -980,7 +968,7 @@ export class NodeConstraint extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1009,7 +997,7 @@ export class NodeConstraint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1066,69 +1054,69 @@ export class NodeConstraint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = NodeConstraint.__packValue__(this);
+      this._cson = NodeConstraint.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: NodeConstraint): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 113;
+  static __packCson__(object: NodeConstraint): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 113;
     if (object.nodeTypes.length > 0) {
       const packedNodeTypes: any[] = [];
       for (const item of object.nodeTypes) {
         packedNodeTypes.push(item);
       }
-      objectValue["41"] = packedNodeTypes;
+      objectCson["41"] = packedNodeTypes;
     }
     if (object.nodeTraits.length > 0) {
       const packedNodeTraits: any[] = [];
       for (const item of object.nodeTraits) {
         packedNodeTraits.push(item);
       }
-      objectValue["42"] = packedNodeTraits;
+      objectCson["42"] = packedNodeTraits;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeConstraint {
     const unpackedNodeTypes: any[] = [];
-    if (objectValue["41"] != undefined) {
-      for (const item of objectValue["41"]) {
+    if (objectCson["41"] != undefined) {
+      for (const item of objectCson["41"]) {
         unpackedNodeTypes.push(Number(item));
       }
     }
     const unpackedNodeTraits: any[] = [];
-    if (objectValue["42"] != undefined) {
-      for (const item of objectValue["42"]) {
+    if (objectCson["42"] != undefined) {
+      for (const item of objectCson["42"]) {
         unpackedNodeTraits.push(Number(item));
       }
     }
     return new NodeConstraint({
       nodeTypes: unpackedNodeTypes,
       nodeTraits: unpackedNodeTraits,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): NodeConstraint {
-    return NodeConstraint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return NodeConstraint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): NodeConstraintProto {
@@ -1345,7 +1333,7 @@ export class Type extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1410,7 +1398,7 @@ export class Type extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1586,69 +1574,69 @@ export class Type extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Type.__packValue__(this);
+      this._cson = Type.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Type): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 101;
+  static __packCson__(object: Type): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 101;
     if (object.name != null) {
-      objectValue["101"] = object.name;
+      objectCson["101"] = object.name;
     }
-    objectValue["110"] = object.cardinality;
-    objectValue["111"] = object.scalarType;
+    objectCson["110"] = object.cardinality;
+    objectCson["111"] = object.scalarType;
     if (object.primitiveType != null) {
-      objectValue["112"] = object.primitiveType;
+      objectCson["112"] = object.primitiveType;
     }
     if (object.enumType != null) {
-      objectValue["113"] = object.enumType;
+      objectCson["113"] = object.enumType;
     }
     if (object.nodeType != null) {
-      objectValue["114"] = object.nodeType;
+      objectCson["114"] = object.nodeType;
     }
     if (object.structType != null) {
-      objectValue["115"] = object.structType;
+      objectCson["115"] = object.structType;
     }
     if (object.definitionPtr != null) {
-      objectValue["116"] = object.definitionPtr.toValue();
+      objectCson["116"] = object.definitionPtr.toCson();
     }
     if (object.keyType != null) {
-      objectValue["117"] = object.keyType.toValue();
+      objectCson["117"] = object.keyType.toCson();
     }
     if (object.value != null) {
-      objectValue["130"] = object.value.toValue();
+      objectCson["130"] = object.value.toCson();
     }
     if (object.valueFactory != null) {
-      objectValue["131"] = object.valueFactory;
+      objectCson["131"] = object.valueFactory;
     }
     if (object.collectionConstraint != null) {
-      objectValue["140"] = object.collectionConstraint.toValue();
+      objectCson["140"] = object.collectionConstraint.toCson();
     }
     if (object.stringConstraint != null) {
-      objectValue["141"] = object.stringConstraint.toValue();
+      objectCson["141"] = object.stringConstraint.toCson();
     }
     if (object.numberConstraint != null) {
-      objectValue["142"] = object.numberConstraint.toValue();
+      objectCson["142"] = object.numberConstraint.toCson();
     }
     if (object.nodeConstraint != null) {
-      objectValue["143"] = object.nodeConstraint.toValue();
+      objectCson["143"] = object.nodeConstraint.toCson();
     }
     if (object.isRequired != null) {
-      objectValue["150"] = object.isRequired;
+      objectCson["150"] = object.isRequired;
     }
     if (object.isMain != null) {
-      objectValue["154"] = object.isMain;
+      objectCson["154"] = object.isMain;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1669,38 +1657,38 @@ export class Type extends StructFrozen {
       StructType.NODE_CONSTRAINT
     ] as typeof NodeConstraint;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const nameValue = objectValue["101"];
+    const nameValue = objectCson["101"];
     const unpackedName = nameValue != undefined ? nameValue : null;
-    const primitiveTypeValue = objectValue["112"];
+    const primitiveTypeValue = objectCson["112"];
     const unpackedPrimitiveType =
       primitiveTypeValue != undefined ? Number(primitiveTypeValue) : null;
-    const enumTypeValue = objectValue["113"];
+    const enumTypeValue = objectCson["113"];
     const unpackedEnumType = enumTypeValue != undefined ? Number(enumTypeValue) : null;
-    const nodeTypeValue = objectValue["114"];
+    const nodeTypeValue = objectCson["114"];
     const unpackedNodeType = nodeTypeValue != undefined ? Number(nodeTypeValue) : null;
-    const structTypeValue = objectValue["115"];
+    const structTypeValue = objectCson["115"];
     const unpackedStructType = structTypeValue != undefined ? Number(structTypeValue) : null;
-    const definitionPtrValue = objectValue["116"];
+    const definitionPtrValue = objectCson["116"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyTypeValue = objectValue["117"];
+    const keyTypeValue = objectCson["117"];
     const unpackedKeyType =
       keyTypeValue != undefined
-        ? _Type.fromValue(keyTypeValue, _session, _supergraph, _graph, _connection)
+        ? _Type.fromCson(keyTypeValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueValue = objectValue["130"];
+    const valueValue = objectCson["130"];
     const unpackedValue =
       valueValue != undefined
-        ? _Value.fromValue(valueValue, _session, _supergraph, _graph, _connection)
+        ? _Value.fromCson(valueValue, _session, _supergraph, _graph, _connection)
         : null;
-    const valueFactoryValue = objectValue["131"];
+    const valueFactoryValue = objectCson["131"];
     const unpackedValueFactory = valueFactoryValue != undefined ? Number(valueFactoryValue) : null;
-    const collectionConstraintValue = objectValue["140"];
+    const collectionConstraintValue = objectCson["140"];
     const unpackedCollectionConstraint =
       collectionConstraintValue != undefined
-        ? _CollectionConstraint.fromValue(
+        ? _CollectionConstraint.fromCson(
             collectionConstraintValue,
             _session,
             _supergraph,
@@ -1708,10 +1696,10 @@ export class Type extends StructFrozen {
             _connection,
           )
         : null;
-    const stringConstraintValue = objectValue["141"];
+    const stringConstraintValue = objectCson["141"];
     const unpackedStringConstraint =
       stringConstraintValue != undefined
-        ? _StringConstraint.fromValue(
+        ? _StringConstraint.fromCson(
             stringConstraintValue,
             _session,
             _supergraph,
@@ -1719,10 +1707,10 @@ export class Type extends StructFrozen {
             _connection,
           )
         : null;
-    const numberConstraintValue = objectValue["142"];
+    const numberConstraintValue = objectCson["142"];
     const unpackedNumberConstraint =
       numberConstraintValue != undefined
-        ? _NumberConstraint.fromValue(
+        ? _NumberConstraint.fromCson(
             numberConstraintValue,
             _session,
             _supergraph,
@@ -1730,19 +1718,19 @@ export class Type extends StructFrozen {
             _connection,
           )
         : null;
-    const nodeConstraintValue = objectValue["143"];
+    const nodeConstraintValue = objectCson["143"];
     const unpackedNodeConstraint =
       nodeConstraintValue != undefined
-        ? _NodeConstraint.fromValue(nodeConstraintValue, _session, _supergraph, _graph, _connection)
+        ? _NodeConstraint.fromCson(nodeConstraintValue, _session, _supergraph, _graph, _connection)
         : null;
-    const isRequiredValue = objectValue["150"];
+    const isRequiredValue = objectCson["150"];
     const unpackedIsRequired = isRequiredValue != undefined ? isRequiredValue : null;
-    const isMainValue = objectValue["154"];
+    const isMainValue = objectCson["154"];
     const unpackedIsMain = isMainValue != undefined ? isMainValue : null;
     return new Type({
       name: unpackedName,
-      cardinality: Number(objectValue["110"]),
-      scalarType: Number(objectValue["111"]),
+      cardinality: Number(objectCson["110"]),
+      scalarType: Number(objectCson["111"]),
       primitiveType: unpackedPrimitiveType,
       enumType: unpackedEnumType,
       nodeType: unpackedNodeType,
@@ -1757,19 +1745,19 @@ export class Type extends StructFrozen {
       nodeConstraint: unpackedNodeConstraint,
       isRequired: unpackedIsRequired,
       isMain: unpackedIsMain,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Type {
-    return Type.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Type.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): TypeProto {

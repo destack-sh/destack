@@ -70,7 +70,7 @@ export class Datum extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -102,7 +102,7 @@ export class Datum extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -154,30 +154,30 @@ export class Datum extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Datum.__packValue__(this);
+      this._cson = Datum.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Datum): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2;
-    objectValue["6"] = object.definitionPtr.toValue();
+  static __packCson__(object: Datum): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2;
+    objectCson["6"] = object.definitionPtr.toCson();
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["26"] = packedCustomValues;
+      objectCson["26"] = packedCustomValues;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -186,9 +186,9 @@ export class Datum extends StructFrozen {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -198,27 +198,27 @@ export class Datum extends StructFrozen {
       }
     }
     return new Datum({
-      definition: _NodeReference.fromValue(
-        objectValue["6"],
+      definition: _NodeReference.fromCson(
+        objectCson["6"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
       customValues: unpackedCustomValues,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Datum {
-    return Datum.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Datum.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): DatumProto {
@@ -402,26 +402,26 @@ export class DatumMutable extends Struct {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return DatumMutable.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return DatumMutable.__packCson__(this);
   }
 
-  static __packValue__(object: DatumMutable): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 3;
-    objectValue["6"] = object.definitionPtr.toValue();
+  static __packCson__(object: DatumMutable): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 3;
+    objectCson["6"] = object.definitionPtr.toCson();
     if (Object.keys(object.customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object.customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["26"] = packedCustomValues;
+      objectCson["26"] = packedCustomValues;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -430,9 +430,9 @@ export class DatumMutable extends Struct {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const unpackedCustomValues = {} as any;
-    if (objectValue["26"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["26"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["26"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["26"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -442,8 +442,8 @@ export class DatumMutable extends Struct {
       }
     }
     return new DatumMutable({
-      definition: _NodeReference.fromValue(
-        objectValue["6"],
+      definition: _NodeReference.fromCson(
+        objectCson["6"],
         _session,
         _supergraph,
         _graph,
@@ -454,14 +454,14 @@ export class DatumMutable extends Struct {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): DatumMutable {
-    return DatumMutable.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return DatumMutable.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): DatumMutableProto {
@@ -1140,70 +1140,70 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
     return `<CustomStruct "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return CustomStruct.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return CustomStruct.__packCson__(this);
   }
 
-  static __packValue__(object: CustomStruct): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 20100;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: CustomStruct): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 20100;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["31"] = object.orderKey;
+    objectCson["31"] = object.orderKey;
     if (object._baseType != null) {
-      objectValue["41"] = object._baseType.toValue();
+      objectCson["41"] = object._baseType.toCson();
     }
-    objectValue["42"] = object._isFrozen;
-    objectValue["50"] = object._name;
+    objectCson["42"] = object._isFrozen;
+    objectCson["50"] = object._name;
     if (object.sourcePtr != null) {
-      objectValue["60"] = object.sourcePtr.toValue();
+      objectCson["60"] = object.sourcePtr.toCson();
     }
     if (object._key != null) {
-      objectValue["70"] = object._key;
+      objectCson["70"] = object._key;
     }
     if (object._icon != null) {
-      objectValue["102"] = object._icon.toValue();
+      objectCson["102"] = object._icon.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1215,10 +1215,10 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
       StructType.STRUCT_DEFINITION_REFERENCE
     ] as typeof StructDefinitionReference;
     const _Icon = STRUCT_CLASS_BY_TYPE[StructType.ICON] as typeof Icon;
-    const baseTypeValue = objectValue["41"];
+    const baseTypeValue = objectCson["41"];
     const unpackedBaseType =
       baseTypeValue != undefined
-        ? _StructDefinitionReference.fromValue(
+        ? _StructDefinitionReference.fromCson(
             baseTypeValue,
             _session,
             _supergraph,
@@ -1226,22 +1226,22 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
             _connection,
           )
         : null;
-    const iconValue = objectValue["102"];
+    const iconValue = objectCson["102"];
     const unpackedIcon =
       iconValue != undefined
-        ? _Icon.fromValue(iconValue, _session, _supergraph, _graph, _connection)
+        ? _Icon.fromCson(iconValue, _session, _supergraph, _graph, _connection)
         : null;
-    const sourcePtrValue = objectValue["60"];
+    const sourcePtrValue = objectCson["60"];
     const unpackedSourcePtr =
       sourcePtrValue != undefined
-        ? _NodeReference.fromValue(sourcePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(sourcePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const keyValue = objectValue["70"];
+    const keyValue = objectCson["70"];
     const unpackedKey = keyValue != undefined ? keyValue : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1250,60 +1250,54 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
         );
       }
     }
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     return new CustomStruct({
       baseType: unpackedBaseType,
-      isFrozen: objectValue["42"],
+      isFrozen: objectCson["42"],
       icon: unpackedIcon,
       source: unpackedSourcePtr,
       key: unpackedKey,
       customValues: unpackedCustomValues,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1311,31 +1305,31 @@ export class CustomStruct extends Entity implements IsSourceable, IsCustomizable
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       _session,
       _graph,
       _connection,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): CustomStruct {
-    return CustomStruct.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return CustomStruct.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): CustomStructProto {

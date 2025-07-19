@@ -44,13 +44,13 @@ export function packEntityRow(value: Value): MemoryEntityRow {
   let parentPtr: NodeReference | null = null;
   const parentPtrValue = valuePacked[ENTITY_PARENT_KEY];
   if (parentPtrValue !== undefined) {
-    parentPtr = NodeReference.fromValue(parentPtrValue);
+    parentPtr = NodeReference.fromCson(parentPtrValue);
   }
 
   let snapshotPtr: NodeReference | null = null;
   const snapshotPtrValue = valuePacked[ENTITY_SNAPSHOT_KEY];
   if (snapshotPtrValue !== undefined) {
-    snapshotPtr = NodeReference.fromValue(snapshotPtrValue);
+    snapshotPtr = NodeReference.fromCson(snapshotPtrValue);
   }
 
   let materialization: Materialization | null = null;

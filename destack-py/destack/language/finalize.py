@@ -189,7 +189,7 @@ def finalize():
 
     # generate pack/unpack methods
     from destack.grpc.wiring import generate_pack_proto_impl
-    from destack.language.core.common.value import generate_pack_value_impl
+    from destack.language.core.common.cson import generate_pack_cson_impl
 
     builtin_class_by_name: dict[str, Any] = {**proto.__dict__, "UUID": UUID}
     builtin_class_by_name.update(
@@ -216,18 +216,18 @@ def finalize():
         setattr(node_cls, "__unpack_proto__", cls_dict_copy["__unpack_proto__"])
         setattr(node_cls, "to_proto", cls_dict_copy["to_proto"])
         setattr(node_cls, "from_proto", cls_dict_copy["from_proto"])
-        # __pack_value__/__unpack_value__/_to_value
-        value_impl, value_glbls = generate_pack_value_impl(node_cls)
+        # __pack_cson__/__unpack_cson__/_to_cson
+        value_impl, value_glbls = generate_pack_cson_impl(node_cls)
         exec_(
             value_impl,
             {**builtin_class_by_name, **value_glbls},
             cls_dict_copy,
-            f"{node_cls.__name__}:value",
+            f"{node_cls.__name__}:cson",
         )
-        setattr(node_cls, "__pack_value__", cls_dict_copy["__pack_value__"])
-        setattr(node_cls, "__unpack_value__", cls_dict_copy["__unpack_value__"])
-        setattr(node_cls, "to_value", cls_dict_copy["to_value"])
-        setattr(node_cls, "from_value", cls_dict_copy["from_value"])
+        setattr(node_cls, "__pack_cson__", cls_dict_copy["__pack_cson__"])
+        setattr(node_cls, "__unpack_cson__", cls_dict_copy["__unpack_cson__"])
+        setattr(node_cls, "to_cson", cls_dict_copy["to_cson"])
+        setattr(node_cls, "from_cson", cls_dict_copy["from_cson"])
 
     # generate definition refs
     from destack.language.core import NodeDefinitionReference, ObjectDefinitionReference

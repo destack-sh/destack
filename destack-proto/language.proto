@@ -287,6 +287,13 @@ enum EffectTypeProto {
   EFFECT_TYPE_LOOP = 30;
 }
 
+// The encoding of a value.
+enum EncodingProto {
+  ENCODING_UNSPECIFIED = 0;
+  ENCODING_CSON = 1;
+  ENCODING_PROTO = 2;
+}
+
 // A Type of Entitlement.
 enum EntitlementTypeProto {
   ENTITLEMENT_TYPE_UNSPECIFIED = 0;
@@ -323,6 +330,7 @@ enum EnumTypeProto {
   ENUM_TYPE_EDGE_TYPE = 107;
   ENUM_TYPE_EDGE_DIRECTION = 108;
   ENUM_TYPE_CASCADE_ACTION = 109;
+  ENUM_TYPE_ENCODING = 110;
   ENUM_TYPE_EDIT_TYPE = 200;
   ENUM_TYPE_EDIT_OPERATION = 201;
   ENUM_TYPE_CONDITIONAL_TYPE = 300;
@@ -1060,12 +1068,14 @@ enum PrimitiveTypeProto {
   PRIMITIVE_TYPE_FLOAT64 = 17;
   PRIMITIVE_TYPE_STRING = 20;
   PRIMITIVE_TYPE_UUID = 21;
-  PRIMITIVE_TYPE_JSON = 22;
-  PRIMITIVE_TYPE_BYTES = 25;
-  PRIMITIVE_TYPE_DATETIME = 30;
-  PRIMITIVE_TYPE_DATE = 31;
-  PRIMITIVE_TYPE_TIME = 32;
-  PRIMITIVE_TYPE_DURATION = 33;
+  PRIMITIVE_TYPE_BYTES = 30;
+  PRIMITIVE_TYPE_DATETIME = 40;
+  PRIMITIVE_TYPE_DATE = 41;
+  PRIMITIVE_TYPE_TIME = 42;
+  PRIMITIVE_TYPE_DURATION = 43;
+  PRIMITIVE_TYPE_JSON = 50;
+  PRIMITIVE_TYPE_CSON = 60;
+  PRIMITIVE_TYPE_PROTO = 61;
 }
 
 // The type of a property reference.
@@ -4316,8 +4326,7 @@ message MembershipLeftEventProto {
   NodeReferenceProto member_ptr = 103;
 }
 
-// An implementation of a unit of work, usually expressed with Code or some tool.
-// May defer to a builtin or some other service in a separate system.
+// A Method is a small piece of logic.
 message MethodProto {
   NodeTypeProto metatype = 1;
   string id = 2;

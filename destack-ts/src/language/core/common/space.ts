@@ -4,7 +4,7 @@ import { ACTIVE_BRANCH, ACTIVE_SNAPSHOT } from "@destack/language/core/builtin/c
 import { Entity, Materialization } from "@destack/language/core/builtin/entity";
 import type { NodeClass } from "@destack/language/core/builtin/node";
 import { Node } from "@destack/language/core/builtin/node";
-import { NodeReference } from "@destack/language/core/builtin/relation";
+import type { NodeReference } from "@destack/language/core/builtin/relation";
 import type {
   IsActor,
   IsFollowable,
@@ -13,7 +13,8 @@ import type {
   IsScriptable,
   IsStarable,
 } from "@destack/language/core/builtin/trait";
-import { Branch, BranchType, Snapshot, SnapshotType } from "@destack/language/core/common/time";
+import type { Branch, Snapshot } from "@destack/language/core/common/time";
+import { BranchType, SnapshotType } from "@destack/language/core/common/time";
 import type { Value } from "@destack/language/core/common/value";
 import type { QueryConnection } from "@destack/language/core/runtime/connection";
 import type { Graph, Supergraph } from "@destack/language/core/runtime/graph";
@@ -21,6 +22,7 @@ import type { Session } from "@destack/language/core/runtime/session";
 import type { Database } from "@destack/language/infrastructure";
 import type { Script } from "@destack/language/logic";
 import {
+  NODE_CLASS_BY_TYPE,
   STRUCT_CLASS_BY_TYPE,
   registerEnumClass,
   registerNodeClass,
@@ -28,8 +30,9 @@ import {
 import type { Folder } from "@destack/language/space";
 import type { Handle } from "@destack/language/universe";
 import { MaterializationProto, RegionProto, SpaceProto, SpaceStatusProto } from "@destack/proto";
-import { base64Decode, uuid4 } from "@destack/utils";
+import { base64Decode } from "@destack/utils";
 import { hashString } from "@destack/utils/hash";
+import { uuid4 } from "@destack/utils/uuid";
 import { Temporal } from "temporal-polyfill";
 
 /* ==== DESTACK_GENERATED_START:ENUM:100000 ==== */
@@ -848,80 +851,80 @@ export class Space
     return `<Space "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return Space.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return Space.__packCson__(this);
   }
 
-  static __packValue__(object: Space): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 10000;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: Space): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 10000;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
     if (object._ownedByPtr != null) {
-      objectValue["32"] = object._ownedByPtr.toValue();
+      objectCson["32"] = object._ownedByPtr.toCson();
     }
-    objectValue["50"] = object._name;
+    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["102"] = object._slug;
-    objectValue["110"] = object._status;
+    objectCson["102"] = object._slug;
+    objectCson["110"] = object._status;
     if (object._handlePtr != null) {
-      objectValue["111"] = object._handlePtr.toValue();
+      objectCson["111"] = object._handlePtr.toCson();
     }
     if (object._systemFolderPtr != null) {
-      objectValue["112"] = object._systemFolderPtr.toValue();
+      objectCson["112"] = object._systemFolderPtr.toCson();
     }
     if (object._homeFolderPtr != null) {
-      objectValue["113"] = object._homeFolderPtr.toValue();
+      objectCson["113"] = object._homeFolderPtr.toCson();
     }
-    objectValue["120"] = object._region;
+    objectCson["120"] = object._region;
     if (object._galaxyName != null) {
-      objectValue["121"] = object._galaxyName;
+      objectCson["121"] = object._galaxyName;
     }
     if (object._databasePtr != null) {
-      objectValue["122"] = object._databasePtr.toValue();
+      objectCson["122"] = object._databasePtr.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -929,77 +932,77 @@ export class Space
   ): Space {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const handlePtrValue = objectValue["111"];
+    const handlePtrValue = objectCson["111"];
     const unpackedHandlePtr =
       handlePtrValue != undefined
-        ? _NodeReference.fromValue(handlePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(handlePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const systemFolderPtrValue = objectValue["112"];
+    const systemFolderPtrValue = objectCson["112"];
     const unpackedSystemFolderPtr =
       systemFolderPtrValue != undefined
-        ? _NodeReference.fromValue(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(systemFolderPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const homeFolderPtrValue = objectValue["113"];
+    const homeFolderPtrValue = objectCson["113"];
     const unpackedHomeFolderPtr =
       homeFolderPtrValue != undefined
-        ? _NodeReference.fromValue(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(homeFolderPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const galaxyNameValue = objectValue["121"];
+    const galaxyNameValue = objectCson["121"];
     const unpackedGalaxyName = galaxyNameValue != undefined ? galaxyNameValue : null;
-    const databasePtrValue = objectValue["122"];
+    const databasePtrValue = objectCson["122"];
     const unpackedDatabasePtr =
       databasePtrValue != undefined
-        ? _NodeReference.fromValue(databasePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(databasePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const ownedByPtrValue = objectValue["32"];
+    const ownedByPtrValue = objectCson["32"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1009,29 +1012,23 @@ export class Space
       }
     }
     return new Space({
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
-      slug: objectValue["102"],
-      status: Number(objectValue["110"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
+      slug: objectCson["102"],
+      status: Number(objectCson["110"]),
       handle: unpackedHandlePtr,
       systemFolder: unpackedSystemFolderPtr,
       homeFolder: unpackedHomeFolderPtr,
-      region: Number(objectValue["120"]),
+      region: Number(objectCson["120"]),
       galaxyName: unpackedGalaxyName,
       database: unpackedDatabasePtr,
       ownedBy: unpackedOwnedByPtr,
       script: unpackedScriptPtr,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1039,15 +1036,15 @@ export class Space
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      id: String(objectValue["2"]),
+      name: objectCson["50"],
+      id: String(objectCson["2"]),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1055,14 +1052,14 @@ export class Space
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Space {
-    return Space.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Space.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): SpaceProto {
@@ -1349,33 +1346,37 @@ export function createSpace(options: {
   branch: Branch;
   snapshot: Snapshot;
 } {
+  const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
+  const _Branch = NODE_CLASS_BY_TYPE[NodeType.BRANCH] as typeof Branch;
+  const _Snapshot = NODE_CLASS_BY_TYPE[NodeType.SNAPSHOT] as typeof Snapshot;
+
   const { session, id, name, slug } = options;
   const epoch = session.epoch;
   const now = Temporal.Now.zonedDateTimeISO("UTC");
 
   const spaceId = id ?? uuid4();
-  const spacePtr = new NodeReference({
+  const spacePtr = new _NodeReference({
     type: NodeType.SPACE,
     id: spaceId,
     spaceId,
   });
 
   const branchId = uuid4();
-  const branchPtr = new NodeReference({
+  const branchPtr = new _NodeReference({
     type: NodeType.BRANCH,
     id: branchId,
     spaceId,
   });
 
   const snapshotId = uuid4();
-  const snapshotPtr = new NodeReference({
+  const snapshotPtr = new _NodeReference({
     type: NodeType.SNAPSHOT,
     id: snapshotId,
     spaceId,
     branchId,
   });
 
-  const branch = new Branch({
+  const branch = new _Branch({
     id: branchId,
     name: "Main",
     space: spacePtr,
@@ -1388,7 +1389,7 @@ export function createSpace(options: {
     snapshot: snapshotPtr,
   });
   session.create(branch);
-  const snapshot = new Snapshot({
+  const snapshot = new _Snapshot({
     id: snapshotId,
     name: "Root",
     space: spacePtr,

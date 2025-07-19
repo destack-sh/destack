@@ -285,6 +285,12 @@ class EffectTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     EFFECT_TYPE_FOCUS: _ClassVar[EffectTypeProto]
     EFFECT_TYPE_LOOP: _ClassVar[EffectTypeProto]
 
+class EncodingProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    ENCODING_UNSPECIFIED: _ClassVar[EncodingProto]
+    ENCODING_CSON: _ClassVar[EncodingProto]
+    ENCODING_PROTO: _ClassVar[EncodingProto]
+
 class EntitlementTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
     ENTITLEMENT_TYPE_UNSPECIFIED: _ClassVar[EntitlementTypeProto]
@@ -321,6 +327,7 @@ class EnumTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     ENUM_TYPE_EDGE_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EDGE_DIRECTION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CASCADE_ACTION: _ClassVar[EnumTypeProto]
+    ENUM_TYPE_ENCODING: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EDIT_TYPE: _ClassVar[EnumTypeProto]
     ENUM_TYPE_EDIT_OPERATION: _ClassVar[EnumTypeProto]
     ENUM_TYPE_CONDITIONAL_TYPE: _ClassVar[EnumTypeProto]
@@ -1042,12 +1049,14 @@ class PrimitiveTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PRIMITIVE_TYPE_FLOAT64: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_STRING: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_UUID: _ClassVar[PrimitiveTypeProto]
-    PRIMITIVE_TYPE_JSON: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_BYTES: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_DATETIME: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_DATE: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_TIME: _ClassVar[PrimitiveTypeProto]
     PRIMITIVE_TYPE_DURATION: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_JSON: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_CSON: _ClassVar[PrimitiveTypeProto]
+    PRIMITIVE_TYPE_PROTO: _ClassVar[PrimitiveTypeProto]
 
 class PropertyReferenceTypeProto(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -1712,6 +1721,9 @@ EFFECT_TYPE_PRESS: EffectTypeProto
 EFFECT_TYPE_DRAG: EffectTypeProto
 EFFECT_TYPE_FOCUS: EffectTypeProto
 EFFECT_TYPE_LOOP: EffectTypeProto
+ENCODING_UNSPECIFIED: EncodingProto
+ENCODING_CSON: EncodingProto
+ENCODING_PROTO: EncodingProto
 ENTITLEMENT_TYPE_UNSPECIFIED: EntitlementTypeProto
 ENTITLEMENT_TYPE_PERMISSION: EntitlementTypeProto
 ENTITLEMENT_TYPE_ROLE: EntitlementTypeProto
@@ -1743,6 +1755,7 @@ ENUM_TYPE_PROPERTY_TYPE: EnumTypeProto
 ENUM_TYPE_EDGE_TYPE: EnumTypeProto
 ENUM_TYPE_EDGE_DIRECTION: EnumTypeProto
 ENUM_TYPE_CASCADE_ACTION: EnumTypeProto
+ENUM_TYPE_ENCODING: EnumTypeProto
 ENUM_TYPE_EDIT_TYPE: EnumTypeProto
 ENUM_TYPE_EDIT_OPERATION: EnumTypeProto
 ENUM_TYPE_CONDITIONAL_TYPE: EnumTypeProto
@@ -2332,12 +2345,14 @@ PRIMITIVE_TYPE_FLOAT32: PrimitiveTypeProto
 PRIMITIVE_TYPE_FLOAT64: PrimitiveTypeProto
 PRIMITIVE_TYPE_STRING: PrimitiveTypeProto
 PRIMITIVE_TYPE_UUID: PrimitiveTypeProto
-PRIMITIVE_TYPE_JSON: PrimitiveTypeProto
 PRIMITIVE_TYPE_BYTES: PrimitiveTypeProto
 PRIMITIVE_TYPE_DATETIME: PrimitiveTypeProto
 PRIMITIVE_TYPE_DATE: PrimitiveTypeProto
 PRIMITIVE_TYPE_TIME: PrimitiveTypeProto
 PRIMITIVE_TYPE_DURATION: PrimitiveTypeProto
+PRIMITIVE_TYPE_JSON: PrimitiveTypeProto
+PRIMITIVE_TYPE_CSON: PrimitiveTypeProto
+PRIMITIVE_TYPE_PROTO: PrimitiveTypeProto
 PROPERTY_REFERENCE_TYPE_UNSPECIFIED: PropertyReferenceTypeProto
 PROPERTY_REFERENCE_TYPE_BUILTIN: PropertyReferenceTypeProto
 PROPERTY_REFERENCE_TYPE_CUSTOM: PropertyReferenceTypeProto

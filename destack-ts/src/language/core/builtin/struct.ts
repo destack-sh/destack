@@ -35,8 +35,8 @@ export abstract class StructFrozen extends Struct {
   readonly _repr: string | null = null;
   /** Cached proto representation of the Struct. */
   readonly _proto: AnyStructProto | null = null;
-  /** Cached value representation of the Struct. */
-  readonly _value: Record<string, any> | null = null;
+  /** Cached cson representation of the Struct. */
+  readonly _cson: Record<string, any> | null = null;
 
   _invalidateFrozenCache(): void {
     // @ts-ignore
@@ -46,7 +46,7 @@ export abstract class StructFrozen extends Struct {
     // @ts-ignore
     this._proto = null;
     // @ts-ignore
-    this._value = null;
+    this._cson = null;
   }
 }
 

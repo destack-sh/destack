@@ -1271,114 +1271,114 @@ export class File extends Resource {
     return `<File "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return File.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return File.__packCson__(this);
   }
 
-  static __packValue__(object: File): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 480000;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: File): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 480000;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
     if (object._ownedByPtr != null) {
-      objectValue["32"] = object._ownedByPtr.toValue();
+      objectCson["32"] = object._ownedByPtr.toCson();
     }
-    objectValue["40"] = object._status;
-    objectValue["50"] = object._name;
+    objectCson["40"] = object._status;
+    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
-    objectValue["100"] = object._type;
-    objectValue["110"] = object._source;
+    objectCson["90"] = object.isExtensible;
+    objectCson["100"] = object._type;
+    objectCson["110"] = object._source;
     if (object._mimeType != null) {
-      objectValue["111"] = object._mimeType;
+      objectCson["111"] = object._mimeType;
     }
     if (object._format != null) {
-      objectValue["112"] = object._format;
+      objectCson["112"] = object._format;
     }
     if (object._size != null) {
-      objectValue["113"] = object._size;
+      objectCson["113"] = object._size;
     }
     if (object._sha256 != null) {
-      objectValue["114"] = object._sha256;
+      objectCson["114"] = object._sha256;
     }
     if (object._width != null) {
-      objectValue["115"] = object._width;
+      objectCson["115"] = object._width;
     }
     if (object._height != null) {
-      objectValue["116"] = object._height;
+      objectCson["116"] = object._height;
     }
     if (object._aspectRatio != null) {
-      objectValue["117"] = object._aspectRatio;
+      objectCson["117"] = object._aspectRatio;
     }
     if (object._codec != null) {
-      objectValue["118"] = object._codec;
+      objectCson["118"] = object._codec;
     }
     if (object._duration != null) {
-      objectValue["119"] = timedeltaToISOFormat(object._duration);
+      objectCson["119"] = timedeltaToISOFormat(object._duration);
     }
     if (object._url != null) {
-      objectValue["120"] = object._url;
+      objectCson["120"] = object._url;
     }
     if (object._contentUrl != null) {
-      objectValue["121"] = object._contentUrl;
+      objectCson["121"] = object._contentUrl;
     }
     if (object._thumbnailUrl != null) {
-      objectValue["122"] = object._thumbnailUrl;
+      objectCson["122"] = object._thumbnailUrl;
     }
     if (object._faviconUrl != null) {
-      objectValue["123"] = object._faviconUrl;
+      objectCson["123"] = object._faviconUrl;
     }
     if (object._thumbnailWidth != null) {
-      objectValue["124"] = object._thumbnailWidth;
+      objectCson["124"] = object._thumbnailWidth;
     }
     if (object._thumbnailHeight != null) {
-      objectValue["125"] = object._thumbnailHeight;
+      objectCson["125"] = object._thumbnailHeight;
     }
     if (object._content != null) {
-      objectValue["126"] = base64Encode(object._content);
+      objectCson["126"] = base64Encode(object._content);
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1386,90 +1386,90 @@ export class File extends Resource {
   ): File {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const mimeTypeValue = objectValue["111"];
+    const mimeTypeValue = objectCson["111"];
     const unpackedMimeType = mimeTypeValue != undefined ? mimeTypeValue : null;
-    const formatValue = objectValue["112"];
+    const formatValue = objectCson["112"];
     const unpackedFormat = formatValue != undefined ? Number(formatValue) : null;
-    const sizeValue = objectValue["113"];
+    const sizeValue = objectCson["113"];
     const unpackedSize = sizeValue != undefined ? Number(sizeValue) : null;
-    const sha256Value = objectValue["114"];
+    const sha256Value = objectCson["114"];
     const unpackedSha256 = sha256Value != undefined ? sha256Value : null;
-    const widthValue = objectValue["115"];
+    const widthValue = objectCson["115"];
     const unpackedWidth = widthValue != undefined ? Number(widthValue) : null;
-    const heightValue = objectValue["116"];
+    const heightValue = objectCson["116"];
     const unpackedHeight = heightValue != undefined ? Number(heightValue) : null;
-    const aspectRatioValue = objectValue["117"];
+    const aspectRatioValue = objectCson["117"];
     const unpackedAspectRatio = aspectRatioValue != undefined ? aspectRatioValue : null;
-    const codecValue = objectValue["118"];
+    const codecValue = objectCson["118"];
     const unpackedCodec = codecValue != undefined ? codecValue : null;
-    const durationValue = objectValue["119"];
+    const durationValue = objectCson["119"];
     const unpackedDuration =
       durationValue != undefined ? timedeltaFromISOFormat(durationValue) : null;
-    const urlValue = objectValue["120"];
+    const urlValue = objectCson["120"];
     const unpackedUrl = urlValue != undefined ? urlValue : null;
-    const contentUrlValue = objectValue["121"];
+    const contentUrlValue = objectCson["121"];
     const unpackedContentUrl = contentUrlValue != undefined ? contentUrlValue : null;
-    const thumbnailUrlValue = objectValue["122"];
+    const thumbnailUrlValue = objectCson["122"];
     const unpackedThumbnailUrl = thumbnailUrlValue != undefined ? thumbnailUrlValue : null;
-    const faviconUrlValue = objectValue["123"];
+    const faviconUrlValue = objectCson["123"];
     const unpackedFaviconUrl = faviconUrlValue != undefined ? faviconUrlValue : null;
-    const thumbnailWidthValue = objectValue["124"];
+    const thumbnailWidthValue = objectCson["124"];
     const unpackedThumbnailWidth =
       thumbnailWidthValue != undefined ? Number(thumbnailWidthValue) : null;
-    const thumbnailHeightValue = objectValue["125"];
+    const thumbnailHeightValue = objectCson["125"];
     const unpackedThumbnailHeight =
       thumbnailHeightValue != undefined ? Number(thumbnailHeightValue) : null;
-    const contentValue = objectValue["126"];
+    const contentValue = objectCson["126"];
     const unpackedContent = contentValue != undefined ? base64Decode(contentValue) : null;
-    const ownedByPtrValue = objectValue["32"];
+    const ownedByPtrValue = objectCson["32"];
     const unpackedOwnedByPtr =
       ownedByPtrValue != undefined
-        ? _NodeReference.fromValue(ownedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(ownedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -1480,8 +1480,8 @@ export class File extends Resource {
     }
     return new File({
       parent: unpackedParentPtr,
-      type: Number(objectValue["100"]),
-      source: Number(objectValue["110"]),
+      type: Number(objectCson["100"]),
+      source: Number(objectCson["110"]),
       mimeType: unpackedMimeType,
       format: unpackedFormat,
       size: unpackedSize,
@@ -1498,20 +1498,14 @@ export class File extends Resource {
       thumbnailWidth: unpackedThumbnailWidth,
       thumbnailHeight: unpackedThumbnailHeight,
       content: unpackedContent,
-      status: Number(objectValue["40"]),
-      isExtensible: objectValue["90"],
+      status: Number(objectCson["40"]),
+      isExtensible: objectCson["90"],
       ownedBy: unpackedOwnedByPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -1519,17 +1513,17 @@ export class File extends Resource {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
+      name: objectCson["50"],
       script: unpackedScriptPtr,
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       customValues: unpackedCustomValues,
       _session,
       _graph,
@@ -1537,14 +1531,14 @@ export class File extends Resource {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): File {
-    return File.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return File.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): FileProto {

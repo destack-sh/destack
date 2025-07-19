@@ -233,7 +233,7 @@ function _executeEdit(options: {
         }
       }
       // update parent pointer
-      row.parentPtr = NodeReference.fromValue(edit.value.value);
+      row.parentPtr = NodeReference.fromCson(edit.value.value);
       row.value[ENTITY_PARENT_KEY] = edit.value.value;
       // add to new parent
       if (row.parentPtr) {

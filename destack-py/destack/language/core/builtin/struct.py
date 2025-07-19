@@ -23,7 +23,7 @@ from .object import (
 from .property import _PROPERTY_SPECIFIERS, builtin_property_runtime
 
 if TYPE_CHECKING:
-    from destack.language import Json, StructDefinition
+    from destack.language import Cson, StructDefinition
 
 # pyright: reportIncompatibleVariableOverride=false
 
@@ -146,15 +146,15 @@ class StructFrozen[StructProtoT: AnyStructProto](Struct[StructProtoT]):
     _repr: "str | None" = builtin_property_runtime()
     """Cached proto representation of the Struct."""
     _proto: "StructProtoT | None" = builtin_property_runtime()
-    """Cached value representation of the Struct."""
-    _value: "Json | None" = builtin_property_runtime()
+    """Cached Cson representation of the Struct."""
+    _cson: "Cson | None" = builtin_property_runtime()
 
     def _invalidate_frozen_cache(self) -> None:
         # frozen Structs should be immutable, but sometimes we need to break out of that
         object.__setattr__(self, "_hash", None)
         object.__setattr__(self, "_repr", None)
         object.__setattr__(self, "_proto", None)
-        object.__setattr__(self, "_value", None)
+        object.__setattr__(self, "_cson", None)
 
     def clone(self, **override: Any) -> Self:
         """Clone the Struct with new values."""

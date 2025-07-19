@@ -135,7 +135,7 @@ export class Stroke extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -190,7 +190,7 @@ export class Stroke extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -278,37 +278,37 @@ export class Stroke extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = Stroke.__packValue__(this);
+      this._cson = Stroke.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: Stroke): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101100;
-    objectValue["100"] = object.type;
-    objectValue["101"] = object.size;
-    objectValue["102"] = object.thinning;
-    objectValue["103"] = object.smoothing;
-    objectValue["104"] = object.streamline;
-    objectValue["105"] = object.easing;
+  static __packCson__(object: Stroke): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2101100;
+    objectCson["100"] = object.type;
+    objectCson["101"] = object.size;
+    objectCson["102"] = object.thinning;
+    objectCson["103"] = object.smoothing;
+    objectCson["104"] = object.streamline;
+    objectCson["105"] = object.easing;
     if (object.color != null) {
-      objectValue["106"] = object.color.toValue();
+      objectCson["106"] = object.color.toCson();
     }
     if (object.start != null) {
-      objectValue["110"] = object.start.toValue();
+      objectCson["110"] = object.start.toCson();
     }
     if (object.end != null) {
-      objectValue["111"] = object.end.toValue();
+      objectCson["111"] = object.end.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -316,44 +316,44 @@ export class Stroke extends StructFrozen {
   ): Stroke {
     const _Color = STRUCT_CLASS_BY_TYPE[StructType.COLOR] as typeof Color;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const colorValue = objectValue["106"];
+    const colorValue = objectCson["106"];
     const unpackedColor =
       colorValue != undefined
-        ? _Color.fromValue(colorValue, _session, _supergraph, _graph, _connection)
+        ? _Color.fromCson(colorValue, _session, _supergraph, _graph, _connection)
         : null;
-    const startValue = objectValue["110"];
+    const startValue = objectCson["110"];
     const unpackedStart =
       startValue != undefined
-        ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromCson(startValue, _session, _supergraph, _graph, _connection)
         : null;
-    const endValue = objectValue["111"];
+    const endValue = objectCson["111"];
     const unpackedEnd =
       endValue != undefined
-        ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromCson(endValue, _session, _supergraph, _graph, _connection)
         : null;
     return new Stroke({
-      type: Number(objectValue["100"]),
-      size: Number(objectValue["101"]),
-      thinning: objectValue["102"],
-      smoothing: objectValue["103"],
-      streamline: objectValue["104"],
-      easing: Number(objectValue["105"]),
+      type: Number(objectCson["100"]),
+      size: Number(objectCson["101"]),
+      thinning: objectCson["102"],
+      smoothing: objectCson["103"],
+      streamline: objectCson["104"],
+      easing: Number(objectCson["105"]),
       color: unpackedColor,
       start: unpackedStart,
       end: unpackedEnd,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): Stroke {
-    return Stroke.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return Stroke.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StrokeProto {
@@ -472,7 +472,7 @@ export class StrokeCap extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -506,7 +506,7 @@ export class StrokeCap extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -549,47 +549,47 @@ export class StrokeCap extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = StrokeCap.__packValue__(this);
+      this._cson = StrokeCap.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: StrokeCap): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101101;
-    objectValue["101"] = object.cap;
-    objectValue["102"] = object.taper;
-    objectValue["103"] = object.easing;
-    return objectValue;
+  static __packCson__(object: StrokeCap): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2101101;
+    objectCson["101"] = object.cap;
+    objectCson["102"] = object.taper;
+    objectCson["103"] = object.easing;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeCap {
     return new StrokeCap({
-      cap: objectValue["101"],
-      taper: objectValue["102"],
-      easing: Number(objectValue["103"]),
-      _value: objectValue,
+      cap: objectCson["101"],
+      taper: objectCson["102"],
+      easing: Number(objectCson["103"]),
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeCap {
-    return StrokeCap.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return StrokeCap.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StrokeCapProto {
@@ -703,7 +703,7 @@ export class StrokePoint extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -757,7 +757,7 @@ export class StrokePoint extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -828,29 +828,29 @@ export class StrokePoint extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = StrokePoint.__packValue__(this);
+      this._cson = StrokePoint.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: StrokePoint): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101103;
-    objectValue["101"] = object.point.toValue();
-    objectValue["102"] = object.originalPoint.toValue();
-    objectValue["103"] = object.pressure;
-    objectValue["104"] = object.direction.toValue();
-    objectValue["105"] = object.distance;
-    objectValue["106"] = object.runningLength;
-    objectValue["107"] = object.radius;
-    return objectValue;
+  static __packCson__(object: StrokePoint): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2101103;
+    objectCson["101"] = object.point.toCson();
+    objectCson["102"] = object.originalPoint.toCson();
+    objectCson["103"] = object.pressure;
+    objectCson["104"] = object.direction.toCson();
+    objectCson["105"] = object.distance;
+    objectCson["106"] = object.runningLength;
+    objectCson["107"] = object.radius;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -858,38 +858,32 @@ export class StrokePoint extends StructFrozen {
   ): StrokePoint {
     const _Vector2f = STRUCT_CLASS_BY_TYPE[StructType.VECTOR2F] as typeof Vector2f;
     return new StrokePoint({
-      point: _Vector2f.fromValue(objectValue["101"], _session, _supergraph, _graph, _connection),
-      originalPoint: _Vector2f.fromValue(
-        objectValue["102"],
+      point: _Vector2f.fromCson(objectCson["101"], _session, _supergraph, _graph, _connection),
+      originalPoint: _Vector2f.fromCson(
+        objectCson["102"],
         _session,
         _supergraph,
         _graph,
         _connection,
       ),
-      pressure: objectValue["103"],
-      direction: _Vector2f.fromValue(
-        objectValue["104"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      distance: objectValue["105"],
-      runningLength: objectValue["106"],
-      radius: objectValue["107"],
-      _value: objectValue,
+      pressure: objectCson["103"],
+      direction: _Vector2f.fromCson(objectCson["104"], _session, _supergraph, _graph, _connection),
+      distance: objectCson["105"],
+      runningLength: objectCson["106"],
+      radius: objectCson["107"],
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePoint {
-    return StrokePoint.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return StrokePoint.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StrokePointProto {
@@ -988,7 +982,7 @@ export class StrokePath extends StructFrozen {
     _hash?: number | null;
     _repr?: string | null;
     _proto?: any | null;
-    _value?: { [key: string]: any } | null;
+    _cson?: any | null;
   }) {
     super(
       // session
@@ -1012,7 +1006,7 @@ export class StrokePath extends StructFrozen {
     // @ts-expect-error(readonly)
     this._proto = options._proto ?? null;
     // @ts-expect-error(readonly)
-    this._value = options._value ?? null;
+    this._cson = options._cson ?? null;
   }
 
   equals(other: any): boolean {
@@ -1069,29 +1063,29 @@ export class StrokePath extends StructFrozen {
     throw new Error("not implemented");
   }
 
-  toValue(): { readonly [key: string]: any } {
-    if (this._value === null) {
+  toCson(): { [key: string]: any } {
+    if (this._cson === null) {
       // @ts-expect-error(readonly)
-      this._value = StrokePath.__packValue__(this);
+      this._cson = StrokePath.__packCson__(this);
     }
-    return this._value;
+    return this._cson;
   }
 
-  static __packValue__(object: StrokePath): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101102;
+  static __packCson__(object: StrokePath): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2101102;
     if (object.points.length > 0) {
       const packedPoints: any[] = [];
       for (const item of object.points) {
-        packedPoints.push(item.toValue());
+        packedPoints.push(item.toCson());
       }
-      objectValue["101"] = packedPoints;
+      objectCson["101"] = packedPoints;
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -1099,28 +1093,28 @@ export class StrokePath extends StructFrozen {
   ): StrokePath {
     const _StrokePoint = STRUCT_CLASS_BY_TYPE[StructType.STROKE_POINT] as typeof StrokePoint;
     const unpackedPoints: any[] = [];
-    if (objectValue["101"] != undefined) {
-      for (const item of objectValue["101"]) {
+    if (objectCson["101"] != undefined) {
+      for (const item of objectCson["101"]) {
         unpackedPoints.push(
-          _StrokePoint.fromValue(item, _session, _supergraph, _graph, _connection),
+          _StrokePoint.fromCson(item, _session, _supergraph, _graph, _connection),
         );
       }
     }
     return new StrokePath({
       points: unpackedPoints,
-      _value: objectValue,
+      _cson: objectCson,
       _supergraph,
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StrokePath {
-    return StrokePath.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return StrokePath.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StrokePathProto {
@@ -1945,73 +1939,73 @@ export class StrokeStyle extends Style {
     return `<StrokeStyle "${this.path}" ${propertyReprs.join(" ")}>`;
   }
 
-  toValue(): { readonly [key: string]: any } {
-    return StrokeStyle.__packValue__(this);
+  toCson(): { [key: string]: any } {
+    return StrokeStyle.__packCson__(this);
   }
 
-  static __packValue__(object: StrokeStyle): { readonly [key: string]: any } {
-    const objectValue: { [key: string]: any } = {};
-    objectValue["1"] = 2101100;
-    objectValue["2"] = String(object.id);
+  static __packCson__(object: StrokeStyle): { [key: string]: any } {
+    const objectCson: { [key: string]: any } = {};
+    objectCson["1"] = 2101100;
+    objectCson["2"] = String(object.id);
     if (object.parentPtr != null) {
-      objectValue["3"] = object.parentPtr.toValue();
+      objectCson["3"] = object.parentPtr.toCson();
     }
-    objectValue["5"] = object.spacePtr.toValue();
-    objectValue["10"] = object.materialization;
+    objectCson["5"] = object.spacePtr.toCson();
+    objectCson["10"] = object.materialization;
     if (object.definitionPtr != null) {
-      objectValue["11"] = object.definitionPtr.toValue();
+      objectCson["11"] = object.definitionPtr.toCson();
     }
-    objectValue["12"] = object.branchPtr.toValue();
-    objectValue["13"] = object.snapshotPtr.toValue();
+    objectCson["12"] = object.branchPtr.toCson();
+    objectCson["13"] = object.snapshotPtr.toCson();
     if (object.precededByPtr != null) {
-      objectValue["14"] = object.precededByPtr.toValue();
+      objectCson["14"] = object.precededByPtr.toCson();
     }
     if (object.instancePtr != null) {
-      objectValue["15"] = object.instancePtr.toValue();
+      objectCson["15"] = object.instancePtr.toCson();
     }
-    objectValue["20"] = object.createdAt.toString({ timeZoneName: "never" });
-    objectValue["21"] = object.createdEpoch;
+    objectCson["20"] = object.createdAt.toString({ timeZoneName: "never" });
+    objectCson["21"] = object.createdEpoch;
     if (object.createdByPtr != null) {
-      objectValue["22"] = object.createdByPtr.toValue();
+      objectCson["22"] = object.createdByPtr.toCson();
     }
-    objectValue["23"] = object.updatedAt.toString({ timeZoneName: "never" });
-    objectValue["24"] = object.updatedEpoch;
+    objectCson["23"] = object.updatedAt.toString({ timeZoneName: "never" });
+    objectCson["24"] = object.updatedEpoch;
     if (object.updatedByPtr != null) {
-      objectValue["25"] = object.updatedByPtr.toValue();
+      objectCson["25"] = object.updatedByPtr.toCson();
     }
     if (object.deletedAt != null) {
-      objectValue["26"] = object.deletedAt.toString({ timeZoneName: "never" });
+      objectCson["26"] = object.deletedAt.toString({ timeZoneName: "never" });
     }
     if (Object.keys(object._customValues).length > 0) {
       const packedCustomValues: { [key: string]: any } = {} as any;
       for (const [key, value] of Object.entries(object._customValues)) {
-        packedCustomValues[String(String(key))] = value.toValue();
+        packedCustomValues[String(String(key))] = value.toCson();
       }
-      objectValue["30"] = packedCustomValues;
+      objectCson["30"] = packedCustomValues;
     }
-    objectValue["31"] = object.orderKey;
-    objectValue["50"] = object._name;
+    objectCson["31"] = object.orderKey;
+    objectCson["50"] = object._name;
     if (object._scriptPtr != null) {
-      objectValue["80"] = object._scriptPtr.toValue();
+      objectCson["80"] = object._scriptPtr.toCson();
     }
-    objectValue["90"] = object.isExtensible;
-    objectValue["100"] = object._type;
-    objectValue["200"] = object._size;
-    objectValue["201"] = object._thinning;
-    objectValue["202"] = object._smoothing;
-    objectValue["203"] = object._streamline;
-    objectValue["204"] = object._easing;
+    objectCson["90"] = object.isExtensible;
+    objectCson["100"] = object._type;
+    objectCson["200"] = object._size;
+    objectCson["201"] = object._thinning;
+    objectCson["202"] = object._smoothing;
+    objectCson["203"] = object._streamline;
+    objectCson["204"] = object._easing;
     if (object._start != null) {
-      objectValue["205"] = object._start.toValue();
+      objectCson["205"] = object._start.toCson();
     }
     if (object._end != null) {
-      objectValue["206"] = object._end.toValue();
+      objectCson["206"] = object._end.toCson();
     }
-    return objectValue;
+    return objectCson;
   }
 
-  static __unpackValue__(
-    objectValue: { readonly [key: string]: any },
+  static __unpackCson__(
+    objectCson: { [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
@@ -2020,60 +2014,60 @@ export class StrokeStyle extends Style {
     const _Value = STRUCT_CLASS_BY_TYPE[StructType.VALUE] as typeof Value;
     const _NodeReference = STRUCT_CLASS_BY_TYPE[StructType.NODE_REFERENCE] as typeof NodeReference;
     const _StrokeCap = STRUCT_CLASS_BY_TYPE[StructType.STROKE_CAP] as typeof StrokeCap;
-    const startValue = objectValue["205"];
+    const startValue = objectCson["205"];
     const unpackedStart =
       startValue != undefined
-        ? _StrokeCap.fromValue(startValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromCson(startValue, _session, _supergraph, _graph, _connection)
         : null;
-    const endValue = objectValue["206"];
+    const endValue = objectCson["206"];
     const unpackedEnd =
       endValue != undefined
-        ? _StrokeCap.fromValue(endValue, _session, _supergraph, _graph, _connection)
+        ? _StrokeCap.fromCson(endValue, _session, _supergraph, _graph, _connection)
         : null;
-    const parentPtrValue = objectValue["3"];
+    const parentPtrValue = objectCson["3"];
     const unpackedParentPtr =
       parentPtrValue != undefined
-        ? _NodeReference.fromValue(parentPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(parentPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const definitionPtrValue = objectValue["11"];
+    const definitionPtrValue = objectCson["11"];
     const unpackedDefinitionPtr =
       definitionPtrValue != undefined
-        ? _NodeReference.fromValue(definitionPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(definitionPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const precededByPtrValue = objectValue["14"];
+    const precededByPtrValue = objectCson["14"];
     const unpackedPrecededByPtr =
       precededByPtrValue != undefined
-        ? _NodeReference.fromValue(precededByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(precededByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const instancePtrValue = objectValue["15"];
+    const instancePtrValue = objectCson["15"];
     const unpackedInstancePtr =
       instancePtrValue != undefined
-        ? _NodeReference.fromValue(instancePtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(instancePtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const createdByPtrValue = objectValue["22"];
+    const createdByPtrValue = objectCson["22"];
     const unpackedCreatedByPtr =
       createdByPtrValue != undefined
-        ? _NodeReference.fromValue(createdByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(createdByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const updatedByPtrValue = objectValue["25"];
+    const updatedByPtrValue = objectCson["25"];
     const unpackedUpdatedByPtr =
       updatedByPtrValue != undefined
-        ? _NodeReference.fromValue(updatedByPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(updatedByPtrValue, _session, _supergraph, _graph, _connection)
         : null;
-    const deletedAtValue = objectValue["26"];
+    const deletedAtValue = objectCson["26"];
     const unpackedDeletedAt =
       deletedAtValue != undefined
         ? Temporal.Instant.from(deletedAtValue).toZonedDateTimeISO("UTC")
         : null;
-    const scriptPtrValue = objectValue["80"];
+    const scriptPtrValue = objectCson["80"];
     const unpackedScriptPtr =
       scriptPtrValue != undefined
-        ? _NodeReference.fromValue(scriptPtrValue, _session, _supergraph, _graph, _connection)
+        ? _NodeReference.fromCson(scriptPtrValue, _session, _supergraph, _graph, _connection)
         : null;
     const unpackedCustomValues = {} as any;
-    if (objectValue["30"] != undefined) {
-      for (const [key, value] of Object.entries(objectValue["30"])) {
-        unpackedCustomValues[String(key)] = _Value.fromValue(
+    if (objectCson["30"] != undefined) {
+      for (const [key, value] of Object.entries(objectCson["30"])) {
+        unpackedCustomValues[String(key)] = _Value.fromCson(
           value as any,
           _session,
           _supergraph,
@@ -2083,26 +2077,20 @@ export class StrokeStyle extends Style {
       }
     }
     return new StrokeStyle({
-      type: Number(objectValue["100"]),
-      size: Number(objectValue["200"]),
-      thinning: objectValue["201"],
-      smoothing: objectValue["202"],
-      streamline: objectValue["203"],
-      easing: Number(objectValue["204"]),
+      type: Number(objectCson["100"]),
+      size: Number(objectCson["200"]),
+      thinning: objectCson["201"],
+      smoothing: objectCson["202"],
+      streamline: objectCson["203"],
+      easing: Number(objectCson["204"]),
       start: unpackedStart,
       end: unpackedEnd,
       parent: unpackedParentPtr,
-      materialization: Number(objectValue["10"]),
+      materialization: Number(objectCson["10"]),
       definition: unpackedDefinitionPtr,
-      branch: _NodeReference.fromValue(
-        objectValue["12"],
-        _session,
-        _supergraph,
-        _graph,
-        _connection,
-      ),
-      snapshot: _NodeReference.fromValue(
-        objectValue["13"],
+      branch: _NodeReference.fromCson(objectCson["12"], _session, _supergraph, _graph, _connection),
+      snapshot: _NodeReference.fromCson(
+        objectCson["13"],
         _session,
         _supergraph,
         _graph,
@@ -2110,18 +2098,18 @@ export class StrokeStyle extends Style {
       ),
       precededBy: unpackedPrecededByPtr,
       instance: unpackedInstancePtr,
-      createdAt: Temporal.Instant.from(objectValue["20"]).toZonedDateTimeISO("UTC"),
-      createdEpoch: Number(objectValue["21"]),
+      createdAt: Temporal.Instant.from(objectCson["20"]).toZonedDateTimeISO("UTC"),
+      createdEpoch: Number(objectCson["21"]),
       createdBy: unpackedCreatedByPtr,
-      updatedAt: Temporal.Instant.from(objectValue["23"]).toZonedDateTimeISO("UTC"),
-      updatedEpoch: Number(objectValue["24"]),
+      updatedAt: Temporal.Instant.from(objectCson["23"]).toZonedDateTimeISO("UTC"),
+      updatedEpoch: Number(objectCson["24"]),
       updatedBy: unpackedUpdatedByPtr,
       deletedAt: unpackedDeletedAt,
-      name: objectValue["50"],
-      orderKey: objectValue["31"],
-      isExtensible: objectValue["90"],
-      id: String(objectValue["2"]),
-      space: _NodeReference.fromValue(objectValue["5"], _session, _supergraph, _graph, _connection),
+      name: objectCson["50"],
+      orderKey: objectCson["31"],
+      isExtensible: objectCson["90"],
+      id: String(objectCson["2"]),
+      space: _NodeReference.fromCson(objectCson["5"], _session, _supergraph, _graph, _connection),
       script: unpackedScriptPtr,
       customValues: unpackedCustomValues,
       _session,
@@ -2130,14 +2118,14 @@ export class StrokeStyle extends Style {
     });
   }
 
-  static fromValue(
-    objectValue: { readonly [key: string]: any },
+  static fromCson(
+    objectCson: { readonly [key: string]: any },
     _session?: Session | null,
     _supergraph?: Supergraph | null,
     _graph?: any | null,
     _connection?: any | null,
   ): StrokeStyle {
-    return StrokeStyle.__unpackValue__(objectValue, _session, _supergraph, _graph, _connection);
+    return StrokeStyle.__unpackCson__(objectCson, _session, _supergraph, _graph, _connection);
   }
 
   toProto(): StrokeStyleProto {

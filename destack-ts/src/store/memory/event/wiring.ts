@@ -35,7 +35,7 @@ export function packEventRow(value: Value): MemoryEventRow {
   let snapshotPtr: NodeReference | null = null;
   const snapshotPtrValue = valuePacked[EVENT_SNAPSHOT_KEY];
   if (snapshotPtrValue !== undefined) {
-    snapshotPtr = NodeReference.fromValue(snapshotPtrValue);
+    snapshotPtr = NodeReference.fromCson(snapshotPtrValue);
   }
 
   const createdAt = new Date(valuePacked[EVENT_CREATED_AT_KEY]);
